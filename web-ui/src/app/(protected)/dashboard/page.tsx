@@ -1,0 +1,1 @@
+import { bridge } from '../../../lib/bridge';import Footer from '../../../components/Footer';export default async function Dashboard(){const s=await bridge('/status');return <div style={{padding:24}}><h1>Dashboard</h1><pre>{JSON.stringify(s,null,2)}</pre><Footer/></div>}

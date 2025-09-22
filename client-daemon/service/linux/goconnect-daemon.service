@@ -1,0 +1,7 @@
+[Unit]
+Description=GoConnect Daemon
+[Service]
+ExecStart=/usr/local/bin/goconnect-daemon
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target

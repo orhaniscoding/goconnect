@@ -1,0 +1,19 @@
+{
+  "release-type": "simple",
+  "monorepo-tags": true,
+  "include-component-in-tag": false,
+  "packages": {
+    ".": {
+      "release-type": "simple"
+    },
+    "server": {
+      "release-type": "go"
+    },
+    "client-daemon": {
+      "release-type": "go"
+    },
+    "web-ui": {
+      "release-type": "node"
+    }
+  }
+}

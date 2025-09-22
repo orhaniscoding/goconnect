@@ -1,0 +1,18 @@
+openapi: 3.0.3
+info:
+  title: GoConnect API
+  version: 0.1.0
+  contact:
+    name: orhaniscoding
+    url: https://github.com/orhaniscoding/goconnect
+servers:
+  - url: https://api.goconnect.example
+paths:
+  /v1/networks:
+    get:
+      summary: List networks
+      responses: { "200": { "description": "OK" } }
+    post:
+      summary: Create network
+      requestBody: { required: true }
+      responses: { "201": { "description": "Created" }, "409": { "description": "Conflict" } }

@@ -1,0 +1,1 @@
+<?xml version="1.0"?><plist version="1.0"><dict><key>Label</key><string>com.goconnect.daemon</string><key>ProgramArguments</key><array><string>/usr/local/bin/goconnect-daemon</string></array><key>RunAtLoad</key><true/></dict></plist>

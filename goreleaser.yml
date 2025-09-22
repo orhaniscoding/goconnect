@@ -1,0 +1,37 @@
+version: 2
+env: [CGO_ENABLED=0]
+builds:
+  - id: server
+    main: ./server/cmd/server/main.go
+    binary: goconnect-server
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=orhaniscoding
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+  - id: daemon
+    main: ./client-daemon/cmd/daemon/main.go
+    binary: goconnect-daemon
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=orhaniscoding
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+archives:
+  - id: archive
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+nfpms:
+  - id: linux
+    package_name: goconnect
+    vendor: orhaniscoding
+    maintainer: orhaniscoding
+    description: "GoConnect — Host/Daemon"
+    formats: [deb, rpm]
+    contents:
+      - src: ./dist/goconnect-server_{{ .Os }}_{{ .Arch }}
+        dst: /usr/local/bin/goconnect-server
+        type: file
+        mode: 0755
+      - src: ./dist/goconnect-daemon_{{ .Os }}_{{ .Arch }}
+        dst: /usr/local/bin/goconnect-daemon
+        type: file
+        mode: 0755
