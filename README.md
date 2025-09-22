@@ -1,6 +1,3 @@
-# GoConnect — by orhaniscoding
+# GoConnect — prepatched starter v4
 
-Latest: {LATEST_TAG} · {RELEASE_DATE}
-
-Binaries: goconnect-server · goconnect-daemon
-© 2025 orhaniscoding — MIT
+© 2025 Orhan Tüzer (orhaniscoding)

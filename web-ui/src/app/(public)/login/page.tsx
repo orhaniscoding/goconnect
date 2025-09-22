@@ -1,1 +1,1 @@
-import { api } from '../../../lib/api';import Footer from '../../../components/Footer';export default function Login(){return <div style={{padding:24}}><h1>Login</h1><button onClick={async()=>alert(JSON.stringify(await api('/v1/auth/login',{method:'POST',body:JSON.stringify({email:'a@b.com',password:'x'})}),null,2))}>Stub Login</button><Footer/></div>}
+import Footer from '../../../components/Footer';export default function Login(){return <div style={{padding:24}}><h1>Login</h1><Footer/></div>}
