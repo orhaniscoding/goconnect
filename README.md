@@ -1,4 +1,4 @@
-# GoConnect — by orhaniscoding
+# GoConnect — by orhaniscoding (Orhan Tüzer)
 
 Latest: {LATEST_TAG} · {RELEASE_DATE}
 
