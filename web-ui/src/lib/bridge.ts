@@ -1,1 +1,1 @@
-export async function bridge(path, init){ const origin=process.env.NEXT_PUBLIC_BRIDGE_ORIGIN||'http://127.0.0.1'; const port=process.env.NEXT_PUBLIC_BRIDGE_PORT_HINT||'12000'; const res=await fetch(`${origin}:${port}${path}`, init); return res.json(); }
+export async function bridge(path, init){ const o=process.env.NEXT_PUBLIC_BRIDGE_ORIGIN||'http://127.0.0.1'; const p=process.env.NEXT_PUBLIC_BRIDGE_PORT_HINT||'12000'; const r=await fetch(`${o}:${p}${path}`, init); return r.json(); }

@@ -1,1 +1,5 @@
-{"editor.formatOnSave":true,"files.eol":"\n","go.useLanguageServer":true}
+{
+  "editor.formatOnSave": true,
+  "files.eol": "\n",
+  "go.useLanguageServer": true
+}

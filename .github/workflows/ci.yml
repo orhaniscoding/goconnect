@@ -23,5 +23,7 @@ jobs:
         with: { node-version: '20' }
       - run: npm ci || npm i
         working-directory: web-ui
+      - run: npm run typecheck
+        working-directory: web-ui
       - run: npm run build --if-present
         working-directory: web-ui
