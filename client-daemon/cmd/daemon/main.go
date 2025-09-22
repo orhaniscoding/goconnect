@@ -9,15 +9,14 @@ import (
 var (
   version = "dev"
   commit  = "none"
-  date    = "unknown"
+  date    = "2025-09-22"
   builtBy = "orhaniscoding"
 )
 func main(){
   showVersion := flag.Bool("version", false, "print version and exit")
   flag.Parse()
   if *showVersion {
-    fmt.Printf("goconnect-daemon %s (commit %s, build %s) built by %s
-", version, commit, date, builtBy)
+    fmt.Printf("goconnect-daemon %s (commit %s, build %s) built by %s\n", version, commit, date, builtBy)
     return
   }
   port := 12000 + rand.Intn(1000)
