@@ -7,7 +7,7 @@ export default function Dashboard() {
   const [status, setStatus] = useState<any>(null)
   const [err, setErr] = useState<string | null>(null)
   useEffect(() => {
-    bridge('/status')
+    bridge('/status', undefined)
       .then(setStatus)
       .catch((e) => setErr(String(e)))
   }, [])

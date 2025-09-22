@@ -1,1 +1,11 @@
-export async function api(path, init){ const b=process.env.NEXT_PUBLIC_API_BASE||'http://localhost:8080'; const r=await fetch(b+path,{...init,headers:{'Content-Type':'application/json',...(init?.headers||{})}}); return r.json(); }
+export async function api(path: string, init?: RequestInit): Promise<any> {
+  const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080'
+  const res = await fetch(base + path, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(init?.headers || {}),
+    },
+  })
+  return res.json()
+}

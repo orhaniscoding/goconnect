@@ -1,3 +1,3 @@
-# GoConnect — prepatched starter v3
+# GoConnect — prepatched starter v4
 
 © 2025 Orhan Tüzer (orhaniscoding)
