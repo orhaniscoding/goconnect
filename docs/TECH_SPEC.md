@@ -184,6 +184,43 @@ web-ui/
 
 ## 7) IPAM (Ağ Adresleme) & WireGuard Profil
 
+### Networks API Implementation Flow
+
+**Implemented in v0.1.0:** Basic CRUD operations with IPAM and idempotency
+
+#### POST /v1/networks Implementation:
+1. **Idempotency Check**: Validate key+body hash, return cached response if exists
+2. **Input Validation**: CIDR format validation using Go's `net.ParseCIDR`
+3. **CIDR Overlap Detection**: Check against existing networks using IP containment
+4. **Business Logic**: Name uniqueness per tenant, audit logging
+5. **Repository**: In-memory store with thread-safe operations
+6. **Response**: Standard format with proper HTTP status codes
+
+#### GET /v1/networks Implementation:
+1. **RBAC Filtering**: visibility=public|mine|all with admin-only enforcement
+2. **Cursor Pagination**: Stable ordering with configurable limits
+3. **Search**: Case-insensitive name matching
+4. **Repository**: Efficient in-memory filtering and sorting
+
+#### Architecture Pattern:
+```
+Handler → Service → Repository
+   ↓         ↓         ↓
+Input    Business   Data
+Valid    Logic      Access
+```
+
+#### Error Handling:
+- **ERR_CIDR_OVERLAP**: Network CIDR conflicts with existing range
+- **ERR_IDEMPOTENCY_CONFLICT**: Same key, different request body
+- **ERR_FORBIDDEN**: Insufficient privileges (admin-only operations)
+- **ERR_CIDR_INVALID**: Malformed CIDR or host address instead of network
+
+#### Testing Coverage:
+- **Unit Tests**: CIDR validation, overlap detection, idempotency logic
+- **Integration Tests**: HTTP handlers, RBAC enforcement, error scenarios
+- **Repository Tests**: Data consistency, concurrent access patterns
+
 * **CIDR**: Ağ başına benzersiz; çakışma → **409 `ERR_CIDR_OVERLAP`**
 * **IP atama**: Havuzdan, gateway ve broadcast hariç; `assigned_ip` unique
 * **Profil üretimi (wg-quick)**:
@@ -214,7 +251,16 @@ web-ui/
 * **Networks**
 
   * `POST /v1/networks` → {name, visibility, join\_policy, cidr, dns?, mtu?, split\_tunnel?}
+    - **Idempotency-Key**: Required header for mutation safety (24h TTL)
+    - **CIDR Validation**: Network format validated, overlap detection enforced
+    - **RBAC**: Authenticated users can create networks
+    - **Business Rules**: Name unique per tenant, CIDR non-overlapping
+    - **Errors**: 409 ERR_CIDR_OVERLAP, 409 ERR_IDEMPOTENCY_CONFLICT
   * `GET /v1/networks` (query: visibility=public|mine|all, search, paging)
+    - **Visibility Filters**: `public` (default), `mine` (user's networks), `all` (admin-only)
+    - **Pagination**: Cursor-based with configurable limit (1-100, default 20)
+    - **Search**: Optional name-based filtering
+    - **RBAC**: Authenticated users see public+mine, admins see all
   * `GET /v1/networks/:id`
   * `PATCH /v1/networks/:id` (rename, visibility, join\_policy, …)
   * `DELETE /v1/networks/:id`
