@@ -96,7 +96,7 @@ func CORSMiddleware() gin.HandlerFunc {
 
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, Idempotency-Key, X-Request-Id")
-		c.Header("Access-Control-Expose-Headers", "X-Request-Id")
+	c.Header("Access-Control-Expose-Headers", "X-Request-Id, Retry-After")
 		c.Header("Access-Control-Max-Age", "86400")
 
 		if c.Request.Method == "OPTIONS" {
