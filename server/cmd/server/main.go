@@ -30,12 +30,15 @@ func main() {
 	// Initialize repositories
 	networkRepo := repository.NewInMemoryNetworkRepository()
 	idempotencyRepo := repository.NewInMemoryIdempotencyRepository()
+	membershipRepo := repository.NewInMemoryMembershipRepository()
+	joinRepo := repository.NewInMemoryJoinRequestRepository()
 
 	// Initialize services
 	networkService := service.NewNetworkService(networkRepo, idempotencyRepo)
+	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idempotencyRepo)
 
 	// Initialize handlers
-	networkHandler := handler.NewNetworkHandler(networkService)
+	networkHandler := handler.NewNetworkHandler(networkService, membershipService)
 
 	// Setup router
 	r := gin.Default()

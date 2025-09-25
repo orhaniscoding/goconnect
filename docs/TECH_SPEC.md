@@ -272,6 +272,28 @@ Valid    Logic      Access
   * `POST /v1/networks/:id/kick`
   * `POST /v1/networks/:id/ban`
   * `GET /v1/networks/:id/members`
+
+### 8.1 Memberships & Join Flow v1 (Implemented)
+
+Model: `memberships(id, network_id, user_id, role, status[pending|approved|banned], joined_at)` ve `join_requests`.
+
+Akışlar:
+- `POST /v1/networks/:id/join`:
+  - `join_policy = open` → anında üye (`status=approved`, `role=member`, `joined_at=now`).
+  - `approval` → `join_requests.pending`; admin/owner onaylayınca `approved`.
+  - `invite` → token doğrulanınca üye (v1: param required, doğrulama TODO).
+  - `Private` + isim bilinmiyorsa `ERR_NETWORK_PRIVATE` (404 ile gizleme).
+  - `Idempotency-Key` zorunlu, audit: `NETWORK_JOIN|NETWORK_JOIN_REQUEST`.
+  - Double-join guard: Halihazırda `approved` ise no-op 200 döner.
+
+- `POST /v1/networks/:id/approve|deny|kick|ban` (RBAC: owner/admin; audit). Body: `{user_id}`
+
+- `GET /v1/networks/:id/members`: `status` filtresi, stabil sıralama (`joined_at` asc, id asc), paging `limit/cursor`.
+
+Hata Modeli: tek tip `{code,message,details}`; `ERR_USER_BANNED`, `ERR_ALREADY_REQUESTED`, `ERR_NETWORK_PRIVATE` vb.
+
+Testler:
+- Unit: policy (RBAC), idempotency/dedup; Integration: open join, approval flow, double-join guard.
 * **WireGuard**
 
   * `POST /v1/networks/:id/wg/keypair`
