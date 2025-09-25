@@ -43,7 +43,18 @@ components:
 
     Network:
       type: object
-      required: [id, tenant_id, name, visibility, join_policy, cidr, created_by, created_at, updated_at]
+      required:
+        [
+          id,
+          tenant_id,
+          name,
+          visibility,
+          join_policy,
+          cidr,
+          created_by,
+          created_at,
+          updated_at,
+        ]
       properties:
         id:
           type: string
@@ -156,7 +167,7 @@ components:
         data:
           type: array
           items:
-            $ref: '#/components/schemas/Network'
+            $ref: "#/components/schemas/Network"
         pagination:
           type: object
           properties:
@@ -173,7 +184,71 @@ components:
       required: [data]
       properties:
         data:
-          $ref: '#/components/schemas/Network'
+          $ref: "#/components/schemas/Network"
+
+    Membership:
+      type: object
+      required: [id, network_id, user_id, role, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        network_id:
+          type: string
+        user_id:
+          type: string
+        role:
+          type: string
+          enum: [member, admin, owner]
+        status:
+          type: string
+          enum: [pending, approved, banned]
+        joined_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    JoinRequest:
+      type: object
+      required: [id, network_id, user_id, status, created_at]
+      properties:
+        id:
+          type: string
+        network_id:
+          type: string
+        user_id:
+          type: string
+        status:
+          type: string
+          enum: [pending, approved, denied]
+        created_at:
+          type: string
+          format: date-time
+        decided_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    MembersListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Membership"
+        pagination:
+          type: object
+          properties:
+            limit:
+              type: integer
+            next_cursor:
+              type: string
+              nullable: true
 
   parameters:
     IdempotencyKey:
@@ -230,19 +305,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NetworkListResponse'
+                $ref: "#/components/schemas/NetworkListResponse"
         "401":
           description: "Unauthorized"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
         "403":
           description: "Forbidden - insufficient privileges"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
     post:
       summary: Create network
@@ -251,26 +326,26 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateNetworkRequest'
+              $ref: "#/components/schemas/CreateNetworkRequest"
       responses:
         "201":
           description: "Network created successfully"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NetworkResponse'
+                $ref: "#/components/schemas/NetworkResponse"
         "400":
           description: "Bad request - validation error"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
               examples:
                 invalid_cidr:
                   summary: Invalid CIDR format
@@ -284,13 +359,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
         "409":
           description: "Conflict - CIDR overlap or idempotency conflict"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
               examples:
                 cidr_overlap:
                   summary: CIDR overlap with existing network
@@ -328,19 +403,88 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NetworkResponse'
+                $ref: "#/components/schemas/NetworkResponse"
         "404":
           description: "Network not found"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
         "501":
           description: "Not implemented yet"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
+
+  /v1/networks/{id}/join:
+    post:
+      summary: Join a network
+      description: "Join flow based on network join_policy"
+      tags: [Networks]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: "Joined as member"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Membership"
+        "202":
+          description: "Join request created (approval policy)"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/JoinRequest"
+        "404":
+          description: "Private network (hidden)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/networks/{id}/members:
+    get:
+      summary: List members
+      tags: [Networks]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, banned]
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: "Members listed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MembersListResponse"
 
 tags:
   - name: Networks

@@ -20,7 +20,7 @@ func (e *Error) Error() string {
 
 // Error codes following ERR_SNAKE_CASE convention
 const (
-	ErrInvalidRequest       = "ERR_INVALID_REQUEST"
+	ErrInvalidRequest      = "ERR_INVALID_REQUEST"
 	ErrUnauthorized        = "ERR_UNAUTHORIZED"
 	ErrForbidden           = "ERR_FORBIDDEN"
 	ErrNotFound            = "ERR_NOT_FOUND"
@@ -29,6 +29,12 @@ const (
 	ErrIdempotencyConflict = "ERR_IDEMPOTENCY_CONFLICT"
 	ErrInternalServer      = "ERR_INTERNAL_SERVER"
 	ErrNotImplemented      = "ERR_NOT_IMPLEMENTED"
+	// Membership/Join flow specific
+	ErrNetworkPrivate   = "ERR_NETWORK_PRIVATE"
+	ErrAlreadyMember    = "ERR_ALREADY_MEMBER"
+	ErrAlreadyRequested = "ERR_ALREADY_REQUESTED"
+	ErrUserBanned       = "ERR_USER_BANNED"
+	ErrUserKicked       = "ERR_USER_KICKED"
 )
 
 // NewError creates a new domain error
@@ -53,6 +59,14 @@ func (e *Error) ToHTTPStatus() int {
 		return http.StatusNotFound
 	case ErrCIDROverlap, ErrIdempotencyConflict:
 		return http.StatusConflict
+	case ErrNetworkPrivate:
+		return http.StatusNotFound // hide private resource existence
+	case ErrAlreadyMember:
+		return http.StatusOK
+	case ErrAlreadyRequested:
+		return http.StatusAccepted
+	case ErrUserBanned, ErrUserKicked:
+		return http.StatusForbidden
 	case ErrNotImplemented:
 		return http.StatusNotImplemented
 	default:
