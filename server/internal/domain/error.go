@@ -23,6 +23,7 @@ const (
 	ErrInvalidRequest      = "ERR_INVALID_REQUEST"
 	ErrUnauthorized        = "ERR_UNAUTHORIZED"
 	ErrForbidden           = "ERR_FORBIDDEN"
+	ErrRateLimited         = "ERR_RATE_LIMITED"
 	ErrNotFound            = "ERR_NOT_FOUND"
 	ErrCIDROverlap         = "ERR_CIDR_OVERLAP"
 	ErrCIDRInvalid         = "ERR_CIDR_INVALID"
@@ -55,6 +56,8 @@ func (e *Error) ToHTTPStatus() int {
 		return http.StatusUnauthorized
 	case ErrForbidden:
 		return http.StatusForbidden
+	case ErrRateLimited:
+		return http.StatusTooManyRequests
 	case ErrNotFound:
 		return http.StatusNotFound
 	case ErrCIDROverlap, ErrIdempotencyConflict:

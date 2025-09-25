@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/orhaniscoding/goconnect/server/internal/audit"
 	"github.com/orhaniscoding/goconnect/server/internal/handler"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
 	"github.com/orhaniscoding/goconnect/server/internal/service"
@@ -36,6 +37,7 @@ func main() {
 	// Initialize services
 	networkService := service.NewNetworkService(networkRepo, idempotencyRepo)
 	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idempotencyRepo)
+	membershipService.SetAuditor(audit.NewStdoutAuditor())
 
 	// Initialize handlers
 	networkHandler := handler.NewNetworkHandler(networkService, membershipService)
