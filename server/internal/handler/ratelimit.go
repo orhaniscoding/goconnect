@@ -3,6 +3,8 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -66,4 +68,24 @@ func RateLimitMiddleware(capacity int, per time.Duration) gin.HandlerFunc {
 		}
 		c.Next()
 	}
+}
+
+// NewRateLimiterFromEnv creates a rate limiter using environment overrides.
+// Env vars:
+//   - SERVER_RL_CAPACITY: integer tokens per window (default: defCap)
+//   - SERVER_RL_WINDOW_MS: integer window in milliseconds (default: defPer)
+func NewRateLimiterFromEnv(defCap int, defPer time.Duration) gin.HandlerFunc {
+	cap := defCap
+	if v := os.Getenv("SERVER_RL_CAPACITY"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			cap = n
+		}
+	}
+	per := defPer
+	if v := os.Getenv("SERVER_RL_WINDOW_MS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			per = time.Duration(n) * time.Millisecond
+		}
+	}
+	return RateLimitMiddleware(cap, per)
 }

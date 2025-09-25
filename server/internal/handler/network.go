@@ -143,8 +143,9 @@ func RegisterNetworkRoutes(r *gin.Engine, handler *NetworkHandler) {
 	v1 := r.Group("/v1")
 	v1.Use(RequestIDMiddleware())
 	v1.Use(CORSMiddleware())
-	// Basic rate limiting per user/IP to protect write endpoints; tuned low for tests
-	rl := RateLimitMiddleware(5, time.Second)
+	// Basic rate limiting per user/IP to protect write endpoints; configurable via env
+	// Defaults: capacity=5 tokens per 1s window
+	rl := NewRateLimiterFromEnv(5, time.Second)
 
 	// Network routes
 	networks := v1.Group("/networks")
