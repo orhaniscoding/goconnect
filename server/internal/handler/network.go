@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
@@ -142,23 +143,25 @@ func RegisterNetworkRoutes(r *gin.Engine, handler *NetworkHandler) {
 	v1 := r.Group("/v1")
 	v1.Use(RequestIDMiddleware())
 	v1.Use(CORSMiddleware())
+	// Basic rate limiting per user/IP to protect write endpoints; tuned low for tests
+	rl := RateLimitMiddleware(5, time.Second)
 
 	// Network routes
 	networks := v1.Group("/networks")
 	networks.Use(AuthMiddleware()) // All network operations require authentication
 
-	networks.POST("", handler.CreateNetwork)
+	networks.POST("", rl, handler.CreateNetwork)
 	networks.GET("", handler.ListNetworks)
 	networks.GET("/:id", handler.GetNetwork)
-	networks.PATCH("/:id", handler.UpdateNetwork)
-	networks.DELETE("/:id", handler.DeleteNetwork)
+	networks.PATCH("/:id", rl, handler.UpdateNetwork)
+	networks.DELETE("/:id", rl, handler.DeleteNetwork)
 
 	// Membership & Join flow
-	networks.POST("/:id/join", handler.JoinNetwork)
-	networks.POST("/:id/approve", handler.Approve)
-	networks.POST("/:id/deny", handler.Deny)
-	networks.POST("/:id/kick", handler.Kick)
-	networks.POST("/:id/ban", handler.Ban)
+	networks.POST("/:id/join", rl, handler.JoinNetwork)
+	networks.POST("/:id/approve", rl, handler.Approve)
+	networks.POST("/:id/deny", rl, handler.Deny)
+	networks.POST("/:id/kick", rl, handler.Kick)
+	networks.POST("/:id/ban", rl, handler.Ban)
 	networks.GET("/:id/members", handler.ListMembers)
 }
 

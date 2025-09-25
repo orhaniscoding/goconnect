@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -27,7 +28,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		token := parts[1]
-		
+
 		// TODO: Implement proper JWT validation
 		// For now, use mock validation
 		userID, isAdmin, err := validateToken(token)
@@ -64,9 +65,12 @@ func RequestIDMiddleware() gin.HandlerFunc {
 		if requestID == "" {
 			requestID = generateRequestID()
 		}
-		
+
 		c.Header("X-Request-Id", requestID)
 		c.Set("request_id", requestID)
+		// also propagate into request context for downstream services
+		ctx := context.WithValue(c.Request.Context(), "request_id", requestID)
+		c.Request = c.Request.WithContext(ctx)
 		c.Next()
 	}
 }
@@ -75,31 +79,31 @@ func RequestIDMiddleware() gin.HandlerFunc {
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
-		
+
 		// Allow specific origins (simplified for development)
 		allowedOrigins := []string{
 			"https://app.goconnect.example",
 			"http://localhost:3000",
 			"http://127.0.0.1:3000",
 		}
-		
+
 		for _, allowed := range allowedOrigins {
 			if origin == allowed {
 				c.Header("Access-Control-Allow-Origin", origin)
 				break
 			}
 		}
-		
+
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, Idempotency-Key, X-Request-Id")
 		c.Header("Access-Control-Expose-Headers", "X-Request-Id")
 		c.Header("Access-Control-Max-Age", "86400")
-		
+
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(http.StatusNoContent)
 			return
 		}
-		
+
 		c.Next()
 	}
 }

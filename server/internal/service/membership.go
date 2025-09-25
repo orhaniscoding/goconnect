@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
@@ -14,10 +13,31 @@ type MembershipService struct {
 	members     repository.MembershipRepository
 	joins       repository.JoinRequestRepository
 	idempotency repository.IdempotencyRepository
+	aud         Auditor
 }
 
+// Auditor is a minimal interface to decouple from concrete audit package
+type Auditor interface {
+	Event(ctx context.Context, action, actor, object string, details map[string]any)
+}
+
+type auditorFunc func(ctx context.Context, action, actor, object string, details map[string]any)
+
+func (f auditorFunc) Event(ctx context.Context, action, actor, object string, details map[string]any) {
+	f(ctx, action, actor, object, details)
+}
+
+var noopAuditor Auditor = auditorFunc(func(ctx context.Context, action, actor, object string, details map[string]any) {})
+
 func NewMembershipService(n repository.NetworkRepository, m repository.MembershipRepository, j repository.JoinRequestRepository, idem repository.IdempotencyRepository) *MembershipService {
-	return &MembershipService{networks: n, members: m, joins: j, idempotency: idem}
+	return &MembershipService{networks: n, members: m, joins: j, idempotency: idem, aud: noopAuditor}
+}
+
+// SetAuditor allows wiring a real auditor from main
+func (s *MembershipService) SetAuditor(a Auditor) {
+	if a != nil {
+		s.aud = a
+	}
 }
 
 // JoinNetwork handles POST /v1/networks/:id/join with idempotency and audit
@@ -151,6 +171,5 @@ func (s *MembershipService) isAdmin(ctx context.Context, networkID, userID strin
 }
 
 func (s *MembershipService) audit(ctx context.Context, action, actor, object string, details map[string]any) {
-	// TODO: proper audit pipeline
-	fmt.Printf("AUDIT: %s actor=%s object=%s details=%+v\n", action, actor, object, details)
+	s.aud.Event(ctx, action, actor, object, details)
 }
