@@ -93,3 +93,43 @@ func (s *IPAMService) ReleaseIP(ctx context.Context, networkID, userID string) e
 	s.aud.Event(ctx, "IP_RELEASED", userID, networkID, nil)
 	return nil
 }
+
+// ReleaseIPForActor allows an admin/owner (actor) to release another target user's allocation.
+// Rules:
+// - Actor must have approved membership with role admin or owner.
+// - Target user must have approved membership (if target membership missing we treat as not authorized to avoid probing user existence).
+// - Operation is idempotent: if target has no allocation, succeeds silently.
+// - Self release by actor should prefer ReleaseIP, but still allowed here.
+func (s *IPAMService) ReleaseIPForActor(ctx context.Context, networkID, actorUserID, targetUserID string) error {
+	// ensure network exists
+	if _, err := s.networks.GetByID(ctx, networkID); err != nil {
+		return err
+	}
+	if s.members == nil {
+		return domain.NewError(domain.ErrInternalServer, "Membership repository unavailable", nil)
+	}
+	// fetch actor membership
+	actorM, err := s.members.Get(ctx, networkID, actorUserID)
+	if err != nil {
+		return domain.NewError(domain.ErrNotAuthorized, "Actor membership required", nil)
+	}
+	if actorM.Status != domain.StatusApproved {
+		return domain.NewError(domain.ErrNotAuthorized, "Actor membership not approved", map[string]string{"status": string(actorM.Status)})
+	}
+	if actorM.Role != domain.RoleAdmin && actorM.Role != domain.RoleOwner {
+		return domain.NewError(domain.ErrNotAuthorized, "Admin or owner role required", map[string]string{"role": string(actorM.Role)})
+	}
+	// target membership (hide absence distinctness)
+	targetM, err := s.members.Get(ctx, networkID, targetUserID)
+	if err != nil {
+		return domain.NewError(domain.ErrNotAuthorized, "Target membership required", nil)
+	}
+	if targetM.Status != domain.StatusApproved {
+		return domain.NewError(domain.ErrNotAuthorized, "Target membership not approved", map[string]string{"status": string(targetM.Status)})
+	}
+	if err := s.ipam.Release(ctx, networkID, targetUserID); err != nil {
+		return err
+	}
+	s.aud.Event(ctx, "IP_RELEASED", actorUserID, networkID, map[string]any{"released_for": targetUserID})
+	return nil
+}
