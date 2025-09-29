@@ -15,6 +15,7 @@ type IPAMService struct {
 	aud      Auditor
 }
 
+// NewIPAMService creates a new IPAM service. Membership repository is required to ensure only approved members get IPs.
 func NewIPAMService(n repository.NetworkRepository, m repository.MembershipRepository, ip repository.IPAMRepository) *IPAMService {
 	return &IPAMService{networks: n, members: m, ipam: ip, aud: noopAuditor}
 }
@@ -28,13 +29,16 @@ func (s *IPAMService) SetAuditor(a Auditor) {
 
 // AllocateIP returns existing allocation or assigns the next available IP.
 func (s *IPAMService) AllocateIP(ctx context.Context, networkID, userID string) (*domain.IPAllocation, error) {
+	// Retrieve network first
 	netw, err := s.networks.GetByID(ctx, networkID)
 	if err != nil {
 		return nil, err
 	}
-	if s.members != nil {
+	// Enforce membership: must exist & be approved
+	if s.members != nil { // defensive if nil in some legacy tests
 		m, mErr := s.members.Get(ctx, networkID, userID)
 		if mErr != nil {
+			// hide distinction (not found) behind authorization failure
 			return nil, domain.NewError(domain.ErrNotAuthorized, "Membership required to allocate IP", nil)
 		}
 		if m.Status != domain.StatusApproved {
