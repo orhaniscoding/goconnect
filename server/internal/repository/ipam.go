@@ -13,6 +13,8 @@ type IPAMRepository interface {
 	GetOrAllocate(ctx context.Context, networkID, userID, cidr string) (*domain.IPAllocation, error)
 	// List returns all allocations for a network (for testing/introspection)
 	List(ctx context.Context, networkID string) ([]*domain.IPAllocation, error)
+	// Release removes a user's allocation (idempotent). Implementation may keep a free list for reuse.
+	Release(ctx context.Context, networkID, userID string) error
 }
 
 type inMemoryIPAM struct {
@@ -21,11 +23,17 @@ type inMemoryIPAM struct {
 	allocations map[string]map[string]*domain.IPAllocation
 	// nextOffset[networkID] = uint32 (next host offset to attempt)
 	nextOffset map[string]uint32
+	// freeOffsets[networkID] = slice of previously used offsets available for reuse (LIFO for cache locality)
+	freeOffsets map[string][]uint32
 }
 
 // NewInMemoryIPAM creates a new in-memory IPAM repository
 func NewInMemoryIPAM() IPAMRepository {
-	return &inMemoryIPAM{allocations: make(map[string]map[string]*domain.IPAllocation), nextOffset: make(map[string]uint32)}
+	return &inMemoryIPAM{
+		allocations: make(map[string]map[string]*domain.IPAllocation),
+		nextOffset:  make(map[string]uint32),
+		freeOffsets: make(map[string][]uint32),
+	}
 }
 
 func (r *inMemoryIPAM) GetOrAllocate(ctx context.Context, networkID, userID, cidr string) (*domain.IPAllocation, error) {
@@ -39,9 +47,16 @@ func (r *inMemoryIPAM) GetOrAllocate(ctx context.Context, networkID, userID, cid
 	if alloc, ok := r.allocations[networkID][userID]; ok {
 		return alloc, nil
 	}
-	// attempt next IP
+	// attempt reuse from free list first (LIFO)
 	for {
-		offset := r.nextOffset[networkID]
+		var offset uint32
+		if free := r.freeOffsets[networkID]; len(free) > 0 {
+			offset = free[len(free)-1]
+			r.freeOffsets[networkID] = free[:len(free)-1]
+		} else {
+			offset = r.nextOffset[networkID]
+			r.nextOffset[networkID] = offset + 1
+		}
 		ip, err := domain.NextIP(cidr, offset)
 		if err != nil {
 			return nil, domain.NewError(domain.ErrInternalServer, "Failed to compute next IP", nil)
@@ -49,7 +64,6 @@ func (r *inMemoryIPAM) GetOrAllocate(ctx context.Context, networkID, userID, cid
 		if ip == "" { // exhausted
 			return nil, domain.NewError(domain.ErrIPExhausted, "No available IP addresses remaining", nil)
 		}
-		r.nextOffset[networkID] = offset + 1
 		// ensure uniqueness (scan existing) - simple for in-memory
 		collision := false
 		for _, existing := range r.allocations[networkID] {
@@ -61,7 +75,7 @@ func (r *inMemoryIPAM) GetOrAllocate(ctx context.Context, networkID, userID, cid
 		if collision {
 			continue // try next offset
 		}
-		alloc := &domain.IPAllocation{NetworkID: networkID, UserID: userID, IP: ip}
+		alloc := &domain.IPAllocation{NetworkID: networkID, UserID: userID, IP: ip, Offset: offset}
 		r.allocations[networkID][userID] = alloc
 		return alloc, nil
 	}
@@ -75,4 +89,26 @@ func (r *inMemoryIPAM) List(ctx context.Context, networkID string) ([]*domain.IP
 		list = append(list, a)
 	}
 	return list, nil
+}
+
+// Release implements idempotent release; if allocation exists it is deleted and its offset appended to free list.
+// If user had no allocation, it is a no-op (idempotent success). Offsets are reused in LIFO order to favor cache locality
+// and quick recycling; this behavior is suitable for small pools and predictable reuse in tests.
+func (r *inMemoryIPAM) Release(ctx context.Context, networkID, userID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	users, ok := r.allocations[networkID]
+	if !ok {
+		return nil
+	}
+	alloc, ok := users[userID]
+	if !ok {
+		return nil
+	}
+	// reclaim offset
+	if alloc.Offset > 0 { // offset starts at 1
+		r.freeOffsets[networkID] = append(r.freeOffsets[networkID], alloc.Offset)
+	}
+	delete(users, userID)
+	return nil
 }
