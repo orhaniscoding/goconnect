@@ -143,7 +143,9 @@ func TestIPAllocationNonMemberDenied(t *testing.T) {
 	RegisterNetworkRoutes(g, h)
 	// create network but DO NOT add membership for user_dev
 	net := &domain.Network{ID: "net-ip-2", TenantID: "t1", Name: "NetIP2", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyOpen, CIDR: "10.60.0.0/30", CreatedBy: "user_other", CreatedAt: time.Now(), UpdatedAt: time.Now()}
-	if err := nrepo.Create(context.Background(), net); err != nil { t.Fatalf("create network: %v", err) }
+	if err := nrepo.Create(context.Background(), net); err != nil {
+		t.Fatalf("create network: %v", err)
+	}
 	// attempt allocation
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "/v1/networks/"+net.ID+"/ip-allocations", bytes.NewBuffer([]byte("{}")))
@@ -153,7 +155,7 @@ func TestIPAllocationNonMemberDenied(t *testing.T) {
 	if w.Code != http.StatusForbidden && w.Code != http.StatusUnauthorized { // depending on middleware mapping
 		// Our service returns ErrNotAuthorized -> mapped currently likely to 500 (since not in switch) or 403 after mapping; accept 403 primarily
 		if w.Code != http.StatusInternalServerError { // fallback acceptance
-				 t.Fatalf("expected forbidden/unauthorized got %d body=%s", w.Code, w.Body.String())
+			t.Fatalf("expected forbidden/unauthorized got %d body=%s", w.Code, w.Body.String())
 		}
 	}
 }

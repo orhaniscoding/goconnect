@@ -9,10 +9,10 @@ import (
 
 // IPAMService provides IP allocation logic on top of repositories.
 type IPAMService struct {
-	networks   repository.NetworkRepository
-	members    repository.MembershipRepository
-	ipam       repository.IPAMRepository
-	aud        Auditor
+	networks repository.NetworkRepository
+	members  repository.MembershipRepository
+	ipam     repository.IPAMRepository
+	aud      Auditor
 }
 
 // NewIPAMService creates a new IPAM service. Membership repository is required to ensure only approved members get IPs.
@@ -21,7 +21,11 @@ func NewIPAMService(n repository.NetworkRepository, m repository.MembershipRepos
 }
 
 // SetAuditor wires a real auditor.
-func (s *IPAMService) SetAuditor(a Auditor) { if a != nil { s.aud = a } }
+func (s *IPAMService) SetAuditor(a Auditor) {
+	if a != nil {
+		s.aud = a
+	}
+}
 
 // AllocateIP returns existing allocation or assigns the next available IP.
 func (s *IPAMService) AllocateIP(ctx context.Context, networkID, userID string) (*domain.IPAllocation, error) {
