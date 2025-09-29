@@ -498,9 +498,41 @@ paths:
               },
           }
         "401":
-          { description: "Not authenticated", content: { application/json: { schema: { $ref: "#/components/schemas/Error" }, examples: { unauth: { $ref: "#/components/schemas/Error/examples/not_authorized_unauthenticated" } } } } }
+          {
+            description: "Not authenticated",
+            content:
+              {
+                application/json:
+                  {
+                    schema: { $ref: "#/components/schemas/Error" },
+                    examples:
+                      {
+                        unauth:
+                          {
+                            $ref: "#/components/schemas/Error/examples/not_authorized_unauthenticated",
+                          },
+                      },
+                  },
+              },
+          }
         "403":
-          { description: "Not authorized (role)", content: { application/json: { schema: { $ref: "#/components/schemas/Error" }, examples: { forbrbac: { $ref: "#/components/schemas/Error/examples/not_authorized_forbidden" } } } } }
+          {
+            description: "Not authorized (role)",
+            content:
+              {
+                application/json:
+                  {
+                    schema: { $ref: "#/components/schemas/Error" },
+                    examples:
+                      {
+                        forbrbac:
+                          {
+                            $ref: "#/components/schemas/Error/examples/not_authorized_forbidden",
+                          },
+                      },
+                  },
+              },
+          }
         "404":
           {
             description: "Not found",
@@ -535,8 +567,42 @@ paths:
                   },
               },
           }
-        "401": { description: "Not authenticated", content: { application/json: { schema: { $ref: "#/components/schemas/Error" }, examples: { unauth: { $ref: "#/components/schemas/Error/examples/not_authorized_unauthenticated" } } } } }
-        "403": { description: "Not authorized (role)", content: { application/json: { schema: { $ref: "#/components/schemas/Error" }, examples: { forbrbac: { $ref: "#/components/schemas/Error/examples/not_authorized_forbidden" } } } } }
+        "401":
+          {
+            description: "Not authenticated",
+            content:
+              {
+                application/json:
+                  {
+                    schema: { $ref: "#/components/schemas/Error" },
+                    examples:
+                      {
+                        unauth:
+                          {
+                            $ref: "#/components/schemas/Error/examples/not_authorized_unauthenticated",
+                          },
+                      },
+                  },
+              },
+          }
+        "403":
+          {
+            description: "Not authorized (role)",
+            content:
+              {
+                application/json:
+                  {
+                    schema: { $ref: "#/components/schemas/Error" },
+                    examples:
+                      {
+                        forbrbac:
+                          {
+                            $ref: "#/components/schemas/Error/examples/not_authorized_forbidden",
+                          },
+                      },
+                  },
+              },
+          }
         "404":
           {
             description: "Not found",
