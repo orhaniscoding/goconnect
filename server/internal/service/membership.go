@@ -6,8 +6,8 @@ import (
 
 	"github.com/orhaniscoding/goconnect/server/internal/audit"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
-	"github.com/orhaniscoding/goconnect/server/internal/repository"
 	"github.com/orhaniscoding/goconnect/server/internal/rbac"
+	"github.com/orhaniscoding/goconnect/server/internal/repository"
 )
 
 type MembershipService struct {
@@ -65,7 +65,7 @@ func (s *MembershipService) JoinNetwork(ctx context.Context, networkID, userID, 
 	if m, err := s.members.Get(ctx, networkID, userID); err == nil {
 		if m.Status == domain.StatusApproved {
 			// Double-join guard: treat as successful no-op
-			s.audit(ctx, "NETWORK_JOIN", userID, networkID, map[string]any{"dedup": true})
+			s.audit(ctx, audit.ActionNetworkJoin, userID, networkID, map[string]any{"dedup": true})
 			return m, nil, nil
 		}
 		if m.Status == domain.StatusBanned {
@@ -80,18 +80,18 @@ func (s *MembershipService) JoinNetwork(ctx context.Context, networkID, userID, 
 		if err != nil {
 			return nil, nil, err
 		}
-		s.audit(ctx, "NETWORK_JOIN", userID, networkID, map[string]any{"policy": "open"})
+		s.audit(ctx, audit.ActionNetworkJoin, userID, networkID, map[string]any{"policy": "open"})
 		return m, nil, nil
 	case domain.JoinPolicyApproval:
 		jr, err := s.joins.CreatePending(ctx, networkID, userID)
 		if err != nil {
 			if derr, ok := err.(*domain.Error); ok && derr.Code == domain.ErrAlreadyRequested {
-				s.audit(ctx, "NETWORK_JOIN_REQUEST", userID, networkID, map[string]any{"dedup": true})
+						s.audit(ctx, audit.ActionNetworkJoinRequest, userID, networkID, map[string]any{"dedup": true})
 				return nil, jr, derr
 			}
 			return nil, nil, err
 		}
-		s.audit(ctx, "NETWORK_JOIN_REQUEST", userID, networkID, nil)
+		s.audit(ctx, audit.ActionNetworkJoinRequest, userID, networkID, nil)
 		return nil, jr, nil
 	case domain.JoinPolicyInvite:
 		// For v1 we expect a token param else invalid
@@ -134,7 +134,7 @@ func (s *MembershipService) Deny(ctx context.Context, networkID, targetUserID, a
 	if err := s.joins.Decide(ctx, jr.ID, false); err != nil {
 		return err
 	}
-	s.audit(ctx, "NETWORK_JOIN_DENY", actorID, networkID, map[string]any{"user": targetUserID})
+	s.audit(ctx, audit.ActionNetworkJoinDeny, actorID, networkID, map[string]any{"user": targetUserID})
 	return nil
 }
 
@@ -145,7 +145,7 @@ func (s *MembershipService) Kick(ctx context.Context, networkID, targetUserID, a
 	if err := s.members.Remove(ctx, networkID, targetUserID); err != nil {
 		return err
 	}
-	s.audit(ctx, "NETWORK_MEMBER_KICK", actorID, networkID, map[string]any{"user": targetUserID})
+	s.audit(ctx, audit.ActionNetworkMemberKick, actorID, networkID, map[string]any{"user": targetUserID})
 	return nil
 }
 
@@ -165,11 +165,11 @@ func (s *MembershipService) ListMembers(ctx context.Context, networkID, status s
 }
 
 func (s *MembershipService) hasManagePrivilege(ctx context.Context, networkID, userID string) bool {
-    m, err := s.members.Get(ctx, networkID, userID)
-    if err != nil {
-        return false
-    }
-    return rbac.CanManageNetwork(m.Role)
+	m, err := s.members.Get(ctx, networkID, userID)
+	if err != nil {
+		return false
+	}
+	return rbac.CanManageNetwork(m.Role)
 }
 
 func (s *MembershipService) audit(ctx context.Context, action, actor, object string, details map[string]any) {
