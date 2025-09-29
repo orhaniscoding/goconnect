@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -136,4 +138,91 @@ func TestIPAMReleaseNonMemberDenied(t *testing.T) {
 	if err == nil { t.Fatalf("expected authorization error") }
 	derr, ok := err.(*domain.Error)
 	if !ok || derr.Code != domain.ErrNotAuthorized { t.Fatalf("expected ErrNotAuthorized got %+v", err) }
+}
+
+func TestIPAMAdminReleaseOtherUser(t *testing.T) {
+	ctx, svc, _, mRepo, netID := setupIPAMTestNetwork(t, "10.90.0.0/29")
+	now := time.Now()
+	// actor admin
+	_, _ = mRepo.UpsertApproved(ctx, netID, "admin1", domain.RoleAdmin, now)
+	// target member
+	_, _ = mRepo.UpsertApproved(ctx, netID, "user1", domain.RoleMember, now)
+	if _, err := svc.AllocateIP(ctx, netID, "user1"); err != nil { t.Fatalf("alloc target: %v", err) }
+	if err := svc.ReleaseIPForActor(ctx, netID, "admin1", "user1"); err != nil { t.Fatalf("admin release: %v", err) }
+	// reallocate should reuse same IP
+	a2, err := svc.AllocateIP(ctx, netID, "user1")
+	if err != nil { t.Fatalf("realloc: %v", err) }
+	if a2.IP != "10.90.0.1" { t.Fatalf("expected reuse first host got %s", a2.IP) }
+}
+
+func TestIPAMAdminReleaseForbiddenForMember(t *testing.T) {
+	ctx, svc, _, mRepo, netID := setupIPAMTestNetwork(t, "10.91.0.0/29")
+	now := time.Now()
+	// actor plain member
+	_, _ = mRepo.UpsertApproved(ctx, netID, "member1", domain.RoleMember, now)
+	// target member
+	_, _ = mRepo.UpsertApproved(ctx, netID, "user1", domain.RoleMember, now)
+	if _, err := svc.AllocateIP(ctx, netID, "user1"); err != nil { t.Fatalf("alloc target: %v", err) }
+	err := svc.ReleaseIPForActor(ctx, netID, "member1", "user1")
+	if err == nil { t.Fatalf("expected not authorized error") }
+	derr, ok := err.(*domain.Error)
+	if !ok || derr.Code != domain.ErrNotAuthorized { t.Fatalf("expected ErrNotAuthorized got %+v", err) }
+}
+
+func TestIPAMAdminReleaseIdempotent(t *testing.T) {
+	ctx, svc, _, mRepo, netID := setupIPAMTestNetwork(t, "10.92.0.0/29")
+	now := time.Now()
+	_, _ = mRepo.UpsertApproved(ctx, netID, "admin1", domain.RoleAdmin, now)
+	_, _ = mRepo.UpsertApproved(ctx, netID, "user1", domain.RoleMember, now)
+	// no allocation yet -> should still 204 equivalent (nil error)
+	if err := svc.ReleaseIPForActor(ctx, netID, "admin1", "user1"); err != nil { t.Fatalf("first idempotent admin release: %v", err) }
+	// allocate then release twice
+	if _, err := svc.AllocateIP(ctx, netID, "user1"); err != nil { t.Fatalf("alloc: %v", err) }
+	if err := svc.ReleaseIPForActor(ctx, netID, "admin1", "user1"); err != nil { t.Fatalf("release: %v", err) }
+	if err := svc.ReleaseIPForActor(ctx, netID, "admin1", "user1"); err != nil { t.Fatalf("second release idempotent: %v", err) }
+}
+
+func TestIPAMConcurrentAllocRelease(t *testing.T) {
+	ctx, svc, _, mRepo, netID := setupIPAMTestNetwork(t, "10.93.0.0/26") // /26 => 64 addresses => 62 usable
+	now := time.Now()
+	userCount := 30
+	// seed memberships
+	for i := 0; i < userCount; i++ {
+		uid := fmt.Sprintf("userC%d", i)
+		_, _ = mRepo.UpsertApproved(ctx, netID, uid, domain.RoleMember, now)
+	}
+	// allocate in parallel
+	var wg sync.WaitGroup
+	errs := make(chan error, userCount)
+	for i := 0; i < userCount; i++ {
+		i := i
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			uid := fmt.Sprintf("userC%d", i)
+			if _, err := svc.AllocateIP(ctx, netID, uid); err != nil { errs <- err }
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for e := range errs { if e != nil { t.Fatalf("alloc error: %v", e) } }
+	// collect IPs and ensure uniqueness
+	allocs, err := svc.ListAllocations(ctx, netID, "userC0")
+	if err != nil { t.Fatalf("list: %v", err) }
+	seen := make(map[string]bool)
+	for _, a := range allocs { if seen[a.IP] { t.Fatalf("duplicate ip %s", a.IP) }; seen[a.IP] = true }
+	// concurrent release
+	errs = make(chan error, userCount)
+	for i := 0; i < userCount; i++ {
+		i := i
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			uid := fmt.Sprintf("userC%d", i)
+			if err := svc.ReleaseIP(ctx, netID, uid); err != nil { errs <- err }
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for e := range errs { if e != nil { t.Fatalf("release error: %v", e) } }
 }

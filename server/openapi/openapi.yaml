@@ -600,6 +600,48 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
 
+  /v1/networks/{id}/ip-allocations/{user_id}:
+    delete:
+      summary: Admin release another member's IP allocation
+      description: "Admin or owner releases a target member's IP allocation. Idempotent: 204 even if target had no allocation. Both actor and target must be approved members; actor must have role admin or owner."
+      tags: [Networks]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "204": { description: Released (or no allocation existed) }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Not authorized (admin/owner role or membership conditions failed)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              examples:
+                not_admin:
+                  value:
+                    code: ERR_NOT_AUTHORIZED
+                    message: Admin or owner role required
+        "404":
+          description: Network not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
 
   # Future: IP allocation endpoint (to be implemented)
   # /v1/networks/{id}/ip-allocations:
