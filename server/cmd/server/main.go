@@ -33,16 +33,19 @@ func main() {
 	idempotencyRepo := repository.NewInMemoryIdempotencyRepository()
 	membershipRepo := repository.NewInMemoryMembershipRepository()
 	joinRepo := repository.NewInMemoryJoinRequestRepository()
+	ipamRepo := repository.NewInMemoryIPAM()
 
 	// Initialize services
 	networkService := service.NewNetworkService(networkRepo, idempotencyRepo)
 	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idempotencyRepo)
+	ipamService := service.NewIPAMService(networkRepo, ipamRepo)
 	stdAud := audit.NewStdoutAuditor()
 	membershipService.SetAuditor(stdAud)
 	networkService.SetAuditor(stdAud)
+	ipamService.SetAuditor(stdAud)
 
 	// Initialize handlers
-	networkHandler := handler.NewNetworkHandler(networkService, membershipService)
+	networkHandler := handler.NewNetworkHandler(networkService, membershipService).WithIPAM(ipamService)
 
 	// Setup router
 	r := gin.Default()
