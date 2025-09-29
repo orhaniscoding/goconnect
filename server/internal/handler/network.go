@@ -210,6 +210,10 @@ func RegisterNetworkRoutes(r *gin.Engine, handler *NetworkHandler) {
 
 	// IP allocation (member-level; no admin required). Mutation -> requires Idempotency-Key
 	networks.POST(":id/ip-allocations", rl, handler.AllocateIP)
+	networks.GET(":id/ip-allocations", handler.ListIPAllocations)
+	networks.DELETE(":id/ip-allocation", rl, handler.ReleaseIP)
+	// Admin/Owner release of another member's allocation
+	networks.DELETE(":id/ip-allocations/:user_id", rl, RequireNetworkAdmin(), handler.AdminReleaseIP)
 
 	// Membership & Join flow
 	networks.POST("/:id/join", rl, handler.JoinNetwork)
@@ -413,4 +417,71 @@ func (h *NetworkHandler) AllocateIP(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": alloc})
+}
+
+// ListIPAllocations handles GET /v1/networks/:id/ip-allocations
+func (h *NetworkHandler) ListIPAllocations(c *gin.Context) {
+	if h.ipamService == nil {
+		errorResponse(c, domain.NewError(domain.ErrNotImplemented, "IPAM not available", nil))
+		return
+	}
+	networkID := c.Param("id")
+	userID := c.MustGet("user_id").(string)
+	allocs, err := h.ipamService.ListAllocations(c.Request.Context(), networkID, userID)
+	if err != nil {
+		if derr, ok := err.(*domain.Error); ok {
+			errorResponse(c, derr)
+			return
+		}
+		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": allocs})
+}
+
+// ReleaseIP handles DELETE /v1/networks/:id/ip-allocation (self-release)
+func (h *NetworkHandler) ReleaseIP(c *gin.Context) {
+	if h.ipamService == nil {
+		errorResponse(c, domain.NewError(domain.ErrNotImplemented, "IPAM not available", nil))
+		return
+	}
+	if c.GetHeader("Idempotency-Key") == "" {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Idempotency-Key header is required for mutation operations", map[string]string{"required_header": "Idempotency-Key"}))
+		return
+	}
+	networkID := c.Param("id")
+	userID := c.MustGet("user_id").(string)
+	if err := h.ipamService.ReleaseIP(c.Request.Context(), networkID, userID); err != nil {
+		if derr, ok := err.(*domain.Error); ok {
+			errorResponse(c, derr)
+			return
+		}
+		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// AdminReleaseIP handles DELETE /v1/networks/:id/ip-allocations/:user_id (admin/owner releasing another member's allocation)
+func (h *NetworkHandler) AdminReleaseIP(c *gin.Context) {
+	if h.ipamService == nil {
+		errorResponse(c, domain.NewError(domain.ErrNotImplemented, "IPAM not available", nil))
+		return
+	}
+	if c.GetHeader("Idempotency-Key") == "" {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Idempotency-Key header is required for mutation operations", map[string]string{"required_header": "Idempotency-Key"}))
+		return
+	}
+	networkID := c.Param("id")
+	targetUserID := c.Param("user_id")
+	actorUserID := c.MustGet("user_id").(string)
+	if err := h.ipamService.ReleaseIPForActor(c.Request.Context(), networkID, actorUserID, targetUserID); err != nil {
+		if derr, ok := err.(*domain.Error); ok {
+			errorResponse(c, derr)
+			return
+		}
+		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
+		return
+	}
+	c.Status(http.StatusNoContent)
 }

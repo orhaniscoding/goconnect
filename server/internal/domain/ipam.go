@@ -10,6 +10,8 @@ type IPAllocation struct {
 	NetworkID string `json:"network_id"`
 	UserID    string `json:"user_id"`
 	IP        string `json:"ip"`
+	// Offset represents the host offset (starting at 1) inside the CIDR. Not exposed in JSON, used for reuse on relea
+	Offset uint32 `json:"-"`
 }
 
 // IPAMError codes
