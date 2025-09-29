@@ -28,6 +28,7 @@ type InMemoryStore struct {
 	hasher    func(data string) string
 	redactAll bool
 }
+
 // Option configures store behavior.
 type Option func(*InMemoryStore)
 
@@ -35,7 +36,9 @@ type Option func(*InMemoryStore)
 // Uses HMAC-SHA256 and encodes first 18 bytes (to keep it short) in URL-safe base64 without padding.
 func WithHashing(secret []byte) Option {
 	return func(s *InMemoryStore) {
-		if len(secret) == 0 { return }
+		if len(secret) == 0 {
+			return
+		}
 		var h hash.Hash
 		s.hasher = func(data string) string {
 			h = hmac.New(sha256.New, secret)
@@ -56,7 +59,9 @@ func WithRedaction() Option { return func(s *InMemoryStore) { s.redactAll = true
 // NewInMemoryStore creates a new in-memory audit store with optional functional options.
 func NewInMemoryStore(opts ...Option) *InMemoryStore {
 	store := &InMemoryStore{redactAll: true}
-	for _, o := range opts { o(store) }
+	for _, o := range opts {
+		o(store)
+	}
 	return store
 }
 

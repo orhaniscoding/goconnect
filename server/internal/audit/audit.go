@@ -24,7 +24,9 @@ func NewStdoutAuditor() Auditor { return &stdoutAuditor{} }
 // NewStdoutAuditorWithHashing returns a stdout auditor that hashes actor/object
 // identifiers using HMAC-SHA256 with the provided secret (pseudonymous).
 func NewStdoutAuditorWithHashing(secret []byte) Auditor {
-	if len(secret) == 0 { return NewStdoutAuditor() }
+	if len(secret) == 0 {
+		return NewStdoutAuditor()
+	}
 	var h hash.Hash
 	return &stdoutAuditor{hasher: func(v string) string {
 		h = hmac.New(sha256.New, secret)
