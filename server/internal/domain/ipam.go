@@ -12,7 +12,7 @@ type IPAllocation struct {
 	IP        string `json:"ip"`
 }
 
-// IPAMError codes (extend existing domain error model if needed)
+// IPAMError codes
 const (
 	ErrIPExhausted = "ERR_IP_EXHAUSTED"
 )

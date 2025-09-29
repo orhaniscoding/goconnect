@@ -19,11 +19,7 @@ func NewIPAMService(n repository.NetworkRepository, ip repository.IPAMRepository
 }
 
 // SetAuditor wires a real auditor.
-func (s *IPAMService) SetAuditor(a Auditor) {
-	if a != nil {
-		s.aud = a
-	}
-}
+func (s *IPAMService) SetAuditor(a Auditor) { if a != nil { s.aud = a } }
 
 // AllocateIP returns existing allocation or assigns the next available IP.
 func (s *IPAMService) AllocateIP(ctx context.Context, networkID, userID string) (*domain.IPAllocation, error) {

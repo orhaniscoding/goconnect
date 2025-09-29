@@ -16,6 +16,7 @@ import (
 )
 
 type testAuditor struct{ events []string }
+
 func (t *testAuditor) Event(ctx context.Context, action, actor, object string, details map[string]any) {
 	t.events = append(t.events, action)
 }
@@ -86,7 +87,6 @@ func TestIPAllocationMemberSuccessAndRepeat(t *testing.T) {
 	}
 }
 
-
 func TestIPAllocationExhaustion(t *testing.T) {
 	r, _, _, netID, _ := setupIPAlloc() // /30 => 2 usable
 	// allocate for user1
@@ -113,8 +113,17 @@ func TestIPAllocationAuditEvent(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer dev")
 	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
 	r.ServeHTTP(w, req)
-	if w.Code != http.StatusOK { t.Fatalf("expected 200 got %d", w.Code) }
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 got %d", w.Code)
+	}
 	found := false
-	for _, ev := range ta.events { if ev == "IP_ALLOCATED" { found = true; break } }
-	if !found { t.Fatalf("expected IP_ALLOCATED event, got %v", ta.events) }
+	for _, ev := range ta.events {
+		if ev == "IP_ALLOCATED" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected IP_ALLOCATED event, got %v", ta.events)
+	}
 }
