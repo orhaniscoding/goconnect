@@ -22,8 +22,8 @@ Current audit subsystem provides a lightweight, in-memory, append-only store use
 EventRecord {
   ts: RFC3339Nano UTC timestamp,
   action: string (ENUM-like constant),
-  actor: "[redacted]",  // reserved for future hashed form
-  object: "[redacted]", // reserved for future hashed form
+  actor: "[redacted]" | hashed_id,  // hashed when hashing enabled (HMAC-SHA256 truncated)
+  object: "[redacted]" | hashed_id, // ditto
   details: map[string]any (action-specific non-PII),
   request_id: optional request correlation id
 }
@@ -39,11 +39,11 @@ EventRecord {
 - Admin-triggered IP release includes `released_for` specifying (currently raw) target user id — this is a temporary compromise; will migrate to hashed token.
 
 ## Redaction Strategy & Roadmap
-Current redaction is coarse (constant `[redacted]`). Upcoming refinements:
-1. Deterministic hashing (HMAC-SHA256 with rotation key) of actor & object fields to allow correlation without exposing raw IDs.
+Current default is coarse redaction (`[redacted]`). Refinements and status:
+1. (Planned DONE target) Deterministic hashing via HMAC-SHA256 (first 144 bits base64url) of actor & object when enabled (in-memory + stdout + sqlite paths share logic).
 2. Configurable retention (memory cap + ring buffer / eviction policy).
 3. Streaming exporter: channel fan-out to external sinks (stdout, OpenTelemetry, file, webhook).
-4. Tamper-evidence: append hash chain: `event_hash = H(prev_hash || canonical_json)`. Persist head hash for integrity audits.
+4. Tamper-evidence: append hash chain: `event_hash = H(prev_hash || canonical_json)`; persist head hash for integrity audits.
 5. Backpressure controls & async buffering (bounded queue + worker) for production throughput.
 
 ## Integrity & Ordering
@@ -79,10 +79,31 @@ Current redaction is coarse (constant `[redacted]`). Upcoming refinements:
 - Introduce sampling for high-volume benign events? (Optional toggle.)
 
 ## Immediate Next Steps
-1. Introduce action constants file (low risk).
-2. Hashing of actor/object via configurable secret.
-3. Structured exporter interface + noop + stdout implementations.
-4. Persistence prototype (SQLite) with hash chain.
+1. Persistence prototype (SQLite) with monotonic seq + optional hashing.
+2. Structured exporter interface + noop + stdout + (future) sqlite reader.
+3. Hash chain (tamper-evident) leveraging seq + canonical JSON.
+4. Retention & pruning policy (in-memory + sqlite time/row caps).
+5. Metrics (event/sec, insert latency, error count) & health endpoint integration.
+
+## Persistence (Planned SQLite Prototype)
+Target schema:
+```
+CREATE TABLE IF NOT EXISTS audit_events (
+  seq INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts TEXT NOT NULL,
+  action TEXT NOT NULL,
+  actor TEXT NOT NULL,
+  object TEXT NOT NULL,
+  details TEXT,
+  request_id TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_audit_events_action_ts ON audit_events(action, ts);
+```
+Design notes:
+- Pure Go driver (`modernc.org/sqlite`) for CGO-free builds.
+- Fire-and-forget inserts (errors logged/metric, do not fail main flow unless configured critical).
+- Optional hashing path shares truncation logic with in-memory implementation.
+- Prepares for integrity chain table referencing `seq`.
 
 ---
-Revision: v1 (initial) – Date: 2025-09-29
+Revision: v1.1 (hash+persistence roadmap merge) – Date: 2025-09-29
