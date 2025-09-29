@@ -22,6 +22,7 @@ func (e *Error) Error() string {
 const (
 	ErrInvalidRequest      = "ERR_INVALID_REQUEST"
 	ErrUnauthorized        = "ERR_UNAUTHORIZED"
+	ErrNotAuthorized       = "ERR_NOT_AUTHORIZED" // outward unified code for authz failures
 	ErrForbidden           = "ERR_FORBIDDEN"
 	ErrRateLimited         = "ERR_RATE_LIMITED"
 	ErrNotFound            = "ERR_NOT_FOUND"
