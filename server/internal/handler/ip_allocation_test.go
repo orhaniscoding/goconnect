@@ -30,7 +30,7 @@ func setupIPAlloc() (*gin.Engine, *service.IPAMService, repository.MembershipRep
 	iprepo := repository.NewInMemoryIPAM()
 	ns := service.NewNetworkService(nrepo, irepo)
 	ms := service.NewMembershipService(nrepo, mrepo, jrepo, irepo)
-	ips := service.NewIPAMService(nrepo, iprepo)
+	ips := service.NewIPAMService(nrepo, mrepo, iprepo)
 	ta := &testAuditor{}
 	ips.SetAuditor(ta)
 	h := NewNetworkHandler(ns, ms).WithIPAM(ips)

@@ -576,6 +576,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+        "403":
+          description: Not authorized (membership required or not approved)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                not_member:
+                  value:
+                    code: ERR_NOT_AUTHORIZED
+                    message: Membership required to allocate IP
         "404":
           description: Network not found
           content:
@@ -593,6 +604,52 @@ paths:
                   value:
                     code: ERR_IP_EXHAUSTED
                     message: No available IP addresses remaining
+    get:
+      summary: List IP allocations for the network
+      description: "List all current IP allocations. Requires approved membership in the network."
+      tags: [Networks]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Allocations listed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        network_id: { type: string }
+                        user_id: { type: string }
+                        ip: { type: string, example: "10.0.0.5" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Not authorized (membership required or not approved)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Network not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
     delete:
       summary: Delete (soft) network
       description: "Soft delete network (idempotent). RBAC: admin/owner (or global admin)."

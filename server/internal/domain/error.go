@@ -55,6 +55,8 @@ func (e *Error) ToHTTPStatus() int {
 		return http.StatusBadRequest
 	case ErrUnauthorized:
 		return http.StatusUnauthorized
+	case ErrNotAuthorized:
+		return http.StatusForbidden
 	case ErrForbidden:
 		return http.StatusForbidden
 	case ErrRateLimited:
