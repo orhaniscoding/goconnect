@@ -107,7 +107,7 @@ func (s *NetworkService) ListNetworks(ctx context.Context, req *domain.ListNetwo
 
 	// Non-admin users cannot access "all" visibility
 	if req.Visibility == "all" && !isAdmin {
-		return nil, "", domain.NewError(domain.ErrForbidden,
+		return nil, "", domain.NewError(domain.ErrNotAuthorized,
 			"Only administrators can view all networks",
 			map[string]string{"required_role": "admin"})
 	}

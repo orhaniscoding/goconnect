@@ -103,7 +103,7 @@ func (s *MembershipService) JoinNetwork(ctx context.Context, networkID, userID, 
 func (s *MembershipService) Approve(ctx context.Context, networkID, targetUserID, actorID string) (*domain.Membership, error) {
 	// RBAC simplified: assume actor is admin/owner if membership role is admin or owner
 	if !s.isAdmin(ctx, networkID, actorID) {
-		return nil, domain.NewError(domain.ErrForbidden, "Administrator privileges required", nil)
+		return nil, domain.NewError(domain.ErrNotAuthorized, "Administrator privileges required", nil)
 	}
 	// find pending join
 	jr, err := s.joins.GetPending(ctx, networkID, targetUserID)
@@ -123,7 +123,7 @@ func (s *MembershipService) Approve(ctx context.Context, networkID, targetUserID
 
 func (s *MembershipService) Deny(ctx context.Context, networkID, targetUserID, actorID string) error {
 	if !s.isAdmin(ctx, networkID, actorID) {
-		return domain.NewError(domain.ErrForbidden, "Administrator privileges required", nil)
+		return domain.NewError(domain.ErrNotAuthorized, "Administrator privileges required", nil)
 	}
 	jr, err := s.joins.GetPending(ctx, networkID, targetUserID)
 	if err != nil {
@@ -138,7 +138,7 @@ func (s *MembershipService) Deny(ctx context.Context, networkID, targetUserID, a
 
 func (s *MembershipService) Kick(ctx context.Context, networkID, targetUserID, actorID string) error {
 	if !s.isAdmin(ctx, networkID, actorID) {
-		return domain.NewError(domain.ErrForbidden, "Administrator privileges required", nil)
+		return domain.NewError(domain.ErrNotAuthorized, "Administrator privileges required", nil)
 	}
 	if err := s.members.Remove(ctx, networkID, targetUserID); err != nil {
 		return err
@@ -149,7 +149,7 @@ func (s *MembershipService) Kick(ctx context.Context, networkID, targetUserID, a
 
 func (s *MembershipService) Ban(ctx context.Context, networkID, targetUserID, actorID string) error {
 	if !s.isAdmin(ctx, networkID, actorID) {
-		return domain.NewError(domain.ErrForbidden, "Administrator privileges required", nil)
+		return domain.NewError(domain.ErrNotAuthorized, "Administrator privileges required", nil)
 	}
 	if err := s.members.SetStatus(ctx, networkID, targetUserID, domain.StatusBanned); err != nil {
 		return err
