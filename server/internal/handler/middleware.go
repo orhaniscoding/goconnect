@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
@@ -96,7 +97,7 @@ func CORSMiddleware() gin.HandlerFunc {
 
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, Idempotency-Key, X-Request-Id")
-	c.Header("Access-Control-Expose-Headers", "X-Request-Id, Retry-After")
+		c.Header("Access-Control-Expose-Headers", "X-Request-Id, Retry-After")
 		c.Header("Access-Control-Max-Age", "86400")
 
 		if c.Request.Method == "OPTIONS" {
@@ -157,22 +158,24 @@ func RequireNetworkAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// global admin bypass (is_admin from token)
 		if ia, ok := c.Get("is_admin"); ok && ia.(bool) {
-			c.Next(); return
+			c.Next()
+			return
 		}
 		roleAny, ok := c.Get("membership_role")
 		if !ok {
 			errorResponse(c, domain.NewError(domain.ErrForbidden, "Membership role required", nil))
-			c.Abort(); return
+			c.Abort()
+			return
 		}
 		role, _ := roleAny.(domain.MembershipRole)
 		if role != domain.RoleAdmin && role != domain.RoleOwner {
 			errorResponse(c, domain.NewError(domain.ErrForbidden, "Administrator privileges required", nil))
-			c.Abort(); return
+			c.Abort()
+			return
 		}
 		c.Next()
 	}
 }
-
 
 // validateToken validates JWT token and returns user info
 // TODO: Replace with proper JWT validation
@@ -195,10 +198,10 @@ func generateRequestID() string {
 
 // errorResponse sends a standardized error response
 func errorResponse(c *gin.Context, derr *domain.Error) {
-    status := derr.ToHTTPStatus()
-    if derr.Code == domain.ErrForbidden || derr.Code == domain.ErrUnauthorized {
-        // unify outward code while preserving computed status (401 vs 403)
-        derr = &domain.Error{Code: domain.ErrNotAuthorized, Message: derr.Message, Details: derr.Details, RetryAfter: derr.RetryAfter}
-    }
-    c.JSON(status, derr)
+	status := derr.ToHTTPStatus()
+	if derr.Code == domain.ErrForbidden || derr.Code == domain.ErrUnauthorized {
+		// unify outward code while preserving computed status (401 vs 403)
+		derr = &domain.Error{Code: domain.ErrNotAuthorized, Message: derr.Message, Details: derr.Details, RetryAfter: derr.RetryAfter}
+	}
+	c.JSON(status, derr)
 }
