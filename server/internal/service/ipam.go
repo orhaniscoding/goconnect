@@ -3,8 +3,10 @@ package service
 import (
 	"context"
 
+	"github.com/orhaniscoding/goconnect/server/internal/audit"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
+	"github.com/orhaniscoding/goconnect/server/internal/rbac"
 )
 
 // IPAMService provides IP allocation logic on top of repositories.
@@ -49,7 +51,7 @@ func (s *IPAMService) AllocateIP(ctx context.Context, networkID, userID string) 
 	if err != nil {
 		return nil, err
 	}
-	s.aud.Event(ctx, "IP_ALLOCATED", userID, networkID, map[string]any{"ip": alloc.IP})
+	s.aud.Event(ctx, audit.ActionIPAllocated, userID, networkID, map[string]any{"ip": alloc.IP})
 	return alloc, nil
 }
 
@@ -90,7 +92,7 @@ func (s *IPAMService) ReleaseIP(ctx context.Context, networkID, userID string) e
 	if err := s.ipam.Release(ctx, networkID, userID); err != nil {
 		return err
 	}
-	s.aud.Event(ctx, "IP_RELEASED", userID, networkID, nil)
+	s.aud.Event(ctx, audit.ActionIPReleased, userID, networkID, nil)
 	return nil
 }
 
@@ -116,7 +118,7 @@ func (s *IPAMService) ReleaseIPForActor(ctx context.Context, networkID, actorUse
 	if actorM.Status != domain.StatusApproved {
 		return domain.NewError(domain.ErrNotAuthorized, "Actor membership not approved", map[string]string{"status": string(actorM.Status)})
 	}
-	if actorM.Role != domain.RoleAdmin && actorM.Role != domain.RoleOwner {
+	if !rbac.CanReleaseOtherIP(actorM.Role) {
 		return domain.NewError(domain.ErrNotAuthorized, "Admin or owner role required", map[string]string{"role": string(actorM.Role)})
 	}
 	// target membership (hide absence distinctness)
@@ -130,6 +132,6 @@ func (s *IPAMService) ReleaseIPForActor(ctx context.Context, networkID, actorUse
 	if err := s.ipam.Release(ctx, networkID, targetUserID); err != nil {
 		return err
 	}
-	s.aud.Event(ctx, "IP_RELEASED", actorUserID, networkID, map[string]any{"released_for": targetUserID})
+	s.aud.Event(ctx, audit.ActionIPReleased, actorUserID, networkID, map[string]any{"released_for": targetUserID})
 	return nil
 }

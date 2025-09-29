@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
+	"github.com/orhaniscoding/goconnect/server/internal/rbac"
 )
 
 // AuthMiddleware validates JWT tokens and extracts user information
@@ -155,26 +156,21 @@ func RoleMiddleware(mrepo repository.MembershipRepository) gin.HandlerFunc {
 
 // RequireNetworkAdmin ensures membership role is admin or owner (for network-scoped mutations) OR is_admin flag.
 func RequireNetworkAdmin() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// global admin bypass (is_admin from token)
-		if ia, ok := c.Get("is_admin"); ok && ia.(bool) {
-			c.Next()
-			return
-		}
-		roleAny, ok := c.Get("membership_role")
-		if !ok {
-			errorResponse(c, domain.NewError(domain.ErrNotAuthorized, "Membership role required", nil))
-			c.Abort()
-			return
-		}
-		role, _ := roleAny.(domain.MembershipRole)
-		if role != domain.RoleAdmin && role != domain.RoleOwner {
-			errorResponse(c, domain.NewError(domain.ErrNotAuthorized, "Administrator privileges required", nil))
-			c.Abort()
-			return
-		}
-		c.Next()
-	}
+    return func(c *gin.Context) {
+        // global admin bypass (is_admin from token)
+        if ia, ok := c.Get("is_admin"); ok && ia.(bool) {
+            c.Next(); return
+        }
+        roleAny, ok := c.Get("membership_role")
+        if !ok {
+            errorResponse(c, domain.NewError(domain.ErrNotAuthorized, "Membership role required", nil)); c.Abort(); return
+        }
+        role, _ := roleAny.(domain.MembershipRole)
+        if !rbac.CanManageNetwork(role) {
+            errorResponse(c, domain.NewError(domain.ErrNotAuthorized, "Administrator privileges required", nil)); c.Abort(); return
+        }
+        c.Next()
+    }
 }
 
 // validateToken validates JWT token and returns user info
