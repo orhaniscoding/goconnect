@@ -37,7 +37,9 @@ func main() {
 	// Initialize services
 	networkService := service.NewNetworkService(networkRepo, idempotencyRepo)
 	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idempotencyRepo)
-	membershipService.SetAuditor(audit.NewStdoutAuditor())
+	stdAud := audit.NewStdoutAuditor()
+	membershipService.SetAuditor(stdAud)
+	networkService.SetAuditor(stdAud)
 
 	// Initialize handlers
 	networkHandler := handler.NewNetworkHandler(networkService, membershipService)
@@ -54,6 +56,8 @@ func main() {
 		c.JSON(200, gin.H{"data": gin.H{"access_token": "dev", "refresh_token": "dev"}})
 	})
 
+	// Role middleware must run early to populate membership_role
+	r.Use(handler.RoleMiddleware(membershipRepo))
 	// Register network routes
 	handler.RegisterNetworkRoutes(r, networkHandler)
 
