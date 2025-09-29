@@ -4,40 +4,6 @@ info:
   version: 0.1.0
   description: "GoConnect server API for virtual network management"
   contact:
-    name: orhaniscoding
-    url: https://github.com/orhaniscoding/goconnect
-  license:
-    name: MIT
-    url: https://opensource.org/licenses/MIT
-
-servers:
-  - url: https://api.goconnect.example
-    description: Production server
-  - url: http://localhost:8080
-    description: Development server
-
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-
-  schemas:
-    Error:
-      type: object
-      required: [code, message]
-      properties:
-        code:
-          type: string
-          example: "ERR_INVALID_REQUEST"
-        message:
-          type: string
-          example: "Invalid request data"
-        details:
-          type: object
-          additionalProperties: true
-        retry_after:
           type: integer
           minimum: 0
       examples:
@@ -115,61 +81,8 @@ components:
           description: "Enable split tunneling"
         created_by:
           type: string
-          example: "user_123"
-          description: "User who created the network"
-        created_at:
-          type: string
-          format: date-time
-          example: "2025-09-23T10:00:00Z"
-        updated_at:
-          type: string
-          format: date-time
-          example: "2025-09-23T10:00:00Z"
-        soft_deleted_at:
-          type: string
-          format: date-time
-          nullable: true
-          description: "Soft deletion timestamp"
-        moderation_redacted:
-          type: boolean
-          example: false
-          description: "Whether content is moderation redacted"
-
-    CreateNetworkRequest:
-      type: object
-      required: [name, visibility, join_policy, cidr]
-      properties:
-        name:
-          type: string
-          minLength: 3
-          maxLength: 64
-          example: "My Private Network"
-        visibility:
-          type: string
-          enum: [public, private]
-          example: "public"
-        join_policy:
-          type: string
-          enum: [open, invite, approval]
-          example: "open"
-        cidr:
-          type: string
-          pattern: '^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$'
-          example: "10.0.0.0/24"
-        dns:
-          type: string
           nullable: true
           example: "1.1.1.1"
-        mtu:
-          type: integer
-          nullable: true
-          minimum: 576
-          maximum: 1500
-          example: 1420
-        split_tunnel:
-          type: boolean
-          nullable: true
-          example: false
 
     NetworkListResponse:
       type: object
@@ -650,9 +563,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /v1/networks/{id}/ip-allocation:
     delete:
-      summary: Delete (soft) network
-      description: "Soft delete network (idempotent). RBAC: admin/owner (or global admin)."
+      summary: Release current user's IP allocation
+      description: "Releases (frees) the caller's existing IP allocation if present. Idempotent: releasing a non-existent allocation returns 204. Requires approved membership."
       tags: [Networks]
       security:
         - bearerAuth: []
@@ -660,66 +574,32 @@ paths:
         - name: id
           in: path
           required: true
-          schema: { type: string }
+          schema:
+            type: string
         - $ref: "#/components/parameters/IdempotencyKey"
       responses:
-        "200":
-          {
-            description: "Deleted",
-            content:
-              {
-                application/json:
-                  {
-                    schema:
-                      { type: object, properties: { ok: { type: boolean } } },
-                  },
-              },
-          }
+        "204": { description: Released (or no allocation existed) }
         "401":
-          {
-            description: "Not authenticated",
-            content:
-              {
-                application/json:
-                  {
-                    schema: { $ref: "#/components/schemas/Error" },
-                    examples:
-                      {
-                        unauth:
-                          {
-                            $ref: "#/components/schemas/Error/examples/not_authorized_unauthenticated",
-                          },
-                      },
-                  },
-              },
-          }
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "403":
-          {
-            description: "Not authorized (role)",
-            content:
-              {
-                application/json:
-                  {
-                    schema: { $ref: "#/components/schemas/Error" },
-                    examples:
-                      {
-                        forbrbac:
-                          {
-                            $ref: "#/components/schemas/Error/examples/not_authorized_forbidden",
-                          },
-                      },
-                  },
-              },
-          }
+          description: Not authorized (membership required / not approved)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              examples:
+                not_member:
+                  value:
+                    code: ERR_NOT_AUTHORIZED
+                    message: Membership required
         "404":
-          {
-            description: "Not found",
-            content:
-              {
-                application/json:
-                  { schema: { $ref: "#/components/schemas/Error" } },
-              },
-          }
+          description: Network not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
 
   # Future: IP allocation endpoint (to be implemented)
   # /v1/networks/{id}/ip-allocations:

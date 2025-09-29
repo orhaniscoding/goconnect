@@ -70,3 +70,26 @@ func (s *IPAMService) ListAllocations(ctx context.Context, networkID, userID str
 	}
 	return s.ipam.List(ctx, networkID)
 }
+
+// ReleaseIP releases a user's allocation (idempotent). If user has no allocation it still succeeds.
+func (s *IPAMService) ReleaseIP(ctx context.Context, networkID, userID string) error {
+	// ensure network exists
+	if _, err := s.networks.GetByID(ctx, networkID); err != nil {
+		return err
+	}
+	// Enforce membership approval before allowing release (prevents probing existence of allocations by outsiders)
+	if s.members != nil {
+		m, err := s.members.Get(ctx, networkID, userID)
+		if err != nil {
+			return domain.NewError(domain.ErrNotAuthorized, "Membership required", nil)
+		}
+		if m.Status != domain.StatusApproved {
+			return domain.NewError(domain.ErrNotAuthorized, "Membership not approved", map[string]string{"status": string(m.Status)})
+		}
+	}
+	if err := s.ipam.Release(ctx, networkID, userID); err != nil {
+		return err
+	}
+	s.aud.Event(ctx, "IP_RELEASED", userID, networkID, nil)
+	return nil
+}
