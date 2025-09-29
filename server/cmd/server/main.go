@@ -38,7 +38,7 @@ func main() {
 	// Initialize services
 	networkService := service.NewNetworkService(networkRepo, idempotencyRepo)
 	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idempotencyRepo)
-	ipamService := service.NewIPAMService(networkRepo, ipamRepo)
+	ipamService := service.NewIPAMService(networkRepo, membershipRepo, ipamRepo)
 	stdAud := audit.NewStdoutAuditor()
 	membershipService.SetAuditor(stdAud)
 	networkService.SetAuditor(stdAud)
