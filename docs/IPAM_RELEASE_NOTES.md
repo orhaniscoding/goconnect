@@ -47,10 +47,10 @@ Service layer enforces membership; allocation is naturally idempotent for an exi
 - Network not found surfaces `ERR_NOT_FOUND`.
 
 ## Audit Events
-| Action | Details | Emitted When |
-|--------|---------|--------------|
-| IP_ALLOCATED | `ip` | User receives allocation (new or first call) |
-| IP_RELEASED | optional `released_for` target user | User releases own allocation (no details) OR admin/owner releases another member (includes target) |
+| Action       | Details                             | Emitted When                                                                                       |
+| ------------ | ----------------------------------- | -------------------------------------------------------------------------------------------------- |
+| IP_ALLOCATED | `ip`                                | User receives allocation (new or first call)                                                       |
+| IP_RELEASED  | optional `released_for` target user | User releases own allocation (no details) OR admin/owner releases another member (includes target) |
 
 Actor/Object identifiers are redacted (`[redacted]`) at storage layer to prevent PII leakage; correlation relies on request-scoped metadata (future extension: hashed identifiers with salt).
 

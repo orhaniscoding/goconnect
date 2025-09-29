@@ -10,12 +10,12 @@ Current audit subsystem provides a lightweight, in-memory, append-only store use
 - Remain low overhead for hot paths
 
 ## Components
-| Component | Purpose |
-|-----------|---------|
-| `Auditor` interface | Pluggable sink abstraction (`Event(ctx, action, actor, object, details)` ) |
-| `stdoutAuditor` | Dev-oriented JSON emitter (redacts actor/object) |
-| `InMemoryStore` | Thread-safe slice-based store for tests (redacted fields) |
-| Service `SetAuditor` hooks | Allow injection without changing constructors |
+| Component                  | Purpose                                                                    |
+| -------------------------- | -------------------------------------------------------------------------- |
+| `Auditor` interface        | Pluggable sink abstraction (`Event(ctx, action, actor, object, details)` ) |
+| `stdoutAuditor`            | Dev-oriented JSON emitter (redacts actor/object)                           |
+| `InMemoryStore`            | Thread-safe slice-based store for tests (redacted fields)                  |
+| Service `SetAuditor` hooks | Allow injection without changing constructors                              |
 
 ## Event Schema
 ```
@@ -60,13 +60,13 @@ Current redaction is coarse (constant `[redacted]`). Upcoming refinements:
 - Handler & service tests assert event presence for critical flows.
 
 ## Future API Extensions
-| Feature | Rationale |
-|---------|-----------|
+| Feature                               | Rationale                                       |
+| ------------------------------------- | ----------------------------------------------- |
 | Query API (time range, action filter) | Operational troubleshooting & compliance export |
-| Export format (NDJSON streaming) | Integrate with SIEM / log pipeline |
-| Action constants package | Prevent typos & enable IDE completion |
-| Multi-sink fan-out with retries | Reliability under sink outage |
-| Privacy budget / classification tags | Data governance & selective retention |
+| Export format (NDJSON streaming)      | Integrate with SIEM / log pipeline              |
+| Action constants package              | Prevent typos & enable IDE completion           |
+| Multi-sink fan-out with retries       | Reliability under sink outage                   |
+| Privacy budget / classification tags  | Data governance & selective retention           |
 
 ## Security Considerations
 - No PII at rest: ensure future details map excludes user-supplied raw strings unless classified safe.
