@@ -542,6 +542,57 @@ paths:
                   { schema: { $ref: "#/components/schemas/Error" } },
               },
           }
+  /v1/networks/{id}/ip-allocations:
+    post:
+      summary: Allocate or retrieve IP for current user
+      description: "Returns existing allocation if one exists, otherwise allocates next available IP. Requires authentication; future versions will enforce approved membership."
+      tags: [Networks]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Allocation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      network_id: { type: string }
+                      user_id: { type: string }
+                      ip: { type: string, example: "10.0.0.5" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Network not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: IP space exhausted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                exhausted:
+                  value:
+                    code: ERR_IP_EXHAUSTED
+                    message: No available IP addresses remaining
     delete:
       summary: Delete (soft) network
       description: "Soft delete network (idempotent). RBAC: admin/owner (or global admin)."
