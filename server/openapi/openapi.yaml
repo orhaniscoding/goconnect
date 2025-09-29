@@ -186,6 +186,21 @@ components:
         data:
           $ref: "#/components/schemas/Network"
 
+    NetworkUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 64
+        visibility:
+          type: string
+          enum: [public, private]
+        join_policy:
+          type: string
+          enum: [open, invite, approval]
+      additionalProperties: false
+
     Membership:
       type: object
       required: [id, network_id, user_id, role, status, created_at, updated_at]
@@ -421,12 +436,45 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-        "501":
-          description: "Not implemented yet"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+    patch:
+      summary: Update network
+      description: "Update mutable network fields (name, visibility, join_policy)"
+      tags: [Networks]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NetworkUpdateRequest"
+      responses:
+        "200": { description: "Updated", content: { application/json: { schema: { $ref: "#/components/schemas/NetworkResponse" } } } }
+        "400": { description: "Invalid request", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "401": { description: "Unauthorized", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "404": { description: "Not found", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    delete:
+      summary: Delete (soft) network
+      description: "Soft delete network (idempotent)"
+      tags: [Networks]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200": { description: "Deleted", content: { application/json: { schema: { type: object, properties: { ok: { type: boolean } } } } } }
+        "401": { description: "Unauthorized", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "404": { description: "Not found", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
 
   /v1/networks/{id}/join:
     post:
@@ -489,6 +537,7 @@ paths:
           in: path
           required: true
           schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
@@ -550,6 +599,7 @@ paths:
           in: path
           required: true
           schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
@@ -571,9 +621,33 @@ paths:
                   ok:
                     type: boolean
                     example: true
-        "400": { description: "Invalid request", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
-        "401": { description: "Unauthorized", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
-        "403": { description: "Forbidden - only admin/owner can deny", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "400":
+          {
+            description: "Invalid request",
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/Error" } },
+              },
+          }
+        "401":
+          {
+            description: "Unauthorized",
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/Error" } },
+              },
+          }
+        "403":
+          {
+            description: "Forbidden - only admin/owner can deny",
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/Error" } },
+              },
+          }
         "429":
           description: "Too Many Requests - Rate limit exceeded"
           headers:
@@ -597,6 +671,7 @@ paths:
           in: path
           required: true
           schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
@@ -618,9 +693,33 @@ paths:
                   ok:
                     type: boolean
                     example: true
-        "400": { description: "Invalid request", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
-        "401": { description: "Unauthorized", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
-        "403": { description: "Forbidden - only admin/owner can kick", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "400":
+          {
+            description: "Invalid request",
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/Error" } },
+              },
+          }
+        "401":
+          {
+            description: "Unauthorized",
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/Error" } },
+              },
+          }
+        "403":
+          {
+            description: "Forbidden - only admin/owner can kick",
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/Error" } },
+              },
+          }
         "429":
           description: "Too Many Requests - Rate limit exceeded"
           headers:
@@ -644,6 +743,7 @@ paths:
           in: path
           required: true
           schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
@@ -665,9 +765,33 @@ paths:
                   ok:
                     type: boolean
                     example: true
-        "400": { description: "Invalid request", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
-        "401": { description: "Unauthorized", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
-        "403": { description: "Forbidden - only admin/owner can ban", content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+        "400":
+          {
+            description: "Invalid request",
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/Error" } },
+              },
+          }
+        "401":
+          {
+            description: "Unauthorized",
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/Error" } },
+              },
+          }
+        "403":
+          {
+            description: "Forbidden - only admin/owner can ban",
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/Error" } },
+              },
+          }
         "429":
           description: "Too Many Requests - Rate limit exceeded"
           headers:

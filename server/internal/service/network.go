@@ -12,8 +12,9 @@ import (
 
 // NetworkService provides business logic for network operations
 type NetworkService struct {
-	networkRepo      repository.NetworkRepository
-	idempotencyRepo  repository.IdempotencyRepository
+	networkRepo     repository.NetworkRepository
+	idempotencyRepo repository.IdempotencyRepository
+	aud             Auditor // Reuse the Auditor interface defined in membership.go (same package)
 }
 
 // NewNetworkService creates a new network service
@@ -21,6 +22,14 @@ func NewNetworkService(networkRepo repository.NetworkRepository, idempotencyRepo
 	return &NetworkService{
 		networkRepo:     networkRepo,
 		idempotencyRepo: idempotencyRepo,
+		aud:             noopAuditor, // comes from membership.go
+	}
+}
+
+// SetAuditor allows wiring a real auditor from main
+func (s *NetworkService) SetAuditor(a Auditor) {
+	if a != nil {
+		s.aud = a
 	}
 }
 
@@ -37,8 +46,8 @@ func (s *NetworkService) CreateNetwork(ctx context.Context, req *domain.CreateNe
 
 	// Validate CIDR format
 	if err := domain.ValidateCIDR(req.CIDR); err != nil {
-		return nil, domain.NewError(domain.ErrCIDRInvalid, 
-			fmt.Sprintf("Invalid CIDR format: %v", err), 
+		return nil, domain.NewError(domain.ErrCIDRInvalid,
+			fmt.Sprintf("Invalid CIDR format: %v", err),
 			map[string]string{"field": "cidr"})
 	}
 
@@ -48,15 +57,15 @@ func (s *NetworkService) CreateNetwork(ctx context.Context, req *domain.CreateNe
 		return nil, domain.NewError(domain.ErrInternalServer, "Failed to check CIDR overlap", nil)
 	}
 	if overlap {
-		return nil, domain.NewError(domain.ErrCIDROverlap, 
-			"CIDR range overlaps with existing network", 
+		return nil, domain.NewError(domain.ErrCIDROverlap,
+			"CIDR range overlaps with existing network",
 			map[string]string{"cidr": req.CIDR})
 	}
 
 	// Create network
 	now := time.Now()
 	network := &domain.Network{
-		ID:                  domain.GenerateNetworkID(),
+		ID:                 domain.GenerateNetworkID(),
 		TenantID:           "default", // TODO: Extract from user context
 		Name:               req.Name,
 		Visibility:         req.Visibility,
@@ -84,11 +93,7 @@ func (s *NetworkService) CreateNetwork(ctx context.Context, req *domain.CreateNe
 		}
 	}
 
-	// TODO: Add audit log entry
-	s.logAuditEvent(ctx, "network.created", userID, network.ID, map[string]interface{}{
-		"name": network.Name,
-		"cidr": network.CIDR,
-	})
+	s.audit(ctx, "NETWORK_CREATED", userID, network.ID, map[string]any{"name": network.Name, "cidr": network.CIDR})
 
 	return network, nil
 }
@@ -102,8 +107,8 @@ func (s *NetworkService) ListNetworks(ctx context.Context, req *domain.ListNetwo
 
 	// Non-admin users cannot access "all" visibility
 	if req.Visibility == "all" && !isAdmin {
-		return nil, "", domain.NewError(domain.ErrForbidden, 
-			"Only administrators can view all networks", 
+		return nil, "", domain.NewError(domain.ErrForbidden,
+			"Only administrators can view all networks",
 			map[string]string{"required_role": "admin"})
 	}
 
@@ -121,13 +126,61 @@ func (s *NetworkService) ListNetworks(ctx context.Context, req *domain.ListNetwo
 		return nil, "", err
 	}
 
-	// TODO: Add audit log for list operations (optional)
-	s.logAuditEvent(ctx, "network.listed", userID, "", map[string]interface{}{
-		"visibility": req.Visibility,
-		"count":      len(networks),
-	})
+	s.audit(ctx, "NETWORK_LIST", userID, "", map[string]any{"visibility": req.Visibility, "count": len(networks)})
 
 	return networks, nextCursor, nil
+}
+
+// GetNetwork retrieves a single network by ID
+func (s *NetworkService) GetNetwork(ctx context.Context, id, actor string) (*domain.Network, error) {
+	net, err := s.networkRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	// Private networks: future enhancement may require membership check; for now always return if found
+	s.audit(ctx, "NETWORK_GET", actor, id, nil)
+	return net, nil
+}
+
+// UpdateNetwork updates mutable fields (name, visibility, join_policy) enforcing uniqueness & simple validation
+func (s *NetworkService) UpdateNetwork(ctx context.Context, id string, actor string, patch map[string]any) (*domain.Network, error) {
+	updated, err := s.networkRepo.Update(ctx, id, func(n *domain.Network) error {
+		if v, ok := patch["name"].(string); ok && v != "" && v != n.Name {
+			if len(v) < 3 || len(v) > 64 {
+				return domain.NewError(domain.ErrInvalidRequest, "Invalid name length", map[string]string{"field": "name"})
+			}
+			n.Name = v
+		}
+		if v, ok := patch["visibility"].(string); ok && v != "" && v != string(n.Visibility) {
+			if v != string(domain.NetworkVisibilityPublic) && v != string(domain.NetworkVisibilityPrivate) {
+				return domain.NewError(domain.ErrInvalidRequest, "Invalid visibility", map[string]string{"field": "visibility"})
+			}
+			n.Visibility = domain.NetworkVisibility(v)
+		}
+		if v, ok := patch["join_policy"].(string); ok && v != "" && v != string(n.JoinPolicy) {
+			switch v {
+			case string(domain.JoinPolicyOpen), string(domain.JoinPolicyInvite), string(domain.JoinPolicyApproval):
+				n.JoinPolicy = domain.JoinPolicy(v)
+			default:
+				return domain.NewError(domain.ErrInvalidRequest, "Invalid join_policy", map[string]string{"field": "join_policy"})
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	s.audit(ctx, "NETWORK_UPDATED", actor, id, patch)
+	return updated, nil
+}
+
+// DeleteNetwork performs a soft delete
+func (s *NetworkService) DeleteNetwork(ctx context.Context, id, actor string) error {
+	if err := s.networkRepo.SoftDelete(ctx, id, time.Now()); err != nil {
+		return err
+	}
+	s.audit(ctx, "NETWORK_DELETED", actor, id, nil)
+	return nil
 }
 
 // handleIdempotency checks and handles idempotency key conflicts
@@ -145,8 +198,8 @@ func (s *NetworkService) handleIdempotency(ctx context.Context, key string, req 
 	}
 
 	if record.BodyHash != bodyHash {
-		return nil, domain.NewError(domain.ErrIdempotencyConflict, 
-			"Idempotency key already used with different request body", 
+		return nil, domain.NewError(domain.ErrIdempotencyConflict,
+			"Idempotency key already used with different request body",
 			map[string]string{"key": key})
 	}
 
@@ -179,7 +232,6 @@ func (s *NetworkService) storeIdempotencyRecord(ctx context.Context, key string,
 }
 
 // logAuditEvent logs audit events (placeholder implementation)
-func (s *NetworkService) logAuditEvent(ctx context.Context, action, actor, objectID string, details map[string]interface{}) {
-	// TODO: Implement proper audit logging
-	fmt.Printf("AUDIT: action=%s actor=%s object=%s details=%+v\n", action, actor, objectID, details)
+func (s *NetworkService) audit(ctx context.Context, action, actor, objectID string, details map[string]any) {
+	s.aud.Event(ctx, action, actor, objectID, details)
 }
