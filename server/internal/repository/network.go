@@ -16,18 +16,18 @@ type NetworkRepository interface {
 	GetByID(ctx context.Context, id string) (*domain.Network, error)
 	List(ctx context.Context, filter NetworkFilter) ([]*domain.Network, string, error)
 	CheckCIDROverlap(ctx context.Context, cidr string, excludeID string) (bool, error)
-    Update(ctx context.Context, id string, mutate func(n *domain.Network) error) (*domain.Network, error)
-    SoftDelete(ctx context.Context, id string, at time.Time) error
+	Update(ctx context.Context, id string, mutate func(n *domain.Network) error) (*domain.Network, error)
+	SoftDelete(ctx context.Context, id string, at time.Time) error
 }
 
 // NetworkFilter represents filtering options for listing networks
 type NetworkFilter struct {
-	Visibility  string // public|mine|all
-	UserID      string // for "mine" filtering
-	IsAdmin     bool   // for "all" filtering
-	Search      string
-	Limit       int
-	Cursor      string
+	Visibility string // public|mine|all
+	UserID     string // for "mine" filtering
+	IsAdmin    bool   // for "all" filtering
+	Search     string
+	Limit      int
+	Cursor     string
 }
 
 // InMemoryNetworkRepository provides in-memory implementation for development
@@ -53,8 +53,8 @@ func (r *InMemoryNetworkRepository) Create(ctx context.Context, network *domain.
 	// Check if network with same name exists for tenant
 	for _, existing := range r.byTenant[network.TenantID] {
 		if existing.Name == network.Name && existing.SoftDeletedAt == nil {
-			return domain.NewError(domain.ErrInvalidRequest, 
-				fmt.Sprintf("Network with name '%s' already exists", network.Name), 
+			return domain.NewError(domain.ErrInvalidRequest,
+				fmt.Sprintf("Network with name '%s' already exists", network.Name),
 				map[string]string{"field": "name"})
 		}
 	}
