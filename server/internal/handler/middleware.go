@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
+	"github.com/orhaniscoding/goconnect/server/internal/rbac"
 )
 
 // AuthMiddleware validates JWT tokens and extracts user information
@@ -51,7 +52,7 @@ func RequireAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		isAdmin, exists := c.Get("is_admin")
 		if !exists || !isAdmin.(bool) {
-			errorResponse(c, domain.NewError(domain.ErrForbidden, "Administrator privileges required", nil))
+			errorResponse(c, domain.NewError(domain.ErrNotAuthorized, "Administrator privileges required", nil))
 			c.Abort()
 			return
 		}
@@ -155,26 +156,21 @@ func RoleMiddleware(mrepo repository.MembershipRepository) gin.HandlerFunc {
 
 // RequireNetworkAdmin ensures membership role is admin or owner (for network-scoped mutations) OR is_admin flag.
 func RequireNetworkAdmin() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// global admin bypass (is_admin from token)
-		if ia, ok := c.Get("is_admin"); ok && ia.(bool) {
-			c.Next()
-			return
-		}
-		roleAny, ok := c.Get("membership_role")
-		if !ok {
-			errorResponse(c, domain.NewError(domain.ErrForbidden, "Membership role required", nil))
-			c.Abort()
-			return
-		}
-		role, _ := roleAny.(domain.MembershipRole)
-		if role != domain.RoleAdmin && role != domain.RoleOwner {
-			errorResponse(c, domain.NewError(domain.ErrForbidden, "Administrator privileges required", nil))
-			c.Abort()
-			return
-		}
-		c.Next()
-	}
+    return func(c *gin.Context) {
+        // global admin bypass (is_admin from token)
+        if ia, ok := c.Get("is_admin"); ok && ia.(bool) {
+            c.Next(); return
+        }
+        roleAny, ok := c.Get("membership_role")
+        if !ok {
+            errorResponse(c, domain.NewError(domain.ErrNotAuthorized, "Membership role required", nil)); c.Abort(); return
+        }
+        role, _ := roleAny.(domain.MembershipRole)
+        if !rbac.CanManageNetwork(role) {
+            errorResponse(c, domain.NewError(domain.ErrNotAuthorized, "Administrator privileges required", nil)); c.Abort(); return
+        }
+        c.Next()
+    }
 }
 
 // validateToken validates JWT token and returns user info
@@ -199,7 +195,7 @@ func generateRequestID() string {
 // errorResponse sends a standardized error response
 func errorResponse(c *gin.Context, derr *domain.Error) {
 	status := derr.ToHTTPStatus()
-	if derr.Code == domain.ErrForbidden || derr.Code == domain.ErrUnauthorized {
+	if derr.Code == domain.ErrForbidden || derr.Code == domain.ErrUnauthorized || derr.Code == domain.ErrNotAuthorized {
 		// unify outward code while preserving computed status (401 vs 403)
 		derr = &domain.Error{Code: domain.ErrNotAuthorized, Message: derr.Message, Details: derr.Details, RetryAfter: derr.RetryAfter}
 	}

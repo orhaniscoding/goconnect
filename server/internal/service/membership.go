@@ -4,7 +4,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/orhaniscoding/goconnect/server/internal/audit"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
+	"github.com/orhaniscoding/goconnect/server/internal/rbac"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
 )
 
@@ -63,7 +65,7 @@ func (s *MembershipService) JoinNetwork(ctx context.Context, networkID, userID, 
 	if m, err := s.members.Get(ctx, networkID, userID); err == nil {
 		if m.Status == domain.StatusApproved {
 			// Double-join guard: treat as successful no-op
-			s.audit(ctx, "NETWORK_JOIN", userID, networkID, map[string]any{"dedup": true})
+			s.audit(ctx, audit.ActionNetworkJoin, userID, networkID, map[string]any{"dedup": true})
 			return m, nil, nil
 		}
 		if m.Status == domain.StatusBanned {
@@ -78,18 +80,18 @@ func (s *MembershipService) JoinNetwork(ctx context.Context, networkID, userID, 
 		if err != nil {
 			return nil, nil, err
 		}
-		s.audit(ctx, "NETWORK_JOIN", userID, networkID, map[string]any{"policy": "open"})
+		s.audit(ctx, audit.ActionNetworkJoin, userID, networkID, map[string]any{"policy": "open"})
 		return m, nil, nil
 	case domain.JoinPolicyApproval:
 		jr, err := s.joins.CreatePending(ctx, networkID, userID)
 		if err != nil {
 			if derr, ok := err.(*domain.Error); ok && derr.Code == domain.ErrAlreadyRequested {
-				s.audit(ctx, "NETWORK_JOIN_REQUEST", userID, networkID, map[string]any{"dedup": true})
+						s.audit(ctx, audit.ActionNetworkJoinRequest, userID, networkID, map[string]any{"dedup": true})
 				return nil, jr, derr
 			}
 			return nil, nil, err
 		}
-		s.audit(ctx, "NETWORK_JOIN_REQUEST", userID, networkID, nil)
+		s.audit(ctx, audit.ActionNetworkJoinRequest, userID, networkID, nil)
 		return nil, jr, nil
 	case domain.JoinPolicyInvite:
 		// For v1 we expect a token param else invalid
@@ -102,8 +104,8 @@ func (s *MembershipService) JoinNetwork(ctx context.Context, networkID, userID, 
 // Approve, Deny, Kick, Ban
 func (s *MembershipService) Approve(ctx context.Context, networkID, targetUserID, actorID string) (*domain.Membership, error) {
 	// RBAC simplified: assume actor is admin/owner if membership role is admin or owner
-	if !s.isAdmin(ctx, networkID, actorID) {
-		return nil, domain.NewError(domain.ErrForbidden, "Administrator privileges required", nil)
+	if !s.hasManagePrivilege(ctx, networkID, actorID) {
+		return nil, domain.NewError(domain.ErrNotAuthorized, "Administrator privileges required", nil)
 	}
 	// find pending join
 	jr, err := s.joins.GetPending(ctx, networkID, targetUserID)
@@ -117,13 +119,13 @@ func (s *MembershipService) Approve(ctx context.Context, networkID, targetUserID
 	if err != nil {
 		return nil, err
 	}
-	s.audit(ctx, "NETWORK_JOIN_APPROVE", actorID, networkID, map[string]any{"user": targetUserID})
+	s.audit(ctx, audit.ActionNetworkJoinApprove, actorID, networkID, map[string]any{"user": targetUserID})
 	return m, nil
 }
 
 func (s *MembershipService) Deny(ctx context.Context, networkID, targetUserID, actorID string) error {
-	if !s.isAdmin(ctx, networkID, actorID) {
-		return domain.NewError(domain.ErrForbidden, "Administrator privileges required", nil)
+	if !s.hasManagePrivilege(ctx, networkID, actorID) {
+		return domain.NewError(domain.ErrNotAuthorized, "Administrator privileges required", nil)
 	}
 	jr, err := s.joins.GetPending(ctx, networkID, targetUserID)
 	if err != nil {
@@ -132,29 +134,29 @@ func (s *MembershipService) Deny(ctx context.Context, networkID, targetUserID, a
 	if err := s.joins.Decide(ctx, jr.ID, false); err != nil {
 		return err
 	}
-	s.audit(ctx, "NETWORK_JOIN_DENY", actorID, networkID, map[string]any{"user": targetUserID})
+	s.audit(ctx, audit.ActionNetworkJoinDeny, actorID, networkID, map[string]any{"user": targetUserID})
 	return nil
 }
 
 func (s *MembershipService) Kick(ctx context.Context, networkID, targetUserID, actorID string) error {
-	if !s.isAdmin(ctx, networkID, actorID) {
-		return domain.NewError(domain.ErrForbidden, "Administrator privileges required", nil)
+	if !s.hasManagePrivilege(ctx, networkID, actorID) {
+		return domain.NewError(domain.ErrNotAuthorized, "Administrator privileges required", nil)
 	}
 	if err := s.members.Remove(ctx, networkID, targetUserID); err != nil {
 		return err
 	}
-	s.audit(ctx, "NETWORK_MEMBER_KICK", actorID, networkID, map[string]any{"user": targetUserID})
+	s.audit(ctx, audit.ActionNetworkMemberKick, actorID, networkID, map[string]any{"user": targetUserID})
 	return nil
 }
 
 func (s *MembershipService) Ban(ctx context.Context, networkID, targetUserID, actorID string) error {
-	if !s.isAdmin(ctx, networkID, actorID) {
-		return domain.NewError(domain.ErrForbidden, "Administrator privileges required", nil)
+	if !s.hasManagePrivilege(ctx, networkID, actorID) {
+		return domain.NewError(domain.ErrNotAuthorized, "Administrator privileges required", nil)
 	}
 	if err := s.members.SetStatus(ctx, networkID, targetUserID, domain.StatusBanned); err != nil {
 		return err
 	}
-	s.audit(ctx, "NETWORK_MEMBER_BAN", actorID, networkID, map[string]any{"user": targetUserID})
+	s.audit(ctx, audit.ActionNetworkMemberBan, actorID, networkID, map[string]any{"user": targetUserID})
 	return nil
 }
 
@@ -162,12 +164,12 @@ func (s *MembershipService) ListMembers(ctx context.Context, networkID, status s
 	return s.members.List(ctx, networkID, status, limit, cursor)
 }
 
-func (s *MembershipService) isAdmin(ctx context.Context, networkID, userID string) bool {
+func (s *MembershipService) hasManagePrivilege(ctx context.Context, networkID, userID string) bool {
 	m, err := s.members.Get(ctx, networkID, userID)
 	if err != nil {
 		return false
 	}
-	return m.Role == domain.RoleAdmin || m.Role == domain.RoleOwner
+	return rbac.CanManageNetwork(m.Role)
 }
 
 func (s *MembershipService) audit(ctx context.Context, action, actor, object string, details map[string]any) {
