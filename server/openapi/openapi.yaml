@@ -547,6 +547,39 @@ paths:
               },
           }
 
+  # Future: IP allocation endpoint (to be implemented)
+  # /v1/networks/{id}/ip-allocations:
+  #   post:
+  #     summary: Allocate or retrieve IP for current user in network
+  #     description: Returns existing allocation if present; otherwise allocates next available IP address.
+  #     responses:
+  #       '200':
+  #         description: Allocation
+  #         content:
+  #           application/json:
+  #             schema:
+  #               type: object
+  #               properties:
+  #                 network_id:
+  #                   type: string
+  #                 user_id:
+  #                   type: string
+  #                 ip:
+  #                   type: string
+  #       '404':
+  #         $ref: '#/components/responses/NotFound'
+  #       '409':
+  #         description: IP space exhausted
+  #         content:
+  #           application/json:
+  #             schema:
+  #               $ref: '#/components/schemas/Error'
+  #             examples:
+  #               exhausted:
+  #                 value:
+  #                   code: ERR_IP_EXHAUSTED
+  #                   message: No available IP addresses remaining
+
   /v1/networks/{id}/join:
     post:
       summary: Join a network
