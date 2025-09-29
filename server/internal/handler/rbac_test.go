@@ -45,6 +45,7 @@ func TestRBAC_ApproveForbiddenForMember(t *testing.T) {
 	req, _ := http.NewRequest("POST", "/v1/networks/"+net.ID+"/approve", bytes.NewBuffer(buf))
 	req.Header.Set("Authorization", "Bearer dev")
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("expected 403 for non-admin approve, got %d body=%s", w.Code, w.Body.String())
@@ -76,6 +77,7 @@ func TestRBAC_AdminCanApprove(t *testing.T) {
 	req, _ = http.NewRequest("POST", "/v1/networks/"+net.ID+"/approve", bytes.NewBuffer(buf))
 	req.Header.Set("Authorization", "Bearer admin")
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200 approve by admin, got %d body=%s", w.Code, w.Body.String())
@@ -96,6 +98,7 @@ func TestRBAC_OnlyAdminCanBanOrKick(t *testing.T) {
 	req, _ := http.NewRequest("POST", "/v1/networks/"+net.ID+"/ban", bytes.NewBuffer(buf))
 	req.Header.Set("Authorization", "Bearer dev")
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("expected 403 non-admin ban, got %d", w.Code)
@@ -107,6 +110,7 @@ func TestRBAC_OnlyAdminCanBanOrKick(t *testing.T) {
 	req, _ = http.NewRequest("POST", "/v1/networks/"+net.ID+"/ban", bytes.NewBuffer(buf))
 	req.Header.Set("Authorization", "Bearer admin")
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200 admin ban, got %d", w.Code)
@@ -118,6 +122,7 @@ func TestRBAC_OnlyAdminCanBanOrKick(t *testing.T) {
 	req, _ = http.NewRequest("POST", "/v1/networks/"+net.ID+"/kick", bytes.NewBuffer(buf))
 	req.Header.Set("Authorization", "Bearer dev")
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("expected 403 non-admin kick, got %d", w.Code)
@@ -129,6 +134,7 @@ func TestRBAC_OnlyAdminCanBanOrKick(t *testing.T) {
 	req, _ = http.NewRequest("POST", "/v1/networks/"+net.ID+"/kick", bytes.NewBuffer(buf))
 	req.Header.Set("Authorization", "Bearer admin")
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200 admin kick, got %d", w.Code)

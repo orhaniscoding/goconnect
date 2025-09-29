@@ -122,20 +122,62 @@ func (h *NetworkHandler) ListNetworks(c *gin.Context) {
 
 // GetNetwork handles GET /v1/networks/:id
 func (h *NetworkHandler) GetNetwork(c *gin.Context) {
-	// TODO: Implement get network by ID
-	errorResponse(c, domain.NewError(domain.ErrNotImplemented, "Get network by ID not implemented yet", nil))
+	id := c.Param("id")
+	userID := c.MustGet("user_id").(string)
+	net, err := h.networkService.GetNetwork(c.Request.Context(), id, userID)
+	if err != nil {
+		if derr, ok := err.(*domain.Error); ok {
+			errorResponse(c, derr)
+			return
+		}
+		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": net})
 }
 
 // UpdateNetwork handles PATCH /v1/networks/:id
 func (h *NetworkHandler) UpdateNetwork(c *gin.Context) {
-	// TODO: Implement network updates
-	errorResponse(c, domain.NewError(domain.ErrNotImplemented, "Update network not implemented yet", nil))
+	if c.GetHeader("Idempotency-Key") == "" {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Idempotency-Key header is required for mutation operations", map[string]string{"required_header": "Idempotency-Key"}))
+		return
+	}
+	id := c.Param("id")
+	actor := c.MustGet("user_id").(string)
+	var patch map[string]any
+	if err := c.ShouldBindJSON(&patch); err != nil {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Invalid body", map[string]string{"details": err.Error()}))
+		return
+	}
+	updated, err := h.networkService.UpdateNetwork(c.Request.Context(), id, actor, patch)
+	if err != nil {
+		if derr, ok := err.(*domain.Error); ok {
+			errorResponse(c, derr)
+			return
+		}
+		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": updated})
 }
 
 // DeleteNetwork handles DELETE /v1/networks/:id
 func (h *NetworkHandler) DeleteNetwork(c *gin.Context) {
-	// TODO: Implement network deletion (soft delete)
-	errorResponse(c, domain.NewError(domain.ErrNotImplemented, "Delete network not implemented yet", nil))
+	if c.GetHeader("Idempotency-Key") == "" {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Idempotency-Key header is required for mutation operations", map[string]string{"required_header": "Idempotency-Key"}))
+		return
+	}
+	id := c.Param("id")
+	actor := c.MustGet("user_id").(string)
+	if err := h.networkService.DeleteNetwork(c.Request.Context(), id, actor); err != nil {
+		if derr, ok := err.(*domain.Error); ok {
+			errorResponse(c, derr)
+			return
+		}
+		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
 // RegisterNetworkRoutes registers all network-related routes
@@ -206,6 +248,10 @@ func (h *NetworkHandler) JoinNetwork(c *gin.Context) {
 func (h *NetworkHandler) Approve(c *gin.Context) {
 	networkID := c.Param("id")
 	actor := c.MustGet("user_id").(string)
+	if c.GetHeader("Idempotency-Key") == "" {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Idempotency-Key header is required for mutation operations", map[string]string{"required_header": "Idempotency-Key"}))
+		return
+	}
 	var body struct {
 		UserID string `json:"user_id" binding:"required"`
 	}
@@ -228,6 +274,10 @@ func (h *NetworkHandler) Approve(c *gin.Context) {
 func (h *NetworkHandler) Deny(c *gin.Context) {
 	networkID := c.Param("id")
 	actor := c.MustGet("user_id").(string)
+	if c.GetHeader("Idempotency-Key") == "" {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Idempotency-Key header is required for mutation operations", map[string]string{"required_header": "Idempotency-Key"}))
+		return
+	}
 	var body struct {
 		UserID string `json:"user_id" binding:"required"`
 	}
@@ -249,6 +299,10 @@ func (h *NetworkHandler) Deny(c *gin.Context) {
 func (h *NetworkHandler) Kick(c *gin.Context) {
 	networkID := c.Param("id")
 	actor := c.MustGet("user_id").(string)
+	if c.GetHeader("Idempotency-Key") == "" {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Idempotency-Key header is required for mutation operations", map[string]string{"required_header": "Idempotency-Key"}))
+		return
+	}
 	var body struct {
 		UserID string `json:"user_id" binding:"required"`
 	}
@@ -270,6 +324,10 @@ func (h *NetworkHandler) Kick(c *gin.Context) {
 func (h *NetworkHandler) Ban(c *gin.Context) {
 	networkID := c.Param("id")
 	actor := c.MustGet("user_id").(string)
+	if c.GetHeader("Idempotency-Key") == "" {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Idempotency-Key header is required for mutation operations", map[string]string{"required_header": "Idempotency-Key"}))
+		return
+	}
 	var body struct {
 		UserID string `json:"user_id" binding:"required"`
 	}
