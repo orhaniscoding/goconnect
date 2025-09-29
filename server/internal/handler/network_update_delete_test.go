@@ -15,7 +15,6 @@ import (
 	"github.com/orhaniscoding/goconnect/server/internal/service"
 )
 
-<<<<<<< HEAD
 func setupUpdateDelete() (*gin.Engine, repository.NetworkRepository, repository.MembershipRepository) {
 	gin.SetMode(gin.TestMode)
 	nrepo := repository.NewInMemoryNetworkRepository()
