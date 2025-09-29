@@ -15,7 +15,8 @@ import (
 	"github.com/orhaniscoding/goconnect/server/internal/service"
 )
 
-func setupUpdateDelete() (*gin.Engine, repository.NetworkRepository) {
+<<<<<<< HEAD
+func setupUpdateDelete() (*gin.Engine, repository.NetworkRepository, repository.MembershipRepository) {
 	gin.SetMode(gin.TestMode)
 	nrepo := repository.NewInMemoryNetworkRepository()
 	irepo := repository.NewInMemoryIdempotencyRepository()
@@ -25,8 +26,10 @@ func setupUpdateDelete() (*gin.Engine, repository.NetworkRepository) {
 	ms := service.NewMembershipService(nrepo, mrepo, jrepo, irepo)
 	h := NewNetworkHandler(ns, ms)
 	r := gin.New()
+	// inject role middleware BEFORE route registration so it executes earlier
+	r.Use(RoleMiddleware(mrepo))
 	RegisterNetworkRoutes(r, h)
-	return r, nrepo
+	return r, nrepo, mrepo
 }
 
 func seedNet(t *testing.T, repo repository.NetworkRepository, id, name string) {
@@ -37,9 +40,13 @@ func seedNet(t *testing.T, repo repository.NetworkRepository, id, name string) {
 }
 
 func TestNetworkUpdateNameAndDuplicate(t *testing.T) {
-	r, repo := setupUpdateDelete()
+	r, repo, mrepo := setupUpdateDelete()
 	seedNet(t, repo, "net-up-1", "Alpha")
 	seedNet(t, repo, "net-up-2", "Beta")
+	// seed admin membership for dev user
+	// give user_dev owner role on first network and admin on second to test both
+	_, _ = mrepo.UpsertApproved(context.Background(), "net-up-1", "user_dev", domain.RoleOwner, time.Now())
+	_, _ = mrepo.UpsertApproved(context.Background(), "net-up-2", "user_dev", domain.RoleAdmin, time.Now())
 	// update name of first to new unique
 	body := map[string]string{"name": "Gamma"}
 	buf, _ := json.Marshal(body)
@@ -68,8 +75,9 @@ func TestNetworkUpdateNameAndDuplicate(t *testing.T) {
 }
 
 func TestNetworkSoftDeleteExclusion(t *testing.T) {
-	r, repo := setupUpdateDelete()
+	r, repo, mrepo := setupUpdateDelete()
 	seedNet(t, repo, "net-del-1", "DelNet")
+	_, _ = mrepo.UpsertApproved(context.Background(), "net-del-1", "user_dev", domain.RoleAdmin, time.Now())
 	// delete
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("DELETE", "/v1/networks/net-del-1", nil)

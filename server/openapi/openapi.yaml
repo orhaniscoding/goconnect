@@ -40,6 +40,17 @@ components:
         retry_after:
           type: integer
           minimum: 0
+      examples:
+        not_authorized_unauthenticated:
+          summary: Missing/invalid auth
+          value:
+            code: "ERR_NOT_AUTHORIZED"
+            message: "Authorization header required"
+        not_authorized_forbidden:
+          summary: Lacking required role
+          value:
+            code: "ERR_NOT_AUTHORIZED"
+            message: "Administrator privileges required"
 
     Network:
       type: object
@@ -438,7 +449,7 @@ paths:
                 $ref: "#/components/schemas/Error"
     patch:
       summary: Update network
-      description: "Update mutable network fields (name, visibility, join_policy)"
+      description: "Update mutable network fields (name, visibility, join_policy). RBAC: admin/owner (or global admin)."
       tags: [Networks]
       security:
         - bearerAuth: []
@@ -470,18 +481,26 @@ paths:
             content:
               {
                 application/json:
-                  { schema: { $ref: "#/components/schemas/Error" } },
+                  {
+                    schema: { $ref: "#/components/schemas/Error" },
+                    examples:
+                      {
+                        invalid:
+                          {
+                            value:
+                              {
+                                code: "ERR_INVALID_REQUEST",
+                                message: "Invalid name length",
+                              },
+                          },
+                      },
+                  },
               },
           }
         "401":
-          {
-            description: "Unauthorized",
-            content:
-              {
-                application/json:
-                  { schema: { $ref: "#/components/schemas/Error" } },
-              },
-          }
+          { description: "Not authenticated", content: { application/json: { schema: { $ref: "#/components/schemas/Error" }, examples: { unauth: { $ref: "#/components/schemas/Error/examples/not_authorized_unauthenticated" } } } } }
+        "403":
+          { description: "Not authorized (role)", content: { application/json: { schema: { $ref: "#/components/schemas/Error" }, examples: { forbrbac: { $ref: "#/components/schemas/Error/examples/not_authorized_forbidden" } } } } }
         "404":
           {
             description: "Not found",
@@ -493,7 +512,7 @@ paths:
           }
     delete:
       summary: Delete (soft) network
-      description: "Soft delete network (idempotent)"
+      description: "Soft delete network (idempotent). RBAC: admin/owner (or global admin)."
       tags: [Networks]
       security:
         - bearerAuth: []
@@ -516,15 +535,8 @@ paths:
                   },
               },
           }
-        "401":
-          {
-            description: "Unauthorized",
-            content:
-              {
-                application/json:
-                  { schema: { $ref: "#/components/schemas/Error" } },
-              },
-          }
+        "401": { description: "Not authenticated", content: { application/json: { schema: { $ref: "#/components/schemas/Error" }, examples: { unauth: { $ref: "#/components/schemas/Error/examples/not_authorized_unauthenticated" } } } } }
+        "403": { description: "Not authorized (role)", content: { application/json: { schema: { $ref: "#/components/schemas/Error" }, examples: { forbrbac: { $ref: "#/components/schemas/Error/examples/not_authorized_forbidden" } } } } }
         "404":
           {
             description: "Not found",

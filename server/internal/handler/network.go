@@ -192,19 +192,21 @@ func RegisterNetworkRoutes(r *gin.Engine, handler *NetworkHandler) {
 	// Network routes
 	networks := v1.Group("/networks")
 	networks.Use(AuthMiddleware()) // All network operations require authentication
+	// NOTE: RoleMiddleware requires membership repository; currently not wired here due to package boundaries.
+	// Tests inject RoleMiddleware separately. Production wiring should add it in main with real repository.
 
 	networks.POST("", rl, handler.CreateNetwork)
 	networks.GET("", handler.ListNetworks)
 	networks.GET("/:id", handler.GetNetwork)
-	networks.PATCH("/:id", rl, handler.UpdateNetwork)
-	networks.DELETE("/:id", rl, handler.DeleteNetwork)
+	networks.PATCH(":id", rl, RequireNetworkAdmin(), handler.UpdateNetwork)
+	networks.DELETE(":id", rl, RequireNetworkAdmin(), handler.DeleteNetwork)
 
 	// Membership & Join flow
 	networks.POST("/:id/join", rl, handler.JoinNetwork)
-	networks.POST("/:id/approve", rl, handler.Approve)
-	networks.POST("/:id/deny", rl, handler.Deny)
-	networks.POST("/:id/kick", rl, handler.Kick)
-	networks.POST("/:id/ban", rl, handler.Ban)
+	networks.POST(":id/approve", rl, RequireNetworkAdmin(), handler.Approve)
+	networks.POST(":id/deny", rl, RequireNetworkAdmin(), handler.Deny)
+	networks.POST(":id/kick", rl, RequireNetworkAdmin(), handler.Kick)
+	networks.POST(":id/ban", rl, RequireNetworkAdmin(), handler.Ban)
 	networks.GET("/:id/members", handler.ListMembers)
 }
 
