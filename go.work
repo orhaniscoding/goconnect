@@ -1,3 +1,5 @@
 go 1.22
+
 use ./server
+
 use ./client-daemon
