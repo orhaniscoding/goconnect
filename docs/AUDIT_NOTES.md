@@ -97,6 +97,13 @@ EventRecord {
 4. Retention policies (ring buffer + SQLite pruning) + metrics instrumentation.
 5. Hash chain prototype (persist head hash, verify chain test).
 6. Key rotation framework (dual active secrets + migration tests).
+## Immediate Next Steps
+1. Merge hashing branch into main (administrative step – pending).
+2. Rebase/merge persistence branch; unify hashing helper across all auditors.
+3. Exporter interface + stdout + channel fan-out (foundation for async & multi-sink).
+4. Retention policies (ring buffer + SQLite pruning) + metrics instrumentation.
+5. Hash chain prototype (persist head hash, verify chain test).
+6. Key rotation framework (dual active secrets + migration tests).
 
 ## Persistence (SQLite Prototype)
 Implemented `SqliteAuditor` (`internal/audit/sqlite.go`) using pure Go driver (`modernc.org/sqlite`). Schema:
