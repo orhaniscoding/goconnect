@@ -40,7 +40,7 @@ EventRecord {
 
 ## Redaction Strategy & Roadmap
 Current redaction is coarse (constant `[redacted]`). Upcoming refinements:
-1. (DONE – in-memory prototype) Deterministic hashing via HMAC-SHA256 (first 144 bits base64url) of actor & object when store constructed with `WithHashing(secret)` or using `NewStdoutAuditorWithHashing(secret)`. Default remains full redaction.
+1. (DONE – in-memory prototype) Deterministic hashing via HMAC-SHA256 (first 144 bits base64url) of actor & object when store constructed with optional hashing secret (stdout auditor variant also supported). Default remains full redaction.
 2. Configurable retention (memory cap + ring buffer / eviction policy).
 3. Streaming exporter: channel fan-out to external sinks (stdout, OpenTelemetry, file, webhook).
 4. Tamper-evidence: append hash chain: `event_hash = H(prev_hash || canonical_json)`. Persist head hash for integrity audits.
@@ -79,10 +79,10 @@ Current redaction is coarse (constant `[redacted]`). Upcoming refinements:
 - Introduce sampling for high-volume benign events? (Optional toggle.)
 
 ## Immediate Next Steps
-1. Structured exporter interface + noop + stdout + channel fan-out.
-2. Persistence prototype (SQLite) with hash chain & sequence IDs.
+1. Structured exporter interface + noop + stdout (channel fan-out design).
+2. Persistence prototype (SQLite) with sequence IDs + future hash chain anchoring.
 3. Retention / eviction policy (bounded ring buffer for in-memory mode).
-4. HMAC key rotation mechanism (dual-key window + rehash forward).
+4. HMAC key rotation mechanism (dual-key window + forward rehash plan).
 
 ---
 Revision: v1 (initial) – Date: 2025-09-29
