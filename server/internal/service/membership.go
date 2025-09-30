@@ -86,7 +86,7 @@ func (s *MembershipService) JoinNetwork(ctx context.Context, networkID, userID, 
 		jr, err := s.joins.CreatePending(ctx, networkID, userID)
 		if err != nil {
 			if derr, ok := err.(*domain.Error); ok && derr.Code == domain.ErrAlreadyRequested {
-						s.audit(ctx, audit.ActionNetworkJoinRequest, userID, networkID, map[string]any{"dedup": true})
+				s.audit(ctx, audit.ActionNetworkJoinRequest, userID, networkID, map[string]any{"dedup": true})
 				return nil, jr, derr
 			}
 			return nil, nil, err
