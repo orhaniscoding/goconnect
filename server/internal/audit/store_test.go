@@ -26,10 +26,10 @@ func TestInMemoryStoreConcurrent(t *testing.T) {
 	events := store.List()
 	want := workers * per
 	if len(events) != want {
-		 t.Fatalf("expected %d events got %d", want, len(events))
+		t.Fatalf("expected %d events got %d", want, len(events))
 	}
 	if events[0].Actor != "[redacted]" || events[0].Object != "[redacted]" {
-		 t.Fatalf("expected redacted fields, got actor=%s object=%s", events[0].Actor, events[0].Object)
+		t.Fatalf("expected redacted fields, got actor=%s object=%s", events[0].Actor, events[0].Object)
 	}
 
 }
