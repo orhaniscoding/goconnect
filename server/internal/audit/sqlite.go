@@ -1,22 +1,22 @@
 package audit
 
 import (
-	"context"
-	"database/sql"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"time"
+    "context"
+    "database/sql"
+    "encoding/json"
+    "errors"
+    "fmt"
+    "time"
 
-	"github.com/orhaniscoding/goconnect/server/internal/metrics"
-	_ "modernc.org/sqlite"
+    "github.com/orhaniscoding/goconnect/server/internal/metrics"
+    _ "modernc.org/sqlite"
 )
 
 // SqliteAuditor persists audit events to a SQLite database.
 // It optionally hashes actor/object identifiers using HMAC-SHA256 (same truncation as in-memory store).
 type SqliteAuditor struct {
-	db     *sql.DB
-	hasher func(string) string
+	db      *sql.DB
+	hasher  func(string) string
 	maxRows int // 0 means unbounded (no pruning)
 }
 
@@ -31,7 +31,11 @@ func WithSqliteHashing(secret []byte) SqliteOption {
 // WithMaxRows sets a hard cap on stored rows; rows beyond the cap are pruned after insert.
 // Pruning strategy: delete oldest rows so that total <= maxRows (single DELETE with subquery).
 func WithMaxRows(n int) SqliteOption {
-    return func(a *SqliteAuditor) { if n > 0 { a.maxRows = n } }
+	return func(a *SqliteAuditor) {
+		if n > 0 {
+			a.maxRows = n
+		}
+	}
 }
 
 // NewSqliteAuditor opens (or creates) the SQLite database at dsn (e.g. file path) and ensures schema.
@@ -87,11 +91,14 @@ func (a *SqliteAuditor) Event(ctx context.Context, action, actor, object string,
 		objOut = a.hasher(object)
 	}
 	b, _ := json.Marshal(details)
+	start := time.Now()
+	status := "success"
 	if _, err := a.db.ExecContext(ctx, `INSERT INTO audit_events(ts, action, actor, object, details, request_id) VALUES(?,?,?,?,?,?)`,
 		time.Now().UTC().Format(time.RFC3339Nano), action, actOut, objOut, string(b), rid); err != nil {
-		metrics.IncAuditFailure()
-		return
+		metrics.IncAuditFailure("exec")
+		status = "failure"
 	}
+	metrics.ObserveAuditInsert("sqlite", status, time.Since(start).Seconds())
 
 	// Post-insert pruning if retention limit configured.
 	if a.maxRows > 0 {
@@ -101,13 +108,13 @@ func (a *SqliteAuditor) Event(ctx context.Context, action, actor, object string,
 			SELECT seq FROM audit_events ORDER BY seq ASC
 			LIMIT (SELECT CASE WHEN COUNT(1) > ? THEN COUNT(1) - ? ELSE 0 END FROM audit_events)
 		) DELETE FROM audit_events WHERE seq IN (SELECT seq FROM to_delete);`, a.maxRows, a.maxRows)
-		if err == nil { // silently ignore errors (best-effort) but emit failure metric on prune error
-			if rows, _ := res.RowsAffected(); rows > 0 {
-				metrics.AddAuditEviction("sqlite", int(rows))
-			}
-		} else {
-			metrics.IncAuditFailure()
-		}
+        if err == nil {
+            if rows, _ := res.RowsAffected(); rows > 0 {
+                metrics.AddAuditEviction("sqlite", int(rows))
+            }
+        } else {
+            metrics.IncAuditFailure("prune")
+        }
 	}
 }
 

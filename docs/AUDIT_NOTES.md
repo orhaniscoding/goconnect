@@ -68,7 +68,7 @@ EventRecord {
 1. (DONE) Deterministic actor/object hashing (HMAC-SHA256, first 144 bits base64url) unified helper.
 2. (PARTIAL DONE) In-memory retention via ring buffer (`WithCapacity(n)`) + (DONE) SQLite row-cap pruning (`WithMaxRows`) with labeled eviction metrics.
 3. (DONE) Multi-sink fan-out (`MultiAuditor`) – foundation for exporter layer.
-4. (PARTIAL DONE) Metrics: HTTP req counters/histograms + audit event counter + (NEW) eviction & failure counters. Pending: queue depth, insertion latency, hash-chain verification metrics.
+4. (PARTIAL DONE) Metrics: HTTP req counters/histograms + audit event counter + eviction & labeled failure counters + insert latency histogram. Pending: queue depth & hash-chain verification metrics.
 5. Tamper-evidence: hash chain (`event_chain_hash = H(prev_chain_hash || canonical_event_json)`) with persisted head + anchors.
 6. Backpressure & async buffering (bounded queue + worker) + reliability (retry with jitter / dead-letter).
 7. HMAC key rotation (dual-key window + forward-only correlation; old hashes non-reversible).
@@ -114,7 +114,7 @@ EventRecord {
 1. SQLite time-based pruning variant (age cutoff) & dual-mode retention policy (row OR age; later BOTH).
 2. Async buffering worker + backpressure policy (expose queue_depth, enqueue_failures, dispatch_latency, worker_restarts).
 3. Hash chain prototype (persist head hash, verification tool/test) + chain_verification_duration & chain_head_advance counters.
-4. Insertion latency histogram (audit_insert_duration_seconds) and split failure code labels (e.g., constraint, IO, busy_timeout).
+4. Queue depth + chain verification metrics & optional exporter integration.
 5. Key rotation framework (dual active secrets + migration tests).
 
 ## Persistence (SQLite Prototype)

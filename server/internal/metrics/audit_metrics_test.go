@@ -30,7 +30,7 @@ func TestAuditEvictionMetric(t *testing.T) {
 	body := w.Body.String()
 	// Expect labeled eviction metric source="memory"
 	if !strings.Contains(body, `goconnect_audit_evictions_total{source="memory"} 1`) {
-		 t.Fatalf("expected memory eviction metric =1, body=\n%s", body)
+		t.Fatalf("expected memory eviction metric =1, body=\n%s", body)
 	}
 }
 
@@ -54,8 +54,12 @@ func TestAuditFailureMetric(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 	body := w.Body.String()
-	if !strings.Contains(body, "goconnect_audit_failures_total 1") {
-		t.Fatalf("expected failure metric =1, body=\n%s", body)
+	if !strings.Contains(body, `goconnect_audit_failures_total{reason="exec"} 1`) {
+		 t.Fatalf("expected failure metric reason=exec =1, body=\n%s", body)
+	}
+	// Latency histogram should have at least one bucket line with sink="sqlite" and status label
+	if !strings.Contains(body, `goconnect_audit_insert_duration_seconds_bucket{sink="sqlite"`) {
+		 t.Fatalf("expected latency histogram buckets for sqlite insert, body=\n%s", body)
 	}
 }
 
@@ -63,7 +67,9 @@ func TestSqliteRetentionEvictionMetric(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	m.Register()
 	auditor, err := a.NewSqliteAuditor(":memory:", a.WithMaxRows(3))
-	if err != nil { t.Fatalf("sqlite auditor create: %v", err) }
+	if err != nil {
+		t.Fatalf("sqlite auditor create: %v", err)
+	}
 	ctx := context.Background()
 	// Insert 5 events; expect 2 evictions (pruned oldest) leaving 3
 	for i := 0; i < 5; i++ {
@@ -74,7 +80,9 @@ func TestSqliteRetentionEvictionMetric(t *testing.T) {
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/metrics", nil)
 	r.ServeHTTP(w, req)
-	if w.Code != 200 { t.Fatalf("expected 200, got %d", w.Code) }
+	if w.Code != 200 {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
 	body := w.Body.String()
 	if !strings.Contains(body, `goconnect_audit_evictions_total{source="sqlite"} 2`) {
 		t.Fatalf("expected sqlite eviction metric =2 body=\n%s", body)
