@@ -2,14 +2,10 @@ package audit
 
 import (
     "context"
-    "crypto/hmac"
-    "crypto/sha256"
     "database/sql"
-    "encoding/base64"
     "encoding/json"
     "errors"
     "fmt"
-    "hash"
     "time"
 
     _ "modernc.org/sqlite"
@@ -26,18 +22,7 @@ type SqliteAuditor struct {
 type SqliteOption func(*SqliteAuditor)
 
 // WithSqliteHashing enables pseudonymous hashing for actor/object fields.
-func WithSqliteHashing(secret []byte) SqliteOption {
-    return func(a *SqliteAuditor) {
-        if len(secret) == 0 { return }
-        var h hash.Hash
-        a.hasher = func(v string) string {
-            h = hmac.New(sha256.New, secret)
-            _, _ = h.Write([]byte(v))
-            sum := h.Sum(nil)
-            return base64.RawURLEncoding.EncodeToString(sum[:18])
-        }
-    }
-}
+func WithSqliteHashing(secret []byte) SqliteOption { return func(a *SqliteAuditor) { a.hasher = newHasher(secret) } }
 
 // NewSqliteAuditor opens (or creates) the SQLite database at dsn (e.g. file path) and ensures schema.
 func NewSqliteAuditor(dsn string, opts ...SqliteOption) (*SqliteAuditor, error) {

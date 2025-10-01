@@ -174,6 +174,9 @@ func RequireNetworkAdmin() gin.HandlerFunc {
 }
 
 // validateToken validates JWT token and returns user info
+// SECURITY WARNING: Development stub only. Performs NO signature, expiry, audience,
+// issuer or scope validation. Maps static tokens ("dev", "admin"). MUST be replaced
+// with real JWT/OIDC verification before any production deployment.
 // TODO: Replace with proper JWT validation
 func validateToken(token string) (userID string, isAdmin bool, err error) {
 	// Mock implementation for development

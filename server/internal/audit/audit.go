@@ -1,14 +1,10 @@
 package audit
 
 import (
-	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/json"
-	"fmt"
-	"hash"
-	"time"
+    "context"
+    "encoding/json"
+    "fmt"
+    "time"
 )
 
 // Auditor defines a sink for audit events. PII must not be logged.
@@ -23,18 +19,7 @@ func NewStdoutAuditor() Auditor { return &stdoutAuditor{} }
 
 // NewStdoutAuditorWithHashing returns a stdout auditor that hashes actor/object
 // identifiers using HMAC-SHA256 with the provided secret (pseudonymous).
-func NewStdoutAuditorWithHashing(secret []byte) Auditor {
-	if len(secret) == 0 {
-		return NewStdoutAuditor()
-	}
-	var h hash.Hash
-	return &stdoutAuditor{hasher: func(v string) string {
-		h = hmac.New(sha256.New, secret)
-		_, _ = h.Write([]byte(v))
-		sum := h.Sum(nil)
-		return base64.RawURLEncoding.EncodeToString(sum[:18])
-	}}
-}
+func NewStdoutAuditorWithHashing(secret []byte) Auditor { if len(secret)==0 { return NewStdoutAuditor() }; return &stdoutAuditor{hasher: newHasher(secret)} }
 
 func (s *stdoutAuditor) Event(ctx context.Context, action, actor, object string, details map[string]any) {
 	// Redact PII: don't emit raw actor/object identifiers directly

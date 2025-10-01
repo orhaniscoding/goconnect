@@ -1,13 +1,9 @@
 package audit
 
 import (
-	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/base64"
-	"hash"
-	"sync"
-	"time"
+    "context"
+    "sync"
+    "time"
 )
 
 // EventRecord is an in-memory representation of an audit event (PII redacted).
@@ -34,24 +30,7 @@ type Option func(*InMemoryStore)
 
 // WithHashing enables deterministic hashing of actor/object identifiers using provided secret.
 // Uses HMAC-SHA256 and encodes first 18 bytes (to keep it short) in URL-safe base64 without padding.
-func WithHashing(secret []byte) Option {
-	return func(s *InMemoryStore) {
-		if len(secret) == 0 {
-			return
-		}
-		var h hash.Hash
-		s.hasher = func(data string) string {
-			h = hmac.New(sha256.New, secret)
-			_, _ = h.Write([]byte(data))
-			sum := h.Sum(nil)
-			// truncate for readability (18 bytes ~ 144 bits) still collision-resistant for our scale
-			truncated := sum[:18]
-			enc := base64.RawURLEncoding.EncodeToString(truncated)
-			return enc
-		}
-		s.redactAll = false
-	}
-}
+func WithHashing(secret []byte) Option { return func(s *InMemoryStore) { s.hasher = newHasher(secret); if s.hasher != nil { s.redactAll = false } } }
 
 // WithRedaction forces full redaction (default behavior) even if hashing enabled elsewhere.
 func WithRedaction() Option { return func(s *InMemoryStore) { s.redactAll = true } }
