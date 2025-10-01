@@ -23,6 +23,7 @@ type InMemoryStore struct {
 	events    []EventRecord
 	hasher    func(data string) string
 	redactAll bool
+	capacity  int // 0 = unbounded; when >0 acts as ring buffer (drop oldest)
 }
 
 // Option configures store behavior.
@@ -73,7 +74,13 @@ func (s *InMemoryStore) Event(ctx context.Context, action, actor, object string,
 		RequestID: rid,
 	}
 	s.mu.Lock()
-	s.events = append(s.events, rec)
+	if s.capacity > 0 && len(s.events) >= s.capacity {
+		// drop oldest (index 0) by re-slicing; avoid realloc by copy shift
+		copy(s.events[0:], s.events[1:])
+		s.events[len(s.events)-1] = rec
+	} else {
+		s.events = append(s.events, rec)
+	}
 	s.mu.Unlock()
 }
 
@@ -92,3 +99,6 @@ func (s *InMemoryStore) Clear() {
 	s.events = nil
 	s.mu.Unlock()
 }
+
+// WithCapacity sets a max number of events retained in-memory (ring buffer style).
+func WithCapacity(n int) Option { return func(s *InMemoryStore) { if n > 0 { s.capacity = n } } }

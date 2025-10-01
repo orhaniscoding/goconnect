@@ -16,9 +16,7 @@ Planned Enhancements:
 
 ---
 Revision: v2 – Consolidated after hashing & pre-persistence merge
----
-Revision: v2 – Consolidated after hashing & pre-persistence merge
-Date: 2025-09-30
+Date: 2025-09-30 (amended: +retention +multi-sink)
 
 # Audit System Notes
 
@@ -66,14 +64,14 @@ EventRecord {
 - Names and raw IDs are NOT stored. Minimal operational metadata only (e.g., `{ "ip": "10.1.0.5" }`).
 - Admin-triggered IP release includes `released_for` specifying (currently raw) target user id — temporary; will migrate to hashed token.
 
-## Redaction & Hashing Roadmap
-1. (DONE) Deterministic actor/object hashing (HMAC-SHA256, first 144 bits base64url) via optional constructors (`WithHashing(secret)`, `NewStdoutAuditorWithHashing(secret)`, `WithSqliteHashing(secret)`).
-2. Configurable retention (in-memory ring buffer + SQLite pruning by time / row cap).
-3. Structured exporter interface + multi-sink fan-out (stdout, channel, future: OpenTelemetry / webhook / file).
-4. Tamper-evidence: hash chain (`event_chain_hash = H(prev_chain_hash || canonical_event_json)`) with persisted head and periodic anchor snapshots.
-5. Backpressure & async buffering (bounded queue + worker) + reliability (retry with jitter).
-6. Metrics (events/sec, failures, queue depth, insertion latency).
-7. HMAC key rotation (dual-key window + forward-only correlation; old hashes remain non-reversible).
+## Redaction, Hashing & Export Roadmap
+1. (DONE) Deterministic actor/object hashing (HMAC-SHA256, first 144 bits base64url) unified helper.
+2. (PARTIAL DONE) In-memory retention via ring buffer (`WithCapacity(n)`); future: SQLite pruning (time/row cap).
+3. (DONE) Multi-sink fan-out (`MultiAuditor`) – foundation for exporter layer.
+4. Tamper-evidence: hash chain (`event_chain_hash = H(prev_chain_hash || canonical_event_json)`) with persisted head + anchors.
+5. Backpressure & async buffering (bounded queue + worker) + reliability (retry with jitter / dead-letter).
+6. Metrics (events/sec, failures, queue depth, insertion latency, eviction count).
+7. HMAC key rotation (dual-key window + forward-only correlation; old hashes non-reversible).
 
 ## Integrity & Ordering
 - In-memory slice preserves insertion order; concurrency test ensures guarantees.
@@ -112,10 +110,10 @@ EventRecord {
 - Sampling for high-volume benign events? (Optional toggle.)
 - Dedicated integrity verification command / endpoint?
 
-## Immediate Next Steps
-1. Unify hashing helper across all auditors.
-2. Exporter interface + stdout + channel fan-out (foundation for async & multi-sink).
-3. Retention policies (ring buffer + SQLite pruning) + metrics instrumentation.
+## Immediate Next Steps (Updated)
+1. SQLite retention pruning (time/row based) + eviction counter metric.
+2. Metrics instrumentation (Prometheus export) for audit event rates.
+3. Async buffering worker + backpressure policy.
 4. Hash chain prototype (persist head hash, verification tool/test).
 5. Key rotation framework (dual active secrets + migration tests).
 
