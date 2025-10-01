@@ -68,9 +68,9 @@ EventRecord {
 1. (DONE) Deterministic actor/object hashing (HMAC-SHA256, first 144 bits base64url) unified helper.
 2. (PARTIAL DONE) In-memory retention via ring buffer (`WithCapacity(n)`); future: SQLite pruning (time/row cap).
 3. (DONE) Multi-sink fan-out (`MultiAuditor`) – foundation for exporter layer.
-4. Tamper-evidence: hash chain (`event_chain_hash = H(prev_chain_hash || canonical_event_json)`) with persisted head + anchors.
-5. Backpressure & async buffering (bounded queue + worker) + reliability (retry with jitter / dead-letter).
-6. Metrics (events/sec, failures, queue depth, insertion latency, eviction count).
+4. (PARTIAL DONE) Metrics: HTTP request counters/histograms + audit event counter exported via /metrics (Prometheus). Pending: failure, queue depth, eviction metrics.
+5. Tamper-evidence: hash chain (`event_chain_hash = H(prev_chain_hash || canonical_event_json)`) with persisted head + anchors.
+6. Backpressure & async buffering (bounded queue + worker) + reliability (retry with jitter / dead-letter).
 7. HMAC key rotation (dual-key window + forward-only correlation; old hashes non-reversible).
 
 ## Integrity & Ordering
@@ -111,10 +111,10 @@ EventRecord {
 - Dedicated integrity verification command / endpoint?
 
 ## Immediate Next Steps (Updated)
-1. SQLite retention pruning (time/row based) + eviction counter metric.
-2. Metrics instrumentation (Prometheus export) for audit event rates.
-3. Async buffering worker + backpressure policy.
-4. Hash chain prototype (persist head hash, verification tool/test).
+1. SQLite retention pruning (time/row based) + eviction counter metric (extend existing metrics namespace).
+2. Async buffering worker + backpressure policy (expose queue_depth, enqueue_failures, dispatch_latency).
+3. Hash chain prototype (persist head hash, verification tool/test) with chain_verification_duration metric.
+4. Failure metrics (audit_event_insert_failures) & optional escalation policy.
 5. Key rotation framework (dual active secrets + migration tests).
 
 ## Persistence (SQLite Prototype)

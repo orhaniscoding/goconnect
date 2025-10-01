@@ -49,3 +49,21 @@ func (s *stdoutAuditor) Event(ctx context.Context, action, actor, object string,
 	b, _ := json.Marshal(payload)
 	fmt.Println(string(b))
 }
+
+// metricsAuditor wraps another Auditor to collect per-action counts.
+type metricsAuditor struct {
+	next Auditor
+	inc  func(action string)
+}
+
+func (m *metricsAuditor) Event(ctx context.Context, action, actor, object string, details map[string]any) {
+	if m.inc != nil {
+		m.inc(action)
+	}
+	m.next.Event(ctx, action, actor, object, details)
+}
+
+// WrapWithMetrics decorates the provided auditor with a counter increment callback.
+func WrapWithMetrics(base Auditor, inc func(action string)) Auditor {
+	return &metricsAuditor{next: base, inc: inc}
+}
