@@ -2,8 +2,10 @@ package audit
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -24,29 +26,33 @@ type SqliteAuditor struct {
 	maxRows        int           // 0 means unbounded (no pruning)
 	anchorInterval int           // if >0 create anchor snapshot every anchorInterval events
 	maxAge         time.Duration // if >0 events older than now-maxAge pruned
+    signingKey     ed25519.PrivateKey // optional Ed25519 private key for signing integrity exports
 }
 
 // IntegrityExport represents a snapshot of chain integrity state for external verification.
 type IntegrityExport struct {
 	Head struct {
-		Seq int64  `json:"seq"`
+		Seq  int64  `json:"seq"`
 		Hash string `json:"hash"`
-		TS string   `json:"ts"`
+		TS   string `json:"ts"`
 	} `json:"head"`
 	Anchors []struct {
-		Seq int64  `json:"seq"`
+		Seq  int64  `json:"seq"`
 		Hash string `json:"hash"`
-		TS string   `json:"ts"`
+		TS   string `json:"ts"`
 	} `json:"anchors"`
 	LatestSeq   int64  `json:"latest_seq"`
 	EarliestSeq int64  `json:"earliest_seq"`
 	GeneratedAt string `json:"generated_at"`
+    Signature  string `json:"signature,omitempty"`
 }
 
 // ExportIntegrity gathers current head and up to limit most recent anchors (ascending order).
 // limit <=0 defaults to 20.
 func (a *SqliteAuditor) ExportIntegrity(ctx context.Context, limit int) (IntegrityExport, error) {
-	if limit <= 0 { limit = 20 }
+	if limit <= 0 {
+		limit = 20
+	}
 	var exp IntegrityExport
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	exp.GeneratedAt = now
@@ -56,29 +62,66 @@ func (a *SqliteAuditor) ExportIntegrity(ctx context.Context, limit int) (Integri
 	var headTS, headHash sql.NullString
 	_ = row.Scan(&headSeq, &headTS, &headHash)
 	exp.Head.Seq = headSeq
-	if headTS.Valid { exp.Head.TS = headTS.String }
-	if headHash.Valid { exp.Head.Hash = headHash.String }
+	if headTS.Valid {
+		exp.Head.TS = headTS.String
+	}
+	if headHash.Valid {
+		exp.Head.Hash = headHash.String
+	}
 	// Earliest seq
 	row2 := a.db.QueryRowContext(ctx, `SELECT seq FROM audit_events ORDER BY seq ASC LIMIT 1`)
 	_ = row2.Scan(&exp.EarliestSeq)
 	exp.LatestSeq = headSeq
 	// Anchors newest first limited, then reverse to ascending
 	rows, err := a.db.QueryContext(ctx, `SELECT seq, ts, chain_hash FROM audit_chain_anchors ORDER BY seq DESC LIMIT ?`, limit)
-	if err != nil { return exp, err }
+	if err != nil {
+		return exp, err
+	}
 	defer rows.Close()
-	tmp := []struct{Seq int64; TS, Hash string}{}
+	tmp := []struct {
+		Seq      int64
+		TS, Hash string
+	}{}
 	for rows.Next() {
-		var s int64; var ts, h string
-		if err := rows.Scan(&s, &ts, &h); err != nil { return exp, err }
-		tmp = append(tmp, struct{Seq int64; TS, Hash string}{Seq:s, TS:ts, Hash:h})
+		var s int64
+		var ts, h string
+		if err := rows.Scan(&s, &ts, &h); err != nil {
+			return exp, err
+		}
+		tmp = append(tmp, struct {
+			Seq      int64
+			TS, Hash string
+		}{Seq: s, TS: ts, Hash: h})
 	}
 	// reverse
-	for i := len(tmp)-1; i >=0; i-- {
-		aRec := struct{ Seq int64 `json:"seq"`; Hash string `json:"hash"`; TS string `json:"ts"` }{Seq: tmp[i].Seq, Hash: tmp[i].Hash, TS: tmp[i].TS}
-		exp.Anchors = append(exp.Anchors, struct{ Seq int64 `json:"seq"`; Hash string `json:"hash"`; TS string `json:"ts"` }{Seq: aRec.Seq, Hash: aRec.Hash, TS: aRec.TS})
+	for i := len(tmp) - 1; i >= 0; i-- {
+		aRec := struct {
+			Seq  int64  `json:"seq"`
+			Hash string `json:"hash"`
+			TS   string `json:"ts"`
+		}{Seq: tmp[i].Seq, Hash: tmp[i].Hash, TS: tmp[i].TS}
+		exp.Anchors = append(exp.Anchors, struct {
+			Seq  int64  `json:"seq"`
+			Hash string `json:"hash"`
+			TS   string `json:"ts"`
+		}{Seq: aRec.Seq, Hash: aRec.Hash, TS: aRec.TS})
+	}
+	// If signing key configured, sign canonical JSON without signature field populated.
+	if len(a.signingKey) == ed25519.PrivateKeySize {
+		tmpExp := exp
+		tmpExp.Signature = ""
+		payload, err := json.Marshal(tmpExp)
+		if err == nil {
+			sig := ed25519.Sign(a.signingKey, payload)
+			exp.Signature = base64.RawURLEncoding.EncodeToString(sig)
+			metrics.IncIntegritySigned()
+		} else {
+			metrics.IncAuditFailure("integrity_sign")
+		}
 	}
 	return exp, nil
 }
+
 // SqliteOption configures the SqliteAuditor.
 type SqliteOption func(*SqliteAuditor)
 
@@ -99,8 +142,19 @@ func WithSqliteHashing(secret []byte) SqliteOption {
 func WithSqliteHashSecrets(secrets ...[]byte) SqliteOption {
 	return func(a *SqliteAuditor) {
 		h, _, _ := multiSecretHasher(secrets)
-		if h != nil { a.hasher = h }
+		if h != nil {
+			a.hasher = h
+		}
 	}
+}
+
+// WithIntegritySigningKey configures Ed25519 signing of integrity exports. Expects 64-byte private key.
+func WithIntegritySigningKey(priv ed25519.PrivateKey) SqliteOption {
+    return func(a *SqliteAuditor) {
+        if len(priv) == ed25519.PrivateKeySize {
+            a.signingKey = priv
+        }
+    }
 }
 
 // WithMaxRows sets a hard cap on stored rows; rows beyond the cap are pruned after insert.

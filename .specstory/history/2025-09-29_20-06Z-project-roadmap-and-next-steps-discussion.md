@@ -4634,6 +4634,53 @@ _**User (2025-10-01 18:09Z)**_
 
 _**Assistant (copilot/gpt-5)**_
 
+Marking commit todo complete; all tasks finished. Implemented dual-secret hashing rotation support end-to-end.
+
+## Actions Taken
+- Added multi-secret hashing helpers in `hashutil.go` (kept legacy single-secret function).
+- Introduced new multi-secret options/constructors:
+  - `WithHashSecrets` for `InMemoryStore`
+  - `NewStdoutAuditorWithHashSecrets`
+  - `WithSqliteHashSecrets` for `SqliteAuditor`
+- Marked legacy single-secret APIs but retained them for backward compatibility.
+- Added `rotation_test.go` validating:
+  - Historical hashes remain stable after reopening with `[new, old]`.
+  - New events under rotated secret produce different hash.
+  - Re-hashing with each secret matches stored values.
+- Updated `AUDIT_NOTES.md` with key rotation rationale, procedure, and future enhancements.
+- Fixed test ordering assumption (SQLite `ListRecent` returns newest first).
+- Ran full test suite with race detector: all green.
+- Committed changes: feat(audit): add hashing key rotation (dual-secret support)
+
+## Quality Gates
+- Build/tests (server module): PASS (including new rotation test).
+- Race detector: PASS.
+- No unused code after wiring multi-secret helpers.
+- Requirements coverage:
+  - Dual-secret hasher: Done
+  - New options/constructors: Done
+  - Tests for rotation: Done
+  - Docs update: Done
+  - Commit: Done
+
+## Next Possible Enhancements
+- Hot-reload of secrets (signal or config watcher).
+- Emit an explicit audit event for key rotation itself.
+- Secret provenance (KMS version tagging) for future correlation.
+- Verification utility leveraging multi-secret list for historical raw→hash reconciliation (if ever needed).
+
+Let me know if you’d like to proceed with secret hot-reload, signing integrity exports, or adaptive backpressure next.
+
+---
+
+_**User (2025-10-01 18:25Z)**_
+
+proceed
+
+---
+
+_**Assistant (copilot/gpt-5)**_
+
 
 
 ---

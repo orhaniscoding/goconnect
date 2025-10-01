@@ -36,7 +36,9 @@ type Option func(*InMemoryStore)
 func WithHashing(secret []byte) Option { // legacy single-secret API
 	return func(s *InMemoryStore) {
 		s.hasher = newHasher(secret)
-		if s.hasher != nil { s.redactAll = false }
+		if s.hasher != nil {
+			s.redactAll = false
+		}
 	}
 }
 

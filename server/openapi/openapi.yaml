@@ -240,6 +240,7 @@ paths:
                   latest_seq: { type: integer }
                   earliest_seq: { type: integer }
                   generated_at: { type: string, format: date-time }
+                  signature: { type: string, description: "Base64URL Ed25519 signature over export JSON sans this field" }
         "501":
           description: Auditor does not support integrity export
           content:

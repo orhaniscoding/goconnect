@@ -159,6 +159,40 @@ Future Enhancements:
 - Audit secret rotation events themselves (meta-action) for traceability.
 - Pluggable secret source (KMS / env versioning) + hot-reload signal.
 
+## Integrity Export Signing (Ed25519)
+Status: INITIAL IMPLEMENTATION
+
+Purpose: Provide cryptographic authenticity for integrity snapshots fetched by remote verifiers.
+
+Mechanics:
+- New option `WithIntegritySigningKey(ed25519.PrivateKey)` attaches a signing key to `SqliteAuditor`.
+- On `ExportIntegrity`, if a valid 64-byte Ed25519 private key is configured, the auditor:
+  1. Builds the `IntegrityExport` struct (without signature).
+  2. Marshals JSON.
+  3. Signs the bytes with Ed25519.
+  4. Encodes signature Base64URL (no padding) into `signature` field.
+- OpenAPI now exposes an optional `signature` field on `/v1/audit/integrity` response.
+
+Verification Algorithm (External):
+1. Fetch JSON export.
+2. Extract and Base64URL-decode `signature` field; set field to empty string (or remove) in a copy.
+3. Marshal the modified JSON deterministically (default Go encoding matches production) – ordering stable because struct field order deterministic.
+4. Verify `ed25519.Verify(pubKey, payload, signature)`.
+
+Security & Rotation:
+- Private key scope: signing only; not reused for hashing or other crypto to limit blast radius.
+- Rotation Strategy: publish new public key via config / JWKS endpoint (future) and deploy server with new private key. Dual-publish overlapping window until all verifiers trust the new key; old key revoked after TTL.
+- Future: Add key identifier `kid` to response for multi-key sets.
+
+Metrics:
+- `audit_integrity_signed_total` increments on successful signing.
+- Signing failures increment `audit_failures_total{reason="integrity_sign"}`.
+
+Future Enhancements:
+- Detached signature support (separate `.sig` endpoint) for caching proxies.
+- Include `kid` and algorithm metadata.
+- Canonical JSON normalization phase if struct expansion introduces ordering risk.
+
 
 ## Persistence (SQLite Prototype)
 Implemented `SqliteAuditor` (`internal/audit/sqlite.go`) using pure Go driver (`modernc.org/sqlite`). Schema:
