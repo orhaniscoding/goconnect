@@ -68,8 +68,8 @@ EventRecord {
 1. (DONE) Deterministic actor/object hashing (HMAC-SHA256, first 144 bits base64url) unified helper.
 2. (PARTIAL DONE) In-memory retention via ring buffer (`WithCapacity(n)`) + (DONE) SQLite row-cap pruning (`WithMaxRows`) with labeled eviction metrics.
 3. (DONE) Multi-sink fan-out (`MultiAuditor`) – foundation for exporter layer.
-4. (PARTIAL DONE) Metrics: HTTP req counters/histograms + audit event counter + eviction & labeled failure counters + insert latency histogram + (NEW) async queue metrics (depth, drops, dispatch latency). Pending: hash-chain verification metrics.
-5. Tamper-evidence: hash chain (`event_chain_hash = H(prev_chain_hash || canonical_event_json)`) with persisted head + anchors.
+4. (PARTIAL DONE) Metrics: HTTP req counters/histograms + audit event counter + eviction & labeled failure counters + insert latency histogram + async queue metrics (depth, drops, dispatch latency) + (NEW) chain metrics (head advance, verification duration, failures).
+5. (DONE) Tamper-evidence (phase 1): per-row `chain_hash = H(prev_chain_hash || canonical_event_json)` persisted inline. (Phase 2: periodic anchors / snapshots + partial verification windows.)
 6. Backpressure & async buffering (bounded queue + worker) + reliability (retry with jitter / dead-letter).
 7. HMAC key rotation (dual-key window + forward-only correlation; old hashes non-reversible).
 
@@ -113,8 +113,8 @@ EventRecord {
 ## Immediate Next Steps (Updated)
 1. SQLite time-based pruning variant (age cutoff) & dual-mode retention policy (row OR age; later BOTH).
 2. Async buffering enhancements: backpressure policy (adaptive drop / priority), worker restart counter, enqueue failure reasons.
-3. Hash chain prototype (persist head hash, verification tool/test) + chain_verification_duration & chain_head_advance counters.
-4. Queue depth + chain verification metrics & optional exporter integration.
+3. Hash chain phase 2: anchor snapshots (interval N) + targeted verification (windowed) + export of head + anchor set.
+4. Exporter integration & remote verification endpoint (serve current head + last anchor) + integrity alerting hook.
 5. Key rotation framework (dual active secrets + migration tests).
 
 ## Persistence (SQLite Prototype)

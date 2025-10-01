@@ -60,12 +60,28 @@ var (
 		Help:      "Latency from enqueue to dispatch for async audit events",
 		Buckets:   []float64{0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1},
 	})
+	chainHeadAdvance = prom.NewCounter(prom.CounterOpts{
+		Namespace: "goconnect",
+		Name:      "audit_chain_head_advance_total",
+		Help:      "Total times audit hash chain head advanced (events inserted)",
+	})
+	chainVerifyDuration = prom.NewHistogram(prom.HistogramOpts{
+		Namespace: "goconnect",
+		Name:      "audit_chain_verification_duration_seconds",
+		Help:      "Duration of full hash chain verification runs",
+		Buckets:   []float64{0.001,0.0025,0.005,0.01,0.025,0.05,0.1,0.25,0.5,1,2,5},
+	})
+	chainVerifyFailures = prom.NewCounter(prom.CounterOpts{
+		Namespace: "goconnect",
+		Name:      "audit_chain_verification_failures_total",
+		Help:      "Total failed audit chain verification attempts",
+	})
 )
 
 // Register all metrics (idempotent safe to call once at startup).
 func Register() {
 	registerOnce.Do(func() {
-		prom.MustRegister(reqCounter, reqLatency, auditEvents, auditEvictions, auditFailures, auditInsertLatency, auditQueueDepth, auditDropped, auditDispatchLatency)
+		prom.MustRegister(reqCounter, reqLatency, auditEvents, auditEvictions, auditFailures, auditInsertLatency, auditQueueDepth, auditDropped, auditDispatchLatency, chainHeadAdvance, chainVerifyDuration, chainVerifyFailures)
 	})
 }
 
@@ -121,3 +137,12 @@ func IncAuditDropped() { auditDropped.Inc() }
 
 // ObserveAuditDispatch records time from enqueue to dispatch.
 func ObserveAuditDispatch(seconds float64) { auditDispatchLatency.Observe(seconds) }
+
+// IncChainHead increments chain head advance counter.
+func IncChainHead() { chainHeadAdvance.Inc() }
+
+// ObserveChainVerification records verification duration and success/failure.
+func ObserveChainVerification(seconds float64, ok bool) {
+	chainVerifyDuration.Observe(seconds)
+	if !ok { chainVerifyFailures.Inc() }
+}

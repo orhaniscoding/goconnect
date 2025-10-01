@@ -1,15 +1,19 @@
 package audit
 
 import (
-    "context"
-    "database/sql"
-    "encoding/json"
-    "errors"
-    "fmt"
-    "time"
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"time"
+	"crypto/sha256"
+	"encoding/hex"
+	"sort"
+	"strings"
 
-    "github.com/orhaniscoding/goconnect/server/internal/metrics"
-    _ "modernc.org/sqlite"
+	"github.com/orhaniscoding/goconnect/server/internal/metrics"
+	_ "modernc.org/sqlite"
 )
 
 // SqliteAuditor persists audit events to a SQLite database.
@@ -59,19 +63,21 @@ func NewSqliteAuditor(dsn string, opts ...SqliteOption) (*SqliteAuditor, error) 
 
 func (a *SqliteAuditor) migrate() error {
 	schema := `CREATE TABLE IF NOT EXISTS audit_events (
-        seq INTEGER PRIMARY KEY AUTOINCREMENT,
-        ts TEXT NOT NULL,
-        action TEXT NOT NULL,
-        actor TEXT NOT NULL,
-        object TEXT NOT NULL,
-        details TEXT,
-        request_id TEXT
-    );
-    CREATE INDEX IF NOT EXISTS idx_audit_events_action_ts ON audit_events(action, ts);`
-	_, err := a.db.Exec(schema)
-	if err != nil {
+		seq INTEGER PRIMARY KEY AUTOINCREMENT,
+		ts TEXT NOT NULL,
+		action TEXT NOT NULL,
+		actor TEXT NOT NULL,
+		object TEXT NOT NULL,
+		details TEXT,
+		request_id TEXT,
+		chain_hash TEXT
+	);
+	CREATE INDEX IF NOT EXISTS idx_audit_events_action_ts ON audit_events(action, ts);`
+	if _, err := a.db.Exec(schema); err != nil {
 		return fmt.Errorf("migrate audit_events: %w", err)
 	}
+	// attempt add column if legacy table (ignore error if already exists)
+	_, _ = a.db.Exec(`ALTER TABLE audit_events ADD COLUMN chain_hash TEXT`)
 	return nil
 }
 
@@ -93,12 +99,19 @@ func (a *SqliteAuditor) Event(ctx context.Context, action, actor, object string,
 	b, _ := json.Marshal(details)
 	start := time.Now()
 	status := "success"
-	if _, err := a.db.ExecContext(ctx, `INSERT INTO audit_events(ts, action, actor, object, details, request_id) VALUES(?,?,?,?,?,?)`,
-		time.Now().UTC().Format(time.RFC3339Nano), action, actOut, objOut, string(b), rid); err != nil {
+	ts := time.Now().UTC().Format(time.RFC3339Nano)
+	// Build canonical JSON for hashing chain: ordered keys for details to ensure deterministic serialization
+	canonicalDetails := canonicalizeDetails(details)
+	prevHash := a.getLastChainHash(ctx)
+	chainInput := prevHash + "|" + ts + "|" + action + "|" + actOut + "|" + objOut + "|" + canonicalDetails + "|" + rid
+	chainHash := sha256Hex(chainInput)
+	if _, err := a.db.ExecContext(ctx, `INSERT INTO audit_events(ts, action, actor, object, details, request_id, chain_hash) VALUES(?,?,?,?,?,?,?)`,
+		ts, action, actOut, objOut, string(b), rid, chainHash); err != nil {
 		metrics.IncAuditFailure("exec")
 		status = "failure"
 	}
 	metrics.ObserveAuditInsert("sqlite", status, time.Since(start).Seconds())
+	if status == "success" { metrics.IncChainHead() }
 
 	// Post-insert pruning if retention limit configured.
 	if a.maxRows > 0 {
@@ -108,14 +121,43 @@ func (a *SqliteAuditor) Event(ctx context.Context, action, actor, object string,
 			SELECT seq FROM audit_events ORDER BY seq ASC
 			LIMIT (SELECT CASE WHEN COUNT(1) > ? THEN COUNT(1) - ? ELSE 0 END FROM audit_events)
 		) DELETE FROM audit_events WHERE seq IN (SELECT seq FROM to_delete);`, a.maxRows, a.maxRows)
-        if err == nil {
-            if rows, _ := res.RowsAffected(); rows > 0 {
-                metrics.AddAuditEviction("sqlite", int(rows))
-            }
-        } else {
-            metrics.IncAuditFailure("prune")
-        }
+		if err == nil {
+			if rows, _ := res.RowsAffected(); rows > 0 {
+				metrics.AddAuditEviction("sqlite", int(rows))
+			}
+		} else {
+			metrics.IncAuditFailure("prune")
+		}
 	}
+}
+
+func (a *SqliteAuditor) getLastChainHash(ctx context.Context) string {
+	row := a.db.QueryRowContext(ctx, `SELECT chain_hash FROM audit_events ORDER BY seq DESC LIMIT 1`)
+	var h sql.NullString
+	_ = row.Scan(&h)
+	if h.Valid { return h.String }
+	return ""
+}
+
+func sha256Hex(s string) string {
+	sum := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(sum[:])
+}
+
+func canonicalizeDetails(m map[string]any) string {
+	if m == nil || len(m) == 0 { return "{}" }
+	keys := make([]string,0,len(m))
+	for k := range m { keys = append(keys,k) }
+	sort.Strings(keys)
+	var b strings.Builder
+	b.WriteByte('{')
+	for i,k := range keys {
+		valBytes, _ := json.Marshal(m[k])
+		b.WriteString(fmt.Sprintf("%q:%s", k, string(valBytes)))
+		if i < len(keys)-1 { b.WriteByte(',') }
+	}
+	b.WriteByte('}')
+	return b.String()
 }
 
 // ListRecent returns up to limit most recent events (descending ts). Intended for tests/diagnostics.
@@ -155,6 +197,33 @@ func (a *SqliteAuditor) Count(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return c, nil
+}
+
+// VerifyChain walks the chain sequentially validating each chain_hash. Returns first mismatch error.
+func (a *SqliteAuditor) VerifyChain(ctx context.Context) error {
+	start := time.Now()
+	rows, err := a.db.QueryContext(ctx, `SELECT ts, action, actor, object, details, request_id, chain_hash FROM audit_events ORDER BY seq ASC`)
+	if err != nil { return err }
+	defer rows.Close()
+	prev := ""
+	index := 0
+	for rows.Next() {
+		var ts, action, actor, object, detailsJSON, rid, storedHash sql.NullString
+		if err := rows.Scan(&ts, &action, &actor, &object, &detailsJSON, &rid, &storedHash); err != nil { return err }
+		detMap := map[string]any{}
+		if detailsJSON.Valid && detailsJSON.String != "" { _ = json.Unmarshal([]byte(detailsJSON.String), &detMap) }
+		canonicalDetails := canonicalizeDetails(detMap)
+		chainInput := prev + "|" + ts.String + "|" + action.String + "|" + actor.String + "|" + object.String + "|" + canonicalDetails + "|" + rid.String
+		recomputed := sha256Hex(chainInput)
+		if !storedHash.Valid || storedHash.String != recomputed {
+			metrics.ObserveChainVerification(time.Since(start).Seconds(), false)
+			return fmt.Errorf("chain mismatch at index %d seq hash=%s expected=%s", index, storedHash.String, recomputed)
+		}
+		prev = recomputed
+		index++
+	}
+	metrics.ObserveChainVerification(time.Since(start).Seconds(), true)
+	return nil
 }
 
 // ErrNotSupported indicates the sqlite auditor is not configured.
