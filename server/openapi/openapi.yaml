@@ -241,6 +241,7 @@ paths:
                   earliest_seq: { type: integer }
                   generated_at: { type: string, format: date-time }
                   signature: { type: string, description: "Base64URL Ed25519 signature over export JSON sans this field" }
+                  kid: { type: string, description: "Signing key identifier (if present) included in signed payload" }
         "501":
           description: Auditor does not support integrity export
           content:

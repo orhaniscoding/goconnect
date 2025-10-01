@@ -107,18 +107,18 @@ var (
 		Help:      "Duration of integrity export generation",
 		Buckets:   []float64{0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1},
 	})
-    integritySignedCounter = prom.NewCounter(prom.CounterOpts{
-        Namespace: "goconnect",
-        Name:      "audit_integrity_signed_total",
-        Help:      "Total integrity export snapshots successfully signed",
-    })
+	integritySignedCounter = prom.NewCounter(prom.CounterOpts{
+		Namespace: "goconnect",
+		Name:      "audit_integrity_signed_total",
+		Help:      "Total integrity export snapshots successfully signed",
+	})
 )
 
 // Register all metrics (idempotent safe to call once at startup).
 func Register() {
-    registerOnce.Do(func() {
-        prom.MustRegister(reqCounter, reqLatency, auditEvents, auditEvictions, auditFailures, auditInsertLatency, auditQueueDepth, auditDropped, auditDispatchLatency, auditQueueHighWatermark, auditDroppedByReason, auditWorkerRestarts, chainHeadAdvance, chainVerifyDuration, chainVerifyFailures, chainAnchorCreated, integrityExportCounter, integrityExportDuration, integritySignedCounter)
-    })
+	registerOnce.Do(func() {
+		prom.MustRegister(reqCounter, reqLatency, auditEvents, auditEvictions, auditFailures, auditInsertLatency, auditQueueDepth, auditDropped, auditDispatchLatency, auditQueueHighWatermark, auditDroppedByReason, auditWorkerRestarts, chainHeadAdvance, chainVerifyDuration, chainVerifyFailures, chainAnchorCreated, integrityExportCounter, integrityExportDuration, integritySignedCounter)
+	})
 }
 
 // GinMiddleware instruments incoming HTTP requests.

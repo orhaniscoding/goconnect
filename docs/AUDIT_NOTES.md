@@ -193,6 +193,19 @@ Future Enhancements:
 - Include `kid` and algorithm metadata.
 - Canonical JSON normalization phase if struct expansion introduces ordering risk.
 
+### Signing Key Identifier (kid)
+Status: ADDED
+
+- Added optional `kid` field to integrity export; included inside signed payload to prevent substitution attacks.
+- Server options:
+  - `WithIntegritySigningKey(priv)` (no kid)
+  - `WithIntegritySigningKeyID(kid, priv)` (kid + signing)
+- Rotation using `kid`:
+  1. Introduce new key with new kid while retaining old key (future multi-key publish not yet implemented — currently single active key per process).
+  2. Verifiers accept exports with either old or new kid until cutover time.
+  3. Remove old key, bump configuration redeploy, verifiers drop trust for old kid.
+- Future enhancement: multi-key registry + JWKS-style endpoint to allow parallel verification without redeploy race.
+
 
 ## Persistence (SQLite Prototype)
 Implemented `SqliteAuditor` (`internal/audit/sqlite.go`) using pure Go driver (`modernc.org/sqlite`). Schema:

@@ -23,10 +23,11 @@ import (
 type SqliteAuditor struct {
 	db             *sql.DB
 	hasher         func(string) string
-	maxRows        int           // 0 means unbounded (no pruning)
-	anchorInterval int           // if >0 create anchor snapshot every anchorInterval events
-	maxAge         time.Duration // if >0 events older than now-maxAge pruned
-    signingKey     ed25519.PrivateKey // optional Ed25519 private key for signing integrity exports
+	maxRows        int                // 0 means unbounded (no pruning)
+	anchorInterval int                // if >0 create anchor snapshot every anchorInterval events
+	maxAge         time.Duration      // if >0 events older than now-maxAge pruned
+	signingKey     ed25519.PrivateKey // optional Ed25519 private key for signing integrity exports
+    signingKeyID  string             // optional key identifier (kid) included in signed export
 }
 
 // IntegrityExport represents a snapshot of chain integrity state for external verification.
@@ -44,7 +45,8 @@ type IntegrityExport struct {
 	LatestSeq   int64  `json:"latest_seq"`
 	EarliestSeq int64  `json:"earliest_seq"`
 	GeneratedAt string `json:"generated_at"`
-    Signature  string `json:"signature,omitempty"`
+	Signature   string `json:"signature,omitempty"`
+    KeyID      string `json:"kid,omitempty"`
 }
 
 // ExportIntegrity gathers current head and up to limit most recent anchors (ascending order).
@@ -106,19 +108,20 @@ func (a *SqliteAuditor) ExportIntegrity(ctx context.Context, limit int) (Integri
 			TS   string `json:"ts"`
 		}{Seq: aRec.Seq, Hash: aRec.Hash, TS: aRec.TS})
 	}
-	// If signing key configured, sign canonical JSON without signature field populated.
+	// If signing key configured, include KeyID if present and sign canonical JSON without signature field populated.
 	if len(a.signingKey) == ed25519.PrivateKeySize {
-		tmpExp := exp
-		tmpExp.Signature = ""
-		payload, err := json.Marshal(tmpExp)
-		if err == nil {
-			sig := ed25519.Sign(a.signingKey, payload)
-			exp.Signature = base64.RawURLEncoding.EncodeToString(sig)
-			metrics.IncIntegritySigned()
-		} else {
-			metrics.IncAuditFailure("integrity_sign")
-		}
-	}
+        if a.signingKeyID != "" { exp.KeyID = a.signingKeyID }
+        tmpExp := exp
+        tmpExp.Signature = ""
+        payload, err := json.Marshal(tmpExp)
+        if err == nil {
+            sig := ed25519.Sign(a.signingKey, payload)
+            exp.Signature = base64.RawURLEncoding.EncodeToString(sig)
+            metrics.IncIntegritySigned()
+        } else {
+            metrics.IncAuditFailure("integrity_sign")
+        }
+    }
 	return exp, nil
 }
 
@@ -150,11 +153,21 @@ func WithSqliteHashSecrets(secrets ...[]byte) SqliteOption {
 
 // WithIntegritySigningKey configures Ed25519 signing of integrity exports. Expects 64-byte private key.
 func WithIntegritySigningKey(priv ed25519.PrivateKey) SqliteOption {
-    return func(a *SqliteAuditor) {
-        if len(priv) == ed25519.PrivateKeySize {
-            a.signingKey = priv
-        }
-    }
+	return func(a *SqliteAuditor) {
+		if len(priv) == ed25519.PrivateKeySize {
+			a.signingKey = priv
+		}
+	}
+}
+
+// WithIntegritySigningKeyID configures Ed25519 signing and sets a key identifier (kid) included in signed payload.
+func WithIntegritySigningKeyID(kid string, priv ed25519.PrivateKey) SqliteOption {
+	return func(a *SqliteAuditor) {
+		if len(priv) == ed25519.PrivateKeySize {
+			a.signingKey = priv
+			a.signingKeyID = kid
+		}
+	}
 }
 
 // WithMaxRows sets a hard cap on stored rows; rows beyond the cap are pruned after insert.
