@@ -69,19 +69,24 @@ var (
 		Namespace: "goconnect",
 		Name:      "audit_chain_verification_duration_seconds",
 		Help:      "Duration of full hash chain verification runs",
-		Buckets:   []float64{0.001,0.0025,0.005,0.01,0.025,0.05,0.1,0.25,0.5,1,2,5},
+		Buckets:   []float64{0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5},
 	})
 	chainVerifyFailures = prom.NewCounter(prom.CounterOpts{
 		Namespace: "goconnect",
 		Name:      "audit_chain_verification_failures_total",
 		Help:      "Total failed audit chain verification attempts",
 	})
+	chainAnchorCreated = prom.NewCounter(prom.CounterOpts{
+		Namespace: "goconnect",
+		Name:      "audit_chain_anchor_created_total",
+		Help:      "Total anchor snapshots recorded for audit hash chain",
+	})
 )
 
 // Register all metrics (idempotent safe to call once at startup).
 func Register() {
 	registerOnce.Do(func() {
-		prom.MustRegister(reqCounter, reqLatency, auditEvents, auditEvictions, auditFailures, auditInsertLatency, auditQueueDepth, auditDropped, auditDispatchLatency, chainHeadAdvance, chainVerifyDuration, chainVerifyFailures)
+		prom.MustRegister(reqCounter, reqLatency, auditEvents, auditEvictions, auditFailures, auditInsertLatency, auditQueueDepth, auditDropped, auditDispatchLatency, chainHeadAdvance, chainVerifyDuration, chainVerifyFailures, chainAnchorCreated)
 	})
 }
 
@@ -144,5 +149,10 @@ func IncChainHead() { chainHeadAdvance.Inc() }
 // ObserveChainVerification records verification duration and success/failure.
 func ObserveChainVerification(seconds float64, ok bool) {
 	chainVerifyDuration.Observe(seconds)
-	if !ok { chainVerifyFailures.Inc() }
+	if !ok {
+		chainVerifyFailures.Inc()
+	}
 }
+
+// IncChainAnchor increments anchor creation counter.
+func IncChainAnchor() { chainAnchorCreated.Inc() }

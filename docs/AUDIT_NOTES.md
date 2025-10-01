@@ -69,7 +69,8 @@ EventRecord {
 2. (PARTIAL DONE) In-memory retention via ring buffer (`WithCapacity(n)`) + (DONE) SQLite row-cap pruning (`WithMaxRows`) with labeled eviction metrics.
 3. (DONE) Multi-sink fan-out (`MultiAuditor`) – foundation for exporter layer.
 4. (PARTIAL DONE) Metrics: HTTP req counters/histograms + audit event counter + eviction & labeled failure counters + insert latency histogram + async queue metrics (depth, drops, dispatch latency) + (NEW) chain metrics (head advance, verification duration, failures).
-5. (DONE) Tamper-evidence (phase 1): per-row `chain_hash = H(prev_chain_hash || canonical_event_json)` persisted inline. (Phase 2: periodic anchors / snapshots + partial verification windows.)
+5. (DONE) Tamper-evidence (phase 1): per-row `chain_hash = H(prev_chain_hash || canonical_event_json)` persisted inline.
+6. (DONE) Tamper-evidence (phase 2): periodic anchor snapshots every N events (configurable) stored in `audit_chain_anchors(seq, ts, chain_hash)` enabling partial verification windows (O(k) after anchor vs full O(n)). New metric: `goconnect_audit_chain_anchor_created_total`.
 6. Backpressure & async buffering (bounded queue + worker) + reliability (retry with jitter / dead-letter).
 7. HMAC key rotation (dual-key window + forward-only correlation; old hashes non-reversible).
 
@@ -113,7 +114,7 @@ EventRecord {
 ## Immediate Next Steps (Updated)
 1. SQLite time-based pruning variant (age cutoff) & dual-mode retention policy (row OR age; later BOTH).
 2. Async buffering enhancements: backpressure policy (adaptive drop / priority), worker restart counter, enqueue failure reasons.
-3. Hash chain phase 2: anchor snapshots (interval N) + targeted verification (windowed) + export of head + anchor set.
+3. Integrity export: endpoint / tool to emit current head + recent anchors for remote verification.
 4. Exporter integration & remote verification endpoint (serve current head + last anchor) + integrity alerting hook.
 5. Key rotation framework (dual active secrets + migration tests).
 
