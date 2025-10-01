@@ -1,16 +1,16 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"net/http"
+    "flag"
+    "fmt"
+    "net/http"
 
-	"github.com/gin-gonic/gin"
-	"github.com/orhaniscoding/goconnect/server/internal/audit"
-	"github.com/orhaniscoding/goconnect/server/internal/handler"
-	"github.com/orhaniscoding/goconnect/server/internal/metrics"
-	"github.com/orhaniscoding/goconnect/server/internal/repository"
-	"github.com/orhaniscoding/goconnect/server/internal/service"
+    "github.com/gin-gonic/gin"
+    "github.com/orhaniscoding/goconnect/server/internal/audit"
+    "github.com/orhaniscoding/goconnect/server/internal/handler"
+    "github.com/orhaniscoding/goconnect/server/internal/metrics"
+    "github.com/orhaniscoding/goconnect/server/internal/repository"
+    "github.com/orhaniscoding/goconnect/server/internal/service"
 )
 
 var (
@@ -22,6 +22,9 @@ var (
 
 func main() {
 	showVersion := flag.Bool("version", false, "print version and exit")
+	asyncAudit := flag.Bool("audit-async", true, "enable async audit buffering")
+	auditQueue := flag.Int("audit-queue", 1024, "audit async queue size")
+	auditWorkers := flag.Int("audit-workers", 1, "audit async worker count")
 	flag.Parse()
 
 	if *showVersion {
@@ -42,10 +45,13 @@ func main() {
 	ipamService := service.NewIPAMService(networkRepo, membershipRepo, ipamRepo)
 	metrics.Register()
 	baseAud := audit.NewStdoutAuditor()
-	metricsAud := audit.WrapWithMetrics(baseAud, metrics.IncAudit)
-	membershipService.SetAuditor(metricsAud)
-	networkService.SetAuditor(metricsAud)
-	ipamService.SetAuditor(metricsAud)
+	var aud audit.Auditor = audit.WrapWithMetrics(baseAud, metrics.IncAudit)
+	if *asyncAudit {
+		aud = audit.NewAsyncAuditor(aud, audit.WithQueueSize(*auditQueue), audit.WithWorkers(*auditWorkers))
+	}
+	membershipService.SetAuditor(aud)
+	networkService.SetAuditor(aud)
+	ipamService.SetAuditor(aud)
 
 	// Initialize handlers
 	networkHandler := handler.NewNetworkHandler(networkService, membershipService).WithIPAM(ipamService)

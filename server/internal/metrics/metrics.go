@@ -44,10 +44,30 @@ var (
 		Help:      "Latency of audit event persistence operations",
 		Buckets:   []float64{0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1},
 	}, []string{"sink", "status"})
+	auditQueueDepth = prom.NewGauge(prom.GaugeOpts{
+		Namespace: "goconnect",
+		Name:      "audit_queue_depth",
+		Help:      "Current depth of async audit event queue",
+	})
+	auditDropped = prom.NewCounter(prom.CounterOpts{
+		Namespace: "goconnect",
+		Name:      "audit_events_dropped_total",
+		Help:      "Total audit events dropped due to full async queue",
+	})
+	auditDispatchLatency = prom.NewHistogram(prom.HistogramOpts{
+		Namespace: "goconnect",
+		Name:      "audit_dispatch_duration_seconds",
+		Help:      "Latency from enqueue to dispatch for async audit events",
+		Buckets:   []float64{0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1},
+	})
 )
 
 // Register all metrics (idempotent safe to call once at startup).
-func Register() { registerOnce.Do(func() { prom.MustRegister(reqCounter, reqLatency, auditEvents, auditEvictions, auditFailures, auditInsertLatency) }) }
+func Register() {
+	registerOnce.Do(func() {
+		prom.MustRegister(reqCounter, reqLatency, auditEvents, auditEvictions, auditFailures, auditInsertLatency, auditQueueDepth, auditDropped, auditDispatchLatency)
+	})
+}
 
 // GinMiddleware instruments incoming HTTP requests.
 func GinMiddleware() gin.HandlerFunc {
@@ -92,3 +112,12 @@ func IncAuditFailure(reason string) { auditFailures.WithLabelValues(reason).Inc(
 func ObserveAuditInsert(sink, status string, seconds float64) {
 	auditInsertLatency.WithLabelValues(sink, status).Observe(seconds)
 }
+
+// SetAuditQueueDepth sets the current queue depth gauge.
+func SetAuditQueueDepth(n int) { auditQueueDepth.Set(float64(n)) }
+
+// IncAuditDropped increments dropped events counter.
+func IncAuditDropped() { auditDropped.Inc() }
+
+// ObserveAuditDispatch records time from enqueue to dispatch.
+func ObserveAuditDispatch(seconds float64) { auditDispatchLatency.Observe(seconds) }
