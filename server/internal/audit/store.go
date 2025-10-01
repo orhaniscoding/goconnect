@@ -1,9 +1,9 @@
 package audit
 
 import (
-    "context"
-    "sync"
-    "time"
+	"context"
+	"sync"
+	"time"
 )
 
 // EventRecord is an in-memory representation of an audit event (PII redacted).
@@ -30,7 +30,14 @@ type Option func(*InMemoryStore)
 
 // WithHashing enables deterministic hashing of actor/object identifiers using provided secret.
 // Uses HMAC-SHA256 and encodes first 18 bytes (to keep it short) in URL-safe base64 without padding.
-func WithHashing(secret []byte) Option { return func(s *InMemoryStore) { s.hasher = newHasher(secret); if s.hasher != nil { s.redactAll = false } } }
+func WithHashing(secret []byte) Option {
+	return func(s *InMemoryStore) {
+		s.hasher = newHasher(secret)
+		if s.hasher != nil {
+			s.redactAll = false
+		}
+	}
+}
 
 // WithRedaction forces full redaction (default behavior) even if hashing enabled elsewhere.
 func WithRedaction() Option { return func(s *InMemoryStore) { s.redactAll = true } }
