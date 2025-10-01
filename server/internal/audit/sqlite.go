@@ -21,13 +21,67 @@ import (
 type SqliteAuditor struct {
 	db             *sql.DB
 	hasher         func(string) string
-	maxRows        int // 0 means unbounded (no pruning)
-	anchorInterval int // if >0 create anchor snapshot every anchorInterval events
-	maxAge        time.Duration // if >0 events older than now-maxAge pruned
+	maxRows        int           // 0 means unbounded (no pruning)
+	anchorInterval int           // if >0 create anchor snapshot every anchorInterval events
+	maxAge         time.Duration // if >0 events older than now-maxAge pruned
 }
 
+// IntegrityExport represents a snapshot of chain integrity state for external verification.
+type IntegrityExport struct {
+	Head struct {
+		Seq int64  `json:"seq"`
+		Hash string `json:"hash"`
+		TS string   `json:"ts"`
+	} `json:"head"`
+	Anchors []struct {
+		Seq int64  `json:"seq"`
+		Hash string `json:"hash"`
+		TS string   `json:"ts"`
+	} `json:"anchors"`
+	LatestSeq   int64  `json:"latest_seq"`
+	EarliestSeq int64  `json:"earliest_seq"`
+	GeneratedAt string `json:"generated_at"`
+}
+
+// ExportIntegrity gathers current head and up to limit most recent anchors (ascending order).
+// limit <=0 defaults to 20.
+func (a *SqliteAuditor) ExportIntegrity(ctx context.Context, limit int) (IntegrityExport, error) {
+	if limit <= 0 { limit = 20 }
+	var exp IntegrityExport
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	exp.GeneratedAt = now
+	// Head (seq, ts, hash)
+	row := a.db.QueryRowContext(ctx, `SELECT seq, ts, chain_hash FROM audit_events ORDER BY seq DESC LIMIT 1`)
+	var headSeq int64
+	var headTS, headHash sql.NullString
+	_ = row.Scan(&headSeq, &headTS, &headHash)
+	exp.Head.Seq = headSeq
+	if headTS.Valid { exp.Head.TS = headTS.String }
+	if headHash.Valid { exp.Head.Hash = headHash.String }
+	// Earliest seq
+	row2 := a.db.QueryRowContext(ctx, `SELECT seq FROM audit_events ORDER BY seq ASC LIMIT 1`)
+	_ = row2.Scan(&exp.EarliestSeq)
+	exp.LatestSeq = headSeq
+	// Anchors newest first limited, then reverse to ascending
+	rows, err := a.db.QueryContext(ctx, `SELECT seq, ts, chain_hash FROM audit_chain_anchors ORDER BY seq DESC LIMIT ?`, limit)
+	if err != nil { return exp, err }
+	defer rows.Close()
+	tmp := []struct{Seq int64; TS, Hash string}{}
+	for rows.Next() {
+		var s int64; var ts, h string
+		if err := rows.Scan(&s, &ts, &h); err != nil { return exp, err }
+		tmp = append(tmp, struct{Seq int64; TS, Hash string}{Seq:s, TS:ts, Hash:h})
+	}
+	// reverse
+	for i := len(tmp)-1; i >=0; i-- {
+		aRec := struct{ Seq int64 `json:"seq"`; Hash string `json:"hash"`; TS string `json:"ts"` }{Seq: tmp[i].Seq, Hash: tmp[i].Hash, TS: tmp[i].TS}
+		exp.Anchors = append(exp.Anchors, struct{ Seq int64 `json:"seq"`; Hash string `json:"hash"`; TS string `json:"ts"` }{Seq: aRec.Seq, Hash: aRec.Hash, TS: aRec.TS})
+	}
+	return exp, nil
+}
 // SqliteOption configures the SqliteAuditor.
 type SqliteOption func(*SqliteAuditor)
+
 func WithMaxAge(d time.Duration) SqliteOption {
 	return func(a *SqliteAuditor) {
 		if d > 0 {

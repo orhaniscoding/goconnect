@@ -201,6 +201,57 @@ info:
         example: "550e8400-e29b-41d4-a716-446655440000"
 
 paths:
+  /v1/audit/integrity:
+    get:
+      summary: Export audit integrity snapshot
+      description: "Returns current audit hash chain head and recent anchor snapshots for remote verification."
+      tags: [Audit]
+      parameters:
+        - name: anchors
+          in: query
+          description: Maximum number of recent anchors to include (ascending order)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 20
+      responses:
+        "200":
+          description: Integrity export
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  head:
+                    type: object
+                    properties:
+                      seq: { type: integer }
+                      hash: { type: string }
+                      ts: { type: string, format: date-time }
+                  anchors:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        seq: { type: integer }
+                        hash: { type: string }
+                        ts: { type: string, format: date-time }
+                  latest_seq: { type: integer }
+                  earliest_seq: { type: integer }
+                  generated_at: { type: string, format: date-time }
+        "501":
+          description: Auditor does not support integrity export
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "500":
+          description: Internal error exporting integrity snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /v1/networks:
     get:
       summary: List networks

@@ -1,16 +1,16 @@
 package main
 
 import (
-    "flag"
-    "fmt"
-    "net/http"
+	"flag"
+	"fmt"
+	"net/http"
 
-    "github.com/gin-gonic/gin"
-    "github.com/orhaniscoding/goconnect/server/internal/audit"
-    "github.com/orhaniscoding/goconnect/server/internal/handler"
-    "github.com/orhaniscoding/goconnect/server/internal/metrics"
-    "github.com/orhaniscoding/goconnect/server/internal/repository"
-    "github.com/orhaniscoding/goconnect/server/internal/service"
+	"github.com/gin-gonic/gin"
+	"github.com/orhaniscoding/goconnect/server/internal/audit"
+	"github.com/orhaniscoding/goconnect/server/internal/handler"
+	"github.com/orhaniscoding/goconnect/server/internal/metrics"
+	"github.com/orhaniscoding/goconnect/server/internal/repository"
+	"github.com/orhaniscoding/goconnect/server/internal/service"
 )
 
 var (
@@ -77,6 +77,9 @@ func main() {
 
 	// Metrics endpoint
 	r.GET("/metrics", metrics.Handler())
+
+	// Audit integrity export (best-effort) – future: restrict via RBAC
+	r.GET("/v1/audit/integrity", handler.AuditIntegrityHandler(aud))
 
 	// Start server
 	fmt.Printf("GoConnect Server starting on :8080...\n")

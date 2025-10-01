@@ -114,7 +114,17 @@ EventRecord {
 ## Immediate Next Steps (Updated)
 1. (DONE) SQLite time-based pruning variant (age cutoff) & dual-mode retention policy (row AND/OR age). Age pruning occurs post-insert; prunes events older than configurable duration, emits eviction metrics, removes orphan anchors. Verification treats the first retained event as a new baseline (empty previous hash) while still detecting tampering in the retained window.
 2. Async buffering enhancements: backpressure policy (adaptive drop / priority), worker restart counter, enqueue failure reasons.
-3. Integrity export: endpoint / tool to emit current head + recent anchors for remote verification.
+3. (DONE) Integrity export endpoint `/v1/audit/integrity` returns JSON and is publicly accessible (temporary; will gain RBAC protection). Response shape:
+   ```json
+   {
+     "head": { "seq": <int>, "hash": "<hex>", "ts": "<rfc3339>" },
+     "anchors": [ { "seq": <int>, "hash": "<hex>", "ts": "<rfc3339>" } ],
+     "latest_seq": <int>,
+     "earliest_seq": <int>,
+     "generated_at": "<rfc3339>"
+   }
+   ```
+  Usage: A remote verifier fetches snapshot, selects the last anchor, recomputes chain locally for events since that anchor (if available via separate export pathway), and compares the published head hash. Future enhancements: signed snapshot, pagination for historical anchors, delta verification token.
 4. Exporter integration & remote verification endpoint (serve current head + last anchor) + integrity alerting hook.
 5. Key rotation framework (dual active secrets + migration tests).
 

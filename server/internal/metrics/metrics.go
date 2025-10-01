@@ -81,12 +81,23 @@ var (
 		Name:      "audit_chain_anchor_created_total",
 		Help:      "Total anchor snapshots recorded for audit hash chain",
 	})
+	integrityExportCounter = prom.NewCounter(prom.CounterOpts{
+		Namespace: "goconnect",
+		Name:      "audit_integrity_export_total",
+		Help:      "Total integrity export requests served",
+	})
+	integrityExportDuration = prom.NewHistogram(prom.HistogramOpts{
+		Namespace: "goconnect",
+		Name:      "audit_integrity_export_duration_seconds",
+		Help:      "Duration of integrity export generation",
+		Buckets:   []float64{0.0005,0.001,0.0025,0.005,0.01,0.025,0.05,0.1,0.25,0.5,1},
+	})
 )
 
 // Register all metrics (idempotent safe to call once at startup).
 func Register() {
 	registerOnce.Do(func() {
-		prom.MustRegister(reqCounter, reqLatency, auditEvents, auditEvictions, auditFailures, auditInsertLatency, auditQueueDepth, auditDropped, auditDispatchLatency, chainHeadAdvance, chainVerifyDuration, chainVerifyFailures, chainAnchorCreated)
+		prom.MustRegister(reqCounter, reqLatency, auditEvents, auditEvictions, auditFailures, auditInsertLatency, auditQueueDepth, auditDropped, auditDispatchLatency, chainHeadAdvance, chainVerifyDuration, chainVerifyFailures, chainAnchorCreated, integrityExportCounter, integrityExportDuration)
 	})
 }
 
@@ -156,3 +167,9 @@ func ObserveChainVerification(seconds float64, ok bool) {
 
 // IncChainAnchor increments anchor creation counter.
 func IncChainAnchor() { chainAnchorCreated.Inc() }
+
+// ObserveIntegrityExport records export duration and increments counter.
+func ObserveIntegrityExport(seconds float64) {
+	integrityExportCounter.Inc()
+	integrityExportDuration.Observe(seconds)
+}
