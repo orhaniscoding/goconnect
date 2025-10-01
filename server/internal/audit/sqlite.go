@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/orhaniscoding/goconnect/server/internal/metrics"
 	_ "modernc.org/sqlite"
 )
 
@@ -79,8 +80,10 @@ func (a *SqliteAuditor) Event(ctx context.Context, action, actor, object string,
 		objOut = a.hasher(object)
 	}
 	b, _ := json.Marshal(details)
-	_, _ = a.db.ExecContext(ctx, `INSERT INTO audit_events(ts, action, actor, object, details, request_id) VALUES(?,?,?,?,?,?)`,
-		time.Now().UTC().Format(time.RFC3339Nano), action, actOut, objOut, string(b), rid)
+	if _, err := a.db.ExecContext(ctx, `INSERT INTO audit_events(ts, action, actor, object, details, request_id) VALUES(?,?,?,?,?,?)`,
+		time.Now().UTC().Format(time.RFC3339Nano), action, actOut, objOut, string(b), rid); err != nil {
+		metrics.IncAuditFailure()
+	}
 }
 
 // ListRecent returns up to limit most recent events (descending ts). Intended for tests/diagnostics.

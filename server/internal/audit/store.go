@@ -4,6 +4,8 @@ import (
 	"context"
 	"sync"
 	"time"
+
+	"github.com/orhaniscoding/goconnect/server/internal/metrics"
 )
 
 // EventRecord is an in-memory representation of an audit event (PII redacted).
@@ -78,6 +80,7 @@ func (s *InMemoryStore) Event(ctx context.Context, action, actor, object string,
 		// drop oldest (index 0) by re-slicing; avoid realloc by copy shift
 		copy(s.events[0:], s.events[1:])
 		s.events[len(s.events)-1] = rec
+		metrics.IncAuditEviction()
 	} else {
 		s.events = append(s.events, rec)
 	}
@@ -101,4 +104,10 @@ func (s *InMemoryStore) Clear() {
 }
 
 // WithCapacity sets a max number of events retained in-memory (ring buffer style).
-func WithCapacity(n int) Option { return func(s *InMemoryStore) { if n > 0 { s.capacity = n } } }
+func WithCapacity(n int) Option {
+	return func(s *InMemoryStore) {
+		if n > 0 {
+			s.capacity = n
+		}
+	}
+}

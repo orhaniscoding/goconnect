@@ -11,8 +11,8 @@ import (
 )
 
 var (
-    registerOnce sync.Once
-	reqCounter = prom.NewCounterVec(prom.CounterOpts{
+	registerOnce sync.Once
+	reqCounter   = prom.NewCounterVec(prom.CounterOpts{
 		Namespace: "goconnect",
 		Name:      "http_requests_total",
 		Help:      "Total HTTP requests",
@@ -28,10 +28,20 @@ var (
 		Name:      "audit_events_total",
 		Help:      "Audit events emitted",
 	}, []string{"action"})
+	auditEvictions = prom.NewCounter(prom.CounterOpts{
+		Namespace: "goconnect",
+		Name:      "audit_evictions_total",
+		Help:      "Total audit events evicted from in-memory retention buffer",
+	})
+	auditFailures = prom.NewCounter(prom.CounterOpts{
+		Namespace: "goconnect",
+		Name:      "audit_failures_total",
+		Help:      "Total audit persistence failures (best-effort sinks)",
+	})
 )
 
 // Register all metrics (idempotent safe to call once at startup).
-func Register() { registerOnce.Do(func() { prom.MustRegister(reqCounter, reqLatency, auditEvents) }) }
+func Register() { registerOnce.Do(func() { prom.MustRegister(reqCounter, reqLatency, auditEvents, auditEvictions, auditFailures) }) }
 
 // GinMiddleware instruments incoming HTTP requests.
 func GinMiddleware() gin.HandlerFunc {
@@ -56,3 +66,9 @@ func Handler() gin.HandlerFunc {
 
 // IncAudit increments audit event counter for given action.
 func IncAudit(action string) { auditEvents.WithLabelValues(action).Inc() }
+
+// IncAuditEviction increments the eviction counter.
+func IncAuditEviction() { auditEvictions.Inc() }
+
+// IncAuditFailure increments the failure counter.
+func IncAuditFailure() { auditFailures.Inc() }
