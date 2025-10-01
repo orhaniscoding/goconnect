@@ -80,7 +80,7 @@ func (s *InMemoryStore) Event(ctx context.Context, action, actor, object string,
 		// drop oldest (index 0) by re-slicing; avoid realloc by copy shift
 		copy(s.events[0:], s.events[1:])
 		s.events[len(s.events)-1] = rec
-		metrics.IncAuditEviction()
+		metrics.AddAuditEviction("memory", 1)
 	} else {
 		s.events = append(s.events, rec)
 	}

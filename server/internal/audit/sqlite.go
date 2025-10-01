@@ -17,6 +17,7 @@ import (
 type SqliteAuditor struct {
 	db     *sql.DB
 	hasher func(string) string
+	maxRows int // 0 means unbounded (no pruning)
 }
 
 // SqliteOption configures the SqliteAuditor.
@@ -25,6 +26,12 @@ type SqliteOption func(*SqliteAuditor)
 // WithSqliteHashing enables pseudonymous hashing for actor/object fields.
 func WithSqliteHashing(secret []byte) SqliteOption {
 	return func(a *SqliteAuditor) { a.hasher = newHasher(secret) }
+}
+
+// WithMaxRows sets a hard cap on stored rows; rows beyond the cap are pruned after insert.
+// Pruning strategy: delete oldest rows so that total <= maxRows (single DELETE with subquery).
+func WithMaxRows(n int) SqliteOption {
+    return func(a *SqliteAuditor) { if n > 0 { a.maxRows = n } }
 }
 
 // NewSqliteAuditor opens (or creates) the SQLite database at dsn (e.g. file path) and ensures schema.
@@ -83,6 +90,24 @@ func (a *SqliteAuditor) Event(ctx context.Context, action, actor, object string,
 	if _, err := a.db.ExecContext(ctx, `INSERT INTO audit_events(ts, action, actor, object, details, request_id) VALUES(?,?,?,?,?,?)`,
 		time.Now().UTC().Format(time.RFC3339Nano), action, actOut, objOut, string(b), rid); err != nil {
 		metrics.IncAuditFailure()
+		return
+	}
+
+	// Post-insert pruning if retention limit configured.
+	if a.maxRows > 0 {
+		// Delete excess oldest rows keeping newest maxRows based on seq ordering.
+		// Use a CTE to select seq values to delete.
+		res, err := a.db.ExecContext(ctx, `WITH to_delete AS (
+			SELECT seq FROM audit_events ORDER BY seq ASC
+			LIMIT (SELECT CASE WHEN COUNT(1) > ? THEN COUNT(1) - ? ELSE 0 END FROM audit_events)
+		) DELETE FROM audit_events WHERE seq IN (SELECT seq FROM to_delete);`, a.maxRows, a.maxRows)
+		if err == nil { // silently ignore errors (best-effort) but emit failure metric on prune error
+			if rows, _ := res.RowsAffected(); rows > 0 {
+				metrics.AddAuditEviction("sqlite", int(rows))
+			}
+		} else {
+			metrics.IncAuditFailure()
+		}
 	}
 }
 

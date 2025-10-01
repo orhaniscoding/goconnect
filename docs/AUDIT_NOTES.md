@@ -66,7 +66,7 @@ EventRecord {
 
 ## Redaction, Hashing & Export Roadmap
 1. (DONE) Deterministic actor/object hashing (HMAC-SHA256, first 144 bits base64url) unified helper.
-2. (PARTIAL DONE) In-memory retention via ring buffer (`WithCapacity(n)`); future: SQLite pruning (time/row cap).
+2. (PARTIAL DONE) In-memory retention via ring buffer (`WithCapacity(n)`) + (DONE) SQLite row-cap pruning (`WithMaxRows`) with labeled eviction metrics.
 3. (DONE) Multi-sink fan-out (`MultiAuditor`) – foundation for exporter layer.
 4. (PARTIAL DONE) Metrics: HTTP req counters/histograms + audit event counter + (NEW) eviction & failure counters. Pending: queue depth, insertion latency, hash-chain verification metrics.
 5. Tamper-evidence: hash chain (`event_chain_hash = H(prev_chain_hash || canonical_event_json)`) with persisted head + anchors.
@@ -111,7 +111,7 @@ EventRecord {
 - Dedicated integrity verification command / endpoint?
 
 ## Immediate Next Steps (Updated)
-1. SQLite retention pruning (time/row based) + eviction metric extension for persisted pruning (add label source=sqlite|memory).
+1. SQLite time-based pruning variant (age cutoff) & dual-mode retention policy (row OR age; later BOTH).
 2. Async buffering worker + backpressure policy (expose queue_depth, enqueue_failures, dispatch_latency, worker_restarts).
 3. Hash chain prototype (persist head hash, verification tool/test) + chain_verification_duration & chain_head_advance counters.
 4. Insertion latency histogram (audit_insert_duration_seconds) and split failure code labels (e.g., constraint, IO, busy_timeout).

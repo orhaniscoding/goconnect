@@ -28,11 +28,11 @@ var (
 		Name:      "audit_events_total",
 		Help:      "Audit events emitted",
 	}, []string{"action"})
-	auditEvictions = prom.NewCounter(prom.CounterOpts{
+	auditEvictions = prom.NewCounterVec(prom.CounterOpts{
 		Namespace: "goconnect",
 		Name:      "audit_evictions_total",
-		Help:      "Total audit events evicted from in-memory retention buffer",
-	})
+		Help:      "Total audit events evicted from retention (memory/sqlite)",
+	}, []string{"source"})
 	auditFailures = prom.NewCounter(prom.CounterOpts{
 		Namespace: "goconnect",
 		Name:      "audit_failures_total",
@@ -68,7 +68,11 @@ func Handler() gin.HandlerFunc {
 func IncAudit(action string) { auditEvents.WithLabelValues(action).Inc() }
 
 // IncAuditEviction increments the eviction counter.
-func IncAuditEviction() { auditEvictions.Inc() }
+// AddAuditEviction increments eviction counter for a specific source (e.g., "memory" or "sqlite").
+func AddAuditEviction(source string, n int) {
+	if n <= 0 { return }
+	for i := 0; i < n; i++ { auditEvictions.WithLabelValues(source).Inc() }
+}
 
 // IncAuditFailure increments the failure counter.
 func IncAuditFailure() { auditFailures.Inc() }
