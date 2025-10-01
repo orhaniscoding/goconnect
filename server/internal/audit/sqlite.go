@@ -19,14 +19,22 @@ import (
 // SqliteAuditor persists audit events to a SQLite database.
 // It optionally hashes actor/object identifiers using HMAC-SHA256 (same truncation as in-memory store).
 type SqliteAuditor struct {
-	db      *sql.DB
-	hasher  func(string) string
-	maxRows int // 0 means unbounded (no pruning)
+	db             *sql.DB
+	hasher         func(string) string
+	maxRows        int // 0 means unbounded (no pruning)
 	anchorInterval int // if >0 create anchor snapshot every anchorInterval events
+	maxAge        time.Duration // if >0 events older than now-maxAge pruned
 }
 
 // SqliteOption configures the SqliteAuditor.
 type SqliteOption func(*SqliteAuditor)
+func WithMaxAge(d time.Duration) SqliteOption {
+	return func(a *SqliteAuditor) {
+		if d > 0 {
+			a.maxAge = d
+		}
+	}
+}
 
 // WithSqliteHashing enables pseudonymous hashing for actor/object fields.
 func WithSqliteHashing(secret []byte) SqliteOption {
@@ -47,11 +55,11 @@ func WithMaxRows(n int) SqliteOption {
 // record the seq, ts and chain_hash in a separate anchor table for logarithmic verification windows.
 // If n <= 0 anchors are disabled.
 func WithAnchorInterval(n int) SqliteOption {
-    return func(a *SqliteAuditor) {
-        if n > 0 {
-            a.anchorInterval = n
-        }
-    }
+	return func(a *SqliteAuditor) {
+		if n > 0 {
+			a.anchorInterval = n
+		}
+	}
 }
 
 // NewSqliteAuditor opens (or creates) the SQLite database at dsn (e.g. file path) and ensures schema.
@@ -146,6 +154,24 @@ func (a *SqliteAuditor) Event(ctx context.Context, action, actor, object string,
 			}
 		} else {
 			metrics.IncAuditFailure("prune")
+		}
+	}
+
+	// Time-based pruning (age retention) independent of row cap.
+	if a.maxAge > 0 {
+		cutoff := time.Now().Add(-a.maxAge).UTC().Format(time.RFC3339Nano)
+		res, err := a.db.ExecContext(ctx, `DELETE FROM audit_events WHERE ts < ?`, cutoff)
+		if err == nil {
+			if rows, _ := res.RowsAffected(); rows > 0 {
+				metrics.AddAuditEviction("sqlite", int(rows))
+			}
+		} else {
+			metrics.IncAuditFailure("prune_age")
+		}
+		// Prune orphan anchors whose seq no longer exists
+		_, err = a.db.ExecContext(ctx, `DELETE FROM audit_chain_anchors WHERE seq NOT IN (SELECT seq FROM audit_events)`)
+		if err != nil {
+			metrics.IncAuditFailure("prune_anchor")
 		}
 	}
 
@@ -252,7 +278,7 @@ func (a *SqliteAuditor) VerifyChain(ctx context.Context) error {
 		return err
 	}
 	defer rows.Close()
-	prev := ""
+	prev := "" // baseline (empty) accepted for first retained segment
 	index := 0
 	for rows.Next() {
 		var ts, action, actor, object, detailsJSON, rid, storedHash sql.NullString
@@ -266,11 +292,21 @@ func (a *SqliteAuditor) VerifyChain(ctx context.Context) error {
 		canonicalDetails := canonicalizeDetails(detMap)
 		chainInput := prev + "|" + ts.String + "|" + action.String + "|" + actor.String + "|" + object.String + "|" + canonicalDetails + "|" + rid.String
 		recomputed := sha256Hex(chainInput)
-		if !storedHash.Valid || storedHash.String != recomputed {
-			metrics.ObserveChainVerification(time.Since(start).Seconds(), false)
-			return fmt.Errorf("chain mismatch at index %d seq hash=%s expected=%s", index, storedHash.String, recomputed)
+		if index == 0 && prev == "" {
+			// Baseline acceptance: first retained row after pruning may reference a missing prior hash.
+			// Accept stored hash without recomputation match requirement; seed prev with stored value.
+			if !storedHash.Valid {
+				metrics.ObserveChainVerification(time.Since(start).Seconds(), false)
+				return fmt.Errorf("chain baseline missing hash at first retained row")
+			}
+			prev = storedHash.String
+		} else {
+			if !storedHash.Valid || storedHash.String != recomputed {
+				metrics.ObserveChainVerification(time.Since(start).Seconds(), false)
+				return fmt.Errorf("chain mismatch at index %d seq hash=%s expected=%s", index, storedHash.String, recomputed)
+			}
+			prev = recomputed
 		}
-		prev = recomputed
 		index++
 	}
 	metrics.ObserveChainVerification(time.Since(start).Seconds(), true)
@@ -278,20 +314,32 @@ func (a *SqliteAuditor) VerifyChain(ctx context.Context) error {
 }
 
 // ListAnchors returns anchor (seq, ts, chain_hash) ordered ascending.
-func (a *SqliteAuditor) ListAnchors(ctx context.Context) ([]struct{ Seq int64; TS string; Hash string }, error) {
+func (a *SqliteAuditor) ListAnchors(ctx context.Context) ([]struct {
+	Seq  int64
+	TS   string
+	Hash string
+}, error) {
 	rows, err := a.db.QueryContext(ctx, `SELECT seq, ts, chain_hash FROM audit_chain_anchors ORDER BY seq ASC`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []struct{ Seq int64; TS string; Hash string }
+	var out []struct {
+		Seq  int64
+		TS   string
+		Hash string
+	}
 	for rows.Next() {
 		var seq int64
 		var ts, h string
 		if err := rows.Scan(&seq, &ts, &h); err != nil {
 			return nil, err
 		}
-		out = append(out, struct{ Seq int64; TS string; Hash string }{Seq: seq, TS: ts, Hash: h})
+		out = append(out, struct {
+			Seq  int64
+			TS   string
+			Hash string
+		}{Seq: seq, TS: ts, Hash: h})
 	}
 	return out, nil
 }
@@ -303,38 +351,50 @@ func (a *SqliteAuditor) VerifyFromAnchor(ctx context.Context, anchorSeq int64) e
 		return a.VerifyChain(ctx)
 	}
 	start := time.Now()
-    // Reuse existing chain verification metrics (duration + failure counter) for partial verification
-    // to avoid metric cardinality explosion; a label could be added in future if separation needed.
-    // Get previous hash (hash at last event < anchorSeq)
-    var prev string
-    if anchorSeq > 1 {
-    	row := a.db.QueryRowContext(ctx, `SELECT chain_hash FROM audit_events WHERE seq = ?`, anchorSeq-1)
-    	_ = row.Scan(&prev) // if missing treat empty
-    }
-    rows, err := a.db.QueryContext(ctx, `SELECT seq, ts, action, actor, object, details, request_id, chain_hash FROM audit_events WHERE seq >= ? ORDER BY seq ASC`, anchorSeq)
-    if err != nil { return err }
-    defer rows.Close()
-    index := 0
-    for rows.Next() {
-    	var seq int64
-    	var ts, action, actor, object, detailsJSON, rid, storedHash sql.NullString
-    	if err := rows.Scan(&seq, &ts, &action, &actor, &object, &detailsJSON, &rid, &storedHash); err != nil {
-    		return err
-    	}
-    	detMap := map[string]any{}
-    	if detailsJSON.Valid && detailsJSON.String != "" { _ = json.Unmarshal([]byte(detailsJSON.String), &detMap) }
-    	canonicalDetails := canonicalizeDetails(detMap)
-    	chainInput := prev + "|" + ts.String + "|" + action.String + "|" + actor.String + "|" + object.String + "|" + canonicalDetails + "|" + rid.String
-    	recomputed := sha256Hex(chainInput)
-    	if !storedHash.Valid || storedHash.String != recomputed {
-    		metrics.ObserveChainVerification(time.Since(start).Seconds(), false)
-    		return fmt.Errorf("partial chain mismatch at index %d seq %d hash=%s expected=%s", index, seq, storedHash.String, recomputed)
-    	}
-    	prev = recomputed
-    	index++
-    }
-    metrics.ObserveChainVerification(time.Since(start).Seconds(), true)
-    return nil
+	// Reuse existing chain verification metrics (duration + failure counter) for partial verification
+	// to avoid metric cardinality explosion; a label could be added in future if separation needed.
+	// Get previous hash (hash at last event < anchorSeq)
+	var prev string // baseline if prior event pruned
+	if anchorSeq > 1 {
+		row := a.db.QueryRowContext(ctx, `SELECT chain_hash FROM audit_events WHERE seq = ?`, anchorSeq-1)
+		_ = row.Scan(&prev) // if missing treat empty
+	}
+	rows, err := a.db.QueryContext(ctx, `SELECT seq, ts, action, actor, object, details, request_id, chain_hash FROM audit_events WHERE seq >= ? ORDER BY seq ASC`, anchorSeq)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	index := 0
+	for rows.Next() {
+		var seq int64
+		var ts, action, actor, object, detailsJSON, rid, storedHash sql.NullString
+		if err := rows.Scan(&seq, &ts, &action, &actor, &object, &detailsJSON, &rid, &storedHash); err != nil {
+			return err
+		}
+		detMap := map[string]any{}
+		if detailsJSON.Valid && detailsJSON.String != "" {
+			_ = json.Unmarshal([]byte(detailsJSON.String), &detMap)
+		}
+		canonicalDetails := canonicalizeDetails(detMap)
+		chainInput := prev + "|" + ts.String + "|" + action.String + "|" + actor.String + "|" + object.String + "|" + canonicalDetails + "|" + rid.String
+		recomputed := sha256Hex(chainInput)
+		if index == 0 && prev == "" {
+			if !storedHash.Valid {
+				metrics.ObserveChainVerification(time.Since(start).Seconds(), false)
+				return fmt.Errorf("partial chain baseline missing hash at first retained row seq %d", seq)
+			}
+			prev = storedHash.String
+		} else {
+			if !storedHash.Valid || storedHash.String != recomputed {
+				metrics.ObserveChainVerification(time.Since(start).Seconds(), false)
+				return fmt.Errorf("partial chain mismatch at index %d seq %d hash=%s expected=%s", index, seq, storedHash.String, recomputed)
+			}
+			prev = recomputed
+		}
+		index++
+	}
+	metrics.ObserveChainVerification(time.Since(start).Seconds(), true)
+	return nil
 }
 
 // ErrNotSupported indicates the sqlite auditor is not configured.

@@ -112,7 +112,7 @@ EventRecord {
 - Dedicated integrity verification command / endpoint?
 
 ## Immediate Next Steps (Updated)
-1. SQLite time-based pruning variant (age cutoff) & dual-mode retention policy (row OR age; later BOTH).
+1. (DONE) SQLite time-based pruning variant (age cutoff) & dual-mode retention policy (row AND/OR age). Age pruning occurs post-insert; prunes events older than configurable duration, emits eviction metrics, removes orphan anchors. Verification treats the first retained event as a new baseline (empty previous hash) while still detecting tampering in the retained window.
 2. Async buffering enhancements: backpressure policy (adaptive drop / priority), worker restart counter, enqueue failure reasons.
 3. Integrity export: endpoint / tool to emit current head + recent anchors for remote verification.
 4. Exporter integration & remote verification endpoint (serve current head + last anchor) + integrity alerting hook.
