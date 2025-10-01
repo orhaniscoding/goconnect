@@ -60,6 +60,21 @@ var (
 		Help:      "Latency from enqueue to dispatch for async audit events",
 		Buckets:   []float64{0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1},
 	})
+	auditQueueHighWatermark = prom.NewGauge(prom.GaugeOpts{
+		Namespace: "goconnect",
+		Name:      "audit_queue_high_watermark",
+		Help:      "Maximum observed async audit queue depth since process start",
+	})
+	auditDroppedByReason = prom.NewCounterVec(prom.CounterOpts{
+		Namespace: "goconnect",
+		Name:      "audit_events_dropped_reason_total",
+		Help:      "Total audit events dropped categorized by reason (full|shutdown)",
+	}, []string{"reason"})
+	auditWorkerRestarts = prom.NewCounter(prom.CounterOpts{
+		Namespace: "goconnect",
+		Name:      "audit_worker_restarts_total",
+		Help:      "Total async audit worker restarts after panic recovery",
+	})
 	chainHeadAdvance = prom.NewCounter(prom.CounterOpts{
 		Namespace: "goconnect",
 		Name:      "audit_chain_head_advance_total",
@@ -97,7 +112,7 @@ var (
 // Register all metrics (idempotent safe to call once at startup).
 func Register() {
 	registerOnce.Do(func() {
-		prom.MustRegister(reqCounter, reqLatency, auditEvents, auditEvictions, auditFailures, auditInsertLatency, auditQueueDepth, auditDropped, auditDispatchLatency, chainHeadAdvance, chainVerifyDuration, chainVerifyFailures, chainAnchorCreated, integrityExportCounter, integrityExportDuration)
+		prom.MustRegister(reqCounter, reqLatency, auditEvents, auditEvictions, auditFailures, auditInsertLatency, auditQueueDepth, auditDropped, auditDispatchLatency, auditQueueHighWatermark, auditDroppedByReason, auditWorkerRestarts, chainHeadAdvance, chainVerifyDuration, chainVerifyFailures, chainAnchorCreated, integrityExportCounter, integrityExportDuration)
 	})
 }
 
@@ -167,6 +182,19 @@ func ObserveChainVerification(seconds float64, ok bool) {
 
 // IncChainAnchor increments anchor creation counter.
 func IncChainAnchor() { chainAnchorCreated.Inc() }
+
+// SetAuditQueueHighWatermark sets the high watermark gauge if higher than current.
+func SetAuditQueueHighWatermark(n int) {
+	// Gauge has no atomic get; rely on exported value monotonic by only setting when higher.
+	// Simplicity: always set; caller ensures only when exceeding known max.
+	auditQueueHighWatermark.Set(float64(n))
+}
+
+// IncAuditDroppedReason increments dropped counter with reason label.
+func IncAuditDroppedReason(reason string) { auditDroppedByReason.WithLabelValues(reason).Inc() }
+
+// IncAuditWorkerRestart increments worker restart counter.
+func IncAuditWorkerRestart() { auditWorkerRestarts.Inc() }
 
 // ObserveIntegrityExport records export duration and increments counter.
 func ObserveIntegrityExport(seconds float64) {

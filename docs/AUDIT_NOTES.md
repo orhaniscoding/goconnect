@@ -114,6 +114,7 @@ EventRecord {
 ## Immediate Next Steps (Updated)
 1. (DONE) SQLite time-based pruning variant (age cutoff) & dual-mode retention policy (row AND/OR age). Age pruning occurs post-insert; prunes events older than configurable duration, emits eviction metrics, removes orphan anchors. Verification treats the first retained event as a new baseline (empty previous hash) while still detecting tampering in the retained window.
 2. Async buffering enhancements: backpressure policy (adaptive drop / priority), worker restart counter, enqueue failure reasons.
+  - (PARTIAL DONE) Added metrics: `audit_worker_restarts_total`, `audit_queue_high_watermark`, `audit_events_dropped_reason_total{reason}`; panic recovery with automatic worker restart; high watermark tracking; labeled drop reasons (full, shutdown). Remaining: adaptive priority and retry strategy.
 3. (DONE) Integrity export endpoint `/v1/audit/integrity` returns JSON and is publicly accessible (temporary; will gain RBAC protection). Response shape:
    ```json
    {
