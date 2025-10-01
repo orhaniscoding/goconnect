@@ -95,6 +95,14 @@ func WithSqliteHashing(secret []byte) SqliteOption {
 	return func(a *SqliteAuditor) { a.hasher = newHasher(secret) }
 }
 
+// WithSqliteHashSecrets enables key rotation (first secret active for new events).
+func WithSqliteHashSecrets(secrets ...[]byte) SqliteOption {
+	return func(a *SqliteAuditor) {
+		h, _, _ := multiSecretHasher(secrets)
+		if h != nil { a.hasher = h }
+	}
+}
+
 // WithMaxRows sets a hard cap on stored rows; rows beyond the cap are pruned after insert.
 // Pruning strategy: delete oldest rows so that total <= maxRows (single DELETE with subquery).
 func WithMaxRows(n int) SqliteOption {

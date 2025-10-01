@@ -12,12 +12,12 @@ import (
 // AsyncAuditor is a non-blocking wrapper that enqueues events and dispatches them via a worker.
 // Drops events when queue is full (best-effort) and records metrics.
 type AsyncAuditor struct {
-	next    Auditor
-	ch      chan queuedEvent
-	stopCh  chan struct{}
-	once    sync.Once
-	wg      sync.WaitGroup
-	started bool
+	next     Auditor
+	ch       chan queuedEvent
+	stopCh   chan struct{}
+	once     sync.Once
+	wg       sync.WaitGroup
+	started  bool
 	maxDepth int // track high watermark
 }
 
@@ -114,7 +114,6 @@ func (a *AsyncAuditor) Event(ctx context.Context, action, actor, object string, 
 		metrics.IncAuditDroppedReason("full")
 	}
 }
-
 
 func (a *AsyncAuditor) run() {
 	for {

@@ -129,6 +129,37 @@ EventRecord {
 4. Exporter integration & remote verification endpoint (serve current head + last anchor) + integrity alerting hook.
 5. Key rotation framework (dual active secrets + migration tests).
 
+## Key Rotation (Implemented Framework)
+Status: INITIAL SUPPORT ADDED (dual-secret hashing helpers). Pending: operational wiring for dynamic reload.
+
+Rationale: Allow periodic rotation of the HMAC secret used to pseudonymize actor/object without re-hashing historical events or breaking correlation across a rotation boundary.
+
+Mechanism:
+- New multi-secret constructors/options introduced:
+  - `NewStdoutAuditorWithHashSecrets(new, old, ...)`
+  - `WithHashSecrets(new, old, ...)` for `InMemoryStore`
+  - `WithSqliteHashSecrets(new, old, ...)` for `SqliteAuditor`
+- First secret in the slice = ACTIVE (used for all new hash computations).
+- Additional secrets retained only for future verification / potential backward matching (current implementation stores only the active hasher — historical rows are already materialized, so no runtime lookup needed for reads).
+
+Rotation Procedure (Two-Step Deploy):
+1. Deploy N+1 with secrets `[S_new, S_old]`. All new events use `S_new`; historical events remain hashed with `S_old` in stored rows (no change to their values). Correlation across the rotation boundary requires separate mapping logic (future feature) if necessary.
+2. After sufficient dwell time (ensure no in-flight components still using `S_old`), deploy N+2 with secrets `[S_new]` only. Optionally archive `S_old` securely for a defined retention period to permit offline verification if ever required (policy-dependent).
+
+Properties:
+- Backward compatibility preserved: legacy single-secret options (`WithHashing`, `WithSqliteHashing`, `NewStdoutAuditorWithHashing`) still function.
+- No schema changes required (hash output format unchanged: 24-char base64url of 144-bit truncated HMAC digest).
+- Collision characteristics unaffected by rotation.
+
+Testing Added:
+- `rotation_test.go` validates that an event emitted under `S_old` retains its hash value after reopening auditor with `[S_new, S_old]` and that new events differ under `S_new`.
+
+Future Enhancements:
+- Maintain an in-process list of secrets for potential reverse lookups or cross-secret correlation if a future query API needs to accept raw identifiers pre/post rotation.
+- Audit secret rotation events themselves (meta-action) for traceability.
+- Pluggable secret source (KMS / env versioning) + hot-reload signal.
+
+
 ## Persistence (SQLite Prototype)
 Implemented `SqliteAuditor` (`internal/audit/sqlite.go`) using pure Go driver (`modernc.org/sqlite`). Schema:
 ```

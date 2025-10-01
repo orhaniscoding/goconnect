@@ -90,7 +90,10 @@ func (p *panicAuditor) Event(ctx context.Context, action, actor, object string, 
 
 // AuditorFunc adapter
 type AuditorFunc func(ctx context.Context, action, actor, object string, details map[string]any)
-func (f AuditorFunc) Event(ctx context.Context, action, actor, object string, details map[string]any) { f(ctx, action, actor, object, details) }
+
+func (f AuditorFunc) Event(ctx context.Context, action, actor, object string, details map[string]any) {
+	f(ctx, action, actor, object, details)
+}
 
 func contains(s, sub string) bool { return strings.Contains(s, sub) }
 
@@ -103,8 +106,10 @@ func TestAsyncWorkerRestartMetric(t *testing.T) {
 	async.Event(context.Background(), "A", "actor", "obj", nil)
 	time.Sleep(50 * time.Millisecond)
 	async.Event(context.Background(), "B", "actor", "obj", nil)
-	r := gin.New(); r.GET("/metrics", metrics.Handler())
-	w := httptest.NewRecorder(); req := httptest.NewRequest("GET", "/metrics", nil)
+	r := gin.New()
+	r.GET("/metrics", metrics.Handler())
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/metrics", nil)
 	r.ServeHTTP(w, req)
 	body := w.Body.String()
 	if !contains(body, "goconnect_audit_worker_restarts_total 1") {
@@ -113,7 +118,7 @@ func TestAsyncWorkerRestartMetric(t *testing.T) {
 		r.ServeHTTP(w, req)
 		body = w.Body.String()
 		if !contains(body, "goconnect_audit_worker_restarts_total 1") {
-								 t.Fatalf("expected worker restart metric=1 body=\n%s", body)
+			t.Fatalf("expected worker restart metric=1 body=\n%s", body)
 		}
 	}
 }
@@ -126,14 +131,18 @@ func TestAsyncHighWatermarkMetric(t *testing.T) {
 	})
 	async := NewAsyncAuditor(slow, WithQueueSize(30), WithWorkers(1))
 	defer async.Close()
-	for i := 0; i < 20; i++ { async.Event(context.Background(), "HW", "a", "o", nil) }
+	for i := 0; i < 20; i++ {
+		async.Event(context.Background(), "HW", "a", "o", nil)
+	}
 	time.Sleep(150 * time.Millisecond)
-	r := gin.New(); r.GET("/metrics", metrics.Handler())
-	w := httptest.NewRecorder(); req := httptest.NewRequest("GET", "/metrics", nil)
+	r := gin.New()
+	r.GET("/metrics", metrics.Handler())
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/metrics", nil)
 	r.ServeHTTP(w, req)
 	body := w.Body.String()
 	if !contains(body, "goconnect_audit_queue_high_watermark") {
-			 t.Fatalf("expected high watermark metric present body=\n%s", body)
+		t.Fatalf("expected high watermark metric present body=\n%s", body)
 	}
 }
 
@@ -145,11 +154,13 @@ func TestAsyncDroppedReasonFull(t *testing.T) {
 	defer async.Close()
 	async.Event(context.Background(), "A", "a", "o", nil)
 	async.Event(context.Background(), "B", "a", "o", nil) // should drop
-	r := gin.New(); r.GET("/metrics", metrics.Handler())
-	w := httptest.NewRecorder(); req := httptest.NewRequest("GET", "/metrics", nil)
+	r := gin.New()
+	r.GET("/metrics", metrics.Handler())
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/metrics", nil)
 	r.ServeHTTP(w, req)
 	body := w.Body.String()
 	if !contains(body, `goconnect_audit_events_dropped_reason_total{reason="full"}`) {
-		 t.Fatalf("expected dropped reason=full metric present body=\n%s", body)
+		t.Fatalf("expected dropped reason=full metric present body=\n%s", body)
 	}
 }

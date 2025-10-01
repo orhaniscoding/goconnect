@@ -33,10 +33,19 @@ type Option func(*InMemoryStore)
 
 // WithHashing enables deterministic hashing of actor/object identifiers using provided secret.
 // Uses HMAC-SHA256 and encodes first 18 bytes (to keep it short) in URL-safe base64 without padding.
-func WithHashing(secret []byte) Option {
+func WithHashing(secret []byte) Option { // legacy single-secret API
 	return func(s *InMemoryStore) {
 		s.hasher = newHasher(secret)
-		if s.hasher != nil {
+		if s.hasher != nil { s.redactAll = false }
+	}
+}
+
+// WithHashSecrets configures multiple hashing secrets (rotation). First secret is active for new events.
+func WithHashSecrets(secrets ...[]byte) Option {
+	return func(s *InMemoryStore) {
+		h, _, _ := multiSecretHasher(secrets)
+		if h != nil {
+			s.hasher = h
 			s.redactAll = false
 		}
 	}

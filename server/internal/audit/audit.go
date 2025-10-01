@@ -19,11 +19,16 @@ func NewStdoutAuditor() Auditor { return &stdoutAuditor{} }
 
 // NewStdoutAuditorWithHashing returns a stdout auditor that hashes actor/object
 // identifiers using HMAC-SHA256 with the provided secret (pseudonymous).
-func NewStdoutAuditorWithHashing(secret []byte) Auditor {
-	if len(secret) == 0 {
-		return NewStdoutAuditor()
-	}
+func NewStdoutAuditorWithHashing(secret []byte) Auditor { // legacy single-secret helper
+	if len(secret) == 0 { return NewStdoutAuditor() }
 	return &stdoutAuditor{hasher: newHasher(secret)}
+}
+
+// NewStdoutAuditorWithHashSecrets supports key rotation (first secret active).
+func NewStdoutAuditorWithHashSecrets(secrets ...[]byte) Auditor {
+	if len(secrets) == 0 || len(secrets[0]) == 0 { return NewStdoutAuditor() }
+	h, _, _ := multiSecretHasher(secrets)
+	return &stdoutAuditor{hasher: h}
 }
 
 func (s *stdoutAuditor) Event(ctx context.Context, action, actor, object string, details map[string]any) {

@@ -55,11 +55,11 @@ func TestAuditFailureMetric(t *testing.T) {
 	}
 	body := w.Body.String()
 	if !strings.Contains(body, `goconnect_audit_failures_total{reason="exec"} 1`) {
-		 t.Fatalf("expected failure metric reason=exec =1, body=\n%s", body)
+		t.Fatalf("expected failure metric reason=exec =1, body=\n%s", body)
 	}
 	// Latency histogram should have at least one bucket line with sink="sqlite" and status label
 	if !strings.Contains(body, `goconnect_audit_insert_duration_seconds_bucket{sink="sqlite"`) {
-		 t.Fatalf("expected latency histogram buckets for sqlite insert, body=\n%s", body)
+		t.Fatalf("expected latency histogram buckets for sqlite insert, body=\n%s", body)
 	}
 }
 
