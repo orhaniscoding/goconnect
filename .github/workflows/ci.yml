@@ -23,11 +23,23 @@ jobs:
       - name: Go work sync (tolerant)
         run: go work sync || true
       - name: Go test server (race, cover)
-        run: go test ./... -race -cover
+        run: go test ./... -race -cover -coverprofile=coverage.out
         working-directory: server
       - name: Go test client-daemon (race, cover)
-        run: go test ./... -race -cover
+        run: go test ./... -race -cover -coverprofile=coverage.out
         working-directory: client-daemon
+      - name: Upload server coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-server
+          path: server/coverage.out
+      - name: Upload daemon coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-daemon
+          path: client-daemon/coverage.out
 
   web-ui:
     runs-on: ubuntu-latest
