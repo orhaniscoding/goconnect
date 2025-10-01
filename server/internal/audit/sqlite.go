@@ -27,7 +27,7 @@ type SqliteAuditor struct {
 	anchorInterval int                // if >0 create anchor snapshot every anchorInterval events
 	maxAge         time.Duration      // if >0 events older than now-maxAge pruned
 	signingKey     ed25519.PrivateKey // optional Ed25519 private key for signing integrity exports
-    signingKeyID  string             // optional key identifier (kid) included in signed export
+	signingKeyID   string             // optional key identifier (kid) included in signed export
 }
 
 // IntegrityExport represents a snapshot of chain integrity state for external verification.
@@ -46,7 +46,7 @@ type IntegrityExport struct {
 	EarliestSeq int64  `json:"earliest_seq"`
 	GeneratedAt string `json:"generated_at"`
 	Signature   string `json:"signature,omitempty"`
-    KeyID      string `json:"kid,omitempty"`
+	KeyID       string `json:"kid,omitempty"`
 }
 
 // ExportIntegrity gathers current head and up to limit most recent anchors (ascending order).
@@ -110,18 +110,20 @@ func (a *SqliteAuditor) ExportIntegrity(ctx context.Context, limit int) (Integri
 	}
 	// If signing key configured, include KeyID if present and sign canonical JSON without signature field populated.
 	if len(a.signingKey) == ed25519.PrivateKeySize {
-        if a.signingKeyID != "" { exp.KeyID = a.signingKeyID }
-        tmpExp := exp
-        tmpExp.Signature = ""
-        payload, err := json.Marshal(tmpExp)
-        if err == nil {
-            sig := ed25519.Sign(a.signingKey, payload)
-            exp.Signature = base64.RawURLEncoding.EncodeToString(sig)
-            metrics.IncIntegritySigned()
-        } else {
-            metrics.IncAuditFailure("integrity_sign")
-        }
-    }
+		if a.signingKeyID != "" {
+			exp.KeyID = a.signingKeyID
+		}
+		tmpExp := exp
+		tmpExp.Signature = ""
+		payload, err := json.Marshal(tmpExp)
+		if err == nil {
+			sig := ed25519.Sign(a.signingKey, payload)
+			exp.Signature = base64.RawURLEncoding.EncodeToString(sig)
+			metrics.IncIntegritySigned()
+		} else {
+			metrics.IncAuditFailure("integrity_sign")
+		}
+	}
 	return exp, nil
 }
 
