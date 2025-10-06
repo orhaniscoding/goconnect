@@ -79,23 +79,23 @@ func TestNetworkService_CreateNetwork(t *testing.T) {
 			// Setup repositories
 			networkRepo := repository.NewInMemoryNetworkRepository()
 			idempotencyRepo := repository.NewInMemoryIdempotencyRepository()
-			
+
 			// Setup test data
 			tt.setupRepo(networkRepo)
-			
+
 			// Create service
 			service := NewNetworkService(networkRepo, idempotencyRepo)
-			
+
 			// Execute test
 			network, err := service.CreateNetwork(context.Background(), tt.req, tt.userID, tt.idempotencyKey)
-			
+
 			// Check error expectations
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("CreateNetwork() expected error but got none")
 					return
 				}
-				
+
 				if domainErr, ok := err.(*domain.Error); ok {
 					if domainErr.Code != tt.wantErrCode {
 						t.Errorf("CreateNetwork() error code = %v, want %v", domainErr.Code, tt.wantErrCode)
@@ -105,27 +105,27 @@ func TestNetworkService_CreateNetwork(t *testing.T) {
 				}
 				return
 			}
-			
+
 			// Check success expectations
 			if err != nil {
 				t.Errorf("CreateNetwork() unexpected error = %v", err)
 				return
 			}
-			
+
 			if network == nil {
 				t.Error("CreateNetwork() returned nil network")
 				return
 			}
-			
+
 			// Validate network fields
 			if network.Name != tt.req.Name {
 				t.Errorf("CreateNetwork() network.Name = %v, want %v", network.Name, tt.req.Name)
 			}
-			
+
 			if network.CIDR != tt.req.CIDR {
 				t.Errorf("CreateNetwork() network.CIDR = %v, want %v", network.CIDR, tt.req.CIDR)
 			}
-			
+
 			if network.CreatedBy != tt.userID {
 				t.Errorf("CreateNetwork() network.CreatedBy = %v, want %v", network.CreatedBy, tt.userID)
 			}
@@ -137,34 +137,34 @@ func TestNetworkService_CreateNetwork_Idempotency(t *testing.T) {
 	networkRepo := repository.NewInMemoryNetworkRepository()
 	idempotencyRepo := repository.NewInMemoryIdempotencyRepository()
 	service := NewNetworkService(networkRepo, idempotencyRepo)
-	
+
 	req := &domain.CreateNetworkRequest{
 		Name:       "Test Network",
 		Visibility: domain.NetworkVisibilityPublic,
 		JoinPolicy: domain.JoinPolicyOpen,
 		CIDR:       "10.0.0.0/24",
 	}
-	
+
 	userID := "user123"
 	idempotencyKey := "test-idempotency-key"
-	
+
 	// First request
 	network1, err := service.CreateNetwork(context.Background(), req, userID, idempotencyKey)
 	if err != nil {
 		t.Fatalf("First CreateNetwork() failed: %v", err)
 	}
-	
+
 	// Second request with same idempotency key and body should return cached result
 	network2, err := service.CreateNetwork(context.Background(), req, userID, idempotencyKey)
 	if err != nil {
 		t.Fatalf("Second CreateNetwork() failed: %v", err)
 	}
-	
+
 	// Should return the same network
 	if network1.ID != network2.ID {
 		t.Errorf("Idempotent requests returned different network IDs: %v vs %v", network1.ID, network2.ID)
 	}
-	
+
 	// Third request with same key but different body
 	reqDifferent := &domain.CreateNetworkRequest{
 		Name:       "Different Network",
@@ -172,12 +172,12 @@ func TestNetworkService_CreateNetwork_Idempotency(t *testing.T) {
 		JoinPolicy: domain.JoinPolicyApproval,
 		CIDR:       "10.0.1.0/24", // Different CIDR to avoid overlap
 	}
-	
+
 	_, err = service.CreateNetwork(context.Background(), reqDifferent, userID, idempotencyKey)
 	if err == nil {
 		t.Error("Expected idempotency conflict error but got none")
 	}
-	
+
 	if domainErr, ok := err.(*domain.Error); ok {
 		if domainErr.Code != domain.ErrIdempotencyConflict {
 			t.Errorf("Expected ErrIdempotencyConflict but got %v", domainErr.Code)
@@ -205,23 +205,23 @@ func TestNetworkService_ListNetworks(t *testing.T) {
 			isAdmin: false,
 			setupRepo: func(repo *repository.InMemoryNetworkRepository) {
 				// Add public network
-				repo.Create(context.Background(), &domain.Network{
+				if err := repo.Create(context.Background(), &domain.Network{
 					ID:         "net1",
 					TenantID:   "default",
 					Name:       "Public Network",
 					Visibility: domain.NetworkVisibilityPublic,
 					CIDR:       "10.0.0.0/24",
 					CreatedBy:  "user456",
-				})
+				}); err != nil { t.Fatalf("create net1: %v", err) }
 				// Add private network (should not be returned)
-				repo.Create(context.Background(), &domain.Network{
+				if err := repo.Create(context.Background(), &domain.Network{
 					ID:         "net2",
 					TenantID:   "default",
 					Name:       "Private Network",
 					Visibility: domain.NetworkVisibilityPrivate,
 					CIDR:       "10.0.1.0/24",
 					CreatedBy:  "user456",
-				})
+				}); err != nil { t.Fatalf("create net2: %v", err) }
 			},
 			wantCount: 1,
 			wantErr:   false,
@@ -236,23 +236,23 @@ func TestNetworkService_ListNetworks(t *testing.T) {
 			isAdmin: false,
 			setupRepo: func(repo *repository.InMemoryNetworkRepository) {
 				// Add user's network
-				repo.Create(context.Background(), &domain.Network{
+				if err := repo.Create(context.Background(), &domain.Network{
 					ID:         "net1",
 					TenantID:   "default",
 					Name:       "My Network",
 					Visibility: domain.NetworkVisibilityPrivate,
 					CIDR:       "10.0.0.0/24",
 					CreatedBy:  "user123",
-				})
+				}); err != nil { t.Fatalf("create my net: %v", err) }
 				// Add other user's network (should not be returned)
-				repo.Create(context.Background(), &domain.Network{
+				if err := repo.Create(context.Background(), &domain.Network{
 					ID:         "net2",
 					TenantID:   "default",
 					Name:       "Other Network",
 					Visibility: domain.NetworkVisibilityPublic,
 					CIDR:       "10.0.1.0/24",
 					CreatedBy:  "user456",
-				})
+				}); err != nil { t.Fatalf("create other net: %v", err) }
 			},
 			wantCount: 1,
 			wantErr:   false,
@@ -266,22 +266,22 @@ func TestNetworkService_ListNetworks(t *testing.T) {
 			userID:  "admin123",
 			isAdmin: true,
 			setupRepo: func(repo *repository.InMemoryNetworkRepository) {
-				repo.Create(context.Background(), &domain.Network{
+				if err := repo.Create(context.Background(), &domain.Network{
 					ID:         "net1",
 					TenantID:   "default",
 					Name:       "Network 1",
 					Visibility: domain.NetworkVisibilityPublic,
 					CIDR:       "10.0.0.0/24",
 					CreatedBy:  "user123",
-				})
-				repo.Create(context.Background(), &domain.Network{
+				}); err != nil { t.Fatalf("create net1: %v", err) }
+				if err := repo.Create(context.Background(), &domain.Network{
 					ID:         "net2",
 					TenantID:   "default",
 					Name:       "Network 2",
 					Visibility: domain.NetworkVisibilityPrivate,
 					CIDR:       "10.0.1.0/24",
 					CreatedBy:  "user456",
-				})
+				}); err != nil { t.Fatalf("create net2: %v", err) }
 			},
 			wantCount: 2,
 			wantErr:   false,
@@ -305,16 +305,16 @@ func TestNetworkService_ListNetworks(t *testing.T) {
 			// Setup repositories
 			networkRepo := repository.NewInMemoryNetworkRepository()
 			idempotencyRepo := repository.NewInMemoryIdempotencyRepository()
-			
+
 			// Setup test data
 			tt.setupRepo(networkRepo)
-			
+
 			// Create service
 			service := NewNetworkService(networkRepo, idempotencyRepo)
-			
+
 			// Execute test
 			networks, _, err := service.ListNetworks(context.Background(), tt.req, tt.userID, tt.isAdmin)
-			
+
 			// Check error expectations
 			if tt.wantErr {
 				if err == nil {
@@ -322,13 +322,13 @@ func TestNetworkService_ListNetworks(t *testing.T) {
 				}
 				return
 			}
-			
+
 			// Check success expectations
 			if err != nil {
 				t.Errorf("ListNetworks() unexpected error = %v", err)
 				return
 			}
-			
+
 			if len(networks) != tt.wantCount {
 				t.Errorf("ListNetworks() returned %v networks, want %v", len(networks), tt.wantCount)
 			}
