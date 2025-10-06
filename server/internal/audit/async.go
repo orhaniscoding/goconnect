@@ -19,8 +19,8 @@ type AsyncAuditor struct {
 	once     sync.Once
 	wg       sync.WaitGroup
 	started  bool
-	maxDepth int // track high watermark
-	inFlight int32 // queued + currently processing
+	maxDepth int   // track high watermark
+	inFlight int64 // queued + currently processing
 }
 
 type queuedEvent struct {
@@ -106,14 +106,14 @@ func (a *AsyncAuditor) Event(ctx context.Context, action, actor, object string, 
 	// Treat the system as full when the number of in-flight events (queued + currently
 	// processing) is already at capacity. This prevents bursts from overwhelming the
 	// underlying auditor even if the worker consumes quickly.
-	if atomic.LoadInt32(&a.inFlight) >= int32(cap(a.ch)) {
+	if atomic.LoadInt64(&a.inFlight) >= int64(cap(a.ch)) {
 		metrics.IncAuditDropped()
 		metrics.IncAuditDroppedReason("full")
 		return
 	}
 	select {
 	case a.ch <- ev:
-		atomic.AddInt32(&a.inFlight, 1)
+	atomic.AddInt64(&a.inFlight, 1)
 		cur := len(a.ch)
 		metrics.SetAuditQueueDepth(cur)
 		if cur > a.maxDepth {
@@ -150,7 +150,7 @@ func (a *AsyncAuditor) dispatch(ev queuedEvent) {
 	metrics.ObserveAuditDispatch(time.Since(ev.enqueueTS).Seconds())
 	a.next.Event(ev.ctx, ev.action, ev.actor, ev.object, ev.details)
 	metrics.SetAuditQueueDepth(len(a.ch))
-	atomic.AddInt32(&a.inFlight, -1)
+	atomic.AddInt64(&a.inFlight, -1)
 }
 
 // Close gracefully stops workers, flushing queued events.

@@ -1,48 +1,48 @@
 name: Lint
 
 on:
-    pull_request:
-        branches: [main]
-    push:
-        branches: [main]
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
 
 concurrency:
-    group: lint-${{ github.ref }}
-    cancel-in-progress: true
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-    golang:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-            - uses: actions/setup-go@v5
-              with:
-                  go-version-file: server/go.mod
-            - name: Set toolchain env
-              run: echo "GOTOOLCHAIN=local" >> $GITHUB_ENV
-            - name: Go vet
-              run: go vet ./...
-              working-directory: server
-            - name: golangci-lint
-              uses: golangci/golangci-lint-action@v6
-              with:
-                  version: v1.56.2
-                  working-directory: server
-                  args: --timeout=3m
-    web-ui:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-            - uses: actions/setup-node@v4
-              with:
-                  node-version: "20"
-                  cache: "npm"
-                  cache-dependency-path: web-ui/package-lock.json
-            - name: Install deps
-              run: npm ci
-              working-directory: web-ui
-            - name: TypeScript typecheck (no emit)
-              run: npm run typecheck --if-present
-              working-directory: web-ui
-            - name: ESLint (placeholder)
-              run: echo "Add eslint script when configured"
+  golang:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+      - name: Set toolchain env
+        run: echo "GOTOOLCHAIN=local" >> $GITHUB_ENV
+      - name: Go vet
+        run: go vet ./...
+        working-directory: server
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.59.1
+          working-directory: server
+          args: --timeout=3m
+  web-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: web-ui/package-lock.json
+      - name: Install deps
+        run: npm ci
+        working-directory: web-ui
+      - name: TypeScript typecheck (no emit)
+        run: npm run typecheck --if-present
+        working-directory: web-ui
+      - name: ESLint (placeholder)
+        run: echo "Add eslint script when configured"
