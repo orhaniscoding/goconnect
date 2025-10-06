@@ -1,0 +1,13 @@
+version: "1.59"
+run:
+  timeout: 3m
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - gosimple
+    - gofmt
+    - gocritic

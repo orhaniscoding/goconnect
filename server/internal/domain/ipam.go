@@ -32,29 +32,16 @@ func NextIP(cidr string, offset uint32) (string, error) {
 		return "", fmt.Errorf("only IPv4 supported for now")
 	}
 	mask, bits := network.Mask.Size()
-	// Defensive checks to avoid negative-to-unsigned conversions
-	if bits < 0 || mask < 0 || bits > 32 || mask > bits {
-		return "", fmt.Errorf("invalid mask size for IPv4: mask=%d bits=%d", mask, bits)
+	if bits != 32 || mask < 0 || mask > 32 {
+		return "", fmt.Errorf("invalid IPv4 mask size: mask=%d bits=%d", mask, bits)
 	}
-	// Convert safely after ensuring non-negative and bounded (above)
-	var ubits uint32 = 0
-	var umask uint32 = 0
-	if bits >= 0 {
-		ubits = uint32(bits)
-	}
-	if mask >= 0 {
-		umask = uint32(mask)
-	}
-	if umask > ubits {
-		return "", fmt.Errorf("invalid mask ordering")
-	}
-	hostBits := ubits - umask
-	if hostBits == 0 {
+	hostBits := 32 - mask
+	if hostBits <= 1 { // no usable host when /31 or /32
 		return "", nil
 	}
-	// Compute total usable hosts (exclude network & broadcast)
-	totalHosts := uint32(1<<hostBits) - 2
-	if offset == 0 || offset > totalHosts { // offset 1 -> first usable
+	// Compute total usable hosts using uint64 to avoid overflow concerns
+	totalHosts := (uint64(1) << uint(hostBits)) - 2
+	if offset == 0 || uint64(offset) > totalHosts { // offset 1 -> first usable
 		return "", nil
 	}
 	ipInt := (uint32(base[0]) << 24) | (uint32(base[1]) << 16) | (uint32(base[2]) << 8) | uint32(base[3])
@@ -65,9 +52,6 @@ func NextIP(cidr string, offset uint32) (string, error) {
 	if !network.Contains(candidate) { // safety
 		return "", nil
 	}
-	// Exclude broadcast: recompute last usable
-	if offset == totalHosts+1 { // would be broadcast
-		return "", nil
-	}
+	// Exclude broadcast implicitly by range check above
 	return candidate.String(), nil
 }
