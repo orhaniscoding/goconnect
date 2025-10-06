@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/orhaniscoding/goconnect/server/internal/metrics"
@@ -19,6 +20,7 @@ type AsyncAuditor struct {
 	wg       sync.WaitGroup
 	started  bool
 	maxDepth int // track high watermark
+	inFlight int32 // queued + currently processing
 }
 
 type queuedEvent struct {
@@ -101,8 +103,17 @@ func (a *AsyncAuditor) Event(ctx context.Context, action, actor, object string, 
 		return
 	}
 	ev := queuedEvent{enqueueTS: time.Now(), ctx: ctx, action: action, actor: actor, object: object, details: details}
+	// Treat the system as full when the number of in-flight events (queued + currently
+	// processing) is already at capacity. This prevents bursts from overwhelming the
+	// underlying auditor even if the worker consumes quickly.
+	if atomic.LoadInt32(&a.inFlight) >= int32(cap(a.ch)) {
+		metrics.IncAuditDropped()
+		metrics.IncAuditDroppedReason("full")
+		return
+	}
 	select {
 	case a.ch <- ev:
+		atomic.AddInt32(&a.inFlight, 1)
 		cur := len(a.ch)
 		metrics.SetAuditQueueDepth(cur)
 		if cur > a.maxDepth {
@@ -139,6 +150,7 @@ func (a *AsyncAuditor) dispatch(ev queuedEvent) {
 	metrics.ObserveAuditDispatch(time.Since(ev.enqueueTS).Seconds())
 	a.next.Event(ev.ctx, ev.action, ev.actor, ev.object, ev.details)
 	metrics.SetAuditQueueDepth(len(a.ch))
+	atomic.AddInt32(&a.inFlight, -1)
 }
 
 // Close gracefully stops workers, flushing queued events.
