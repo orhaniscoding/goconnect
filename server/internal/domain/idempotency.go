@@ -1,10 +1,10 @@
 package domain
 
 import (
-	"time"
 	"crypto/rand"
-	"math/big"
 	"fmt"
+	"math/big"
+	"time"
 )
 
 // IdempotencyRecord represents an idempotency key record
