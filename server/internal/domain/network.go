@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net"
 	"time"
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"crypto/rand"
@@ -110,7 +110,7 @@ func HashRequestBody(body interface{}) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
-	hash := md5.Sum(jsonBytes)
-	return hex.EncodeToString(hash[:]), nil
+
+	sum := sha256.Sum256(jsonBytes)
+	return hex.EncodeToString(sum[:]), nil
 }

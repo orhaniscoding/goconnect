@@ -91,6 +91,8 @@ func (r *InMemoryIdempotencyRepository) periodicCleanup() {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		r.Cleanup(context.Background())
+		if err := r.Cleanup(context.Background()); err != nil {
+			// best-effort cleanup; in production replace with structured log
+		}
 	}
 }

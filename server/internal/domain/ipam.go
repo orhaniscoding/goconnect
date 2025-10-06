@@ -32,8 +32,28 @@ func NextIP(cidr string, offset uint32) (string, error) {
 		return "", fmt.Errorf("only IPv4 supported for now")
 	}
 	mask, bits := network.Mask.Size()
-	hostBits := uint32(bits - mask)
-	totalHosts := uint32(1<<hostBits) - 2   // exclude network & broadcast
+	// Defensive checks to avoid negative-to-unsigned conversions
+	if bits < 0 || mask < 0 || bits > 32 || mask > bits {
+		return "", fmt.Errorf("invalid mask size for IPv4: mask=%d bits=%d", mask, bits)
+	}
+	// Convert safely after ensuring non-negative and bounded (above)
+	var ubits uint32 = 0
+	var umask uint32 = 0
+	if bits >= 0 {
+		ubits = uint32(bits)
+	}
+	if mask >= 0 {
+		umask = uint32(mask)
+	}
+	if umask > ubits {
+		return "", fmt.Errorf("invalid mask ordering")
+	}
+	hostBits := ubits - umask
+	if hostBits == 0 {
+		return "", nil
+	}
+	// Compute total usable hosts (exclude network & broadcast)
+	totalHosts := uint32(1<<hostBits) - 2
 	if offset == 0 || offset > totalHosts { // offset 1 -> first usable
 		return "", nil
 	}

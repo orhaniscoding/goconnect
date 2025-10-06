@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/orhaniscoding/goconnect/server/internal/audit"
@@ -81,9 +82,17 @@ func main() {
 	// Audit integrity export (best-effort) – future: restrict via RBAC
 	r.GET("/v1/audit/integrity", handler.AuditIntegrityHandler(aud))
 
-	// Start server
-	fmt.Printf("GoConnect Server starting on :8080...\n")
-	if err := http.ListenAndServe(":8080", r); err != nil {
+	// Start server with timeouts
+	srv := &http.Server{
+		Addr:              ":8080",
+		Handler:           r,
+		ReadTimeout:       15 * time.Second,
+		ReadHeaderTimeout: 10 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+	fmt.Printf("GoConnect Server starting on %s...\n", srv.Addr)
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		fmt.Printf("Server failed to start: %v\n", err)
 	}
 }
