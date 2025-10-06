@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 name: CodeQL
 
 on:
@@ -6,7 +7,7 @@ on:
     pull_request:
         branches: [main]
     schedule:
-        - cron: "0 3 * * 1"
+        - cron: '0 3 * * 1'
 
 jobs:
     analyze:
@@ -19,42 +20,49 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                language: ["go", "javascript-typescript"]
+                language: [go, javascript-typescript]
         steps:
             - name: Checkout
-                uses: actions/checkout@v4
-            - name: Setup Go (for Go analysis)
-                if: matrix.language == 'go'
-                uses: actions/setup-go@v5
-                with:
-                    go-version-file: server/go.mod
-            - name: Setup Node (for JS/TS analysis)
-                if: matrix.language == 'javascript-typescript'
-                uses: actions/setup-node@v4
-                with:
-                    node-version: '20'
-                    cache: 'npm'
-                    cache-dependency-path: web-ui/package-lock.json
-            - name: Initialize CodeQL
-                uses: github/codeql-action/init@v3
-                with:
-                    languages: ${{ matrix.language }}
-            - name: Prepare build (Go)
-                if: matrix.language == 'go'
-                run: |
-                    go work sync || true
-                    go build ./...
-                    (cd server && go build ./...)
-                    (cd client-daemon && go build ./...)
-            - name: Prepare build (JS/TS)
-                if: matrix.language == 'javascript-typescript'
-                run: |
-                    cd web-ui
-                    npm ci
-                    npm run build --if-present
-            - name: Autobuild
-                uses: github/codeql-action/autobuild@v3
-            - name: Perform CodeQL Analysis
-                uses: github/codeql-action/analyze@v3
-                with:
-                    category: "/language:${{ matrix.language }}"
+              uses: actions/checkout@v4
+
+                                - name: Setup Go (for Go analysis)
+                                    if: matrix.language == 'go'
+                                    uses: actions/setup-go@v5
+                                    with:
+                                        go-version-file: server/go.mod
+
+                                - name: Setup Node (for JS/TS analysis)
+                                    if: matrix.language == 'javascript-typescript'
+                                    uses: actions/setup-node@v4
+                                    with:
+                                        node-version: '20'
+                                        cache: npm
+                                        cache-dependency-path: web-ui/package-lock.json
+
+                                - name: Initialize CodeQL
+                                    uses: github/codeql-action/init@v3
+                                    with:
+                                        languages: ${{ matrix.language }}
+
+                                - name: Prepare build (Go)
+                                    if: matrix.language == 'go'
+                                    run: |
+                                        go work sync || true
+                                        go build ./...
+                                        (cd server && go build ./...)
+                                        (cd client-daemon && go build ./...)
+
+                                - name: Prepare build (JS/TS)
+                                    if: matrix.language == 'javascript-typescript'
+                                    run: |
+                                        cd web-ui
+                                        npm ci
+                                        npm run build --if-present
+
+                                - name: Autobuild
+                                    uses: github/codeql-action/autobuild@v3
+
+                                - name: Perform CodeQL Analysis
+                                    uses: github/codeql-action/analyze@v3
+                                    with:
+                                        category: "/language:${{ matrix.language }}"
