@@ -39,20 +39,3 @@ func multiSecretHasher(secrets [][]byte) (hashFunc func(string) string, activeSe
 		return base64.RawURLEncoding.EncodeToString(sum[:18])
 	}, active, secrets
 }
-
-// tryHashAll returns the expected hash if any of the provided secrets match the already-hashed value.
-// This is a utility for future verification routines that may need to reconcile historical hashes
-// when secrets rotate. For now it's unused but included to anchor rotation design.
-func tryHashAll(raw string, secrets [][]byte) []string {
-	out := make([]string, 0, len(secrets))
-	for _, s := range secrets {
-		if len(s) == 0 {
-			continue
-		}
-		h := hmac.New(sha256.New, s)
-		_, _ = h.Write([]byte(raw))
-		sum := h.Sum(nil)
-		out = append(out, base64.RawURLEncoding.EncodeToString(sum[:18]))
-	}
-	return out
-}

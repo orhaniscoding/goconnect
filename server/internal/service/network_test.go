@@ -65,7 +65,9 @@ func TestNetworkService_CreateNetwork(t *testing.T) {
 					CIDR:       "10.0.0.0/24",
 					CreatedBy:  "user456",
 				}
-				repo.Create(context.Background(), existingNetwork)
+				if err := repo.Create(context.Background(), existingNetwork); err != nil {
+					t.Fatalf("failed to create network: %v", err)
+				}
 			},
 			wantErr:     true,
 			wantErrCode: domain.ErrCIDROverlap,

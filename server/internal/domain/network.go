@@ -1,32 +1,32 @@
 package domain
 
 import (
-	"fmt"
-	"net"
-	"time"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"crypto/rand"
+	"fmt"
 	"math/big"
+	"net"
+	"time"
 )
 
 // Network represents a virtual network in GoConnect
 type Network struct {
-	ID                   string            `json:"id" db:"id"`
-	TenantID            string            `json:"tenant_id" db:"tenant_id"`
-	Name                string            `json:"name" db:"name"`
-	Visibility          NetworkVisibility `json:"visibility" db:"visibility"`
-	JoinPolicy          JoinPolicy        `json:"join_policy" db:"join_policy"`
-	CIDR                string            `json:"cidr" db:"cidr"`
-	DNS                 *string           `json:"dns,omitempty" db:"dns"`
-	MTU                 *int              `json:"mtu,omitempty" db:"mtu"`
-	SplitTunnel         *bool             `json:"split_tunnel,omitempty" db:"split_tunnel"`
-	CreatedBy           string            `json:"created_by" db:"created_by"`
-	CreatedAt           time.Time         `json:"created_at" db:"created_at"`
-	UpdatedAt           time.Time         `json:"updated_at" db:"updated_at"`
-	SoftDeletedAt       *time.Time        `json:"soft_deleted_at,omitempty" db:"soft_deleted_at"`
-	ModerationRedacted  bool              `json:"moderation_redacted" db:"moderation_redacted"`
+	ID                 string            `json:"id" db:"id"`
+	TenantID           string            `json:"tenant_id" db:"tenant_id"`
+	Name               string            `json:"name" db:"name"`
+	Visibility         NetworkVisibility `json:"visibility" db:"visibility"`
+	JoinPolicy         JoinPolicy        `json:"join_policy" db:"join_policy"`
+	CIDR               string            `json:"cidr" db:"cidr"`
+	DNS                *string           `json:"dns,omitempty" db:"dns"`
+	MTU                *int              `json:"mtu,omitempty" db:"mtu"`
+	SplitTunnel        *bool             `json:"split_tunnel,omitempty" db:"split_tunnel"`
+	CreatedBy          string            `json:"created_by" db:"created_by"`
+	CreatedAt          time.Time         `json:"created_at" db:"created_at"`
+	UpdatedAt          time.Time         `json:"updated_at" db:"updated_at"`
+	SoftDeletedAt      *time.Time        `json:"soft_deleted_at,omitempty" db:"soft_deleted_at"`
+	ModerationRedacted bool              `json:"moderation_redacted" db:"moderation_redacted"`
 }
 
 // NetworkVisibility defines network visibility options
@@ -71,12 +71,12 @@ func ValidateCIDR(cidr string) error {
 	if err != nil {
 		return fmt.Errorf("invalid CIDR format: %w", err)
 	}
-	
+
 	// Ensure it's a network address, not a host address
 	if network.String() != cidr {
 		return fmt.Errorf("CIDR must be a network address, got %s but expected %s", cidr, network.String())
 	}
-	
+
 	return nil
 }
 
@@ -86,12 +86,12 @@ func CheckCIDROverlap(cidr1, cidr2 string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("invalid CIDR1: %w", err)
 	}
-	
+
 	_, net2, err := net.ParseCIDR(cidr2)
 	if err != nil {
 		return false, fmt.Errorf("invalid CIDR2: %w", err)
 	}
-	
+
 	// Check if either network contains the other's network address
 	return net1.Contains(net2.IP) || net2.Contains(net1.IP), nil
 }

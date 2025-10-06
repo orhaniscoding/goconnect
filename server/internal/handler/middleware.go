@@ -11,6 +11,10 @@ import (
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
 )
 
+// contextKey is a local type to avoid collisions for context values.
+type contextKey string
+const requestIDKey contextKey = "request_id"
+
 // AuthMiddleware validates JWT tokens and extracts user information
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -70,8 +74,8 @@ func RequestIDMiddleware() gin.HandlerFunc {
 
 		c.Header("X-Request-Id", requestID)
 		c.Set("request_id", requestID)
-		// also propagate into request context for downstream services
-		ctx := context.WithValue(c.Request.Context(), "request_id", requestID)
+		// also propagate into request context for downstream services using a typed key
+		ctx := context.WithValue(c.Request.Context(), requestIDKey, requestID)
 		c.Request = c.Request.WithContext(ctx)
 		c.Next()
 	}

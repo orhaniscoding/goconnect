@@ -24,7 +24,7 @@ func TestSqliteAuditor_Basic(t *testing.T) {
     evs, err := a.ListRecent(ctx, 10)
     if err != nil { t.Fatalf("list recent: %v", err) }
     if len(evs) != 2 { t.Fatalf("expected 2 events got %d", len(evs)) }
-    if evs[0].Action == evs[1].Action { /* order may vary but ensure data present */ }
+    // No-op: we only assert that two events exist; order may vary.
 }
 
 func TestSqliteAuditor_Hashing(t *testing.T) {

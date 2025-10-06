@@ -153,7 +153,7 @@ func TestListNetworks_Public(t *testing.T) {
 	// Create a test network first
 	ctx := context.Background()
 	networkRepo := repository.NewInMemoryNetworkRepository()
-	networkRepo.Create(ctx, &domain.Network{
+	if err := networkRepo.Create(ctx, &domain.Network{
 		ID:         "net-123",
 		TenantID:   "default",
 		Name:       "Public Network",
@@ -161,7 +161,9 @@ func TestListNetworks_Public(t *testing.T) {
 		JoinPolicy: domain.JoinPolicyOpen,
 		CIDR:       "10.0.0.0/24",
 		CreatedBy:  "user123",
-	})
+	}); err != nil {
+		t.Fatalf("failed to create network: %v", err)
+	}
 
 	// Update handler with the populated repo
 	idempotencyRepo := repository.NewInMemoryIdempotencyRepository()
