@@ -18,13 +18,15 @@ jobs:
             - uses: actions/setup-go@v5
               with:
                   go-version-file: server/go.mod
+            - name: Set toolchain env
+              run: echo "GOTOOLCHAIN=local" >> $GITHUB_ENV
             - name: Go vet
               run: go vet ./...
               working-directory: server
             - name: golangci-lint
               uses: golangci/golangci-lint-action@v6
               with:
-                  version: latest
+                  version: v1.56.2
                   working-directory: server
                   args: --timeout=3m
     web-ui:
