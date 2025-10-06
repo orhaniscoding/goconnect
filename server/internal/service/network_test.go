@@ -212,7 +212,9 @@ func TestNetworkService_ListNetworks(t *testing.T) {
 					Visibility: domain.NetworkVisibilityPublic,
 					CIDR:       "10.0.0.0/24",
 					CreatedBy:  "user456",
-				}); err != nil { t.Fatalf("create net1: %v", err) }
+				}); err != nil {
+					t.Fatalf("create net1: %v", err)
+				}
 				// Add private network (should not be returned)
 				if err := repo.Create(context.Background(), &domain.Network{
 					ID:         "net2",
@@ -221,7 +223,9 @@ func TestNetworkService_ListNetworks(t *testing.T) {
 					Visibility: domain.NetworkVisibilityPrivate,
 					CIDR:       "10.0.1.0/24",
 					CreatedBy:  "user456",
-				}); err != nil { t.Fatalf("create net2: %v", err) }
+				}); err != nil {
+					t.Fatalf("create net2: %v", err)
+				}
 			},
 			wantCount: 1,
 			wantErr:   false,
@@ -243,7 +247,9 @@ func TestNetworkService_ListNetworks(t *testing.T) {
 					Visibility: domain.NetworkVisibilityPrivate,
 					CIDR:       "10.0.0.0/24",
 					CreatedBy:  "user123",
-				}); err != nil { t.Fatalf("create my net: %v", err) }
+				}); err != nil {
+					t.Fatalf("create my net: %v", err)
+				}
 				// Add other user's network (should not be returned)
 				if err := repo.Create(context.Background(), &domain.Network{
 					ID:         "net2",
@@ -252,7 +258,9 @@ func TestNetworkService_ListNetworks(t *testing.T) {
 					Visibility: domain.NetworkVisibilityPublic,
 					CIDR:       "10.0.1.0/24",
 					CreatedBy:  "user456",
-				}); err != nil { t.Fatalf("create other net: %v", err) }
+				}); err != nil {
+					t.Fatalf("create other net: %v", err)
+				}
 			},
 			wantCount: 1,
 			wantErr:   false,
@@ -273,7 +281,9 @@ func TestNetworkService_ListNetworks(t *testing.T) {
 					Visibility: domain.NetworkVisibilityPublic,
 					CIDR:       "10.0.0.0/24",
 					CreatedBy:  "user123",
-				}); err != nil { t.Fatalf("create net1: %v", err) }
+				}); err != nil {
+					t.Fatalf("create net1: %v", err)
+				}
 				if err := repo.Create(context.Background(), &domain.Network{
 					ID:         "net2",
 					TenantID:   "default",
@@ -281,7 +291,9 @@ func TestNetworkService_ListNetworks(t *testing.T) {
 					Visibility: domain.NetworkVisibilityPrivate,
 					CIDR:       "10.0.1.0/24",
 					CreatedBy:  "user456",
-				}); err != nil { t.Fatalf("create net2: %v", err) }
+				}); err != nil {
+					t.Fatalf("create net2: %v", err)
+				}
 			},
 			wantCount: 2,
 			wantErr:   false,
