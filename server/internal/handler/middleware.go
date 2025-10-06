@@ -13,6 +13,7 @@ import (
 
 // contextKey is a local type to avoid collisions for context values.
 type contextKey string
+
 const requestIDKey contextKey = "request_id"
 
 // AuthMiddleware validates JWT tokens and extracts user information
