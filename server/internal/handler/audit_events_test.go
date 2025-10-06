@@ -127,7 +127,9 @@ func TestAuditEvents_MembershipFlow(t *testing.T) {
 	var resp struct {
 		Data domain.Network `json:"data"`
 	}
-	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal create response: %v", err)
+	}
 
 	// seed owner (admin_dev token maps to admin_dev user id) but we will use dev as actor; we need dev to be admin role
 	_, _ = mrepo.UpsertApproved(context.Background(), resp.Data.ID, "user_dev", domain.RoleAdmin, time.Now())
