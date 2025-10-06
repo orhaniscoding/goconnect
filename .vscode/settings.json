@@ -1,5 +1,12 @@
 {
   "editor.formatOnSave": true,
   "files.eol": "\n",
-  "go.useLanguageServer": true
+  "go.useLanguageServer": true,
+  "go.toolsEnvVars": {
+    "GOTOOLCHAIN": "go1.22.9"
+  },
+  "go.lintTool": "golangci-lint",
+  "go.lintFlags": ["--timeout=3m"],
+  "go.lintOnSave": "package",
+  "typescript.tsdk": "web-ui/node_modules/typescript/lib"
 }
