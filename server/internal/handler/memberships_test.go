@@ -100,7 +100,7 @@ func TestJoinApproveFlow_ListApproved(t *testing.T) {
 func TestDenyRemainsUnapproved(t *testing.T) {
 	r, _, mrepo, nrepo := setupMembershipsRouter()
 	net := &domain.Network{ID: "net-appr-2", TenantID: "t1", Name: "N2", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyApproval, CIDR: "10.6.0.0/24", CreatedBy: "admin_dev"}
-	_ = nrepo.Create(context.Background(), net)
+	if err := nrepo.Create(context.Background(), net); err != nil { t.Fatalf("create network: %v", err) }
 	_, _ = mrepo.UpsertApproved(context.Background(), net.ID, "admin_dev", domain.RoleOwner, time.Now())
 
 	// join
@@ -156,7 +156,7 @@ func TestDenyRemainsUnapproved(t *testing.T) {
 func TestBanAndKickFlows(t *testing.T) {
 	r, _, mrepo, nrepo := setupMembershipsRouter()
 	net := &domain.Network{ID: "net-appr-3", TenantID: "t1", Name: "N3", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyApproval, CIDR: "10.7.0.0/24", CreatedBy: "admin_dev"}
-	_ = nrepo.Create(context.Background(), net)
+	if err := nrepo.Create(context.Background(), net); err != nil { t.Fatalf("create network: %v", err) }
 	_, _ = mrepo.UpsertApproved(context.Background(), net.ID, "admin_dev", domain.RoleOwner, time.Now())
 
 	// user joins and admin approves
