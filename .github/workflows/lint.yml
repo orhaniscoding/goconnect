@@ -28,7 +28,7 @@ jobs:
         with:
           version: v1.59.1
           working-directory: server
-          args: --timeout=3m
+          args: --timeout=3m --out-format=colored-line-number
   web-ui:
     runs-on: ubuntu-latest
     steps:
