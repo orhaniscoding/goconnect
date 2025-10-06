@@ -1,3 +1,15 @@
+# Build artifacts
+server/server
+client-daemon/daemon
+
+# Go coverage
+server/coverage.out
+client-daemon/coverage.out
+
+# Node build artifacts (web-ui)
+web-ui/.next/
+web-ui/node_modules/
+web-ui/coverage/
 #############################
 # Root / Shared
 #############################
