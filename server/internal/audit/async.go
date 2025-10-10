@@ -113,7 +113,7 @@ func (a *AsyncAuditor) Event(ctx context.Context, action, actor, object string, 
 	}
 	select {
 	case a.ch <- ev:
-	atomic.AddInt64(&a.inFlight, 1)
+		atomic.AddInt64(&a.inFlight, 1)
 		cur := len(a.ch)
 		metrics.SetAuditQueueDepth(cur)
 		if cur > a.maxDepth {

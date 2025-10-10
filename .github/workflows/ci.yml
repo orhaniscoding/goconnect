@@ -20,6 +20,8 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: ./server/go.mod
+      - name: Set toolchain env
+        run: echo "GOTOOLCHAIN=go1.22.9" >> $GITHUB_ENV
       - name: Go work sync (tolerant)
         run: go work sync || true
       - name: Go test server (race, cover)
@@ -34,12 +36,14 @@ jobs:
         with:
           name: coverage-server
           path: server/coverage.out
+          if-no-files-found: ignore
       - name: Upload daemon coverage
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-daemon
           path: client-daemon/coverage.out
+          if-no-files-found: ignore
 
   web-ui:
     runs-on: ubuntu-latest
