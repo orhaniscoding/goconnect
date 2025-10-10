@@ -42,9 +42,10 @@ jobs:
           languages: ${{ matrix.language }}
       - name: Prepare build (Go)
         if: matrix.language == 'go'
+        env:
+          GOTOOLCHAIN: go1.22.9
         run: |
           go work sync || true
-          go build ./...
           (cd server && go build ./...)
           (cd client-daemon && go build ./...)
       - name: Prepare build (JS/TS)
