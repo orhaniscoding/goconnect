@@ -100,7 +100,9 @@ func TestJoinApproveFlow_ListApproved(t *testing.T) {
 func TestDenyRemainsUnapproved(t *testing.T) {
 	r, _, mrepo, nrepo := setupMembershipsRouter()
 	net := &domain.Network{ID: "net-appr-2", TenantID: "t1", Name: "N2", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyApproval, CIDR: "10.6.0.0/24", CreatedBy: "admin_dev"}
-	_ = nrepo.Create(context.Background(), net)
+	if err := nrepo.Create(context.Background(), net); err != nil {
+		t.Fatalf("create network: %v", err)
+	}
 	_, _ = mrepo.UpsertApproved(context.Background(), net.ID, "admin_dev", domain.RoleOwner, time.Now())
 
 	// join
@@ -137,7 +139,9 @@ func TestDenyRemainsUnapproved(t *testing.T) {
 	var resp struct {
 		Data []domain.Membership `json:"data"`
 	}
-	_ = json.Unmarshal(w.Body.Bytes(), &resp)
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal list approved: %v", err)
+	}
 	foundUser := false
 	foundAdmin := false
 	for _, m := range resp.Data {
@@ -156,7 +160,9 @@ func TestDenyRemainsUnapproved(t *testing.T) {
 func TestBanAndKickFlows(t *testing.T) {
 	r, _, mrepo, nrepo := setupMembershipsRouter()
 	net := &domain.Network{ID: "net-appr-3", TenantID: "t1", Name: "N3", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyApproval, CIDR: "10.7.0.0/24", CreatedBy: "admin_dev"}
-	_ = nrepo.Create(context.Background(), net)
+	if err := nrepo.Create(context.Background(), net); err != nil {
+		t.Fatalf("create network: %v", err)
+	}
 	_, _ = mrepo.UpsertApproved(context.Background(), net.ID, "admin_dev", domain.RoleOwner, time.Now())
 
 	// user joins and admin approves
@@ -201,7 +207,9 @@ func TestBanAndKickFlows(t *testing.T) {
 	var respB struct {
 		Data []domain.Membership `json:"data"`
 	}
-	_ = json.Unmarshal(w.Body.Bytes(), &respB)
+	if err := json.Unmarshal(w.Body.Bytes(), &respB); err != nil {
+		t.Fatalf("unmarshal banned: %v", err)
+	}
 	banned := false
 	for _, m := range respB.Data {
 		if m.UserID == "user_dev" {
@@ -214,7 +222,9 @@ func TestBanAndKickFlows(t *testing.T) {
 
 	// approve again to become approved then kick
 	// First, set status to approved again
-	_ = mrepo.SetStatus(context.Background(), net.ID, "user_dev", domain.StatusApproved)
+	if err := mrepo.SetStatus(context.Background(), net.ID, "user_dev", domain.StatusApproved); err != nil {
+		t.Fatalf("set status approved: %v", err)
+	}
 	w = httptest.NewRecorder()
 	req, _ = http.NewRequest("POST", "/v1/networks/"+net.ID+"/kick", bytes.NewBuffer(buf))
 	req.Header.Set("Authorization", "Bearer admin")
@@ -236,7 +246,9 @@ func TestBanAndKickFlows(t *testing.T) {
 	var respA struct {
 		Data []domain.Membership `json:"data"`
 	}
-	_ = json.Unmarshal(w.Body.Bytes(), &respA)
+	if err := json.Unmarshal(w.Body.Bytes(), &respA); err != nil {
+		t.Fatalf("unmarshal approved after kick: %v", err)
+	}
 	still := false
 	for _, m := range respA.Data {
 		if m.UserID == "user_dev" {

@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=
+# NOTE: Editor might warn about missing 'version', but golangci-lint v1.59 does not accept `version` key in config.
+run:
+  timeout: 3m
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - gosimple
+    - gofmt
+    - gocritic
