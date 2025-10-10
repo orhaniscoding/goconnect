@@ -118,8 +118,6 @@ func main() {
 			aud = audit.WrapWithMetrics(sqliteAud, metrics.IncAudit)
 			sqliteAudRef = sqliteAud
 			// If async requested, it will wrap this below
-		} else {
-			// Fallback remains stdout auditor on error; do not log secrets/DSN
 		}
 	}
 	if *asyncAudit {
