@@ -7,9 +7,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
-	"github.com/orhaniscoding/goconnect/server/internal/repository"
 	"github.com/orhaniscoding/goconnect/server/internal/rbac"
+	"github.com/orhaniscoding/goconnect/server/internal/repository"
 )
+
+// contextKey is a local type to avoid collisions for context values.
+type contextKey string
+
+const requestIDKey contextKey = "request_id"
 
 // AuthMiddleware validates JWT tokens and extracts user information
 func AuthMiddleware() gin.HandlerFunc {
@@ -70,8 +75,8 @@ func RequestIDMiddleware() gin.HandlerFunc {
 
 		c.Header("X-Request-Id", requestID)
 		c.Set("request_id", requestID)
-		// also propagate into request context for downstream services
-		ctx := context.WithValue(c.Request.Context(), "request_id", requestID)
+		// also propagate into request context for downstream services using a typed key
+		ctx := context.WithValue(c.Request.Context(), requestIDKey, requestID)
 		c.Request = c.Request.WithContext(ctx)
 		c.Next()
 	}
@@ -156,24 +161,32 @@ func RoleMiddleware(mrepo repository.MembershipRepository) gin.HandlerFunc {
 
 // RequireNetworkAdmin ensures membership role is admin or owner (for network-scoped mutations) OR is_admin flag.
 func RequireNetworkAdmin() gin.HandlerFunc {
-    return func(c *gin.Context) {
-        // global admin bypass (is_admin from token)
-        if ia, ok := c.Get("is_admin"); ok && ia.(bool) {
-            c.Next(); return
-        }
-        roleAny, ok := c.Get("membership_role")
-        if !ok {
-            errorResponse(c, domain.NewError(domain.ErrNotAuthorized, "Membership role required", nil)); c.Abort(); return
-        }
-        role, _ := roleAny.(domain.MembershipRole)
-        if !rbac.CanManageNetwork(role) {
-            errorResponse(c, domain.NewError(domain.ErrNotAuthorized, "Administrator privileges required", nil)); c.Abort(); return
-        }
-        c.Next()
-    }
+	return func(c *gin.Context) {
+		// global admin bypass (is_admin from token)
+		if ia, ok := c.Get("is_admin"); ok && ia.(bool) {
+			c.Next()
+			return
+		}
+		roleAny, ok := c.Get("membership_role")
+		if !ok {
+			errorResponse(c, domain.NewError(domain.ErrNotAuthorized, "Membership role required", nil))
+			c.Abort()
+			return
+		}
+		role, _ := roleAny.(domain.MembershipRole)
+		if !rbac.CanManageNetwork(role) {
+			errorResponse(c, domain.NewError(domain.ErrNotAuthorized, "Administrator privileges required", nil))
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
 }
 
 // validateToken validates JWT token and returns user info
+// SECURITY WARNING: Development stub only. Performs NO signature, expiry, audience,
+// issuer or scope validation. Maps static tokens ("dev", "admin"). MUST be replaced
+// with real JWT/OIDC verification before any production deployment.
 // TODO: Replace with proper JWT validation
 func validateToken(token string) (userID string, isAdmin bool, err error) {
 	// Mock implementation for development

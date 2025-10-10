@@ -35,7 +35,9 @@ func TestRateLimit_Join429(t *testing.T) {
 			ID string `json:"id"`
 		} `json:"data"`
 	}
-	_ = json.Unmarshal(w.Body.Bytes(), &cresp)
+	if err := json.Unmarshal(w.Body.Bytes(), &cresp); err != nil {
+		t.Fatalf("unmarshal create: %v", err)
+	}
 	netID := cresp.Data.ID
 	if netID == "" {
 		t.Fatalf("network id empty in create response: %s", w.Body.String())
@@ -54,7 +56,9 @@ func TestRateLimit_Join429(t *testing.T) {
 		t.Fatalf("expected 429 on 6th request, got %d body=%s", last.Code, last.Body.String())
 	}
 	var errResp domain.Error
-	_ = json.Unmarshal(last.Body.Bytes(), &errResp)
+	if err := json.Unmarshal(last.Body.Bytes(), &errResp); err != nil {
+		t.Fatalf("unmarshal rate limit error: %v", err)
+	}
 	if errResp.Code != domain.ErrRateLimited {
 		t.Fatalf("expected code %s, got %s", domain.ErrRateLimited, errResp.Code)
 	}

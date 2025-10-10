@@ -27,10 +27,10 @@ func NewInMemoryIdempotencyRepository() *InMemoryIdempotencyRepository {
 	repo := &InMemoryIdempotencyRepository{
 		records: make(map[string]*domain.IdempotencyRecord),
 	}
-	
+
 	// Start cleanup goroutine
 	go repo.periodicCleanup()
-	
+
 	return repo
 }
 
@@ -91,6 +91,7 @@ func (r *InMemoryIdempotencyRepository) periodicCleanup() {
 	defer ticker.Stop()
 
 	for range ticker.C {
-		r.Cleanup(context.Background())
+		// best-effort cleanup; explicitly ignore any error to avoid empty branch warning
+		_ = r.Cleanup(context.Background())
 	}
 }

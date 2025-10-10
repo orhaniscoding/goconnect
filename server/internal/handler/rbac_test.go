@@ -36,7 +36,9 @@ func setupRBAC() (*gin.Engine, repository.NetworkRepository, repository.Membersh
 func TestRBAC_ApproveForbiddenForMember(t *testing.T) {
 	r, nrepo, mrepo := setupRBAC()
 	net := &domain.Network{ID: "net-rbac-1", TenantID: "t1", Name: "N", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyApproval, CIDR: "10.8.0.0/24", CreatedBy: "owner_dev"}
-	_ = nrepo.Create(context.Background(), net)
+	if err := nrepo.Create(context.Background(), net); err != nil {
+		t.Fatalf("create network: %v", err)
+	}
 	// Seed only a regular member (not admin/owner)
 	_, _ = mrepo.UpsertApproved(context.Background(), net.ID, "user_dev", domain.RoleMember, time.Now())
 
@@ -57,7 +59,9 @@ func TestRBAC_ApproveForbiddenForMember(t *testing.T) {
 func TestRBAC_AdminCanApprove(t *testing.T) {
 	r, nrepo, mrepo := setupRBAC()
 	net := &domain.Network{ID: "net-rbac-2", TenantID: "t1", Name: "N2", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyApproval, CIDR: "10.9.0.0/24", CreatedBy: "owner_dev"}
-	_ = nrepo.Create(context.Background(), net)
+	if err := nrepo.Create(context.Background(), net); err != nil {
+		t.Fatalf("create network: %v", err)
+	}
 	// Seed owner as admin_dev
 	_, _ = mrepo.UpsertApproved(context.Background(), net.ID, "admin_dev", domain.RoleOwner, time.Now())
 
@@ -89,7 +93,9 @@ func TestRBAC_AdminCanApprove(t *testing.T) {
 func TestRBAC_OnlyAdminCanBanOrKick(t *testing.T) {
 	r, nrepo, mrepo := setupRBAC()
 	net := &domain.Network{ID: "net-rbac-3", TenantID: "t1", Name: "N3", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyApproval, CIDR: "10.10.0.0/24", CreatedBy: "owner_dev"}
-	_ = nrepo.Create(context.Background(), net)
+	if err := nrepo.Create(context.Background(), net); err != nil {
+		t.Fatalf("create network: %v", err)
+	}
 	// Seed owner and a member
 	_, _ = mrepo.UpsertApproved(context.Background(), net.ID, "admin_dev", domain.RoleOwner, time.Now())
 	_, _ = mrepo.UpsertApproved(context.Background(), net.ID, "user_dev", domain.RoleMember, time.Now())

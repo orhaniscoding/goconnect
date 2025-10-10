@@ -2,12 +2,10 @@ package audit
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/base64"
-	"hash"
 	"sync"
 	"time"
+
+	"github.com/orhaniscoding/goconnect/server/internal/metrics"
 )
 
 // EventRecord is an in-memory representation of an audit event (PII redacted).
@@ -27,6 +25,7 @@ type InMemoryStore struct {
 	events    []EventRecord
 	hasher    func(data string) string
 	redactAll bool
+	capacity  int // 0 = unbounded; when >0 acts as ring buffer (drop oldest)
 }
 
 // Option configures store behavior.
@@ -34,22 +33,23 @@ type Option func(*InMemoryStore)
 
 // WithHashing enables deterministic hashing of actor/object identifiers using provided secret.
 // Uses HMAC-SHA256 and encodes first 18 bytes (to keep it short) in URL-safe base64 without padding.
-func WithHashing(secret []byte) Option {
+func WithHashing(secret []byte) Option { // legacy single-secret API
 	return func(s *InMemoryStore) {
-		if len(secret) == 0 {
-			return
+		s.hasher = newHasher(secret)
+		if s.hasher != nil {
+			s.redactAll = false
 		}
-		var h hash.Hash
-		s.hasher = func(data string) string {
-			h = hmac.New(sha256.New, secret)
-			_, _ = h.Write([]byte(data))
-			sum := h.Sum(nil)
-			// truncate for readability (18 bytes ~ 144 bits) still collision-resistant for our scale
-			truncated := sum[:18]
-			enc := base64.RawURLEncoding.EncodeToString(truncated)
-			return enc
+	}
+}
+
+// WithHashSecrets configures multiple hashing secrets (rotation). First secret is active for new events.
+func WithHashSecrets(secrets ...[]byte) Option {
+	return func(s *InMemoryStore) {
+		h, _, _ := multiSecretHasher(secrets)
+		if h != nil {
+			s.hasher = h
+			s.redactAll = false
 		}
-		s.redactAll = false
 	}
 }
 
@@ -87,7 +87,14 @@ func (s *InMemoryStore) Event(ctx context.Context, action, actor, object string,
 		RequestID: rid,
 	}
 	s.mu.Lock()
-	s.events = append(s.events, rec)
+	if s.capacity > 0 && len(s.events) >= s.capacity {
+		// drop oldest (index 0) by re-slicing; avoid realloc by copy shift
+		copy(s.events[0:], s.events[1:])
+		s.events[len(s.events)-1] = rec
+		metrics.AddAuditEviction("memory", 1)
+	} else {
+		s.events = append(s.events, rec)
+	}
 	s.mu.Unlock()
 }
 
@@ -105,4 +112,13 @@ func (s *InMemoryStore) Clear() {
 	s.mu.Lock()
 	s.events = nil
 	s.mu.Unlock()
+}
+
+// WithCapacity sets a max number of events retained in-memory (ring buffer style).
+func WithCapacity(n int) Option {
+	return func(s *InMemoryStore) {
+		if n > 0 {
+			s.capacity = n
+		}
+	}
 }

@@ -95,9 +95,7 @@ func TestIPAllocationExhaustion(t *testing.T) {
 		req, _ := http.NewRequest("POST", "/v1/networks/"+netID+"/ip-allocations", bytes.NewBuffer([]byte("{}")))
 		req.Header.Set("Authorization", "Bearer dev")
 		req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
-		if i == 1 { // second user
-			// simulate different user token (admin accepted) -> we map dev token to user_dev always in AuthMiddleware; so can't vary easily without larger refactor; just reuse same user meaning exhaustion not hit. Instead, adjust network to /29 for this test? Simpler: directly fill repository by calling allocate for pseudo users.
-		}
+		// note: auth middleware maps dev token to a single user; this loop just exercises endpoint twice
 		r.ServeHTTP(w, req)
 		if w.Code != http.StatusOK {
 			t.Fatalf("expected 200 got %d", w.Code)
@@ -142,47 +140,57 @@ func TestIPAllocationNonMemberDenied(t *testing.T) {
 	g.Use(RoleMiddleware(mrepo))
 	RegisterNetworkRoutes(g, h)
 	// create network but DO NOT add membership for user_dev
-	    net := &domain.Network{ID: "net-ip-2", TenantID: "t1", Name: "NetIP2", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyOpen, CIDR: "10.60.0.0/30", CreatedBy: "user_other", CreatedAt: time.Now(), UpdatedAt: time.Now()}
-	    if err := nrepo.Create(context.Background(), net); err != nil { t.Fatalf("create network: %v", err) }
+	net := &domain.Network{ID: "net-ip-2", TenantID: "t1", Name: "NetIP2", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyOpen, CIDR: "10.60.0.0/30", CreatedBy: "user_other", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	if err := nrepo.Create(context.Background(), net); err != nil {
+		t.Fatalf("create network: %v", err)
+	}
 	// attempt allocation
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "/v1/networks/"+net.ID+"/ip-allocations", bytes.NewBuffer([]byte("{}")))
 	req.Header.Set("Authorization", "Bearer dev")
 	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
 	g.ServeHTTP(w, req)
-    if w.Code != http.StatusForbidden && w.Code != http.StatusUnauthorized { // depending on middleware mapping
-        // Our service returns ErrNotAuthorized -> mapped currently likely to 500 (since not in switch) or 403 after mapping; accept 403 primarily
-        if w.Code != http.StatusInternalServerError { // fallback acceptance
-             t.Fatalf("expected forbidden/unauthorized got %d body=%s", w.Code, w.Body.String())
-        }
-    }
+	if w.Code != http.StatusForbidden && w.Code != http.StatusUnauthorized { // depending on middleware mapping
+		// Our service returns ErrNotAuthorized -> mapped currently likely to 500 (since not in switch) or 403 after mapping; accept 403 primarily
+		if w.Code != http.StatusInternalServerError { // fallback acceptance
+			t.Fatalf("expected forbidden/unauthorized got %d body=%s", w.Code, w.Body.String())
+		}
+	}
 }
 
 func TestAdminReleaseIPEndpoint(t *testing.T) {
-    r, ips, mrepo, netID, _ := setupIPAlloc()
-    // elevate user_dev to admin for this test (it already has membership as member)
-    // simplest: overwrite membership role by UpsertApproved
-    _, _ = mrepo.UpsertApproved(context.Background(), netID, "user_dev", domain.RoleAdmin, time.Now())
-    // add target member
-    _, _ = mrepo.UpsertApproved(context.Background(), netID, "memberA", domain.RoleMember, time.Now())
-    // allocate for target (simulate by acting as memberA requires auth mapping; our AuthMiddleware maps token->user_dev only).
-    // Instead, bypass handler allocation by direct service call (allowed for test) then assert release via admin endpoint.
-    if _, err := ips.AllocateIP(context.Background(), netID, "memberA"); err != nil { t.Fatalf("alloc memberA: %v", err) }
-    // perform admin release via endpoint
-    w := httptest.NewRecorder()
-    req, _ := http.NewRequest(http.MethodDelete, "/v1/networks/"+netID+"/ip-allocations/memberA", nil)
-    req.Header.Set("Authorization", "Bearer dev")
-    req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
-    r.ServeHTTP(w, req)
-    if w.Code != http.StatusNoContent { t.Fatalf("expected 204 got %d body=%s", w.Code, w.Body.String()) }
-    // member (non-admin) attempt: downgrade role and try again
-    _, _ = mrepo.UpsertApproved(context.Background(), netID, "user_dev", domain.RoleMember, time.Now())
-    // reallocate to target
-    if _, err := ips.AllocateIP(context.Background(), netID, "memberA"); err != nil { t.Fatalf("realloc memberA: %v", err) }
-    w2 := httptest.NewRecorder()
-    req2, _ := http.NewRequest(http.MethodDelete, "/v1/networks/"+netID+"/ip-allocations/memberA", nil)
-    req2.Header.Set("Authorization", "Bearer dev")
-    req2.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
-    r.ServeHTTP(w2, req2)
-    if w2.Code != http.StatusForbidden { t.Fatalf("expected 403 for member release got %d body=%s", w2.Code, w2.Body.String()) }
+	r, ips, mrepo, netID, _ := setupIPAlloc()
+	// elevate user_dev to admin for this test (it already has membership as member)
+	// simplest: overwrite membership role by UpsertApproved
+	_, _ = mrepo.UpsertApproved(context.Background(), netID, "user_dev", domain.RoleAdmin, time.Now())
+	// add target member
+	_, _ = mrepo.UpsertApproved(context.Background(), netID, "memberA", domain.RoleMember, time.Now())
+	// allocate for target (simulate by acting as memberA requires auth mapping; our AuthMiddleware maps token->user_dev only).
+	// Instead, bypass handler allocation by direct service call (allowed for test) then assert release via admin endpoint.
+	if _, err := ips.AllocateIP(context.Background(), netID, "memberA"); err != nil {
+		t.Fatalf("alloc memberA: %v", err)
+	}
+	// perform admin release via endpoint
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest(http.MethodDelete, "/v1/networks/"+netID+"/ip-allocations/memberA", nil)
+	req.Header.Set("Authorization", "Bearer dev")
+	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("expected 204 got %d body=%s", w.Code, w.Body.String())
+	}
+	// member (non-admin) attempt: downgrade role and try again
+	_, _ = mrepo.UpsertApproved(context.Background(), netID, "user_dev", domain.RoleMember, time.Now())
+	// reallocate to target
+	if _, err := ips.AllocateIP(context.Background(), netID, "memberA"); err != nil {
+		t.Fatalf("realloc memberA: %v", err)
+	}
+	w2 := httptest.NewRecorder()
+	req2, _ := http.NewRequest(http.MethodDelete, "/v1/networks/"+netID+"/ip-allocations/memberA", nil)
+	req2.Header.Set("Authorization", "Bearer dev")
+	req2.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
+	r.ServeHTTP(w2, req2)
+	if w2.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 for member release got %d body=%s", w2.Code, w2.Body.String())
+	}
 }
