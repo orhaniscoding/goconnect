@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=
-version: 1.59.1
+# NOTE: Editor might warn about missing 'version', but golangci-lint v1.59 does not accept `version` key in config.
 run:
   timeout: 3m
 
