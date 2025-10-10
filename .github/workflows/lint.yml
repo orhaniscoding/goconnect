@@ -18,8 +18,6 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: server/go.mod
-      - name: Set toolchain env
-        run: echo "GOTOOLCHAIN=go1.22.9" >> $GITHUB_ENV
       - name: Go vet
         run: go vet ./...
         working-directory: server
