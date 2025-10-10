@@ -1,9 +1,13 @@
 package main
 
 import (
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"net/http"
+	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -45,8 +49,79 @@ func main() {
 	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idempotencyRepo)
 	ipamService := service.NewIPAMService(networkRepo, membershipRepo, ipamRepo)
 	metrics.Register()
+	// Auditor selection: default stdout, optionally SQLite-backed if configured via env.
 	baseAud := audit.NewStdoutAuditor()
 	var aud audit.Auditor = audit.WrapWithMetrics(baseAud, metrics.IncAudit)
+
+	// Environment-driven SQLite auditor
+	var sqliteAudRef *audit.SqliteAuditor
+	if dsn := strings.TrimSpace(os.Getenv("AUDIT_SQLITE_DSN")); dsn != "" {
+		var opts []audit.SqliteOption
+		// Optional: comma-separated base64url or standard base64 secrets for hashing (rotation supported)
+		if secEnv := strings.TrimSpace(os.Getenv("AUDIT_HASH_SECRETS_B64")); secEnv != "" {
+			parts := strings.Split(secEnv, ",")
+			var secrets [][]byte
+			for _, p := range parts {
+				s := strings.TrimSpace(p)
+				if s == "" {
+					continue
+				}
+				// try RawURLEncoding first, then StdEncoding
+				if b, err := base64.RawURLEncoding.DecodeString(s); err == nil && len(b) > 0 {
+					secrets = append(secrets, b)
+				} else if b2, err2 := base64.StdEncoding.DecodeString(s); err2 == nil && len(b2) > 0 {
+					secrets = append(secrets, b2)
+				}
+			}
+			if len(secrets) > 0 {
+				opts = append(opts, audit.WithSqliteHashSecrets(secrets...))
+			}
+		}
+		// Optional retention by rows
+		if mr := strings.TrimSpace(os.Getenv("AUDIT_MAX_ROWS")); mr != "" {
+			if n, err := strconv.Atoi(mr); err == nil && n > 0 {
+				opts = append(opts, audit.WithMaxRows(n))
+			}
+		}
+		// Optional retention by age (seconds)
+		if ma := strings.TrimSpace(os.Getenv("AUDIT_MAX_AGE_SECONDS")); ma != "" {
+			if n, err := strconv.Atoi(ma); err == nil && n > 0 {
+				opts = append(opts, audit.WithMaxAge(time.Duration(n)*time.Second))
+			}
+		}
+		// Optional anchor interval
+		if ai := strings.TrimSpace(os.Getenv("AUDIT_ANCHOR_INTERVAL")); ai != "" {
+			if n, err := strconv.Atoi(ai); err == nil && n > 0 {
+				opts = append(opts, audit.WithAnchorInterval(n))
+			}
+		}
+		// Optional Ed25519 signing key for integrity export
+		if sk := strings.TrimSpace(os.Getenv("AUDIT_SIGNING_KEY_ED25519_B64")); sk != "" {
+			// try url-safe, then standard
+			if b, err := base64.RawURLEncoding.DecodeString(sk); err == nil && len(b) == 64 {
+				if kid := strings.TrimSpace(os.Getenv("AUDIT_SIGNING_KID")); kid != "" {
+					opts = append(opts, audit.WithIntegritySigningKeyID(kid, b))
+				} else {
+					opts = append(opts, audit.WithIntegritySigningKey(b))
+				}
+			} else if b2, err2 := base64.StdEncoding.DecodeString(sk); err2 == nil && len(b2) == 64 {
+				if kid := strings.TrimSpace(os.Getenv("AUDIT_SIGNING_KID")); kid != "" {
+					opts = append(opts, audit.WithIntegritySigningKeyID(kid, b2))
+				} else {
+					opts = append(opts, audit.WithIntegritySigningKey(b2))
+				}
+			}
+		}
+
+		if sqliteAud, err := audit.NewSqliteAuditor(dsn, opts...); err == nil {
+			// Replace base auditor with sqlite-backed one (wrapped with metrics below already)
+			aud = audit.WrapWithMetrics(sqliteAud, metrics.IncAudit)
+			sqliteAudRef = sqliteAud
+			// If async requested, it will wrap this below
+		} else {
+			// Fallback remains stdout auditor on error; do not log secrets/DSN
+		}
+	}
 	if *asyncAudit {
 		aud = audit.NewAsyncAuditor(aud, audit.WithQueueSize(*auditQueue), audit.WithWorkers(*auditWorkers))
 	}
@@ -80,7 +155,12 @@ func main() {
 	r.GET("/metrics", metrics.Handler())
 
 	// Audit integrity export (best-effort) – future: restrict via RBAC
-	r.GET("/v1/audit/integrity", handler.AuditIntegrityHandler(aud))
+	// Pass through the underlying sqlite auditor if present so ExportIntegrity works.
+	if sqliteAudRef != nil {
+		r.GET("/v1/audit/integrity", handler.AuditIntegrityHandler(sqliteAudRef))
+	} else {
+		r.GET("/v1/audit/integrity", handler.AuditIntegrityHandler(aud))
+	}
 
 	// Start server with timeouts
 	srv := &http.Server{
