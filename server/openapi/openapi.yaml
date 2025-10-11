@@ -451,6 +451,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NetworkResponse"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
         "404":
           description: "Network not found"
           content:
@@ -538,6 +544,47 @@ paths:
                   { schema: { $ref: "#/components/schemas/Error" } },
               },
           }
+    delete:
+      summary: Delete network
+      description: "Soft delete a network. RBAC: admin/owner (or global admin)."
+      tags: [Networks]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: "Deleted"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: "Forbidden - insufficient privileges"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: "Network not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /v1/networks/{id}/ip-allocations:
     post:
       summary: Allocate or retrieve IP for current user
