@@ -1,20 +1,11 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: GoConnect API
   version: 0.1.0
-  description: "GoConnect server API for virtual network management"
+  description: GoConnect server API for virtual network management
   contact:
-    name: orhaniscoding
+    name: GoConnect
     url: https://github.com/orhaniscoding/goconnect
-  license:
-    name: MIT
-    url: https://opensource.org/licenses/MIT
-
-servers:
-  - url: https://api.goconnect.example
-    description: Production server
-  - url: http://localhost:8080
-    description: Development server
 
 components:
   securitySchemes:
@@ -22,7 +13,16 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Unique key for idempotent operations (24h TTL)
+      schema:
+        type: string
+        format: uuid
+        example: 550e8400-e29b-41d4-a716-446655440000
   schemas:
     Error:
       type: object
@@ -30,88 +30,107 @@ components:
       properties:
         code:
           type: string
-          example: "ERR_INVALID_REQUEST"
+          example: ERR_NOT_AUTHORIZED
         message:
           type: string
-          example: "Invalid request data"
+          example: Authorization header required
         details:
           type: object
           additionalProperties: true
-        retry_after:
-          type: integer
-          minimum: 0
+          description: Optional machine-readable error details
 
     Network:
       type: object
-      required: [id, tenant_id, name, visibility, join_policy, cidr, created_by, created_at, updated_at]
+      required:
+        [
+          id,
+          tenant_id,
+          name,
+          visibility,
+          join_policy,
+          cidr,
+          created_by,
+          created_at,
+          updated_at,
+        ]
       properties:
         id:
           type: string
-          example: "net_1234567890_123456"
-          description: "Unique network identifier"
+          example: net_1234567890_123456
+          description: Unique network identifier
         tenant_id:
           type: string
-          example: "default"
-          description: "Tenant identifier"
+          example: default
+          description: Tenant identifier
         name:
           type: string
           minLength: 3
           maxLength: 64
-          example: "My Private Network"
-          description: "Human-readable network name"
+          example: My Private Network
+          description: Human-readable network name
         visibility:
           type: string
           enum: [public, private]
-          example: "public"
-          description: "Network visibility level"
+          example: public
+          description: Network visibility level
         join_policy:
           type: string
           enum: [open, invite, approval]
-          example: "open"
-          description: "How users can join the network"
+          example: open
+          description: How users can join the network
         cidr:
           type: string
           pattern: '^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$'
-          example: "10.0.0.0/24"
-          description: "Network CIDR range"
+          example: 10.0.0.0/24
+          description: Network CIDR range
         dns:
-          type: string
-          nullable: true
-          example: "1.1.1.1"
-          description: "Custom DNS server"
+          type: [string, "null"]
+          example: 1.1.1.1
+          description: Custom DNS server
         mtu:
-          type: integer
-          nullable: true
+          type: [integer, "null"]
           minimum: 576
           maximum: 1500
           example: 1420
-          description: "Maximum transmission unit"
+          description: Maximum transmission unit
         split_tunnel:
-          type: boolean
-          nullable: true
+          type: [boolean, "null"]
           example: false
-          description: "Enable split tunneling"
+          description: Enable split tunneling
         created_by:
           type: string
-          example: "user_123"
-          description: "User who created the network"
+          example: user_123
         created_at:
           type: string
           format: date-time
-          example: "2025-09-23T10:00:00Z"
         updated_at:
           type: string
           format: date-time
-          example: "2025-09-23T10:00:00Z"
-        soft_deleted_at:
-          type: string
-          format: date-time
-          nullable: true
-          description: "Soft deletion timestamp"
-        moderation_redacted:
-          type: boolean
-          example: false
-          description: "Whether content is moderation redacted"
+
+    NetworkListResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Network"
+        pagination:
+          type: object
+          properties:
+            limit:
+              type: integer
+              example: 20
+            next_cursor:
+              type: [string, "null"]
+              example: net_1234567890_123456
+
+    NetworkResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/Network"
 
     CreateNetworkRequest:
       type: object
@@ -121,72 +140,164 @@ components:
           type: string
           minLength: 3
           maxLength: 64
-          example: "My Private Network"
         visibility:
           type: string
           enum: [public, private]
-          example: "public"
         join_policy:
           type: string
           enum: [open, invite, approval]
-          example: "open"
         cidr:
           type: string
-          pattern: '^([0-9]{1,3}\.){3}[0-9]{1,3}/[0-9]{1,2}$'
-          example: "10.0.0.0/24"
         dns:
-          type: string
-          nullable: true
-          example: "1.1.1.1"
+          type: [string, "null"]
         mtu:
-          type: integer
-          nullable: true
-          minimum: 576
-          maximum: 1500
-          example: 1420
+          type: [integer, "null"]
         split_tunnel:
-          type: boolean
-          nullable: true
-          example: false
+          type: [boolean, "null"]
+      additionalProperties: false
 
-    NetworkListResponse:
+    NetworkUpdateRequest:
       type: object
-      required: [data]
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 64
+        visibility:
+          type: string
+          enum: [public, private]
+        join_policy:
+          type: string
+          enum: [open, invite, approval]
+      additionalProperties: false
+
+    Membership:
+      type: object
+      required: [id, network_id, user_id, role, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        network_id:
+          type: string
+        user_id:
+          type: string
+        role:
+          type: string
+          enum: [member, admin, owner]
+        status:
+          type: string
+          enum: [pending, approved, banned]
+        joined_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    JoinRequest:
+      type: object
+      required: [id, network_id, user_id, status, created_at]
+      properties:
+        id:
+          type: string
+        network_id:
+          type: string
+        user_id:
+          type: string
+        status:
+          type: string
+          enum: [pending, approved, denied]
+        created_at:
+          type: string
+          format: date-time
+        decided_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+
+    MembersListResponse:
+      type: object
       properties:
         data:
           type: array
           items:
-            $ref: '#/components/schemas/Network'
+            $ref: "#/components/schemas/Membership"
         pagination:
           type: object
           properties:
             limit:
               type: integer
-              example: 20
             next_cursor:
-              type: string
-              nullable: true
-              example: "net_1234567890_123456"
-
-    NetworkResponse:
-      type: object
-      required: [data]
-      properties:
-        data:
-          $ref: '#/components/schemas/Network'
-
-  parameters:
-    IdempotencyKey:
-      name: Idempotency-Key
-      in: header
-      required: true
-      description: "Unique key for idempotent operations (24h TTL)"
-      schema:
-        type: string
-        format: uuid
-        example: "550e8400-e29b-41d4-a716-446655440000"
+              type: [string, "null"]
 
 paths:
+  /v1/audit/integrity:
+    get:
+      summary: Export audit integrity snapshot
+      description: "Returns current audit hash chain head and recent anchor snapshots for remote verification."
+      tags: [Audit]
+      parameters:
+        - name: anchors
+          in: query
+          description: Maximum number of recent anchors to include (ascending order)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 20
+      responses:
+        "200":
+          description: Integrity export
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  head:
+                    type: object
+                    properties:
+                      seq: { type: integer }
+                      hash: { type: string }
+                      ts: { type: string, format: date-time }
+                  anchors:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        seq: { type: integer }
+                        hash: { type: string }
+                        ts: { type: string, format: date-time }
+                  latest_seq: { type: integer }
+                  earliest_seq: { type: integer }
+                  generated_at: { type: string, format: date-time }
+                  signature:
+                    {
+                      type: string,
+                      description: "Base64URL Ed25519 signature over export JSON sans this field",
+                    }
+                  kid:
+                    {
+                      type: string,
+                      description: "Signing key identifier (if present) included in signed payload",
+                    }
+        "501":
+          description: Auditor does not support integrity export
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Internal error exporting integrity snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /v1/networks:
     get:
       summary: List networks
@@ -230,19 +341,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NetworkListResponse'
+                $ref: "#/components/schemas/NetworkListResponse"
         "401":
           description: "Unauthorized"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
         "403":
           description: "Forbidden - insufficient privileges"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
 
     post:
       summary: Create network
@@ -251,26 +362,26 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateNetworkRequest'
+              $ref: "#/components/schemas/CreateNetworkRequest"
       responses:
         "201":
           description: "Network created successfully"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NetworkResponse'
+                $ref: "#/components/schemas/NetworkResponse"
         "400":
           description: "Bad request - validation error"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
               examples:
                 invalid_cidr:
                   summary: Invalid CIDR format
@@ -284,13 +395,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
         "409":
           description: "Conflict - CIDR overlap or idempotency conflict"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
               examples:
                 cidr_overlap:
                   summary: CIDR overlap with existing network
@@ -306,6 +417,17 @@ paths:
                     message: "Idempotency key already used with different request body"
                     details:
                       key: "550e8400-e29b-41d4-a716-446655440000"
+        "429":
+          description: "Too Many Requests - Rate limit exceeded"
+          headers:
+            Retry-After:
+              description: Seconds to wait before retrying
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /v1/networks/{id}:
     get:
@@ -328,19 +450,670 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NetworkResponse'
+                $ref: "#/components/schemas/NetworkResponse"
         "404":
           description: "Network not found"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-        "501":
-          description: "Not implemented yet"
+                $ref: "#/components/schemas/Error"
+    patch:
+      summary: Update network
+      description: "Update mutable network fields (name, visibility, join_policy). RBAC: admin/owner (or global admin)."
+      tags: [Networks]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NetworkUpdateRequest"
+      responses:
+        "200":
+          {
+            description: "Updated",
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/NetworkResponse" } },
+              },
+          }
+        "400":
+          {
+            description: "Invalid request",
+            content:
+              {
+                application/json:
+                  {
+                    schema: { $ref: "#/components/schemas/Error" },
+                    examples:
+                      {
+                        invalid:
+                          {
+                            value:
+                              {
+                                code: "ERR_INVALID_REQUEST",
+                                message: "Invalid name length",
+                              },
+                          },
+                      },
+                  },
+              },
+          }
+        "401":
+          description: Not authenticated
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/components/schemas/Error"
+              examples:
+                unauth:
+                  value:
+                    code: ERR_NOT_AUTHORIZED
+                    message: Authorization header required
+        "403":
+          description: Not authorized (role)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                forbrbac:
+                  value:
+                    code: ERR_NOT_AUTHORIZED
+                    message: Administrator privileges required
+        "404":
+          {
+            description: "Not found",
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/Error" } },
+              },
+          }
+  /v1/networks/{id}/ip-allocations:
+    post:
+      summary: Allocate or retrieve IP for current user
+      description: "Returns existing allocation if one exists, otherwise allocates next available IP. Requires authentication; future versions will enforce approved membership."
+      tags: [Networks]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Allocation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      network_id: { type: string }
+                      user_id: { type: string }
+                      ip: { type: string, example: "10.0.0.5" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Not authorized (membership required or not approved)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                not_member:
+                  value:
+                    code: ERR_NOT_AUTHORIZED
+                    message: Membership required to allocate IP
+        "404":
+          description: Network not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: IP space exhausted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                exhausted:
+                  value:
+                    code: ERR_IP_EXHAUSTED
+                    message: No available IP addresses remaining
+    get:
+      summary: List IP allocations for the network
+      description: "List all current IP allocations. Requires approved membership in the network."
+      tags: [Networks]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Allocations listed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        network_id: { type: string }
+                        user_id: { type: string }
+                        ip: { type: string, example: "10.0.0.5" }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Not authorized (membership required or not approved)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Network not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /v1/networks/{id}/ip-allocation:
+    delete:
+      summary: Release current user's IP allocation
+      description: "Releases (frees) the caller's existing IP allocation if present. Idempotent: releasing a non-existent allocation returns 204. Requires approved membership."
+      tags: [Networks]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "204": { description: Released (or no allocation existed) }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Not authorized (membership required / not approved)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              examples:
+                not_member:
+                  value:
+                    code: ERR_NOT_AUTHORIZED
+                    message: Membership required
+        "404":
+          description: Network not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /v1/networks/{id}/ip-allocations/{user_id}:
+    delete:
+      summary: Admin release another member's IP allocation
+      description: "Admin or owner releases a target member's IP allocation. Idempotent: 204 even if target had no allocation. Both actor and target must be approved members; actor must have role admin or owner."
+      tags: [Networks]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "204": { description: Released (or no allocation existed) }
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Not authorized (admin/owner role or membership conditions failed)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+              examples:
+                not_admin:
+                  value:
+                    code: ERR_NOT_AUTHORIZED
+                    message: Admin or owner role required
+        "404":
+          description: Network not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  # Future: IP allocation endpoint (to be implemented)
+  # /v1/networks/{id}/ip-allocations:
+  #   post:
+  #     summary: Allocate or retrieve IP for current user in network
+  #     description: Returns existing allocation if present; otherwise allocates next available IP address.
+  #     responses:
+  #       '200':
+  #         description: Allocation
+  #         content:
+  #           application/json:
+  #             schema:
+  #               type: object
+  #               properties:
+  #                 network_id:
+  #                   type: string
+  #                 user_id:
+  #                   type: string
+  #                 ip:
+  #                   type: string
+  #       '404':
+  #         $ref: '#/components/responses/NotFound'
+  #       '409':
+  #         description: IP space exhausted
+  #         content:
+  #           application/json:
+  #             schema:
+  #               $ref: '#/components/schemas/Error'
+  #             examples:
+  #               exhausted:
+  #                 value:
+  #                   code: ERR_IP_EXHAUSTED
+  #                   message: No available IP addresses remaining
+
+  /v1/networks/{id}/join:
+    post:
+      summary: Join a network
+      description: "Join flow based on network join_policy"
+      tags: [Networks]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: "Joined as member"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Membership"
+        "202":
+          description: "Join request created (approval policy)"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/JoinRequest"
+        "404":
+          description: "Private network (hidden)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: "Too Many Requests - Rate limit exceeded"
+          headers:
+            Retry-After:
+              description: Seconds to wait before retrying
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/networks/{id}/approve:
+    post:
+      summary: Approve a pending join request
+      tags: [Networks]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id:
+                  type: string
+      responses:
+        "200":
+          description: "Approved membership"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Membership"
+        "400":
+          description: "Invalid request"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: "Unauthorized"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: "Forbidden - only admin/owner can approve"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: "Too Many Requests - Rate limit exceeded"
+          headers:
+            Retry-After:
+              description: Seconds to wait before retrying
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/networks/{id}/deny:
+    post:
+      summary: Deny a pending join request
+      tags: [Networks]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id:
+                  type: string
+      responses:
+        "200":
+          description: "Denied"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+        "400":
+          {
+            description: "Invalid request",
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/Error" } },
+              },
+          }
+        "401":
+          {
+            description: "Unauthorized",
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/Error" } },
+              },
+          }
+        "403":
+          {
+            description: "Forbidden - only admin/owner can deny",
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/Error" } },
+              },
+          }
+        "429":
+          description: "Too Many Requests - Rate limit exceeded"
+          headers:
+            Retry-After:
+              description: Seconds to wait before retrying
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/networks/{id}/kick:
+    post:
+      summary: Kick an approved member
+      tags: [Networks]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id:
+                  type: string
+      responses:
+        "200":
+          description: "Kicked"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+        "400":
+          {
+            description: "Invalid request",
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/Error" } },
+              },
+          }
+        "401":
+          {
+            description: "Unauthorized",
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/Error" } },
+              },
+          }
+        "403":
+          {
+            description: "Forbidden - only admin/owner can kick",
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/Error" } },
+              },
+          }
+        "429":
+          description: "Too Many Requests - Rate limit exceeded"
+          headers:
+            Retry-After:
+              description: Seconds to wait before retrying
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/networks/{id}/ban:
+    post:
+      summary: Ban a user from the network
+      tags: [Networks]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id]
+              properties:
+                user_id:
+                  type: string
+      responses:
+        "200":
+          description: "Banned"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+        "400":
+          {
+            description: "Invalid request",
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/Error" } },
+              },
+          }
+        "401":
+          {
+            description: "Unauthorized",
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/Error" } },
+              },
+          }
+        "403":
+          {
+            description: "Forbidden - only admin/owner can ban",
+            content:
+              {
+                application/json:
+                  { schema: { $ref: "#/components/schemas/Error" } },
+              },
+          }
+        "429":
+          description: "Too Many Requests - Rate limit exceeded"
+          headers:
+            Retry-After:
+              description: Seconds to wait before retrying
+              schema:
+                type: integer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /v1/networks/{id}/members:
+    get:
+      summary: List members
+      tags: [Networks]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, banned]
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: "Members listed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MembersListResponse"
 
 tags:
   - name: Networks

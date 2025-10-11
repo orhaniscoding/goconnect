@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 )
@@ -15,16 +16,18 @@ type NetworkRepository interface {
 	GetByID(ctx context.Context, id string) (*domain.Network, error)
 	List(ctx context.Context, filter NetworkFilter) ([]*domain.Network, string, error)
 	CheckCIDROverlap(ctx context.Context, cidr string, excludeID string) (bool, error)
+	Update(ctx context.Context, id string, mutate func(n *domain.Network) error) (*domain.Network, error)
+	SoftDelete(ctx context.Context, id string, at time.Time) error
 }
 
 // NetworkFilter represents filtering options for listing networks
 type NetworkFilter struct {
-	Visibility  string // public|mine|all
-	UserID      string // for "mine" filtering
-	IsAdmin     bool   // for "all" filtering
-	Search      string
-	Limit       int
-	Cursor      string
+	Visibility string // public|mine|all
+	UserID     string // for "mine" filtering
+	IsAdmin    bool   // for "all" filtering
+	Search     string
+	Limit      int
+	Cursor     string
 }
 
 // InMemoryNetworkRepository provides in-memory implementation for development
@@ -50,8 +53,8 @@ func (r *InMemoryNetworkRepository) Create(ctx context.Context, network *domain.
 	// Check if network with same name exists for tenant
 	for _, existing := range r.byTenant[network.TenantID] {
 		if existing.Name == network.Name && existing.SoftDeletedAt == nil {
-			return domain.NewError(domain.ErrInvalidRequest, 
-				fmt.Sprintf("Network with name '%s' already exists", network.Name), 
+			return domain.NewError(domain.ErrInvalidRequest,
+				fmt.Sprintf("Network with name '%s' already exists", network.Name),
 				map[string]string{"field": "name"})
 		}
 	}
@@ -166,4 +169,40 @@ func (r *InMemoryNetworkRepository) matchesVisibilityFilter(network *domain.Netw
 	default:
 		return network.Visibility == domain.NetworkVisibilityPublic
 	}
+}
+
+// Update mutates a network atomically applying validation (name uniqueness)
+func (r *InMemoryNetworkRepository) Update(ctx context.Context, id string, mutate func(n *domain.Network) error) (*domain.Network, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	n, ok := r.networks[id]
+	if !ok || n.SoftDeletedAt != nil {
+		return nil, domain.NewError(domain.ErrNotFound, "Network not found", nil)
+	}
+	originalName := n.Name
+	if err := mutate(n); err != nil {
+		return nil, err
+	}
+	if n.Name != originalName { // enforce uniqueness
+		for _, ex := range r.byTenant[n.TenantID] {
+			if ex != n && ex.SoftDeletedAt == nil && ex.Name == n.Name {
+				return nil, domain.NewError(domain.ErrInvalidRequest, fmt.Sprintf("Network with name '%s' already exists", n.Name), map[string]string{"field": "name"})
+			}
+		}
+	}
+	n.UpdatedAt = time.Now()
+	return n, nil
+}
+
+// SoftDelete marks a network as deleted (soft) so it is excluded from listings
+func (r *InMemoryNetworkRepository) SoftDelete(ctx context.Context, id string, at time.Time) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	n, ok := r.networks[id]
+	if !ok || n.SoftDeletedAt != nil {
+		return domain.NewError(domain.ErrNotFound, "Network not found", nil)
+	}
+	n.SoftDeletedAt = &at
+	n.UpdatedAt = at
+	return nil
 }

@@ -109,135 +109,138 @@ cd ..- maddeler halinde ne yapacağını yaz (branch adı önerisi dahil)
 * **hazır çalıştırılabilir** PowerShell komutları### TESTS
 
 - Koşturulacak kısa komutlar (PowerShell blokları)
+```prompt
+------
+mode: agent
+------
 
-```powershell```powershell
+# GoConnect — Commit→Push→PR→Post-merge Akış (Signed + Protected Branch Uyumlu)
 
-git add .go test ./server/... -run TestTrivial -count=1
+Bu şablon, Copilot Chat’te `@prompt commit-flow` diyerek başlatabileceğin uçtan uca akışı tanımlar. Komut örnekleri PowerShell/Windows uyumludur. Repo kanonik şartnamesi `docs/TECH_SPEC.md`’dir. Main protected; PR, signed commits ve required checks zorunludur.
 
-git commit -S -m "docs: update TECH_SPEC and add commit flow prompt"go test ./client-daemon/... -run TestTrivial -count=1
+Bu şablon, Copilot Chat’te `@prompt commit-flow` diyerek başlatabileceğin uçtan uca akışı tanımlar. Komut örnekleri PowerShell/Windows uyumludur. Repo kanonik şartnamesi `docs/TECH_SPEC.md`’dir. Main protected; PR, signed commits ve required checks zorunludur.
 
-# veya birden fazla mantıksal commit komutu ayrı ayrıcd web-ui
+## Hedefler
 
-```npm install
+1) Çalışma dizinindeki değişiklikleri incele ve uygun Conventional Commit kategorilerini öner.
+2) Değişiklikleri kullanıcı onayıyla stage et.
+3) Signed commit(ler) oluştur (`git commit -S`) — mesajlar Conventional Commits’e uygun.
+4) Hızlı smoke: minimal test/derleme doğrulaması.
+5) Yoksa uygun isimli yeni branch oluştur: `feat/*`, `fix/*`, `docs/*`, `chore/*`.
+6) Push ve PR linki üret.
+7) PR açıklamasına kısa özet + kabul kriterleri + CI notu ekle.
+8) Kullanıcı “Squash & Merge yaptım” dediğinde yerel/remote temizlik ve senkronizasyon adımlarını uygula.
 
+## Kurallar
+
+- Asla direkt `main`’e push önerme; protected branch üzerinden PR ile ilerle.
+- Commit’ler signed olmalı (`git commit -S`).
+- Conventional Commits tipleri: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`.
+- PR öncesi hızlı smoke mutlaka koşulmalı; CI’ı kırmamak esastır.
+
+## Çıktı Formatın (KATI)
+
+Copilot yanıtını aşağıdaki başlıklarla üret:
+
+### PLAN
+- Yapılacaklar maddeler halinde (branch adı önerisi dahil).
+
+### PATCHES
+- (Varsa) dosya/diff özetleri ve önerilen commit başlıkları.
+
+### TESTS
+- Koşturulacak kısa komutlar (PowerShell blokları):
+
+```powershell
+go test ./server/... -run TestTrivial -count=1
+go test ./client-daemon/... -run TestTrivial -count=1
+cd web-ui
+npm install
 npm run typecheck
-
-### BRANCH & PUSHnpm run build --no-lint
-
+npm run build --no-lint
 cd ..
-
-```powershell````
-
-git switch -c docs/commit-flow-setup  # yoksa oluştur
-
-git push -u origin docs/commit-flow-setup### COMMIT
-
 ```
 
-* **hazır çalıştırılabilir** PowerShell komutları
+### COMMIT
+- Hazır çalıştırılabilir PowerShell komutları:
+
+```powershell
+git add .
+git commit -S -m "<type>(<scope>): <summary>"
+# Gerekirse mantıksal değişiklikler için birden fazla commit at
+```
+
+### BRANCH & PUSH
+
+```powershell
+git switch -c <recommended-branch-name>  # yoksa oluştur
+git push -u origin <recommended-branch-name>
+```
 
 ### PR
+- Oluşan PR URL’sini yaz.
+- PR açıklaması: kısa özet + kabul kriterleri + CI notu.
 
-```powershell
-
-* Oluşan PR URL'sini yazgit add .
-
-* PR açıklama metni: kısa özet + kabul kriteri + CI notugit commit -S -m "docs: update TECH_SPEC and add commit flow prompt"
-
-# veya birden fazla mantıksal commit komutu ayrı ayrı
-
-### POST-MERGE (KULLANICI "Squash & Merge yaptım" dediğinde)```
-
-
-
-* **hazır çalıştırılabilir** PowerShell komutları### BRANCH & PUSH
-
-
-
-```powershell```powershell
-
-git checkout maingit switch -c docs/commit-flow-setup  # yoksa oluştur
-
-git pullgit push -u origin docs/commit-flow-setup
-
-git branch -d docs/commit-flow-setup```
-
-git push origin --delete docs/commit-flow-setup
-
-```### PR
-
-
-
-### NOTLAR / KENAR DURUMLAR* Oluşan PR URL’sini yaz
-
-* PR açıklama metni: kısa özet + kabul kriteri + CI notu
-
-* "Protected branch" hatası gelirse PR üzerinden ilerle; asla main'e direkt push önerme
-
-* Signed commit hatasında GPG/SSH-signing yönergesi ver### POST-MERGE (KULLANICI “Squash & Merge yaptım” dediğinde)
-
-* CRLF/LF uyarılarında `.gitattributes` öner (varsa dokunma)
-* **hazır çalıştırılabilir** PowerShell komutları
+### POST-MERGE (Kullanıcı “Squash & Merge yaptım” dediğinde)
 
 ```powershell
 git checkout main
 git pull
-git branch -d docs/commit-flow-setup
-git push origin --delete docs/commit-flow-setup
-```
-
-### NOTLAR / KENAR DURUMLAR
-
-* “Protected branch” hatası gelirse PR üzerinden ilerle; asla main’e direkt push önerme
-* Signed commit hatasında GPG/SSH-signing yönergesi ver
-* CRLF/LF uyarılarında `.gitattributes` öner (varsa dokunma)
-
-````
-
-**Eklemek için (aynı branch’te):**
-```powershell
-mkdir -Force .github\prompts
-notepad ".github\prompts\commit-flow.prompt.md"  # yukarıdaki metni yapıştır/kaydet
-git add .github\prompts\commit-flow.prompt.md
-git commit -S -m "docs: add Copilot commit-flow prompt (signed commit + PR + post-merge)"
-git push
-````
-
-> Artık Copilot Chat’te **`@prompt commit-flow`** diyerek bu akışı çalıştırabilirsin.
-
----
-
-## 2) “Squash & Merge yaptım” sonrası **tek komut seti**
-
-PR’ı squash & merge ettikten sonra, **her seferinde** şu komutları çalıştır:
-
-```powershell
-# main’i güncelle
-git checkout main
-git pull
-
-# feature branch’i yerelde sil (adı örnek)
-git branch -d docs/commit-flow-setup
-
-# remote branch’i sil
-git push origin --delete docs/commit-flow-setup
-
-# (opsiyonel) temizlik
+git branch -d <recommended-branch-name>
+git push origin --delete <recommended-branch-name>
+# (opsiyonel)
 git gc --prune=now
 ```
 
-> Copilot’a “Squash & Merge yaptım” dediğinde, bu blokları **kendisi** de önerecek (prompt böyle tarif ediyoruz).
+### Notlar / Kenar Durumlar
+
+- “Protected branch” hatası: PR üzerinden ilerle; main’e direkt push yok.
+- Signed commit hatası: GPG/SSH signing yönergesi ver.
+- CRLF/LF uyarıları: `.gitattributes` öner (varsa dokunma).
+
+---
+
+## 1) Hızlı Smoke Ayrıntıları
+
+Çekirdek doğrulamalar (hızlı):
+
+```powershell
+go test ./server/... -run TestTrivial -count=1
+go test ./client-daemon/... -run TestTrivial -count=1
+cd web-ui
+npm run typecheck
+npm run build --no-lint
+cd ..
+```
+
+Gerekiyorsa `docs/API_EXAMPLES.http` ile 1–2 happy path istek.
+
+---
+
+## 2) “Squash & Merge yaptım” sonrası tek komut seti
+
+PR’ı squash & merge ettikten sonra, her seferinde şu komutları çalıştır:
+
+```powershell
+git checkout main
+git pull
+git branch -d <recommended-branch-name>
+git push origin --delete <recommended-branch-name>
+git gc --prune=now
+```
+
+> Copilot’a “Squash & Merge yaptım” dediğinde, bu blokları kendisi de önerecek.
 
 ---
 
 ## 3) İsteğe bağlı: commit lint (otomatik kontrol)
 
-İleride “commit mesajı hatalı” PR’larını engellemek istersen:
+İleride commit mesajlarını otomatik doğrulamak için:
 
-* `commitlint` + `husky` kurup `commit-msg` hook’u ekleyebiliriz.
-* GitHub Actions’ta `commitlint` adımı koşup uygunsuz mesajları kırmızı yapabiliriz.
+- `commitlint` + `husky` ile `commit-msg` hook’u eklenebilir.
+- GitHub Actions’ta `commitlint` adımı çalıştırılabilir.
 
-> İstersen bu kurulum için de hazır patch dosyası gönderirim.
+> İstenirse hazır patch ve CI iş akışı eklenebilir.
 
----
+`````
 

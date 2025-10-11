@@ -1,0 +1,242 @@
+# Audit System Notes
+- `ListRecent` & `Count` helpers for tests / diagnostics (not public API yet).
+- Monotonic `seq` + high-resolution `ts` prepare for hash chain (`chain_hash = H(prev_chain_hash || canonical_event)`).
+- CGO-free portability; future pragmas (WAL, busy_timeout) configurable.
+
+Planned Enhancements:
+- Config toggles for WAL & performance pragmas.
+- Streaming iterator / pagination API.
+- Integrity chain storage (anchor snapshots) + verification tool.
+- Optional durability escalation: fail-fast for designated critical actions.
+
+## Hash Chain (Planned Design Snapshot)
+- Each persisted event will compute `chain_hash = H(prev_chain_hash || canonical_event_json)`.
+- Head hash stored in a metadata table; periodic snapshot rows for O(log n) verification.
+- Verification tool walks chain and reports first divergence.
+
+---
+Revision: v2 – Consolidated after hashing & pre-persistence merge
+Date: 2025-09-30 (amended: +retention +multi-sink)
+
+# Audit System Notes
+
+## Overview
+Current audit subsystem provides a lightweight, pluggable auditing layer: an in-memory append-only store (used in tests), a stdout JSON auditor (dev diagnostics), and a SQLite-backed auditor (persistence prototype). It captures security-relevant and lifecycle events across network, membership, and IPAM operations while intentionally redacting or hashing direct identifiers to avoid PII leakage.
+
+## Goals
+- Provide tamper-evident, append-only event trail (future: hash chain / signature)
+- Avoid logging raw user or network identifiers directly (privacy & compliance)
+- Support correlation via request_id and structured details
+- Remain low overhead for hot paths
+
+## Components
+| Component                   | Purpose                                                                   |
+| --------------------------- | ------------------------------------------------------------------------- |
+| `Auditor` interface         | Pluggable sink abstraction (`Event(ctx, action, actor, object, details)`) |
+| `stdoutAuditor`             | Dev-oriented JSON emitter (redacts or hashes actor/object)                |
+| `InMemoryStore`             | Thread-safe slice-based store for tests (redacted or hashed fields)       |
+| `SqliteAuditor` (prototype) | Durable persistence (optional hashing)                                    |
+| Service `SetAuditor` hooks  | Allow injection without changing constructors                             |
+
+## Event Schema
+```
+EventRecord {
+  ts: RFC3339Nano UTC timestamp,
+  action: string,
+  actor: "[redacted]" | hashed_id,
+  object: "[redacted]" | hashed_id,
+  details: map[string]any (action-specific non-PII),
+  request_id: optional request correlation id
+}
+
+// Hashing: When auditor/store constructed with a hashing secret (in-memory, stdout, sqlite),
+// actor/object become deterministic HMAC-SHA256(secret, raw_id) truncated to first 18 bytes
+// (144 bits) and Base64 URL encoded (≈24 chars). Otherwise literal "[redacted]".
+```
+
+## Current Actions (Non-Exhaustive)
+- NETWORK_CREATED / NETWORK_UPDATED / NETWORK_DELETED
+- NETWORK_JOIN_REQUEST / NETWORK_JOIN_APPROVE / NETWORK_JOIN_DENY
+- NETWORK_MEMBER_KICK / NETWORK_MEMBER_BAN / NETWORK_MEMBER_UNBAN
+- IP_ALLOCATED / IP_RELEASED
+
+### Detail Conventions
+- Names and raw IDs are NOT stored. Minimal operational metadata only (e.g., `{ "ip": "10.1.0.5" }`).
+- Admin-triggered IP release includes `released_for` specifying (currently raw) target user id — temporary; will migrate to hashed token.
+
+## Redaction, Hashing & Export Roadmap
+1. (DONE) Deterministic actor/object hashing (HMAC-SHA256, first 144 bits base64url) unified helper.
+2. (PARTIAL DONE) In-memory retention via ring buffer (`WithCapacity(n)`) + (DONE) SQLite row-cap pruning (`WithMaxRows`) with labeled eviction metrics.
+3. (DONE) Multi-sink fan-out (`MultiAuditor`) – foundation for exporter layer.
+4. (PARTIAL DONE) Metrics: HTTP req counters/histograms + audit event counter + eviction & labeled failure counters + insert latency histogram + async queue metrics (depth, drops, dispatch latency) + (NEW) chain metrics (head advance, verification duration, failures).
+5. (DONE) Tamper-evidence (phase 1): per-row `chain_hash = H(prev_chain_hash || canonical_event_json)` persisted inline.
+6. (DONE) Tamper-evidence (phase 2): periodic anchor snapshots every N events (configurable) stored in `audit_chain_anchors(seq, ts, chain_hash)` enabling partial verification windows (O(k) after anchor vs full O(n)). New metric: `goconnect_audit_chain_anchor_created_total`.
+6. Backpressure & async buffering (bounded queue + worker) + reliability (retry with jitter / dead-letter).
+7. HMAC key rotation (dual-key window + forward-only correlation; old hashes non-reversible).
+
+## Integrity & Ordering
+- In-memory slice preserves insertion order; concurrency test ensures guarantees.
+- SQLite uses monotonic `seq` (AUTOINCREMENT) + timestamp for deterministic ordering.
+- Future hash chain will reference `seq` (or previous chain hash) to ensure tamper evidence.
+
+## Performance Considerations
+- In-memory: single mutex per append; acceptable at current scale (< few µs target per event).
+- SQLite prototype: synchronous insert; future optimizations (WAL, batching, async) after exporter layer.
+- Planned optimization: lock-free ring buffer or sharded mutex if event volume grows.
+
+## Testing
+- Concurrency test validates exact event count under parallel writes.
+- Handler & service tests assert event presence for critical flows.
+- (Planned) Cross-implementation hashing consistency test (same secret & raw id ⇒ identical 24-char token across all auditors).
+
+## Future API Extensions
+| Feature                               | Rationale                                       |
+| ------------------------------------- | ----------------------------------------------- |
+| Query API (time range, action filter) | Operational troubleshooting & compliance export |
+| Export format (NDJSON streaming)      | Integrate with SIEM / log pipeline              |
+| Action constants package              | Prevent typos & enable IDE completion           |
+| Multi-sink fan-out with retries       | Reliability under sink outage                   |
+| Privacy classification tags           | Data governance & selective retention           |
+| Pagination / streaming iterator       | Efficient large export                          |
+
+## Security Considerations
+- No PII at rest: ensure `details` excludes user-supplied raw strings unless classified safe.
+- Side-channel: IP values may reveal topology; consider masking last octet if policy evolves.
+- Hash truncation (144 bits) collision risk negligible for projected volumes (<10^9 events) but monitored.
+- Key rotation must maintain forward secrecy (old events not rehashable to raw IDs).
+
+## Open Questions
+- Per-tenant logical segregation or encryption-at-rest? (Backlog for multi-tenant maturity.)
+- Should audit failures ever fail parent operation? (Current: best-effort; future: policy tier for critical actions.)
+- Sampling for high-volume benign events? (Optional toggle.)
+- Dedicated integrity verification command / endpoint?
+
+## Immediate Next Steps (Updated)
+1. (DONE) SQLite time-based pruning variant (age cutoff) & dual-mode retention policy (row AND/OR age). Age pruning occurs post-insert; prunes events older than configurable duration, emits eviction metrics, removes orphan anchors. Verification treats the first retained event as a new baseline (empty previous hash) while still detecting tampering in the retained window.
+2. Async buffering enhancements: backpressure policy (adaptive drop / priority), worker restart counter, enqueue failure reasons.
+  - (PARTIAL DONE) Added metrics: `audit_worker_restarts_total`, `audit_queue_high_watermark`, `audit_events_dropped_reason_total{reason}`; panic recovery with automatic worker restart; high watermark tracking; labeled drop reasons (full, shutdown). Remaining: adaptive priority and retry strategy.
+3. (DONE) Integrity export endpoint `/v1/audit/integrity` returns JSON and is publicly accessible (temporary; will gain RBAC protection). Response shape:
+   ```json
+   {
+     "head": { "seq": <int>, "hash": "<hex>", "ts": "<rfc3339>" },
+     "anchors": [ { "seq": <int>, "hash": "<hex>", "ts": "<rfc3339>" } ],
+     "latest_seq": <int>,
+     "earliest_seq": <int>,
+     "generated_at": "<rfc3339>"
+   }
+   ```
+  Usage: A remote verifier fetches snapshot, selects the last anchor, recomputes chain locally for events since that anchor (if available via separate export pathway), and compares the published head hash. Future enhancements: signed snapshot, pagination for historical anchors, delta verification token.
+4. Exporter integration & remote verification endpoint (serve current head + last anchor) + integrity alerting hook.
+5. Key rotation framework (dual active secrets + migration tests).
+
+## Key Rotation (Implemented Framework)
+Status: INITIAL SUPPORT ADDED (dual-secret hashing helpers). Pending: operational wiring for dynamic reload.
+
+Rationale: Allow periodic rotation of the HMAC secret used to pseudonymize actor/object without re-hashing historical events or breaking correlation across a rotation boundary.
+
+Mechanism:
+- New multi-secret constructors/options introduced:
+  - `NewStdoutAuditorWithHashSecrets(new, old, ...)`
+  - `WithHashSecrets(new, old, ...)` for `InMemoryStore`
+  - `WithSqliteHashSecrets(new, old, ...)` for `SqliteAuditor`
+- First secret in the slice = ACTIVE (used for all new hash computations).
+- Additional secrets retained only for future verification / potential backward matching (current implementation stores only the active hasher — historical rows are already materialized, so no runtime lookup needed for reads).
+
+Rotation Procedure (Two-Step Deploy):
+1. Deploy N+1 with secrets `[S_new, S_old]`. All new events use `S_new`; historical events remain hashed with `S_old` in stored rows (no change to their values). Correlation across the rotation boundary requires separate mapping logic (future feature) if necessary.
+2. After sufficient dwell time (ensure no in-flight components still using `S_old`), deploy N+2 with secrets `[S_new]` only. Optionally archive `S_old` securely for a defined retention period to permit offline verification if ever required (policy-dependent).
+
+Properties:
+- Backward compatibility preserved: legacy single-secret options (`WithHashing`, `WithSqliteHashing`, `NewStdoutAuditorWithHashing`) still function.
+- No schema changes required (hash output format unchanged: 24-char base64url of 144-bit truncated HMAC digest).
+- Collision characteristics unaffected by rotation.
+
+Testing Added:
+- `rotation_test.go` validates that an event emitted under `S_old` retains its hash value after reopening auditor with `[S_new, S_old]` and that new events differ under `S_new`.
+
+Future Enhancements:
+- Maintain an in-process list of secrets for potential reverse lookups or cross-secret correlation if a future query API needs to accept raw identifiers pre/post rotation.
+- Audit secret rotation events themselves (meta-action) for traceability.
+- Pluggable secret source (KMS / env versioning) + hot-reload signal.
+
+## Integrity Export Signing (Ed25519)
+Status: INITIAL IMPLEMENTATION
+
+Purpose: Provide cryptographic authenticity for integrity snapshots fetched by remote verifiers.
+
+Mechanics:
+- New option `WithIntegritySigningKey(ed25519.PrivateKey)` attaches a signing key to `SqliteAuditor`.
+- On `ExportIntegrity`, if a valid 64-byte Ed25519 private key is configured, the auditor:
+  1. Builds the `IntegrityExport` struct (without signature).
+  2. Marshals JSON.
+  3. Signs the bytes with Ed25519.
+  4. Encodes signature Base64URL (no padding) into `signature` field.
+- OpenAPI now exposes an optional `signature` field on `/v1/audit/integrity` response.
+
+Verification Algorithm (External):
+1. Fetch JSON export.
+2. Extract and Base64URL-decode `signature` field; set field to empty string (or remove) in a copy.
+3. Marshal the modified JSON deterministically (default Go encoding matches production) – ordering stable because struct field order deterministic.
+4. Verify `ed25519.Verify(pubKey, payload, signature)`.
+
+Security & Rotation:
+- Private key scope: signing only; not reused for hashing or other crypto to limit blast radius.
+- Rotation Strategy: publish new public key via config / JWKS endpoint (future) and deploy server with new private key. Dual-publish overlapping window until all verifiers trust the new key; old key revoked after TTL.
+- Future: Add key identifier `kid` to response for multi-key sets.
+
+Metrics:
+- `audit_integrity_signed_total` increments on successful signing.
+- Signing failures increment `audit_failures_total{reason="integrity_sign"}`.
+
+Future Enhancements:
+- Detached signature support (separate `.sig` endpoint) for caching proxies.
+- Include `kid` and algorithm metadata.
+- Canonical JSON normalization phase if struct expansion introduces ordering risk.
+
+### Signing Key Identifier (kid)
+Status: ADDED
+
+- Added optional `kid` field to integrity export; included inside signed payload to prevent substitution attacks.
+- Server options:
+  - `WithIntegritySigningKey(priv)` (no kid)
+  - `WithIntegritySigningKeyID(kid, priv)` (kid + signing)
+- Rotation using `kid`:
+  1. Introduce new key with new kid while retaining old key (future multi-key publish not yet implemented — currently single active key per process).
+  2. Verifiers accept exports with either old or new kid until cutover time.
+  3. Remove old key, bump configuration redeploy, verifiers drop trust for old kid.
+- Future enhancement: multi-key registry + JWKS-style endpoint to allow parallel verification without redeploy race.
+
+
+## Persistence (SQLite Prototype)
+Implemented `SqliteAuditor` (`internal/audit/sqlite.go`) using pure Go driver (`modernc.org/sqlite`). Schema:
+```
+CREATE TABLE IF NOT EXISTS audit_events (
+  seq INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts TEXT NOT NULL,
+  action TEXT NOT NULL,
+  actor TEXT NOT NULL,
+  object TEXT NOT NULL,
+  details TEXT,
+  request_id TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_audit_events_action_ts ON audit_events(action, ts);
+```
+
+Characteristics:
+- Fire-and-forget insert inside `Event` (errors currently ignored; future: metric + optional escalation policy).
+- Optional hashing mirrors in-memory/stdout truncation (Base64 URL, first 18 bytes of HMAC digest / 144 bits).
+- `ListRecent` & `Count` helpers for tests / diagnostics (not public API yet).
+- Monotonic `seq` + high-resolution `ts` prepare for hash chain.
+- CGO-free portability; future pragmas (WAL, busy_timeout) configurable.
+
+Planned Enhancements:
+- Config toggles for WAL & performance pragmas.
+- Streaming iterator / pagination API.
+- Integrity chain storage (anchor snapshots) + verification tool.
+- Optional durability escalation: fail-fast for designated critical actions.
+
+## Hash Chain (Planned Design Snapshot)
+- Each persisted event will compute `chain_hash = H(prev_chain_hash || canonical_event_json)`.
+- Head hash stored in a metadata table; periodic snapshot rows for O(log n) verification.
+- Verification tool walks chain and reports first divergence.
+- Handler & service tests assert event presence for critical flows.
