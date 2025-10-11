@@ -15,3 +15,8 @@ export function useI18n() {
     if (!v) throw new Error('I18nProvider missing in tree')
     return v
 }
+
+export function useT() {
+    const { dict } = useI18n()
+    return (key: string, fallback?: string) => dict[key] ?? fallback ?? key
+}
