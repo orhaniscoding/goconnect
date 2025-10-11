@@ -1,4 +1,4 @@
-// Root layout — tüm sayfaların ebeveyni
+// App Router root layout
 export const metadata = {
   title: 'GoConnect',
   description: 'Secure virtual network & chat — orhaniscoding',
@@ -6,8 +6,8 @@ export const metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="tr">
+    <html>
       <body>{children}</body>
     </html>
-  );
+  )
 }
