@@ -27,9 +27,23 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    allow:
+      - dependency-type: "direct"
+    ignore:
+      - dependency-name: "react"
+        versions: [">=19"]
+      - dependency-name: "@types/react"
+        versions: [">=19"]
     groups:
       npm-minor-patch:
         applies-to: version-updates
         update-types:
           - "minor"
           - "patch"
+      next-react-ecosystem:
+        patterns:
+          - "next"
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
