@@ -1,1 +1,6 @@
-import Footer from '../../../components/Footer';export default function Login(){return <div style={{padding:24}}><h1>Login</h1><Footer/></div>}
+import { redirect } from 'next/navigation'
+import { defaultLocale } from '../../../lib/i18n'
+
+export default function Login() {
+	redirect(`/${defaultLocale}/login`)
+}
