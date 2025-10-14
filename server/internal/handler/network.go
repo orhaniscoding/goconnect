@@ -199,7 +199,7 @@ func RegisterNetworkRoutes(r *gin.Engine, handler *NetworkHandler, authService T
 
 	// Network routes
 	networks := v1.Group("/networks")
-	networks.Use(AuthMiddleware(authService)) // All network operations require authentication
+	networks.Use(AuthMiddleware(authService))        // All network operations require authentication
 	networks.Use(RoleMiddleware(mrepo, authService)) // Resolve membership role after auth
 
 	networks.POST("", rl, handler.CreateNetwork)
