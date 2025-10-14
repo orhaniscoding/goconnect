@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
+	"github.com/orhaniscoding/goconnect/server/internal/repository"
 	"github.com/orhaniscoding/goconnect/server/internal/service"
 )
 
@@ -188,7 +189,7 @@ func (h *NetworkHandler) DeleteNetwork(c *gin.Context) {
 }
 
 // RegisterNetworkRoutes registers all network-related routes
-func RegisterNetworkRoutes(r *gin.Engine, handler *NetworkHandler, authService *service.AuthService) {
+func RegisterNetworkRoutes(r *gin.Engine, handler *NetworkHandler, authService TokenValidator, mrepo repository.MembershipRepository) {
 	v1 := r.Group("/v1")
 	v1.Use(RequestIDMiddleware())
 	v1.Use(CORSMiddleware())
@@ -199,8 +200,7 @@ func RegisterNetworkRoutes(r *gin.Engine, handler *NetworkHandler, authService *
 	// Network routes
 	networks := v1.Group("/networks")
 	networks.Use(AuthMiddleware(authService)) // All network operations require authentication
-	// NOTE: RoleMiddleware requires membership repository; currently not wired here due to package boundaries.
-	// Tests inject RoleMiddleware separately. Production wiring should add it in main with real repository.
+	networks.Use(RoleMiddleware(mrepo, authService)) // Resolve membership role after auth
 
 	networks.POST("", rl, handler.CreateNetwork)
 	networks.GET("", handler.ListNetworks)

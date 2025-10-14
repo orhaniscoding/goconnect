@@ -21,9 +21,10 @@ func setupNetworkRouterBasic() (*gin.Engine, repository.NetworkRepository) {
 	joinRepo := repository.NewInMemoryJoinRequestRepository()
 	networkService := service.NewNetworkService(networkRepo, idempotencyRepo)
 	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idempotencyRepo)
+	authSvc := newMockAuthServiceWithTokens()
 	h := NewNetworkHandler(networkService, membershipService)
 	r := gin.New()
-	RegisterNetworkRoutes(r, h)
+	RegisterNetworkRoutes(r, h, authSvc, membershipRepo)
 	return r, networkRepo
 }
 

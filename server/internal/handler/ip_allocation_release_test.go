@@ -26,8 +26,8 @@ func setupIPRelease() (*gin.Engine, repository.MembershipRepository, string) {
 	ips := service.NewIPAMService(nrepo, mrepo, iprepo)
 	h := NewNetworkHandler(ns, ms).WithIPAM(ips)
 	r := gin.New()
-	r.Use(RoleMiddleware(mrepo))
-	RegisterNetworkRoutes(r, h)
+	authSvc := newMockAuthServiceWithTokens()
+	RegisterNetworkRoutes(r, h, authSvc, mrepo)
 	net := &domain.Network{ID: "net-rel-1", TenantID: "t1", Name: "RelNet", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyOpen, CIDR: "10.90.0.0/30", CreatedBy: "user_dev", CreatedAt: time.Now(), UpdatedAt: time.Now()}
 	if err := nrepo.Create(context.Background(), net); err != nil {
 		panic(err)

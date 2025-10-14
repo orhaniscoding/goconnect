@@ -28,10 +28,10 @@ func TestAuditEvents_NetworkLifecycle(t *testing.T) {
 	store := audit.NewInMemoryStore()
 	ns.SetAuditor(store)
 	ms.SetAuditor(store)
+	authSvc := newMockAuthServiceWithTokens()
 	h := NewNetworkHandler(ns, ms)
 	r := gin.New()
-	r.Use(RoleMiddleware(mrepo))
-	RegisterNetworkRoutes(r, h)
+	RegisterNetworkRoutes(r, h, authSvc, mrepo)
 
 	// create network
 	createReq := domain.CreateNetworkRequest{Name: "AuditNet", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyOpen, CIDR: "10.50.0.0/24"}
@@ -107,10 +107,10 @@ func TestAuditEvents_MembershipFlow(t *testing.T) {
 	store := audit.NewInMemoryStore()
 	ns.SetAuditor(store)
 	ms.SetAuditor(store)
+	authSvc := newMockAuthServiceWithTokens()
 	h := NewNetworkHandler(ns, ms)
 	r := gin.New()
-	r.Use(RoleMiddleware(mrepo))
-	RegisterNetworkRoutes(r, h)
+	RegisterNetworkRoutes(r, h, authSvc, mrepo)
 
 	// create network (will emit created)
 	createReq := domain.CreateNetworkRequest{Name: "JoinNet", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyApproval, CIDR: "10.51.0.0/24"}

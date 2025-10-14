@@ -32,8 +32,8 @@ func TestIPAllocationReleaseAudit(t *testing.T) {
 	ips.SetAuditor(store)
 	h := NewNetworkHandler(ns, ms).WithIPAM(ips)
 	r := gin.New()
-	r.Use(RoleMiddleware(mrepo))
-	RegisterNetworkRoutes(r, h)
+	authSvc := newMockAuthServiceWithTokens()
+	RegisterNetworkRoutes(r, h, authSvc, mrepo)
 	netw := &domain.Network{ID: "audit-net-1", TenantID: "t1", Name: "AuditIP", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyOpen, CIDR: "10.70.0.0/30", CreatedBy: "user_dev", CreatedAt: time.Now(), UpdatedAt: time.Now()}
 	if err := nrepo.Create(context.Background(), netw); err != nil {
 		t.Fatalf("create network: %v", err)
@@ -92,8 +92,8 @@ func TestAdminReleaseAudit(t *testing.T) {
 	ips.SetAuditor(store)
 	h := NewNetworkHandler(ns, ms).WithIPAM(ips)
 	r := gin.New()
-	r.Use(RoleMiddleware(mrepo))
-	RegisterNetworkRoutes(r, h)
+	authSvc := newMockAuthServiceWithTokens()
+	RegisterNetworkRoutes(r, h, authSvc, mrepo)
 	netw := &domain.Network{ID: "audit-net-2", TenantID: "t1", Name: "AuditIP2", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyOpen, CIDR: "10.71.0.0/30", CreatedBy: "user_dev", CreatedAt: time.Now(), UpdatedAt: time.Now()}
 	if err := nrepo.Create(context.Background(), netw); err != nil {
 		t.Fatalf("create network: %v", err)

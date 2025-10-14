@@ -19,8 +19,8 @@ type UserRepository interface {
 // InMemoryUserRepository is an in-memory implementation of UserRepository
 type InMemoryUserRepository struct {
 	mu    sync.RWMutex
-	users map[string]*domain.User       // id -> user
-	email map[string]*domain.User       // email -> user
+	users map[string]*domain.User // id -> user
+	email map[string]*domain.User // email -> user
 }
 
 // NewInMemoryUserRepository creates a new in-memory user repository

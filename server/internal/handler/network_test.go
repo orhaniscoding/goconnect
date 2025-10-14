@@ -24,11 +24,12 @@ func setupTestRouter() (*gin.Engine, *NetworkHandler) {
 	joinRepo := repository.NewInMemoryJoinRequestRepository()
 	networkService := service.NewNetworkService(networkRepo, idempotencyRepo)
 	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idempotencyRepo)
+	authSvc := newMockAuthServiceWithTokens()
 	networkHandler := NewNetworkHandler(networkService, membershipService)
 
 	// Setup router
 	r := gin.New()
-	RegisterNetworkRoutes(r, networkHandler)
+	RegisterNetworkRoutes(r, networkHandler, authSvc, membershipRepo)
 
 	return r, networkHandler
 }

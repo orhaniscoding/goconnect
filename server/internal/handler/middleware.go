@@ -9,8 +9,12 @@ import (
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/rbac"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
-	"github.com/orhaniscoding/goconnect/server/internal/service"
 )
+
+// TokenValidator is an interface for validating authentication tokens
+type TokenValidator interface {
+	ValidateToken(ctx context.Context, token string) (*domain.TokenClaims, error)
+}
 
 // contextKey is a local type to avoid collisions for context values.
 type contextKey string
@@ -18,7 +22,7 @@ type contextKey string
 const requestIDKey contextKey = "request_id"
 
 // AuthMiddleware validates JWT tokens and extracts user information
-func AuthMiddleware(authService *service.AuthService) gin.HandlerFunc {
+func AuthMiddleware(authService TokenValidator) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -118,7 +122,7 @@ func CORSMiddleware() gin.HandlerFunc {
 
 // RoleMiddleware resolves the actor's membership role (if any) for a network route and injects into context.
 // It expects a membership repository (in-memory for now). For non-network paths it no-ops.
-func RoleMiddleware(mrepo repository.MembershipRepository, authService *service.AuthService) gin.HandlerFunc {
+func RoleMiddleware(mrepo repository.MembershipRepository, authService TokenValidator) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Only attempt if path contains /v1/networks/{id}
 		parts := strings.Split(c.Request.URL.Path, "/")
@@ -130,6 +134,14 @@ func RoleMiddleware(mrepo repository.MembershipRepository, authService *service.
 		networkID := parts[3]
 		userID, _ := c.Get("user_id")
 		uid, _ := userID.(string)
+
+		// Check if global admin flag is already set (from AuthMiddleware)
+		if isAdmin, exists := c.Get("is_admin"); exists && isAdmin.(bool) {
+			c.Set("membership_role", domain.RoleOwner)
+			c.Next()
+			return
+		}
+
 		// If auth middleware not yet executed (ordering), attempt lightweight token parse
 		if uid == "" {
 			authHeader := c.GetHeader("Authorization")
@@ -142,6 +154,7 @@ func RoleMiddleware(mrepo repository.MembershipRepository, authService *service.
 						if claims.IsAdmin {
 							c.Set("membership_role", domain.RoleOwner)
 							c.Set("user_id", uid)
+							c.Set("is_admin", true)
 							c.Next()
 							return
 						}

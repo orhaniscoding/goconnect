@@ -147,10 +147,8 @@ func main() {
 	// Register auth routes (no auth required)
 	handler.RegisterAuthRoutes(r, authHandler)
 
-	// Role middleware must run early to populate membership_role
-	r.Use(handler.RoleMiddleware(membershipRepo, authService))
-	// Register network routes (auth required)
-	handler.RegisterNetworkRoutes(r, networkHandler, authService)
+	// Register network routes (auth + role middleware applied within)
+	handler.RegisterNetworkRoutes(r, networkHandler, authService, membershipRepo)
 
 	// Metrics endpoint
 	r.GET("/metrics", metrics.Handler())
