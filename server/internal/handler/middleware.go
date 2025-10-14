@@ -9,6 +9,7 @@ import (
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/rbac"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
+	"github.com/orhaniscoding/goconnect/server/internal/service"
 )
 
 // contextKey is a local type to avoid collisions for context values.
@@ -17,7 +18,7 @@ type contextKey string
 const requestIDKey contextKey = "request_id"
 
 // AuthMiddleware validates JWT tokens and extracts user information
-func AuthMiddleware() gin.HandlerFunc {
+func AuthMiddleware(authService *service.AuthService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -36,9 +37,8 @@ func AuthMiddleware() gin.HandlerFunc {
 
 		token := parts[1]
 
-		// TODO: Implement proper JWT validation
-		// For now, use mock validation
-		userID, isAdmin, err := validateToken(token)
+		// Validate token using auth service
+		claims, err := authService.ValidateToken(c.Request.Context(), token)
 		if err != nil {
 			errorResponse(c, domain.NewError(domain.ErrUnauthorized, "Invalid or expired token", nil))
 			c.Abort()
@@ -46,8 +46,9 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		// Store user info in context
-		c.Set("user_id", userID)
-		c.Set("is_admin", isAdmin)
+		c.Set("user_id", claims.UserID)
+		c.Set("tenant_id", claims.TenantID)
+		c.Set("is_admin", claims.IsAdmin)
 		c.Next()
 	}
 }
@@ -117,7 +118,7 @@ func CORSMiddleware() gin.HandlerFunc {
 
 // RoleMiddleware resolves the actor's membership role (if any) for a network route and injects into context.
 // It expects a membership repository (in-memory for now). For non-network paths it no-ops.
-func RoleMiddleware(mrepo repository.MembershipRepository) gin.HandlerFunc {
+func RoleMiddleware(mrepo repository.MembershipRepository, authService *service.AuthService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Only attempt if path contains /v1/networks/{id}
 		parts := strings.Split(c.Request.URL.Path, "/")
@@ -135,10 +136,10 @@ func RoleMiddleware(mrepo repository.MembershipRepository) gin.HandlerFunc {
 			if authHeader != "" {
 				seg := strings.SplitN(authHeader, " ", 2)
 				if len(seg) == 2 && seg[0] == "Bearer" {
-					if tid, isAdm, err := validateToken(seg[1]); err == nil {
-						uid = tid
+					if claims, err := authService.ValidateToken(c.Request.Context(), seg[1]); err == nil {
+						uid = claims.UserID
 						// If global admin, short-circuit by granting elevated role without membership lookup
-						if isAdm {
+						if claims.IsAdmin {
 							c.Set("membership_role", domain.RoleOwner)
 							c.Set("user_id", uid)
 							c.Next()
@@ -180,23 +181,6 @@ func RequireNetworkAdmin() gin.HandlerFunc {
 			return
 		}
 		c.Next()
-	}
-}
-
-// validateToken validates JWT token and returns user info
-// SECURITY WARNING: Development stub only. Performs NO signature, expiry, audience,
-// issuer or scope validation. Maps static tokens ("dev", "admin"). MUST be replaced
-// with real JWT/OIDC verification before any production deployment.
-// TODO: Replace with proper JWT validation
-func validateToken(token string) (userID string, isAdmin bool, err error) {
-	// Mock implementation for development
-	switch token {
-	case "dev":
-		return "user_dev", false, nil
-	case "admin":
-		return "admin_dev", true, nil
-	default:
-		return "", false, domain.NewError(domain.ErrUnauthorized, "Invalid token", nil)
 	}
 }
 

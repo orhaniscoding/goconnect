@@ -188,7 +188,7 @@ func (h *NetworkHandler) DeleteNetwork(c *gin.Context) {
 }
 
 // RegisterNetworkRoutes registers all network-related routes
-func RegisterNetworkRoutes(r *gin.Engine, handler *NetworkHandler) {
+func RegisterNetworkRoutes(r *gin.Engine, handler *NetworkHandler, authService *service.AuthService) {
 	v1 := r.Group("/v1")
 	v1.Use(RequestIDMiddleware())
 	v1.Use(CORSMiddleware())
@@ -198,7 +198,7 @@ func RegisterNetworkRoutes(r *gin.Engine, handler *NetworkHandler) {
 
 	// Network routes
 	networks := v1.Group("/networks")
-	networks.Use(AuthMiddleware()) // All network operations require authentication
+	networks.Use(AuthMiddleware(authService)) // All network operations require authentication
 	// NOTE: RoleMiddleware requires membership repository; currently not wired here due to package boundaries.
 	// Tests inject RoleMiddleware separately. Production wiring should add it in main with real repository.
 
