@@ -19,7 +19,10 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: ./server/go.mod
+          go-version: '~1.23'
+          cache-dependency-path: |
+            server/go.sum
+            client-daemon/go.sum
       - name: Go work sync (tolerant)
         run: go work sync || true
       - name: Go test server (race, cover)
