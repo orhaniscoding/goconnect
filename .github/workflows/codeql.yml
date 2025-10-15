@@ -43,7 +43,7 @@ jobs:
       - name: Prepare build (Go)
         if: matrix.language == 'go'
         env:
-          GOTOOLCHAIN: go1.22.9
+          GOTOOLCHAIN: go1.23.2
         run: |
           go work sync || true
           (cd server && go build ./...)

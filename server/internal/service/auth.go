@@ -98,7 +98,16 @@ func (s *AuthService) VerifyPassword(password, encodedHash string) (bool, error)
 		return false, err
 	}
 
+	// Validate parameters to prevent overflow
+	if parallelism > 255 {
+		return false, fmt.Errorf("parallelism too large")
+	}
+	if len(hash) > 0xFFFFFFFF {
+		return false, fmt.Errorf("hash length too large")
+	}
+
 	// Hash the input password with the same parameters
+	// #nosec G115 - parallelism and hash length are validated above
 	computedHash := argon2.IDKey([]byte(password), salt, iterations, memory, uint8(parallelism), uint32(len(hash)))
 
 	// Constant-time comparison
