@@ -1,6 +1,6 @@
 module github.com/orhaniscoding/goconnect/server
 
-go 1.24.0
+go 1.22
 
 require (
 	github.com/gin-gonic/gin v1.11.0
