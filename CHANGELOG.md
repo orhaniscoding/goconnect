@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/orhaniscoding/goconnect/compare/v1.1.0...v1.2.0) (2025-10-24)
+
+
+### Features
+
+* **server:** implement authentication system phase 1 ([#71](https://github.com/orhaniscoding/goconnect/issues/71)) ([ef9e5d8](https://github.com/orhaniscoding/goconnect/commit/ef9e5d8c9f097a4502f266b44dab7f4533f5d902))
+
 ## [1.1.0](https://github.com/orhaniscoding/goconnect/compare/v1.0.0...v1.1.0) (2025-10-10)
 
 
