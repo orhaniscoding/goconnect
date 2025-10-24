@@ -26,7 +26,8 @@ components:
   schemas:
     User:
       type: object
-      required: [id, tenant_id, email, locale, two_fa_enabled, created_at, updated_at]
+      required:
+        [id, tenant_id, email, locale, two_fa_enabled, created_at, updated_at]
       properties:
         id: { type: string }
         tenant_id: { type: string }
@@ -42,10 +43,11 @@ components:
       properties:
         access_token: { type: string }
         refresh_token: { type: string }
-        expires_in: { type: integer, description: Seconds until access token expiry }
+        expires_in:
+          { type: integer, description: Seconds until access token expiry }
         token_type: { type: string, enum: [Bearer] }
         user:
-          $ref: '#/components/schemas/User'
+          $ref: "#/components/schemas/User"
 
     RegisterRequest:
       type: object
@@ -289,9 +291,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RegisterRequest'
+              $ref: "#/components/schemas/RegisterRequest"
       responses:
-        '201':
+        "201":
           description: User created
           content:
             application/json:
@@ -299,17 +301,17 @@ paths:
                 type: object
                 properties:
                   data:
-                    $ref: '#/components/schemas/User'
-        '400':
+                    $ref: "#/components/schemas/User"
+        "400":
           description: Bad request (validation or weak password)
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Error' }
-        '409':
+              schema: { $ref: "#/components/schemas/Error" }
+        "409":
           description: Email already exists
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Error' }
+              schema: { $ref: "#/components/schemas/Error" }
 
   /v1/auth/login:
     post:
@@ -320,9 +322,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LoginRequest'
+              $ref: "#/components/schemas/LoginRequest"
       responses:
-        '200':
+        "200":
           description: Authenticated
           content:
             application/json:
@@ -330,12 +332,12 @@ paths:
                 type: object
                 properties:
                   data:
-                    $ref: '#/components/schemas/AuthResponse'
-        '401':
+                    $ref: "#/components/schemas/AuthResponse"
+        "401":
           description: Invalid credentials
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Error' }
+              schema: { $ref: "#/components/schemas/Error" }
 
   /v1/auth/refresh:
     post:
@@ -346,9 +348,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RefreshRequest'
+              $ref: "#/components/schemas/RefreshRequest"
       responses:
-        '200':
+        "200":
           description: New tokens issued
           content:
             application/json:
@@ -356,12 +358,12 @@ paths:
                 type: object
                 properties:
                   data:
-                    $ref: '#/components/schemas/AuthResponse'
-        '401':
+                    $ref: "#/components/schemas/AuthResponse"
+        "401":
           description: Invalid or expired refresh token
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Error' }
+              schema: { $ref: "#/components/schemas/Error" }
 
   /v1/auth/logout:
     post:
@@ -372,9 +374,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RefreshRequest'
+              $ref: "#/components/schemas/RefreshRequest"
       responses:
-        '200':
+        "200":
           description: Logged out
           content:
             application/json:
@@ -382,11 +384,11 @@ paths:
                 type: object
                 properties:
                   ok: { type: boolean }
-        '401':
+        "401":
           description: Invalid or expired token
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Error' }
+              schema: { $ref: "#/components/schemas/Error" }
   /v1/audit/integrity:
     get:
       summary: Export audit integrity snapshot
