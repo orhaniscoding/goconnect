@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -84,6 +85,13 @@ func (r *InMemoryNetworkRepository) List(ctx context.Context, filter NetworkFilt
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
+	// Collect all network IDs and sort for deterministic iteration
+	var ids []string
+	for id := range r.networks {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+
 	var result []*domain.Network
 	var startFound bool
 
@@ -92,7 +100,9 @@ func (r *InMemoryNetworkRepository) List(ctx context.Context, filter NetworkFilt
 		startFound = true
 	}
 
-	for _, network := range r.networks {
+	for _, id := range ids {
+		network := r.networks[id]
+
 		// Skip soft-deleted networks
 		if network.SoftDeletedAt != nil {
 			continue

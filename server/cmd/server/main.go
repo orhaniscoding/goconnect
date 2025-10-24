@@ -43,11 +43,14 @@ func main() {
 	membershipRepo := repository.NewInMemoryMembershipRepository()
 	joinRepo := repository.NewInMemoryJoinRequestRepository()
 	ipamRepo := repository.NewInMemoryIPAM()
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
 
 	// Initialize services
 	networkService := service.NewNetworkService(networkRepo, idempotencyRepo)
 	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idempotencyRepo)
 	ipamService := service.NewIPAMService(networkRepo, membershipRepo, ipamRepo)
+	authService := service.NewAuthService(userRepo, tenantRepo)
 	metrics.Register()
 	// Auditor selection: default stdout, optionally SQLite-backed if configured via env.
 	baseAud := audit.NewStdoutAuditor()
@@ -129,6 +132,7 @@ func main() {
 
 	// Initialize handlers
 	networkHandler := handler.NewNetworkHandler(networkService, membershipService).WithIPAM(ipamService)
+	authHandler := handler.NewAuthHandler(authService)
 
 	// Setup router
 	r := gin.New()
@@ -140,14 +144,11 @@ func main() {
 		c.JSON(200, gin.H{"ok": true, "service": "goconnect-server"})
 	})
 
-	r.POST("/v1/auth/login", func(c *gin.Context) {
-		c.JSON(200, gin.H{"data": gin.H{"access_token": "dev", "refresh_token": "dev"}})
-	})
+	// Register auth routes (no auth required)
+	handler.RegisterAuthRoutes(r, authHandler)
 
-	// Role middleware must run early to populate membership_role
-	r.Use(handler.RoleMiddleware(membershipRepo))
-	// Register network routes
-	handler.RegisterNetworkRoutes(r, networkHandler)
+	// Register network routes (auth + role middleware applied within)
+	handler.RegisterNetworkRoutes(r, networkHandler, authService, membershipRepo)
 
 	// Metrics endpoint
 	r.GET("/metrics", metrics.Handler())

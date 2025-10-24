@@ -27,9 +27,9 @@ func setupRBAC() (*gin.Engine, repository.NetworkRepository, repository.Membersh
 
 	h := NewNetworkHandler(ns, ms)
 	r := gin.New()
-	// register role middleware first so membership role available to subsequent handlers
-	r.Use(RoleMiddleware(mrepo))
-	RegisterNetworkRoutes(r, h)
+	authSvc := newMockAuthServiceWithTokens()
+	// RegisterNetworkRoutes now applies both Auth and Role middlewares
+	RegisterNetworkRoutes(r, h, authSvc, mrepo)
 	return r, nrepo, mrepo
 }
 

@@ -30,9 +30,10 @@ func setupMembershipsRouter() (*gin.Engine, *service.MembershipService, reposito
 	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idempotencyRepo)
 
 	// handler
+	authSvc := newMockAuthServiceWithTokens()
 	h := NewNetworkHandler(networkService, membershipService)
 	r := gin.New()
-	RegisterNetworkRoutes(r, h)
+	RegisterNetworkRoutes(r, h, authSvc, membershipRepo)
 
 	return r, membershipService, membershipRepo, networkRepo
 }

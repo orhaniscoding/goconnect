@@ -26,8 +26,8 @@ func setupAllocList(t *testing.T) (*gin.Engine, string) {
 	ips := service.NewIPAMService(nrepo, mrepo, iprepo)
 	h := NewNetworkHandler(ns, ms).WithIPAM(ips)
 	r := gin.New()
-	r.Use(RoleMiddleware(mrepo))
-	RegisterNetworkRoutes(r, h)
+	authSvc := newMockAuthServiceWithTokens()
+	RegisterNetworkRoutes(r, h, authSvc, mrepo)
 	net := &domain.Network{ID: "net-list-1", TenantID: "t1", Name: "NetList", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyOpen, CIDR: "10.90.0.0/30", CreatedBy: "user_dev", CreatedAt: time.Now(), UpdatedAt: time.Now()}
 	if err := nrepo.Create(context.Background(), net); err != nil {
 		t.Fatalf("create network: %v", err)
@@ -66,8 +66,8 @@ func TestListIPAllocationsNonMemberDenied(t *testing.T) {
 	ips := service.NewIPAMService(nrepo, mrepo, iprepo)
 	h := NewNetworkHandler(ns, ms).WithIPAM(ips)
 	r := gin.New()
-	r.Use(RoleMiddleware(mrepo))
-	RegisterNetworkRoutes(r, h)
+	authSvc := newMockAuthServiceWithTokens()
+	RegisterNetworkRoutes(r, h, authSvc, mrepo)
 	net := &domain.Network{ID: "net-list-2", TenantID: "t1", Name: "NetList2", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyOpen, CIDR: "10.91.0.0/30", CreatedBy: "user_other", CreatedAt: time.Now(), UpdatedAt: time.Now()}
 	if err := nrepo.Create(context.Background(), net); err != nil {
 		t.Fatalf("create network: %v", err)

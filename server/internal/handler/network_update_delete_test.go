@@ -25,9 +25,8 @@ func setupUpdateDelete() (*gin.Engine, repository.NetworkRepository, repository.
 	ms := service.NewMembershipService(nrepo, mrepo, jrepo, irepo)
 	h := NewNetworkHandler(ns, ms)
 	r := gin.New()
-	// inject role middleware BEFORE route registration so it executes earlier
-	r.Use(RoleMiddleware(mrepo))
-	RegisterNetworkRoutes(r, h)
+	authSvc := newMockAuthServiceWithTokens()
+	RegisterNetworkRoutes(r, h, authSvc, mrepo)
 	return r, nrepo, mrepo
 }
 

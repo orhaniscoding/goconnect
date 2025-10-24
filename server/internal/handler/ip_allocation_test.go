@@ -35,8 +35,8 @@ func setupIPAlloc() (*gin.Engine, *service.IPAMService, repository.MembershipRep
 	ips.SetAuditor(ta)
 	h := NewNetworkHandler(ns, ms).WithIPAM(ips)
 	r := gin.New()
-	r.Use(RoleMiddleware(mrepo))
-	RegisterNetworkRoutes(r, h)
+	authSvc := newMockAuthServiceWithTokens()
+	RegisterNetworkRoutes(r, h, authSvc, mrepo)
 	// seed network and membership
 	net := &domain.Network{ID: "net-ip-1", TenantID: "t1", Name: "NetIP", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyOpen, CIDR: "10.50.0.0/30", CreatedBy: "user_dev", CreatedAt: time.Now(), UpdatedAt: time.Now()}
 	if err := nrepo.Create(context.Background(), net); err != nil {
@@ -137,8 +137,9 @@ func TestIPAllocationNonMemberDenied(t *testing.T) {
 	ms := service.NewMembershipService(nrepo, mrepo, jrepo, irepo)
 	ips := service.NewIPAMService(nrepo, mrepo, iprepo)
 	h := NewNetworkHandler(ns, ms).WithIPAM(ips)
-	g.Use(RoleMiddleware(mrepo))
-	RegisterNetworkRoutes(g, h)
+	authSvc := newMockAuthServiceWithTokens()
+
+	RegisterNetworkRoutes(g, h, authSvc, mrepo)
 	// create network but DO NOT add membership for user_dev
 	net := &domain.Network{ID: "net-ip-2", TenantID: "t1", Name: "NetIP2", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyOpen, CIDR: "10.60.0.0/30", CreatedBy: "user_other", CreatedAt: time.Now(), UpdatedAt: time.Now()}
 	if err := nrepo.Create(context.Background(), net); err != nil {
