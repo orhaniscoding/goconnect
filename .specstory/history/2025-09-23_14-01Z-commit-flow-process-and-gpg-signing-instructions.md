@@ -1279,7 +1279,7 @@ Tell me if you prefer a PR flow or direct commits, and I’ll proceed.
 
 ---
 
-_**User (2025-10-11 00:42Z)**_
+_**User (2025-10-11 00:49Z)**_
 
 en mantıklı şekilde programı en optimal en iyi şekilde geliştirmemiz için devam et
 
@@ -1288,6 +1288,357 @@ en mantıklı şekilde programı en optimal en iyi şekilde geliştirmemiz için
 _**Assistant (copilot/gpt-5)**_
 
 I'll inspect the web-ui locale files to decide how to wire App Router i18n with minimal changes, then apply a small refactor to add a [locale] segment and a dictionary loader. 
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+I’ll add a simple i18n context/provider, update the locale layout to provide dictionaries, fix the root layout to include html/body, refactor Footer to use the provider, and then run typecheck/build to verify. 
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+I’ll remove the old non-localized pages causing the build error, rebuild to verify the new i18n structure, and then commit the web-ui changes. 
+```
+
+```
+
+```
+
+```
+Harika akış yakaladık—şimdi en mantıklı, düşük riskli ama yüksek getirili iyileştirmelerle devam ettim ve doğruladım; özet ve öneriler aşağıda.
+
+actions taken
+- Web-UI i18n (App Router) tamamlandı:
+  - [locale] segment eklendi: `layout.tsx`.
+  - Sözlük yükleyici ve context:
+    - `i18n.ts` (en/tr dictionary loader)
+    - `i18n-context.tsx` (I18nProvider + useI18n)
+  - Sayfalar locale altına taşındı:
+    - `page.tsx`
+    - `page.tsx`
+  - Legacy rotalar redirect:
+    - `/` → `/{defaultLocale}/login` (`page.tsx`)
+    - `/login` ve `/dashboard` → locale’li path’lere yönlendirme
+  - `Footer` artık context’ten çeviriyi alıyor; navigator tespiti kaldırıldı.
+  - Build/typecheck: PASS (Next 15.5.4), uyarı yok. SSG parametreleri ile tr/en yolları prerender ediliyor.
+
+- OpenAPI drift düzeltmeleri:
+  - GET /v1/networks/{id} için 401 yanıtı eklendi.
+  - DELETE /v1/networks/{id} (soft delete) belgelendi.
+  - Commit: docs(openapi): document DELETE /v1/networks/{id} and add 401 for GET by ID.
+
+- Önceki iyileştirmeler referansı:
+  - next.config.js’de App Router’a uygun i18n kaldırıldı ve monorepo için outputFileTracingRoot eklendi; build uyarıları bitti.
+
+durum
+- Server: go test ./... -cover PASS; go vet PASS.
+- Web-ui: typecheck PASS; next build PASS.
+- OpenAPI ↔ handler senkron: Networks CRUD + IP allocation + Memberships doğru.
+
+önerilen bir sonraki adımlar
+- Web-UI i18n küçük iyileştirmeleri:
+  - t helper ve namespace yapısı: ör. useI18n ile t('key', default) kısa yol eklenebilir.
+  - Dil değiştirici (locale switcher) komponenti ekleyelim (header veya footer’a).
+- Coverage artırımı (hedef ≥60% başlangıç eşiği):
+  - internal/domain için 1-2 unit test (HTTP status mapping: ERR_CIDR_INVALID/OVERLAP/NOT_AUTHORIZED).
+  - internal/repository için küçük bir overlap/list testi.
+- Güvenlik ve kalite:
+  - CI’de golangci-lint/gosec çıktıları temiz mi kontrol; bulunanları düzeltme.
+  - Web-UI’de ESLint kurulumu (hazır olduğunuzda).
+
+istersen
+- Locale switcher + t helper’ı ekleyip build’i tekrar doğrulayabilirim.
+- Server tarafı için iki küçük test dosyası oluşturup coverage’ı artırır ve testleri koştururum.
+- Bunları ayrı PR’lar veya tek PR olarak açabilirim. Tercihini söyle; devam edeyim.
+
+---
+
+_**User (2025-10-11 00:55Z)**_
+
+devam et lütfen
+
+---
+
+_**Assistant (copilot/gpt-5)**_
+
+I’ll inspect the repository layer to identify easy test targets to boost coverage, then add minimal tests and run the suite. 
+```
+
+```
+Süper—hemen ilerlemeyi tamamladım ve bir sonraki “en mantıklı” adımları da gerçekleştirdim.
+
+actions taken
+- App Router i18n tamamlandı ve doğrulandı:
+  - [locale] segment: `layout.tsx` içinde I18nProvider ve dictionary yükleyici.
+  - Sözlük ve context: `i18n.ts`, `i18n-context.tsx`.
+  - Sayfalar locale altında: `src/app/[locale]/(public)/login`, `src/app/[locale]/(protected)/dashboard`.
+  - Legacy rotalar redirect: `page.tsx` ile `/` → `/tr/login`; `app/(public)/login` ve `app/(protected)/dashboard` da locale’li path’lere yönlendiriyor.
+  - Footer context tabanlı: `Footer.tsx` artık useI18n ile çeviri alıyor.
+  - Build/typecheck: PASS (Next 15.5.4), uyarı yok. SSG ile tr/en için prerender yapılıyor.
+- OpenAPI drift düzeltildi:
+  - GET /v1/networks/{id} için 401 eklendi.
+  - DELETE /v1/networks/{id} belgelendi (soft delete).
+  - Commit edildi.
+- Coverage artışı için repository testleri eklendi:
+  - `network_test.go`: list/cursor, name uniqueness, soft delete ve CIDR overlap senaryoları.
+  - Testler: PASS. `internal/repository` coverage 20% oldu; genel tablo yeşil.
+  - Commit mesajı: test(server/repository): add repo tests (list/cursor, uniqueness, soft delete, overlap)
+
+build and checks
+- Server:
+  - go test ./... -cover: PASS
+  - go vet: PASS (önceden çalıştırıldı)
+- Web-ui:
+  - npm run typecheck: PASS
+  - npm run build: PASS
+- OpenAPI dosyası güncel ve handler’larla uyumlu.
+
+what’s next (öneri)
+- Web-UI i18n kalite dokunuşları:
+  - Basit bir t helper ve language switcher (header/footer) ekleyelim.
+- Coverage + kalite:
+  - Domain error → HTTP status için küçük 1-2 test daha ekleyebiliriz.
+  - CI’de golangci-lint/gosec çıktıları gözden geçirilip düzeltilebilir.
+- ESLint (hazır olduğunuzda) web-ui’ye eklenebilir.
+
+İstersen, şimdi:
+- Locale switcher + t helper’ı ekleyip tekrar build edebilirim.
+- Domain hata/HTTP status testlerini ekleyip server testlerini koşturabilirim.
+- Hepsini küçük bir PR olarak açabilir veya doğrudan commit edebilirim. Tercihini söyle; devam edeyim.
+
+---
+
+_**User (2025-10-11 00:58Z)**_
+
+gerekenleri yap ordan da pr aç öyle commitleyelim çünkü maine commit yapamıyoruz suqash and merge yapıyoruz yan pr lerle
+
+---
+
+_**Assistant (copilot/gpt-5)**_
+
+PR odaklı akışa geçiyorum: yaptığımız değişiklikleri temiz bir feature branch’e aldım, origin’e pushladım ve PR oluşturmanız için hazır hale getirdim.
+
+what I did now
+- Local değişiklikleri toparladım:
+  - Web-UI App Router i18n: [locale] segment + I18nProvider + dictionary loader, sayfaların taşınması ve legacy rotaların redirect’i.
+  - OpenAPI drift düzeltmeleri: GET /v1/networks/{id} için 401, DELETE /v1/networks/{id} dokümantasyonu.
+  - Repository coverage: `network_test.go` ile list/cursor, name uniqueness, soft delete ve CIDR overlap testleri.
+- Build/test doğrulaması:
+  - Web-ui: typecheck + next build PASS.
+  - Server: go test ./... -cover PASS; vet PASS (önceden).
+- Feature branch oluşturup pushladım:
+  - Branch: feat/web-ui-i18n-and-docs-sync
+  - Son commitler:
+    - test(server/repository): add repo tests (list/cursor, uniqueness, soft delete, overlap)
+    - feat(web-ui): add App Router i18n ([locale] segment) and provider
+    - docs(openapi): document DELETE /v1/networks/{id} and add 401 for GET by ID
+    - chore(web-ui): remove unsupported i18n and set outputFileTracingRoot
+
+PR detay önerisi
+- Title: feat(web-ui): App Router i18n + docs sync + repo tests
+- Body (özet):
+  - Web-UI: [locale] segment, I18nProvider, dictionary loader; `/[locale]/login` ve `/[locale]/dashboard` SSG; `/`, `/login`, `/dashboard` redirect.
+  - OpenAPI: DELETE /v1/networks/{id} ve GET id için 401 eklendi.
+  - Server tests: repository coverage artışı (create/list/cursor/overlap/soft-delete).
+  - Doğrulama: web-ui build/typecheck PASS; server tests PASS.
+- Merge strategy: Squash and merge (protected main gereği).
+- Not: Husky/commitlint ile header 100 char sınırına uyduruldu.
+
+sizin aksiyonunuz
+- PR’ı oluşturmak için:
+  - https://github.com/orhaniscoding/goconnect/pull/new/feat/web-ui-i18n-and-docs-sync
+- Dilerseniz PR’ı ben de hazır bir açıklama metniyle açabilirim; onay verirseniz devam edeyim.
+
+opsiyonel sonraki adımlar
+- Web-UI: basit t helper ve language switcher ekleyelim.
+- Server: domain error → HTTP status için 1-2 test daha.
+- CI: golangci-lint ve gosec çıktıları gözden geçirilsin; web-ui’ye ESLint ileride eklenebilir.
+
+İsterseniz PR’ı şimdi ben açayım; yoksa linkten siz açıp “squash and merge” ile tamamlayabilirsiniz.
+
+---
+
+_**User (2025-10-11 00:59Z)**_
+
+squash and merge yaptım 
+
+---
+
+_**Assistant (copilot/gpt-5)**_
+
+Harika—squash and merge sonrası yerel bakımı tamamladım ve her şeyi ana dal ile hizaladım.
+
+yaptıklarım
+- Uzak referansları eşitledim ve yeni main’i çektim.
+- Yerel main’i origin/main’e hard reset ile hizaladım (squash sonrası farklı geçmiş düzeldi).
+- Birleşmiş feature dalını yerelde sildim: feat/web-ui-i18n-and-docs-sync
+
+şu anki durum
+- Çalışma dalı: main
+- HEAD: Feat/web UI i18n and docs sync (#66)
+- Yerel ve uzak ana dal tamamen senkron.
+
+opsiyonel sonraki adımlar
+- Bir mini PR daha: web-ui için basit locale switcher ve t helper (kullanıcı deneyimini tamamlar).
+- Server tarafında küçük 1-2 test daha ile coverage’ı yükseltme.
+- CI kalite taramaları: golangci-lint/gosec çıktılarının gözden geçirilmesi.
+Hazırsan bu takip PR’ını oluşturayım.
+
+---
+
+_**User (2025-10-11 01:01Z)**_
+
+devam lütfen
+
+---
+
+_**Assistant (copilot/gpt-5)**_
+
+I'll add a locale switcher and a t() hook for i18n, integrate it into the Footer, then build; after that I'll add minimal domain error status tests and run server tests. 
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+
+```
+Harika, devamını da tamamladım ve yeni bir PR için dalı hazırlayıp pushladım; squash & merge için hazır.
+
+yaptıklarım
+- Web-UI i18n iyileştirmeleri:
+  - `LocaleSwitcher` eklendi: `src/components/LocaleSwitcher.tsx`
+  - `t()` kısa yolu eklendi: `useT` hook’u `i18n-context.tsx` içinde
+  - `Footer` güncellendi: switcher ve çeviri label’ı ile
+  - Typecheck + Next build: PASS (SSG en/tr prerender)
+- Server testleri:
+  - `internal/domain/error_test.go` ile `ToHTTPStatus` mapping testleri eklendi
+  - go test ./... -cover: PASS; domain coverage yükseldi
+
+dal ve PR
+- Dal: feat/locale-switcher-and-tests
+- Push: tamam
+- PR açmak için:
+  - https://github.com/orhaniscoding/goconnect/pull/new/feat/locale-switcher-and-tests
+
+PR açıklama önerisi (kopyala-yapıştır)
+- Title: feat(web-ui): locale switcher + t hook; test(server/domain)
+- Body:
+  - Web UI
+    - Locale switcher: [locale] segmentli rotalarda TR/EN arasında geçiş
+    - t() hook: useI18n üzerinde kısa yol; Footer i18n ile güncellendi
+    - Build/typecheck: PASS
+  - Server
+    - Domain error → HTTP status mapping testleri eklendi
+    - go test ./... -cover: PASS
+  - Merge: Squash & merge
+
+sonraki küçük adımlar (opsiyonel)
+- UI: switcher butonlarını bir dropdown’a almak ve ufak stiller
+- i18n: daha fazla string’i dictionary’e taşıma
+- Server: repository testlerini genişletme (özellikle List order ve search)
+- CI: golangci-lint/gosec raporlarını gözden geçirme
+
+İstersen PR’ı ben açayım; yoksa linkten açıp “squash & merge” ile tamamlayabilirsin.
+
+---
+
+_**User (2025-10-11 01:03Z)**_
+
+suqash and merge tamamdır
+
+---
+
+_**Assistant (copilot/gpt-5)**_
+
+Harika—squash and merge sonrası repoyu tertemiz hizaladım ve post-merge bakımı tamamladım.
+
+yaptıklarım
+- Uzak referansları eşitledim (fetch --prune).
+- Yerel main’i origin/main’e resetledim; squash edilmiş commit geçmişiyle hizalı.
+- Çalışma dalı: main; HEAD: Feat/locale switcher and tests (#67).
+
+güncel durumda neler var
+- Web-UI: App Router i18n + locale switcher + t() hook devrede; build/typecheck yeşil.
+- Server: Domain error → HTTP status mapping testleri eklendi; testler yeşil.
+- OpenAPI: Networks için 401 ve DELETE id uçları belgelendi; drift yok.
+
+önerilen küçük takipler
+- UI: Switcher’ı minimal stil dokunuşuyla daha şık hale getirebiliriz (buton grubu, aria-label’lar hazır).
+- i18n: Daha fazla stringi sözlüğe alma ve sayfalarda t() kullanımı yaygınlaştırma.
+- Server: Repository ve service katmanına 1-2 küçük test daha ekleyerek coverage’ı biraz daha artırma.
+- CI: golangci-lint ve gosec çıktılarının gözden geçirilmesi.
+
+İstersen bir sonraki küçük PR’ı (UI polish + i18n genişletme ya da ek testler) hemen hazırlayabilirim. Hangi yöne öncelik verelim?
+
+---
+
+_**User (2025-10-24 21:12Z)**_
+
+açık bir pull request var bakar mısın durumuna
+
+---
+
+_**Assistant (copilot/gpt-5)**_
+
+
 
 ---
 

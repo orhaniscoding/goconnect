@@ -53,7 +53,11 @@ func (e *Error) ToHTTPStatus() int {
 	switch e.Code {
 	case ErrInvalidRequest, ErrCIDRInvalid:
 		return http.StatusBadRequest
+	case ErrWeakPassword:
+		return http.StatusBadRequest
 	case ErrUnauthorized:
+		return http.StatusUnauthorized
+	case ErrInvalidCredentials, ErrInvalidToken, ErrTokenExpired, ErrSessionExpired, ErrRefreshTokenReuse:
 		return http.StatusUnauthorized
 	case ErrNotAuthorized:
 		return http.StatusForbidden
@@ -63,7 +67,11 @@ func (e *Error) ToHTTPStatus() int {
 		return http.StatusTooManyRequests
 	case ErrNotFound:
 		return http.StatusNotFound
+	case ErrTenantNotFound, ErrUserNotFound:
+		return http.StatusNotFound
 	case ErrCIDROverlap, ErrIdempotencyConflict, ErrIPExhausted:
+		return http.StatusConflict
+	case ErrEmailAlreadyExists:
 		return http.StatusConflict
 	case ErrNetworkPrivate:
 		return http.StatusNotFound // hide private resource existence
