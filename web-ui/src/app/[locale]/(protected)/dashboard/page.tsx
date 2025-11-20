@@ -3,11 +3,13 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { bridge } from '../../../../lib/bridge'
 import { getUser, clearAuth } from '../../../../lib/auth'
+import { useNotification } from '../../../../contexts/NotificationContext'
 import AuthGuard from '../../../../components/AuthGuard'
 import Footer from '../../../../components/Footer'
 
 export default function Dashboard() {
     const router = useRouter()
+    const notification = useNotification()
     const [status, setStatus] = useState<any>(null)
     const [err, setErr] = useState<string | null>(null)
     const [user, setUser] = useState<any>(null)
@@ -201,6 +203,82 @@ export default function Dashboard() {
                             </p>
                         </div>
                     )}
+                </div>
+
+                {/* Notification System Demo Section */}
+                <div style={{
+                    padding: 16,
+                    backgroundColor: '#fff',
+                    borderRadius: 8,
+                    border: '1px solid #dee2e6',
+                    marginBottom: 24
+                }}>
+                    <h3 style={{ marginTop: 0, marginBottom: 12 }}>🔔 Notification System Demo</h3>
+                    <p style={{ marginBottom: 16, color: '#666', fontSize: 14 }}>
+                        Test the notification system with different types of messages:
+                    </p>
+                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                        <button
+                            onClick={() => notification.success('Success!', 'Operation completed successfully')}
+                            style={{
+                                padding: '10px 20px',
+                                backgroundColor: '#28a745',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: 6,
+                                cursor: 'pointer',
+                                fontWeight: 500,
+                                fontSize: 14
+                            }}
+                        >
+                            ✓ Show Success
+                        </button>
+                        <button
+                            onClick={() => notification.error('Error!', 'Something went wrong')}
+                            style={{
+                                padding: '10px 20px',
+                                backgroundColor: '#dc3545',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: 6,
+                                cursor: 'pointer',
+                                fontWeight: 500,
+                                fontSize: 14
+                            }}
+                        >
+                            ✕ Show Error
+                        </button>
+                        <button
+                            onClick={() => notification.warning('Warning!', 'Please be careful with this action')}
+                            style={{
+                                padding: '10px 20px',
+                                backgroundColor: '#ffc107',
+                                color: '#212529',
+                                border: 'none',
+                                borderRadius: 6,
+                                cursor: 'pointer',
+                                fontWeight: 500,
+                                fontSize: 14
+                            }}
+                        >
+                            ⚠ Show Warning
+                        </button>
+                        <button
+                            onClick={() => notification.info('Info', 'This is some useful information')}
+                            style={{
+                                padding: '10px 20px',
+                                backgroundColor: '#0d6efd',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: 6,
+                                cursor: 'pointer',
+                                fontWeight: 500,
+                                fontSize: 14
+                            }}
+                        >
+                            ℹ Show Info
+                        </button>
+                    </div>
                 </div>
 
                 <div style={{
