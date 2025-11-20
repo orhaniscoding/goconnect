@@ -174,6 +174,33 @@ export default function Dashboard() {
                             Account settings
                         </p>
                     </div>
+
+                    {user?.is_admin && (
+                        <div
+                            onClick={() => router.push('/en/admin')}
+                            style={{
+                                padding: 20,
+                                backgroundColor: '#fff',
+                                border: '2px solid #dee2e6',
+                                borderRadius: 8,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = '#dc3545'
+                                e.currentTarget.style.transform = 'translateY(-2px)'
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor = '#dee2e6'
+                                e.currentTarget.style.transform = 'translateY(0)'
+                            }}
+                        >
+                            <h3 style={{ margin: '0 0 8px 0', color: '#dc3545' }}>👑 Admin Panel</h3>
+                            <p style={{ margin: 0, color: '#666', fontSize: 14 }}>
+                                System administration
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 <div style={{
