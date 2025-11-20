@@ -27,18 +27,8 @@
 - **Join Request Workflow**: Approve/deny membership requests with audit trail
 
 ### 💬 Real-Time Communication
-- **Real-time Chat UI**: Modern chat interface with WebSocket integration
-- **Network-Scoped Chat**: Switch between global and network-specific chat rooms
-- **Room Management**: Automatic WebSocket room join/leave on scope changes
-- **Live Message Updates**: Real-time message delivery, editing, and deletion
-- **Message Edit & Delete**: Edit messages within 15 minutes, delete with confirmation
-- **Edit Buttons**: ✏️ Edit button shown for messages within 15-minute window
-- **Delete Buttons**: 🗑️ Delete button for all own messages with soft-delete mode
-- **Edit Modal**: Inline modal with textarea for editing message content
-- **Message Filtering**: Only display messages for current scope (host or network:id)
-- **Message Moderation**: Moderators can redact inappropriate messages with 🚫 Redact button
-- **Redacted Message Styling**: Redacted messages shown with red background and "[REDACTED BY MODERATOR]" text
-- **Role-Based Permissions**: Edit/delete own messages, moderators/admins can redact any message
+- **Built-in Chat**: Network-scoped and global chat with WebSocket support
+- **Message Moderation**: Redact, edit, and delete messages with full audit trail
 - **Edit History Tracking**: Complete message history with timestamps
 - **File Attachments**: Share files within chat (planned)
 
