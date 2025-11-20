@@ -42,9 +42,8 @@
 
 ### 🌐 Modern Tech Stack
 - **Backend**: Go 1.22+ with Gin web framework
-- **Frontend**: Next.js 15 with TypeScript and React
-- **Database**: PostgreSQL 14+ with automatic migrations
-- **Authentication**: JWT-based auth with Argon2id password hashing
+- **Frontend**: Next.js 15 with TypeScript and Tailwind CSS (placeholder)
+- **Database**: PostgreSQL 14+ (in-memory for development)
 - **Real-time**: WebSocket for live updates
 - **API**: RESTful JSON API with OpenAPI 3.0 specification
 - **i18n**: Multi-language support (English, Turkish)
@@ -54,10 +53,8 @@
 ### Prerequisites
 - **Go** 1.22 or higher
 - **Node.js** 18+ and npm (for web UI)
-- **PostgreSQL** 14+ (recommended for production)
+- **PostgreSQL** 14+ (optional, uses in-memory by default)
 - **Make** (optional but recommended)
-
-> **Note:** PostgreSQL is now the default storage backend. Use `--postgres=false` for in-memory mode (no data persistence).
 
 ### Installation
 
@@ -85,36 +82,11 @@ make dev-web
 
 #### Manual Setup
 
-**Server (PostgreSQL - Recommended for Production):**
-```bash
-cd server
-
-# 1. Setup PostgreSQL database
-createdb goconnect
-# Or: psql -c "CREATE DATABASE goconnect;"
-
-# 2. Configure environment (create .env file)
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=your_password
-DB_NAME=goconnect
-DB_SSLMODE=disable  # Use 'require' in production
-JWT_SECRET=$(openssl rand -base64 48)
-
-# 3. Run migrations
-go run ./cmd/server --migrate
-
-# 4. Start server with PostgreSQL
-go run ./cmd/server --postgres
-```
-
-**Server (In-Memory - Development Only):**
+**Server:**
 ```bash
 cd server
 go mod download
-# Start with in-memory storage (no persistence)
-go run ./cmd/server --postgres=false
+go run -ldflags "-X main.version=dev" ./cmd/server
 ```
 
 **Client Daemon:**
@@ -154,17 +126,6 @@ docker-compose up -d
 # Server
 PORT=8080
 
-# Database (PostgreSQL)
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=your_secure_password
-DB_NAME=goconnect
-DB_SSLMODE=disable  # Options: disable, require, verify-ca, verify-full
-
-# Authentication
-JWT_SECRET=your-secret-key-min-32-chars  # Generate: openssl rand -base64 48
-
 # Rate Limiting
 RATE_LIMIT_CAPACITY=5       # Requests per window
 RATE_LIMIT_WINDOW=1s        # Time window
@@ -175,21 +136,6 @@ AUDIT_HASH_SECRETS_B64=<base64-secrets>
 AUDIT_MAX_ROWS=10000
 AUDIT_MAX_AGE_SECONDS=2592000  # 30 days
 AUDIT_SIGNING_KEY_ED25519_B64=<base64-key>
-```
-
-**Command-Line Flags:**
-```bash
-# Run database migrations
-go run ./cmd/server --migrate
-
-# Use PostgreSQL (default: true)
-go run ./cmd/server --postgres=true
-
-# Use in-memory storage (no persistence)
-go run ./cmd/server --postgres=false
-
-# Show version
-go run ./cmd/server --version
 ```
 
 **Client Daemon:**
