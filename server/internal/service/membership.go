@@ -11,28 +11,34 @@ import (
 )
 
 type MembershipService struct {
-	networks    repository.NetworkRepository
-	members     repository.MembershipRepository
-	joins       repository.JoinRequestRepository
-	idempotency repository.IdempotencyRepository
-	aud         Auditor
+	networks         repository.NetworkRepository
+	members          repository.MembershipRepository
+	joins            repository.JoinRequestRepository
+	idempotency      repository.IdempotencyRepository
+	peerProvisioning *PeerProvisioningService
+	aud              Auditor
 }
 
 // Auditor is a minimal interface to decouple from concrete audit package
 type Auditor interface {
-	Event(ctx context.Context, action, actor, object string, details map[string]any)
+	Event(ctx context.Context, tenantID, action, actor, object string, details map[string]any)
 }
 
-type auditorFunc func(ctx context.Context, action, actor, object string, details map[string]any)
+type auditorFunc func(ctx context.Context, tenantID, action, actor, object string, details map[string]any)
 
-func (f auditorFunc) Event(ctx context.Context, action, actor, object string, details map[string]any) {
-	f(ctx, action, actor, object, details)
+func (f auditorFunc) Event(ctx context.Context, tenantID, action, actor, object string, details map[string]any) {
+	f(ctx, tenantID, action, actor, object, details)
 }
 
-var noopAuditor Auditor = auditorFunc(func(ctx context.Context, action, actor, object string, details map[string]any) {})
+var noopAuditor = auditorFunc(func(ctx context.Context, tenantID, action, actor, object string, details map[string]any) {})
 
 func NewMembershipService(n repository.NetworkRepository, m repository.MembershipRepository, j repository.JoinRequestRepository, idem repository.IdempotencyRepository) *MembershipService {
 	return &MembershipService{networks: n, members: m, joins: j, idempotency: idem, aud: noopAuditor}
+}
+
+// SetPeerProvisioning sets the peer provisioning service
+func (s *MembershipService) SetPeerProvisioning(pp *PeerProvisioningService) {
+	s.peerProvisioning = pp
 }
 
 // SetAuditor allows wiring a real auditor from main
@@ -43,7 +49,7 @@ func (s *MembershipService) SetAuditor(a Auditor) {
 }
 
 // JoinNetwork handles POST /v1/networks/:id/join with idempotency and audit
-func (s *MembershipService) JoinNetwork(ctx context.Context, networkID, userID, idempotencyKey string) (*domain.Membership, *domain.JoinRequest, error) {
+func (s *MembershipService) JoinNetwork(ctx context.Context, networkID, userID, tenantID, idempotencyKey string) (*domain.Membership, *domain.JoinRequest, error) {
 	if idempotencyKey == "" {
 		return nil, nil, domain.NewError(domain.ErrInvalidRequest, "Idempotency-Key header is required for mutation operations", map[string]string{"required_header": "Idempotency-Key"})
 	}
@@ -55,6 +61,10 @@ func (s *MembershipService) JoinNetwork(ctx context.Context, networkID, userID, 
 	if err != nil {
 		return nil, nil, err
 	}
+	// Enforce tenant isolation
+	if net.TenantID != tenantID {
+		return nil, nil, domain.NewError(domain.ErrNotFound, "Network not found", nil)
+	}
 
 	// If private and name unknown -> ERR_NETWORK_PRIVATE; we check visibility and simulate name unknown case
 	if net.Visibility == domain.NetworkVisibilityPrivate && net.Name == "" {
@@ -65,7 +75,7 @@ func (s *MembershipService) JoinNetwork(ctx context.Context, networkID, userID, 
 	if m, err := s.members.Get(ctx, networkID, userID); err == nil {
 		if m.Status == domain.StatusApproved {
 			// Double-join guard: treat as successful no-op
-			s.audit(ctx, audit.ActionNetworkJoin, userID, networkID, map[string]any{"dedup": true})
+			s.audit(ctx, tenantID, audit.ActionNetworkJoin, userID, networkID, map[string]any{"dedup": true})
 			return m, nil, nil
 		}
 		if m.Status == domain.StatusBanned {
@@ -80,18 +90,27 @@ func (s *MembershipService) JoinNetwork(ctx context.Context, networkID, userID, 
 		if err != nil {
 			return nil, nil, err
 		}
-		s.audit(ctx, audit.ActionNetworkJoin, userID, networkID, map[string]any{"policy": "open"})
+		s.audit(ctx, tenantID, audit.ActionNetworkJoin, userID, networkID, map[string]any{"policy": "open"})
+
+		// Automatically provision peers for user's devices
+		if s.peerProvisioning != nil {
+			if err := s.peerProvisioning.ProvisionPeersForNewMember(ctx, networkID, userID); err != nil {
+				// Log error but don't fail the join operation
+				s.audit(ctx, tenantID, "PEER_PROVISION_FAILED", userID, networkID, map[string]any{"error": err.Error()})
+			}
+		}
+
 		return m, nil, nil
 	case domain.JoinPolicyApproval:
 		jr, err := s.joins.CreatePending(ctx, networkID, userID)
 		if err != nil {
 			if derr, ok := err.(*domain.Error); ok && derr.Code == domain.ErrAlreadyRequested {
-				s.audit(ctx, audit.ActionNetworkJoinRequest, userID, networkID, map[string]any{"dedup": true})
+				s.audit(ctx, tenantID, audit.ActionNetworkJoinRequest, userID, networkID, map[string]any{"dedup": true})
 				return nil, jr, derr
 			}
 			return nil, nil, err
 		}
-		s.audit(ctx, audit.ActionNetworkJoinRequest, userID, networkID, nil)
+		s.audit(ctx, tenantID, audit.ActionNetworkJoinRequest, userID, networkID, nil)
 		return nil, jr, nil
 	case domain.JoinPolicyInvite:
 		// For v1 we expect a token param else invalid
@@ -102,7 +121,16 @@ func (s *MembershipService) JoinNetwork(ctx context.Context, networkID, userID, 
 }
 
 // Approve, Deny, Kick, Ban
-func (s *MembershipService) Approve(ctx context.Context, networkID, targetUserID, actorID string) (*domain.Membership, error) {
+func (s *MembershipService) Approve(ctx context.Context, networkID, targetUserID, actorID, tenantID string) (*domain.Membership, error) {
+	// Verify network tenant
+	net, err := s.networks.GetByID(ctx, networkID)
+	if err != nil {
+		return nil, err
+	}
+	if net.TenantID != tenantID {
+		return nil, domain.NewError(domain.ErrNotFound, "Network not found", nil)
+	}
+
 	// RBAC simplified: assume actor is admin/owner if membership role is admin or owner
 	if !s.hasManagePrivilege(ctx, networkID, actorID) {
 		return nil, domain.NewError(domain.ErrNotAuthorized, "Administrator privileges required", nil)
@@ -119,11 +147,29 @@ func (s *MembershipService) Approve(ctx context.Context, networkID, targetUserID
 	if err != nil {
 		return nil, err
 	}
-	s.audit(ctx, audit.ActionNetworkJoinApprove, actorID, networkID, map[string]any{"user": targetUserID})
+	s.audit(ctx, tenantID, audit.ActionNetworkJoinApprove, actorID, networkID, map[string]any{"user": targetUserID})
+
+	// Automatically provision peers for approved user's devices
+	if s.peerProvisioning != nil {
+		if err := s.peerProvisioning.ProvisionPeersForNewMember(ctx, networkID, targetUserID); err != nil {
+			// Log error but don't fail the approval
+			s.audit(ctx, tenantID, "PEER_PROVISION_FAILED", actorID, networkID, map[string]any{"user": targetUserID, "error": err.Error()})
+		}
+	}
+
 	return m, nil
 }
 
-func (s *MembershipService) Deny(ctx context.Context, networkID, targetUserID, actorID string) error {
+func (s *MembershipService) Deny(ctx context.Context, networkID, targetUserID, actorID, tenantID string) error {
+	// Verify network tenant
+	net, err := s.networks.GetByID(ctx, networkID)
+	if err != nil {
+		return err
+	}
+	if net.TenantID != tenantID {
+		return domain.NewError(domain.ErrNotFound, "Network not found", nil)
+	}
+
 	if !s.hasManagePrivilege(ctx, networkID, actorID) {
 		return domain.NewError(domain.ErrNotAuthorized, "Administrator privileges required", nil)
 	}
@@ -134,33 +180,68 @@ func (s *MembershipService) Deny(ctx context.Context, networkID, targetUserID, a
 	if err := s.joins.Decide(ctx, jr.ID, false); err != nil {
 		return err
 	}
-	s.audit(ctx, audit.ActionNetworkJoinDeny, actorID, networkID, map[string]any{"user": targetUserID})
+	s.audit(ctx, tenantID, audit.ActionNetworkJoinDeny, actorID, networkID, map[string]any{"user": targetUserID})
 	return nil
 }
 
-func (s *MembershipService) Kick(ctx context.Context, networkID, targetUserID, actorID string) error {
+func (s *MembershipService) Kick(ctx context.Context, networkID, targetUserID, actorID, tenantID string) error {
+	// Verify network tenant
+	net, err := s.networks.GetByID(ctx, networkID)
+	if err != nil {
+		return err
+	}
+	if net.TenantID != tenantID {
+		return domain.NewError(domain.ErrNotFound, "Network not found", nil)
+	}
+
 	if !s.hasManagePrivilege(ctx, networkID, actorID) {
 		return domain.NewError(domain.ErrNotAuthorized, "Administrator privileges required", nil)
 	}
 	if err := s.members.Remove(ctx, networkID, targetUserID); err != nil {
 		return err
 	}
-	s.audit(ctx, audit.ActionNetworkMemberKick, actorID, networkID, map[string]any{"user": targetUserID})
+
+	// Deprovision peers when user is kicked
+	if s.peerProvisioning != nil {
+		if err := s.peerProvisioning.DeprovisionPeersForRemovedMember(ctx, networkID, targetUserID); err != nil {
+			// Log error but don't fail the kick operation
+			s.audit(ctx, tenantID, "PEER_DEPROVISION_FAILED", actorID, networkID, map[string]any{"user": targetUserID, "error": err.Error()})
+		}
+	}
+
+	s.audit(ctx, tenantID, audit.ActionNetworkMemberKick, actorID, networkID, map[string]any{"user": targetUserID})
 	return nil
 }
 
-func (s *MembershipService) Ban(ctx context.Context, networkID, targetUserID, actorID string) error {
+func (s *MembershipService) Ban(ctx context.Context, networkID, targetUserID, actorID, tenantID string) error {
+	// Verify network tenant
+	net, err := s.networks.GetByID(ctx, networkID)
+	if err != nil {
+		return err
+	}
+	if net.TenantID != tenantID {
+		return domain.NewError(domain.ErrNotFound, "Network not found", nil)
+	}
+
 	if !s.hasManagePrivilege(ctx, networkID, actorID) {
 		return domain.NewError(domain.ErrNotAuthorized, "Administrator privileges required", nil)
 	}
 	if err := s.members.SetStatus(ctx, networkID, targetUserID, domain.StatusBanned); err != nil {
 		return err
 	}
-	s.audit(ctx, audit.ActionNetworkMemberBan, actorID, networkID, map[string]any{"user": targetUserID})
+	s.audit(ctx, tenantID, audit.ActionNetworkMemberBan, actorID, networkID, map[string]any{"user": targetUserID})
 	return nil
 }
 
-func (s *MembershipService) ListMembers(ctx context.Context, networkID, status string, limit int, cursor string) ([]*domain.Membership, string, error) {
+func (s *MembershipService) ListMembers(ctx context.Context, networkID, status, tenantID string, limit int, cursor string) ([]*domain.Membership, string, error) {
+	// Verify network tenant
+	net, err := s.networks.GetByID(ctx, networkID)
+	if err != nil {
+		return nil, "", err
+	}
+	if net.TenantID != tenantID {
+		return nil, "", domain.NewError(domain.ErrNotFound, "Network not found", nil)
+	}
 	return s.members.List(ctx, networkID, status, limit, cursor)
 }
 
@@ -172,6 +253,6 @@ func (s *MembershipService) hasManagePrivilege(ctx context.Context, networkID, u
 	return rbac.CanManageNetwork(m.Role)
 }
 
-func (s *MembershipService) audit(ctx context.Context, action, actor, object string, details map[string]any) {
-	s.aud.Event(ctx, action, actor, object, details)
+func (s *MembershipService) audit(ctx context.Context, tenantID, action, actor, object string, details map[string]any) {
+	s.aud.Event(ctx, tenantID, action, actor, object, details)
 }

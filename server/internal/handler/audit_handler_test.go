@@ -3,11 +3,12 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"net/http/httptest"
+	"testing"
+
 	"github.com/gin-gonic/gin"
 	"github.com/orhaniscoding/goconnect/server/internal/audit"
 	"github.com/orhaniscoding/goconnect/server/internal/metrics"
-	"net/http/httptest"
-	"testing"
 )
 
 func TestAuditIntegrityHandler(t *testing.T) {
@@ -20,7 +21,7 @@ func TestAuditIntegrityHandler(t *testing.T) {
 	ctx := context.Background()
 	// produce events -> anchors at 2,4
 	for i := 0; i < 5; i++ {
-		aud.Event(ctx, "ACT", "actor", "obj", map[string]any{"i": i})
+		aud.Event(ctx, "test-tenant", "ACT", "actor", "obj", map[string]any{"i": i})
 	}
 	r := gin.New()
 	r.GET("/v1/audit/integrity", AuditIntegrityHandler(aud))

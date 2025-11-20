@@ -26,8 +26,8 @@ func TestHashingConsistency(t *testing.T) {
 	object := "network-456"
 
 	// Emit events
-	mem.Event(ctx, "ACTION", actor, object, nil)
-	sqliteAud.Event(ctx, "ACTION", actor, object, nil)
+	mem.Event(ctx, "t1", "ACTION", actor, object, nil)
+	sqliteAud.Event(ctx, "t1", "ACTION", actor, object, nil)
 
 	memEvents := mem.List()
 	if len(memEvents) != 1 {

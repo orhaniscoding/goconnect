@@ -12,10 +12,10 @@ type MultiAuditor struct {
 func NewMultiAuditor(sinks ...Auditor) *MultiAuditor { return &MultiAuditor{sinks: sinks} }
 
 // Event dispatches the event to all underlying sinks.
-func (m *MultiAuditor) Event(ctx context.Context, action, actor, object string, details map[string]any) {
+func (m *MultiAuditor) Event(ctx context.Context, tenantID, action, actor, object string, details map[string]any) {
 	for _, s := range m.sinks {
 		if s != nil {
-			s.Event(ctx, action, actor, object, details)
+			s.Event(ctx, tenantID, action, actor, object, details)
 		}
 	}
 }

@@ -20,7 +20,7 @@ func TestKeyRotationDualSecrets(t *testing.T) {
 	// InMemoryStore scenario
 	memLegacy := NewInMemoryStore(WithHashing(secretA))
 	ctx := context.Background()
-	memLegacy.Event(ctx, "ACTION", "actor-1", "object-1", nil)
+	memLegacy.Event(ctx, "t1", "ACTION", "actor-1", "object-1", nil)
 	if len(memLegacy.List()) != 1 {
 		t.Fatalf("expected 1 legacy event")
 	}
@@ -28,7 +28,7 @@ func TestKeyRotationDualSecrets(t *testing.T) {
 
 	// Recreate store with rotated secrets (B active, A fallback conceptually)
 	memRotated := NewInMemoryStore(WithHashSecrets(secretB, secretA))
-	memRotated.Event(ctx, "ACTION", "actor-1", "object-1", nil)
+	memRotated.Event(ctx, "t1", "ACTION", "actor-1", "object-1", nil)
 	if len(memRotated.List()) != 1 {
 		t.Fatalf("expected 1 rotated event")
 	}
@@ -54,7 +54,7 @@ func TestKeyRotationDualSecrets(t *testing.T) {
 		t.Fatalf("sqlite legacy: %v", err)
 	}
 	defer sqlLegacy.Close()
-	sqlLegacy.Event(ctx, "ACTION", "actor-1", "object-1", nil)
+	sqlLegacy.Event(ctx, "t1", "ACTION", "actor-1", "object-1", nil)
 	eventsA, err := sqlLegacy.ListRecent(ctx, 1)
 	if err != nil || len(eventsA) != 1 {
 		t.Fatalf("expected 1 legacy sqlite event: %v", err)
@@ -67,7 +67,7 @@ func TestKeyRotationDualSecrets(t *testing.T) {
 		t.Fatalf("sqlite rotated: %v", err)
 	}
 	defer sqlRotated.Close()
-	sqlRotated.Event(ctx, "ACTION", "actor-1", "object-1", nil)
+	sqlRotated.Event(ctx, "t1", "ACTION", "actor-1", "object-1", nil)
 	eventsB, err := sqlRotated.ListRecent(ctx, 2)
 	if err != nil || len(eventsB) != 2 {
 		t.Fatalf("expected 2 events after rotation: %v", err)

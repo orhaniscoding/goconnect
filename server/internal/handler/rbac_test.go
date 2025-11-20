@@ -47,7 +47,7 @@ func TestRBAC_ApproveForbiddenForMember(t *testing.T) {
 	buf, _ := json.Marshal(body)
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "/v1/networks/"+net.ID+"/approve", bytes.NewBuffer(buf))
-	req.Header.Set("Authorization", "Bearer dev")
+	req.Header.Set("Authorization", "Bearer valid-token")
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
 	r.ServeHTTP(w, req)
@@ -62,15 +62,15 @@ func TestRBAC_AdminCanApprove(t *testing.T) {
 	if err := nrepo.Create(context.Background(), net); err != nil {
 		t.Fatalf("create network: %v", err)
 	}
-	// Seed owner as admin_dev
-	_, _ = mrepo.UpsertApproved(context.Background(), net.ID, "admin_dev", domain.RoleOwner, time.Now())
+	// Seed admin user as owner so they can approve
+	_, _ = mrepo.UpsertApproved(context.Background(), net.ID, "user_admin", domain.RoleOwner, time.Now())
 
 	// Pre-create pending join for user_dev
 	// NOTE: membership service inside handler uses its own repo instance; instead, simulate via API:
 	// user_dev join request
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "/v1/networks/"+net.ID+"/join", nil)
-	req.Header.Set("Authorization", "Bearer dev")
+	req.Header.Set("Authorization", "Bearer valid-token")
 	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
 	r.ServeHTTP(w, req)
 	if w.Code != http.StatusAccepted {
@@ -81,7 +81,7 @@ func TestRBAC_AdminCanApprove(t *testing.T) {
 	w = httptest.NewRecorder()
 	buf, _ := json.Marshal(map[string]string{"user_id": "user_dev"})
 	req, _ = http.NewRequest("POST", "/v1/networks/"+net.ID+"/approve", bytes.NewBuffer(buf))
-	req.Header.Set("Authorization", "Bearer admin")
+	req.Header.Set("Authorization", "Bearer admin-token")
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
 	r.ServeHTTP(w, req)
@@ -96,15 +96,15 @@ func TestRBAC_OnlyAdminCanBanOrKick(t *testing.T) {
 	if err := nrepo.Create(context.Background(), net); err != nil {
 		t.Fatalf("create network: %v", err)
 	}
-	// Seed owner and a member
-	_, _ = mrepo.UpsertApproved(context.Background(), net.ID, "admin_dev", domain.RoleOwner, time.Now())
+	// Seed admin user as owner and regular user as member
+	_, _ = mrepo.UpsertApproved(context.Background(), net.ID, "user_admin", domain.RoleOwner, time.Now())
 	_, _ = mrepo.UpsertApproved(context.Background(), net.ID, "user_dev", domain.RoleMember, time.Now())
 
 	// member tries to ban -> forbidden
 	w := httptest.NewRecorder()
 	buf, _ := json.Marshal(map[string]string{"user_id": "admin_dev"})
 	req, _ := http.NewRequest("POST", "/v1/networks/"+net.ID+"/ban", bytes.NewBuffer(buf))
-	req.Header.Set("Authorization", "Bearer dev")
+	req.Header.Set("Authorization", "Bearer valid-token")
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
 	r.ServeHTTP(w, req)
@@ -116,7 +116,7 @@ func TestRBAC_OnlyAdminCanBanOrKick(t *testing.T) {
 	w = httptest.NewRecorder()
 	buf, _ = json.Marshal(map[string]string{"user_id": "user_dev"})
 	req, _ = http.NewRequest("POST", "/v1/networks/"+net.ID+"/ban", bytes.NewBuffer(buf))
-	req.Header.Set("Authorization", "Bearer admin")
+	req.Header.Set("Authorization", "Bearer admin-token")
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
 	r.ServeHTTP(w, req)
@@ -128,7 +128,7 @@ func TestRBAC_OnlyAdminCanBanOrKick(t *testing.T) {
 	w = httptest.NewRecorder()
 	buf, _ = json.Marshal(map[string]string{"user_id": "admin_dev"})
 	req, _ = http.NewRequest("POST", "/v1/networks/"+net.ID+"/kick", bytes.NewBuffer(buf))
-	req.Header.Set("Authorization", "Bearer dev")
+	req.Header.Set("Authorization", "Bearer valid-token")
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
 	r.ServeHTTP(w, req)
@@ -140,7 +140,7 @@ func TestRBAC_OnlyAdminCanBanOrKick(t *testing.T) {
 	w = httptest.NewRecorder()
 	buf, _ = json.Marshal(map[string]string{"user_id": "user_dev"})
 	req, _ = http.NewRequest("POST", "/v1/networks/"+net.ID+"/kick", bytes.NewBuffer(buf))
-	req.Header.Set("Authorization", "Bearer admin")
+	req.Header.Set("Authorization", "Bearer admin-token")
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
 	r.ServeHTTP(w, req)

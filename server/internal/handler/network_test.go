@@ -49,7 +49,7 @@ func TestCreateNetwork_Success(t *testing.T) {
 	w := httptest.NewRecorder()
 	httpReq, _ := http.NewRequest("POST", "/v1/networks", bytes.NewBuffer(jsonData))
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer dev")
+	httpReq.Header.Set("Authorization", "Bearer valid-token")
 	httpReq.Header.Set("Idempotency-Key", "test-key-123")
 
 	router.ServeHTTP(w, httpReq)
@@ -88,7 +88,7 @@ func TestCreateNetwork_MissingIdempotencyKey(t *testing.T) {
 	w := httptest.NewRecorder()
 	httpReq, _ := http.NewRequest("POST", "/v1/networks", bytes.NewBuffer(jsonData))
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer dev")
+	httpReq.Header.Set("Authorization", "Bearer valid-token")
 	// Missing Idempotency-Key header
 
 	router.ServeHTTP(w, httpReq)
@@ -113,7 +113,7 @@ func TestCreateNetwork_InvalidCIDR(t *testing.T) {
 	w := httptest.NewRecorder()
 	httpReq, _ := http.NewRequest("POST", "/v1/networks", bytes.NewBuffer(jsonData))
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer dev")
+	httpReq.Header.Set("Authorization", "Bearer valid-token")
 	httpReq.Header.Set("Idempotency-Key", "test-key-456")
 
 	router.ServeHTTP(w, httpReq)
@@ -156,7 +156,7 @@ func TestListNetworks_Public(t *testing.T) {
 	networkRepo := repository.NewInMemoryNetworkRepository()
 	if err := networkRepo.Create(ctx, &domain.Network{
 		ID:         "net-123",
-		TenantID:   "default",
+		TenantID:   "t1",
 		Name:       "Public Network",
 		Visibility: domain.NetworkVisibilityPublic,
 		JoinPolicy: domain.JoinPolicyOpen,
@@ -177,7 +177,7 @@ func TestListNetworks_Public(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	httpReq, _ := http.NewRequest("GET", "/v1/networks?visibility=public", nil)
-	httpReq.Header.Set("Authorization", "Bearer dev")
+	httpReq.Header.Set("Authorization", "Bearer valid-token")
 
 	router.ServeHTTP(w, httpReq)
 
@@ -219,7 +219,7 @@ func TestListNetworks_AdminAll(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	httpReq, _ := http.NewRequest("GET", "/v1/networks?visibility=all", nil)
-	httpReq.Header.Set("Authorization", "Bearer admin") // admin token
+	httpReq.Header.Set("Authorization", "Bearer admin-token") // admin token
 
 	router.ServeHTTP(w, httpReq)
 
@@ -233,7 +233,7 @@ func TestListNetworks_NonAdminAll(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	httpReq, _ := http.NewRequest("GET", "/v1/networks?visibility=all", nil)
-	httpReq.Header.Set("Authorization", "Bearer dev") // non-admin token
+	httpReq.Header.Set("Authorization", "Bearer valid-token") // non-admin token
 
 	router.ServeHTTP(w, httpReq)
 

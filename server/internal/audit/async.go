@@ -26,6 +26,7 @@ type AsyncAuditor struct {
 type queuedEvent struct {
 	enqueueTS time.Time
 	ctx       context.Context
+	tenantID  string
 	action    string
 	actor     string
 	object    string
@@ -98,11 +99,11 @@ func (a *AsyncAuditor) launchWorker() {
 }
 
 // Event enqueues an event or drops it if the queue is full, updating metrics accordingly.
-func (a *AsyncAuditor) Event(ctx context.Context, action, actor, object string, details map[string]any) {
+func (a *AsyncAuditor) Event(ctx context.Context, tenantID, action, actor, object string, details map[string]any) {
 	if !a.started {
 		return
 	}
-	ev := queuedEvent{enqueueTS: time.Now(), ctx: ctx, action: action, actor: actor, object: object, details: details}
+	ev := queuedEvent{enqueueTS: time.Now(), ctx: ctx, tenantID: tenantID, action: action, actor: actor, object: object, details: details}
 	// Treat the system as full when the number of in-flight events (queued + currently
 	// processing) is already at capacity. This prevents bursts from overwhelming the
 	// underlying auditor even if the worker consumes quickly.
@@ -148,7 +149,7 @@ func (a *AsyncAuditor) run() {
 
 func (a *AsyncAuditor) dispatch(ev queuedEvent) {
 	metrics.ObserveAuditDispatch(time.Since(ev.enqueueTS).Seconds())
-	a.next.Event(ev.ctx, ev.action, ev.actor, ev.object, ev.details)
+	a.next.Event(ev.ctx, ev.tenantID, ev.action, ev.actor, ev.object, ev.details)
 	metrics.SetAuditQueueDepth(len(a.ch))
 	atomic.AddInt64(&a.inFlight, -1)
 }

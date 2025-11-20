@@ -12,8 +12,8 @@ func TestHashChainVerificationSuccess(t *testing.T) {
 		t.Fatalf("new sqlite auditor: %v", err)
 	}
 	ctx := context.Background()
-	aud.Event(ctx, "A1", "actor", "obj", map[string]any{"k": 1})
-	aud.Event(ctx, "A2", "actor", "obj", map[string]any{"k": 2})
+	aud.Event(ctx, "t1", "A1", "actor", "obj", map[string]any{"k": 1})
+	aud.Event(ctx, "t1", "A2", "actor", "obj", map[string]any{"k": 2})
 	if err := aud.VerifyChain(ctx); err != nil {
 		t.Fatalf("expected success verify, got %v", err)
 	}
@@ -25,8 +25,8 @@ func TestHashChainVerificationMismatch(t *testing.T) {
 		t.Fatalf("new sqlite auditor: %v", err)
 	}
 	ctx := context.Background()
-	aud.Event(ctx, "A1", "actor", "obj", nil)
-	aud.Event(ctx, "A2", "actor", "obj", nil)
+	aud.Event(ctx, "t1", "A1", "actor", "obj", nil)
+	aud.Event(ctx, "t1", "A2", "actor", "obj", nil)
 	// Tamper: update chain_hash of first row
 	_, err = aud.db.ExecContext(ctx, `UPDATE audit_events SET chain_hash='deadbeef' WHERE seq=1`)
 	if err != nil {

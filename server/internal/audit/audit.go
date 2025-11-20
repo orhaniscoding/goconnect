@@ -9,7 +9,7 @@ import (
 
 // Auditor defines a sink for audit events. PII must not be logged.
 type Auditor interface {
-	Event(ctx context.Context, action, actor, object string, details map[string]any)
+	Event(ctx context.Context, tenantID, action, actor, object string, details map[string]any)
 }
 
 type stdoutAuditor struct{ hasher func(string) string }
@@ -35,7 +35,7 @@ func NewStdoutAuditorWithHashSecrets(secrets ...[]byte) Auditor {
 	return &stdoutAuditor{hasher: h}
 }
 
-func (s *stdoutAuditor) Event(ctx context.Context, action, actor, object string, details map[string]any) {
+func (s *stdoutAuditor) Event(ctx context.Context, tenantID, action, actor, object string, details map[string]any) {
 	// Redact PII: don't emit raw actor/object identifiers directly
 	if details == nil {
 		details = map[string]any{}
@@ -50,6 +50,7 @@ func (s *stdoutAuditor) Event(ctx context.Context, action, actor, object string,
 	payload := map[string]any{
 		"ts":         time.Now().UTC().Format(time.RFC3339Nano),
 		"request_id": rid,
+		"tenant_id":  tenantID,
 		"action":     action,
 		"actor":      actorOut,
 		"object":     objectOut,
@@ -65,11 +66,11 @@ type metricsAuditor struct {
 	inc  func(action string)
 }
 
-func (m *metricsAuditor) Event(ctx context.Context, action, actor, object string, details map[string]any) {
+func (m *metricsAuditor) Event(ctx context.Context, tenantID, action, actor, object string, details map[string]any) {
 	if m.inc != nil {
 		m.inc(action)
 	}
-	m.next.Event(ctx, action, actor, object, details)
+	m.next.Event(ctx, tenantID, action, actor, object, details)
 }
 
 // WrapWithMetrics decorates the provided auditor with a counter increment callback.

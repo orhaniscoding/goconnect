@@ -30,12 +30,17 @@ func (s *IPAMService) SetAuditor(a Auditor) {
 }
 
 // AllocateIP returns existing allocation or assigns the next available IP.
-func (s *IPAMService) AllocateIP(ctx context.Context, networkID, userID string) (*domain.IPAllocation, error) {
+func (s *IPAMService) AllocateIP(ctx context.Context, networkID, userID, tenantID string) (*domain.IPAllocation, error) {
 	// Retrieve network first
 	netw, err := s.networks.GetByID(ctx, networkID)
 	if err != nil {
 		return nil, err
 	}
+	// Enforce tenant isolation
+	if netw.TenantID != tenantID {
+		return nil, domain.NewError(domain.ErrNotFound, "Network not found", nil)
+	}
+
 	// Enforce membership: must exist & be approved
 	if s.members != nil { // defensive if nil in some legacy tests
 		m, mErr := s.members.Get(ctx, networkID, userID)
@@ -51,16 +56,22 @@ func (s *IPAMService) AllocateIP(ctx context.Context, networkID, userID string) 
 	if err != nil {
 		return nil, err
 	}
-	s.aud.Event(ctx, audit.ActionIPAllocated, userID, networkID, map[string]any{"ip": alloc.IP})
+	s.aud.Event(ctx, tenantID, audit.ActionIPAllocated, userID, networkID, map[string]any{"ip": alloc.IP})
 	return alloc, nil
 }
 
 // ListAllocations returns all allocations for a network (member must be approved; admin/owner not yet distinguished here)
-func (s *IPAMService) ListAllocations(ctx context.Context, networkID, userID string) ([]*domain.IPAllocation, error) {
+func (s *IPAMService) ListAllocations(ctx context.Context, networkID, userID, tenantID string) ([]*domain.IPAllocation, error) {
 	// network existence
-	if _, err := s.networks.GetByID(ctx, networkID); err != nil {
+	netw, err := s.networks.GetByID(ctx, networkID)
+	if err != nil {
 		return nil, err
 	}
+	// Enforce tenant isolation
+	if netw.TenantID != tenantID {
+		return nil, domain.NewError(domain.ErrNotFound, "Network not found", nil)
+	}
+
 	if s.members != nil {
 		m, err := s.members.Get(ctx, networkID, userID)
 		if err != nil {
@@ -74,11 +85,17 @@ func (s *IPAMService) ListAllocations(ctx context.Context, networkID, userID str
 }
 
 // ReleaseIP releases a user's allocation (idempotent). If user has no allocation it still succeeds.
-func (s *IPAMService) ReleaseIP(ctx context.Context, networkID, userID string) error {
+func (s *IPAMService) ReleaseIP(ctx context.Context, networkID, userID, tenantID string) error {
 	// ensure network exists
-	if _, err := s.networks.GetByID(ctx, networkID); err != nil {
+	netw, err := s.networks.GetByID(ctx, networkID)
+	if err != nil {
 		return err
 	}
+	// Enforce tenant isolation
+	if netw.TenantID != tenantID {
+		return domain.NewError(domain.ErrNotFound, "Network not found", nil)
+	}
+
 	// Enforce membership approval before allowing release (prevents probing existence of allocations by outsiders)
 	if s.members != nil {
 		m, err := s.members.Get(ctx, networkID, userID)
@@ -92,7 +109,7 @@ func (s *IPAMService) ReleaseIP(ctx context.Context, networkID, userID string) e
 	if err := s.ipam.Release(ctx, networkID, userID); err != nil {
 		return err
 	}
-	s.aud.Event(ctx, audit.ActionIPReleased, userID, networkID, nil)
+	s.aud.Event(ctx, tenantID, audit.ActionIPReleased, userID, networkID, nil)
 	return nil
 }
 
@@ -102,11 +119,17 @@ func (s *IPAMService) ReleaseIP(ctx context.Context, networkID, userID string) e
 // - Target user must have approved membership (if target membership missing we treat as not authorized to avoid probing user existence).
 // - Operation is idempotent: if target has no allocation, succeeds silently.
 // - Self release by actor should prefer ReleaseIP, but still allowed here.
-func (s *IPAMService) ReleaseIPForActor(ctx context.Context, networkID, actorUserID, targetUserID string) error {
+func (s *IPAMService) ReleaseIPForActor(ctx context.Context, networkID, actorUserID, targetUserID, tenantID string) error {
 	// ensure network exists
-	if _, err := s.networks.GetByID(ctx, networkID); err != nil {
+	netw, err := s.networks.GetByID(ctx, networkID)
+	if err != nil {
 		return err
 	}
+	// Enforce tenant isolation
+	if netw.TenantID != tenantID {
+		return domain.NewError(domain.ErrNotFound, "Network not found", nil)
+	}
+
 	if s.members == nil {
 		return domain.NewError(domain.ErrInternalServer, "Membership repository unavailable", nil)
 	}
@@ -132,6 +155,6 @@ func (s *IPAMService) ReleaseIPForActor(ctx context.Context, networkID, actorUse
 	if err := s.ipam.Release(ctx, networkID, targetUserID); err != nil {
 		return err
 	}
-	s.aud.Event(ctx, audit.ActionIPReleased, actorUserID, networkID, map[string]any{"released_for": targetUserID})
+	s.aud.Event(ctx, tenantID, audit.ActionIPReleased, actorUserID, networkID, map[string]any{"released_for": targetUserID})
 	return nil
 }

@@ -72,6 +72,32 @@ func TestNetworkService_CreateNetwork(t *testing.T) {
 			wantErr:     true,
 			wantErrCode: domain.ErrCIDROverlap,
 		},
+		{
+			name: "CIDR overlap allowed for different tenants",
+			req: &domain.CreateNetworkRequest{
+				Name:       "Overlapping Network Different Tenant",
+				Visibility: domain.NetworkVisibilityPublic,
+				JoinPolicy: domain.JoinPolicyOpen,
+				CIDR:       "10.0.0.0/24",
+			},
+			userID:         "user123",
+			idempotencyKey: "test-key-4",
+			setupRepo: func(repo *repository.InMemoryNetworkRepository) {
+				existingNetwork := &domain.Network{
+					ID:         "existing-net",
+					TenantID:   "other-tenant",
+					Name:       "Existing Network",
+					Visibility: domain.NetworkVisibilityPublic,
+					JoinPolicy: domain.JoinPolicyOpen,
+					CIDR:       "10.0.0.0/24",
+					CreatedBy:  "user456",
+				}
+				if err := repo.Create(context.Background(), existingNetwork); err != nil {
+					t.Fatalf("failed to create network: %v", err)
+				}
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -87,7 +113,7 @@ func TestNetworkService_CreateNetwork(t *testing.T) {
 			service := NewNetworkService(networkRepo, idempotencyRepo)
 
 			// Execute test
-			network, err := service.CreateNetwork(context.Background(), tt.req, tt.userID, tt.idempotencyKey)
+			network, err := service.CreateNetwork(context.Background(), tt.req, tt.userID, "default", tt.idempotencyKey)
 
 			// Check error expectations
 			if tt.wantErr {
@@ -148,19 +174,17 @@ func TestNetworkService_CreateNetwork_Idempotency(t *testing.T) {
 	userID := "user123"
 	idempotencyKey := "test-idempotency-key"
 
-	// First request
-	network1, err := service.CreateNetwork(context.Background(), req, userID, idempotencyKey)
+	// First call
+	network1, err := service.CreateNetwork(context.Background(), req, userID, "default", idempotencyKey)
 	if err != nil {
 		t.Fatalf("First CreateNetwork() failed: %v", err)
 	}
 
-	// Second request with same idempotency key and body should return cached result
-	network2, err := service.CreateNetwork(context.Background(), req, userID, idempotencyKey)
+	// Second call with same idempotency key
+	network2, err := service.CreateNetwork(context.Background(), req, userID, "default", idempotencyKey)
 	if err != nil {
 		t.Fatalf("Second CreateNetwork() failed: %v", err)
-	}
-
-	// Should return the same network
+	} // Should return the same network
 	if network1.ID != network2.ID {
 		t.Errorf("Idempotent requests returned different network IDs: %v vs %v", network1.ID, network2.ID)
 	}
@@ -173,7 +197,7 @@ func TestNetworkService_CreateNetwork_Idempotency(t *testing.T) {
 		CIDR:       "10.0.1.0/24", // Different CIDR to avoid overlap
 	}
 
-	_, err = service.CreateNetwork(context.Background(), reqDifferent, userID, idempotencyKey)
+	_, err = service.CreateNetwork(context.Background(), reqDifferent, userID, "default", idempotencyKey)
 	if err == nil {
 		t.Error("Expected idempotency conflict error but got none")
 	}
@@ -325,7 +349,7 @@ func TestNetworkService_ListNetworks(t *testing.T) {
 			service := NewNetworkService(networkRepo, idempotencyRepo)
 
 			// Execute test
-			networks, _, err := service.ListNetworks(context.Background(), tt.req, tt.userID, tt.isAdmin)
+			networks, _, err := service.ListNetworks(context.Background(), tt.req, tt.userID, "default", tt.isAdmin)
 
 			// Check error expectations
 			if tt.wantErr {
@@ -345,5 +369,172 @@ func TestNetworkService_ListNetworks(t *testing.T) {
 				t.Errorf("ListNetworks() returned %v networks, want %v", len(networks), tt.wantCount)
 			}
 		})
+	}
+}
+
+func TestNetworkService_GetNetwork(t *testing.T) {
+	repo := repository.NewInMemoryNetworkRepository()
+	service := NewNetworkService(repo, repository.NewInMemoryIdempotencyRepository())
+	ctx := context.Background()
+
+	// Create test network
+	net := &domain.Network{
+		ID:         "net1",
+		TenantID:   "default",
+		Name:       "Test Network",
+		Visibility: domain.NetworkVisibilityPublic,
+		CIDR:       "10.0.0.0/24",
+		CreatedBy:  "user1",
+	}
+	repo.Create(ctx, net)
+
+	// Test Success
+	got, err := service.GetNetwork(ctx, "net1", "user1", "default")
+	if err != nil {
+		t.Fatalf("GetNetwork failed: %v", err)
+	}
+	if got.ID != "net1" {
+		t.Errorf("GetNetwork returned wrong ID: %s", got.ID)
+	}
+
+	// Test Not Found
+	_, err = service.GetNetwork(ctx, "nonexistent", "user1", "default")
+	if err == nil {
+		t.Error("GetNetwork expected error for non-existent ID")
+	}
+
+	// Test Tenant Mismatch
+	_, err = service.GetNetwork(ctx, "net1", "user1", "other-tenant")
+	if err == nil {
+		t.Error("GetNetwork expected error for tenant mismatch")
+	}
+	if domainErr, ok := err.(*domain.Error); !ok || domainErr.Code != domain.ErrNotFound {
+		t.Errorf("GetNetwork expected ErrNotFound for tenant mismatch, got %v", err)
+	}
+}
+
+func TestNetworkService_UpdateNetwork(t *testing.T) {
+	repo := repository.NewInMemoryNetworkRepository()
+	service := NewNetworkService(repo, repository.NewInMemoryIdempotencyRepository())
+	ctx := context.Background()
+
+	// Create test network
+	net := &domain.Network{
+		ID:         "net1",
+		TenantID:   "default",
+		Name:       "Original Name",
+		Visibility: domain.NetworkVisibilityPublic,
+		JoinPolicy: domain.JoinPolicyOpen,
+		CIDR:       "10.0.0.0/24",
+		CreatedBy:  "user1",
+	}
+	repo.Create(ctx, net)
+
+	// Test Success
+	patch := map[string]any{
+		"name":        "Updated Name",
+		"visibility":  "private",
+		"join_policy": "approval",
+	}
+	updated, err := service.UpdateNetwork(ctx, "net1", "user1", "default", patch)
+	if err != nil {
+		t.Fatalf("UpdateNetwork failed: %v", err)
+	}
+	if updated.Name != "Updated Name" {
+		t.Errorf("UpdateNetwork name mismatch: %s", updated.Name)
+	}
+	if updated.Visibility != domain.NetworkVisibilityPrivate {
+		t.Errorf("UpdateNetwork visibility mismatch: %s", updated.Visibility)
+	}
+	if updated.JoinPolicy != domain.JoinPolicyApproval {
+		t.Errorf("UpdateNetwork join_policy mismatch: %s", updated.JoinPolicy)
+	}
+
+	// Test Invalid Name
+	_, err = service.UpdateNetwork(ctx, "net1", "user1", "default", map[string]any{"name": "ab"}) // Too short
+	if err == nil {
+		t.Error("UpdateNetwork expected error for short name")
+	}
+
+	// Test Invalid Visibility
+	_, err = service.UpdateNetwork(ctx, "net1", "user1", "default", map[string]any{"visibility": "invalid"})
+	if err == nil {
+		t.Error("UpdateNetwork expected error for invalid visibility")
+	}
+
+	// Test Invalid JoinPolicy
+	_, err = service.UpdateNetwork(ctx, "net1", "user1", "default", map[string]any{"join_policy": "invalid"})
+	if err == nil {
+		t.Error("UpdateNetwork expected error for invalid join_policy")
+	}
+
+	// Test Not Found
+	_, err = service.UpdateNetwork(ctx, "nonexistent", "user1", "default", patch)
+	if err == nil {
+		t.Error("UpdateNetwork expected error for non-existent ID")
+	}
+
+	// Test Tenant Mismatch
+	_, err = service.UpdateNetwork(ctx, "net1", "user1", "other-tenant", patch)
+	if err == nil {
+		t.Error("UpdateNetwork expected error for tenant mismatch")
+	}
+	if domainErr, ok := err.(*domain.Error); !ok || domainErr.Code != domain.ErrNotFound {
+		t.Errorf("UpdateNetwork expected ErrNotFound for tenant mismatch, got %v", err)
+	}
+}
+
+func TestNetworkService_DeleteNetwork(t *testing.T) {
+	repo := repository.NewInMemoryNetworkRepository()
+	service := NewNetworkService(repo, repository.NewInMemoryIdempotencyRepository())
+	ctx := context.Background()
+
+	// Create test network
+	net := &domain.Network{
+		ID:         "net1",
+		TenantID:   "default",
+		Name:       "To Delete",
+		Visibility: domain.NetworkVisibilityPublic,
+		CIDR:       "10.0.0.0/24",
+		CreatedBy:  "user1",
+	}
+	repo.Create(ctx, net)
+
+	// Test Success
+	err := service.DeleteNetwork(ctx, "net1", "user1", "default")
+	if err != nil {
+		t.Fatalf("DeleteNetwork failed: %v", err)
+	}
+
+	// Verify deletion
+	_, err = service.GetNetwork(ctx, "net1", "user1", "default")
+	if err == nil {
+		t.Error("GetNetwork should fail after deletion")
+	}
+
+	// Test Not Found
+	err = service.DeleteNetwork(ctx, "nonexistent", "user1", "default")
+	if err == nil {
+		t.Error("DeleteNetwork expected error for non-existent ID")
+	}
+
+	// Test Tenant Mismatch
+	// Re-create network for mismatch test
+	net2 := &domain.Network{
+		ID:         "net2",
+		TenantID:   "default",
+		Name:       "Mismatch Test",
+		Visibility: domain.NetworkVisibilityPublic,
+		CIDR:       "10.0.1.0/24",
+		CreatedBy:  "user1",
+	}
+	repo.Create(ctx, net2)
+
+	err = service.DeleteNetwork(ctx, "net2", "user1", "other-tenant")
+	if err == nil {
+		t.Error("DeleteNetwork expected error for tenant mismatch")
+	}
+	if domainErr, ok := err.(*domain.Error); !ok || domainErr.Code != domain.ErrNotFound {
+		t.Errorf("DeleteNetwork expected ErrNotFound for tenant mismatch, got %v", err)
 	}
 }

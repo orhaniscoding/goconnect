@@ -1,0 +1,371 @@
+package repository
+
+import (
+	"context"
+	"database/sql"
+	"time"
+
+	"github.com/orhaniscoding/goconnect/server/internal/domain"
+)
+
+// PostgresUserAdapter adapts PostgresUserRepository to UserRepository interface
+type PostgresUserAdapter struct {
+	repo *PostgresUserRepository
+}
+
+// NewPostgresUserAdapter creates a new adapter
+func NewPostgresUserAdapter(db *sql.DB) *PostgresUserAdapter {
+	return &PostgresUserAdapter{
+		repo: NewPostgresUserRepository(db),
+	}
+}
+
+func (a *PostgresUserAdapter) Create(user *domain.User) error {
+	return a.repo.Create(context.Background(), user)
+}
+
+func (a *PostgresUserAdapter) GetByID(id string) (*domain.User, error) {
+	return a.repo.GetByID(context.Background(), id)
+}
+
+func (a *PostgresUserAdapter) GetByEmail(email string) (*domain.User, error) {
+	// TODO: This needs tenant context - for now use first tenant
+	return a.repo.GetByEmail(context.Background(), "", email)
+}
+
+func (a *PostgresUserAdapter) Update(user *domain.User) error {
+	return a.repo.Update(context.Background(), user)
+}
+
+func (a *PostgresUserAdapter) Delete(id string) error {
+	return a.repo.Delete(context.Background(), id)
+}
+
+// PostgresTenantAdapter adapts PostgresTenantRepository to TenantRepository interface
+type PostgresTenantAdapter struct {
+	repo *PostgresTenantRepository
+}
+
+// NewPostgresTenantAdapter creates a new adapter
+func NewPostgresTenantAdapter(db *sql.DB) *PostgresTenantAdapter {
+	return &PostgresTenantAdapter{
+		repo: NewPostgresTenantRepository(db),
+	}
+}
+
+func (a *PostgresTenantAdapter) Create(tenant *domain.Tenant) error {
+	return a.repo.Create(context.Background(), tenant)
+}
+
+func (a *PostgresTenantAdapter) GetByID(id string) (*domain.Tenant, error) {
+	return a.repo.GetByID(context.Background(), id)
+}
+
+func (a *PostgresTenantAdapter) Update(tenant *domain.Tenant) error {
+	return a.repo.Update(context.Background(), tenant)
+}
+
+func (a *PostgresTenantAdapter) Delete(id string) error {
+	return a.repo.Delete(context.Background(), id)
+}
+
+func (a *PostgresTenantAdapter) List() ([]*domain.Tenant, error) {
+	return a.repo.List(context.Background())
+}
+
+// PostgresMembershipAdapter adapts PostgresMembershipRepository to MembershipRepository interface
+type PostgresMembershipAdapter struct {
+	repo *PostgresMembershipRepository
+}
+
+// NewPostgresMembershipAdapter creates a new adapter
+func NewPostgresMembershipAdapter(db *sql.DB) *PostgresMembershipAdapter {
+	return &PostgresMembershipAdapter{
+		repo: NewPostgresMembershipRepository(db),
+	}
+}
+
+func (a *PostgresMembershipAdapter) UpsertApproved(ctx context.Context, networkID, userID string, role domain.MembershipRole, joinedAt time.Time) (*domain.Membership, error) {
+	// Check if membership exists
+	existing, err := a.repo.GetByNetworkAndUser(ctx, networkID, userID)
+	if err == nil {
+		// Update existing
+		existing.Role = role
+		existing.Status = domain.StatusApproved
+		if joinedAt.IsZero() {
+			existing.JoinedAt = &joinedAt
+		}
+		if err := a.repo.Update(ctx, existing); err != nil {
+			return nil, err
+		}
+		return existing, nil
+	}
+	
+	// Create new
+	now := time.Now()
+	var joinedAtPtr *time.Time
+	if !joinedAt.IsZero() {
+		joinedAtPtr = &joinedAt
+	}
+	
+	membership := &domain.Membership{
+		ID:        domain.GenerateNetworkID(), // Using existing ID generator
+		NetworkID: networkID,
+		UserID:    userID,
+		Role:      role,
+		Status:    domain.StatusApproved,
+		JoinedAt:  joinedAtPtr,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	if err := a.repo.Create(ctx, membership); err != nil {
+		return nil, err
+	}
+	return membership, nil
+}
+
+func (a *PostgresMembershipAdapter) Get(ctx context.Context, networkID, userID string) (*domain.Membership, error) {
+	return a.repo.GetByNetworkAndUser(ctx, networkID, userID)
+}
+
+func (a *PostgresMembershipAdapter) SetStatus(ctx context.Context, networkID, userID string, status domain.MembershipStatus) error {
+	// Get membership, update status, and save
+	membership, err := a.repo.GetByNetworkAndUser(ctx, networkID, userID)
+	if err != nil {
+		return err
+	}
+	membership.Status = status
+	return a.repo.Update(ctx, membership)
+}
+
+func (a *PostgresMembershipAdapter) List(ctx context.Context, networkID string, status string, limit int, cursor string) ([]*domain.Membership, string, error) {
+	// PostgreSQL repo has ListByNetwork but not the full List with pagination
+	// For now, use ListByNetwork and ignore pagination/status filter
+	memberships, err := a.repo.ListByNetwork(ctx, networkID)
+	if err != nil {
+		return nil, "", err
+	}
+	// TODO: Implement proper pagination and status filtering in PostgresMembershipRepository
+	return memberships, "", nil
+}
+
+func (a *PostgresMembershipAdapter) Remove(ctx context.Context, networkID, userID string) error {
+	// First get the membership to find its ID
+	membership, err := a.repo.GetByNetworkAndUser(ctx, networkID, userID)
+	if err != nil {
+		return err
+	}
+	return a.repo.Delete(ctx, membership.ID)
+}
+
+// PostgresIPAMAdapter adapts PostgresIPAMRepository to IPAMRepository interface
+type PostgresIPAMAdapter struct {
+
+func (a *PostgresMembershipAdapter) SetStatus(ctx context.Context, networkID, userID string, status domain.MembershipStatus) error {
+	// Get membership, update status, and save
+	membership, err := a.repo.GetByNetworkAndUser(ctx, networkID, userID)
+	if err != nil {
+		return err
+	}
+	membership.Status = status
+	return a.repo.Update(ctx, membership)
+}
+
+func (a *PostgresMembershipAdapter) List(ctx context.Context, networkID string, status string, limit int, cursor string) ([]*domain.Membership, string, error) {
+	// PostgreSQL repo has ListByNetwork but not the full List with pagination
+	// For now, use ListByNetwork and ignore pagination/status filter
+	memberships, err := a.repo.ListByNetwork(ctx, networkID)
+	if err != nil {
+		return nil, "", err
+	}
+	// TODO: Implement proper pagination and status filtering in PostgresMembershipRepository
+	return memberships, "", nil
+}
+
+func (a *PostgresMembershipAdapter) Remove(ctx context.Context, networkID, userID string) error {
+	// First get the membership to find its ID
+	membership, err := a.repo.GetByNetworkAndUser(ctx, networkID, userID)
+	if err != nil {
+		return err
+	}
+	return a.repo.Delete(ctx, membership.ID)
+}
+
+// Deprecated methods kept for backwards compatibility
+func (a *PostgresMembershipAdapter) Create(membership *domain.Membership) error {
+	return a.repo.Create(context.Background(), membership)
+}
+
+func (a *PostgresMembershipAdapter) Get(ctx context.Context, networkID, userID string) (*domain.Membership, error) {
+	return a.repo.GetByNetworkAndUser(ctx, networkID, userID)
+}
+
+func (a *PostgresMembershipAdapter) Update(membership *domain.Membership) error {
+	return a.repo.Update(context.Background(), membership)
+}
+
+func (a *PostgresMembershipAdapter) SetStatus(ctx context.Context, networkID, userID string, status domain.MembershipStatus) error {
+	// Get membership, update status, and save
+	membership, err := a.repo.GetByNetworkAndUser(ctx, networkID, userID)
+	if err != nil {
+		return err
+	}
+	membership.Status = status
+	return a.repo.Update(ctx, membership)
+}
+
+func (a *PostgresMembershipAdapter) Delete(networkID, userID string) error {
+	// First get the membership to find its ID
+	membership, err := a.repo.GetByNetworkAndUser(context.Background(), networkID, userID)
+	if err != nil {
+		return err
+	}
+	return a.repo.Delete(context.Background(), membership.ID)
+}
+
+func (a *PostgresMembershipAdapter) Remove(ctx context.Context, networkID, userID string) error {
+	// Remove is same as Delete but context-aware
+	membership, err := a.repo.GetByNetworkAndUser(ctx, networkID, userID)
+	if err != nil {
+		return err
+	}
+	return a.repo.Delete(ctx, membership.ID)
+}
+
+func (a *PostgresMembershipAdapter) ListByNetwork(networkID string) ([]*domain.Membership, error) {
+	return a.repo.ListByNetwork(context.Background(), networkID)
+}
+
+func (a *PostgresMembershipAdapter) ListByUser(userID string) ([]*domain.Membership, error) {
+	// PostgreSQL repo doesn't have this yet - return empty for now
+	return []*domain.Membership{}, nil
+}
+
+func (a *PostgresMembershipAdapter) List(ctx context.Context, networkID string, status string, limit int, cursor string) ([]*domain.Membership, string, error) {
+	// PostgreSQL repo has ListByNetwork but not the full List with pagination
+	// For now, use ListByNetwork and ignore pagination
+	memberships, err := a.repo.ListByNetwork(ctx, networkID)
+	if err != nil {
+		return nil, "", err
+	}
+	// TODO: Implement proper pagination in PostgresMembershipRepository
+	return memberships, "", nil
+}
+
+// PostgresIPAMAdapter adapts PostgresIPAMRepository to IPAMRepository interface
+type PostgresIPAMAdapter struct {
+	repo *PostgresIPAMRepository
+}
+
+// NewPostgresIPAMAdapter creates a new adapter
+func NewPostgresIPAMAdapter(db *sql.DB) *PostgresIPAMAdapter {
+	return &PostgresIPAMAdapter{
+		repo: NewPostgresIPAMRepository(db),
+	}
+}
+
+func (a *PostgresIPAMAdapter) GetOrAllocate(networkID, userID, cidr string) (*domain.IPAllocation, error) {
+	return a.repo.GetOrAllocate(context.Background(), networkID, userID, cidr)
+}
+
+func (a *PostgresIPAMAdapter) List(networkID string) ([]*domain.IPAllocation, error) {
+	return a.repo.List(context.Background(), networkID)
+}
+
+func (a *PostgresIPAMAdapter) Release(networkID, userID string) error {
+	return a.repo.Release(context.Background(), networkID, userID)
+}
+
+// PostgresChatAdapter adapts PostgresChatRepository to ChatRepository interface
+type PostgresChatAdapter struct {
+	repo *PostgresChatRepository
+}
+
+// NewPostgresChatAdapter creates a new adapter
+func NewPostgresChatAdapter(db *sql.DB) *PostgresChatAdapter {
+	return &PostgresChatAdapter{
+		repo: NewPostgresChatRepository(db),
+	}
+}
+
+func (a *PostgresChatAdapter) Create(ctx context.Context, msg *domain.ChatMessage) error {
+	return a.repo.Create(ctx, msg)
+}
+
+func (a *PostgresChatAdapter) GetByID(ctx context.Context, id string) (*domain.ChatMessage, error) {
+	return a.repo.GetByID(ctx, id)
+}
+
+func (a *PostgresChatAdapter) List(ctx context.Context, filter domain.ChatMessageFilter) ([]*domain.ChatMessage, string, error) {
+	return a.repo.List(ctx, filter)
+}
+
+func (a *PostgresChatAdapter) Update(ctx context.Context, msg *domain.ChatMessage) error {
+	return a.repo.Update(ctx, msg)
+}
+
+func (a *PostgresChatAdapter) Delete(ctx context.Context, id string) error {
+	return a.repo.Delete(ctx, id)
+}
+
+func (a *PostgresChatAdapter) SoftDelete(ctx context.Context, id string) error {
+	// PostgreSQL repo doesn't have SoftDelete - use Delete for now
+	// TODO: Implement SoftDelete in PostgresChatRepository
+	return a.repo.Delete(ctx, id)
+}
+
+func (a *PostgresChatAdapter) AddEdit(ctx context.Context, edit *domain.ChatMessageEdit) error {
+	// TODO: Implement edit history in PostgresChatRepository
+	return domain.NewError(domain.ErrNotImplemented, "edit history not implemented in postgres", nil)
+}
+
+func (a *PostgresChatAdapter) GetEdits(ctx context.Context, messageID string) ([]*domain.ChatMessageEdit, error) {
+	// TODO: Implement edit history in PostgresChatRepository
+	return []*domain.ChatMessageEdit{}, nil
+}
+
+// PostgresDeviceAdapter adapts PostgresDeviceRepository to DeviceRepository interface
+type PostgresDeviceAdapter struct {
+	repo *PostgresDeviceRepository
+}
+
+// NewPostgresDeviceAdapter creates a new adapter
+func NewPostgresDeviceAdapter(db *sql.DB) *PostgresDeviceAdapter {
+	return &PostgresDeviceAdapter{
+		repo: NewPostgresDeviceRepository(db),
+	}
+}
+
+func (a *PostgresDeviceAdapter) Create(ctx context.Context, device *domain.Device) error {
+	return a.repo.Create(ctx, device)
+}
+
+func (a *PostgresDeviceAdapter) GetByID(ctx context.Context, id string) (*domain.Device, error) {
+	return a.repo.GetByID(ctx, id)
+}
+
+func (a *PostgresDeviceAdapter) GetByPubKey(ctx context.Context, pubkey string) (*domain.Device, error) {
+	return a.repo.GetByPubKey(ctx, pubkey)
+}
+
+func (a *PostgresDeviceAdapter) List(ctx context.Context, filter domain.DeviceFilter) ([]*domain.Device, string, error) {
+	return a.repo.List(ctx, filter)
+}
+
+func (a *PostgresDeviceAdapter) Update(ctx context.Context, device *domain.Device) error {
+	return a.repo.Update(ctx, device)
+}
+
+func (a *PostgresDeviceAdapter) Delete(ctx context.Context, id string) error {
+	return a.repo.Delete(ctx, id)
+}
+
+func (a *PostgresDeviceAdapter) UpdateHeartbeat(ctx context.Context, id string, ipAddress string) error {
+	return a.repo.UpdateHeartbeat(ctx, id, ipAddress)
+}
+
+func (a *PostgresDeviceAdapter) MarkInactive(ctx context.Context, id string) error {
+	// TODO: Implement MarkInactive in PostgresDeviceRepository
+	return domain.NewError(domain.ErrNotImplemented, "mark inactive not implemented in postgres", nil)
+}
+

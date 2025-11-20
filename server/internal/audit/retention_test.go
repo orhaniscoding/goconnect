@@ -9,7 +9,7 @@ func TestInMemoryStoreCapacityEvictsOldest(t *testing.T) {
 	store := NewInMemoryStore(WithCapacity(3))
 	ctx := context.Background()
 	for i := 0; i < 5; i++ {
-		store.Event(ctx, "EVT", "actor", "obj", map[string]any{"i": i})
+		store.Event(ctx, "t1", "EVT", "actor", "obj", map[string]any{"i": i})
 	}
 	evs := store.List()
 	if len(evs) != 3 {

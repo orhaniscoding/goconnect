@@ -106,6 +106,7 @@ func (a *SqliteAuditor) migrate() error {
 	schema := `CREATE TABLE IF NOT EXISTS audit_events (
         seq INTEGER PRIMARY KEY AUTOINCREMENT,
         ts TEXT NOT NULL,
+        tenant_id TEXT NOT NULL DEFAULT '',
         action TEXT NOT NULL,
         actor TEXT NOT NULL,
         object TEXT NOT NULL,
@@ -114,6 +115,7 @@ func (a *SqliteAuditor) migrate() error {
         chain_hash TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_audit_events_action_ts ON audit_events(action, ts);
+    CREATE INDEX IF NOT EXISTS idx_audit_events_tenant_ts ON audit_events(tenant_id, ts);
     CREATE TABLE IF NOT EXISTS audit_chain_anchors (
         seq INTEGER PRIMARY KEY,
         ts TEXT NOT NULL,
@@ -124,11 +126,13 @@ func (a *SqliteAuditor) migrate() error {
 	}
 	// If legacy table existed without chain_hash, ignore error.
 	_, _ = a.db.Exec(`ALTER TABLE audit_events ADD COLUMN chain_hash TEXT`)
+	// If legacy table existed without tenant_id, ignore error.
+	_, _ = a.db.Exec(`ALTER TABLE audit_events ADD COLUMN tenant_id TEXT NOT NULL DEFAULT ''`)
 	return nil
 }
 
 // Event records an audit event, building a verifiable hash chain and optional anchor.
-func (a *SqliteAuditor) Event(ctx context.Context, action, actor, object string, details map[string]any) {
+func (a *SqliteAuditor) Event(ctx context.Context, tenantID, action, actor, object string, details map[string]any) {
 	if details == nil {
 		details = map[string]any{}
 	}
@@ -144,9 +148,10 @@ func (a *SqliteAuditor) Event(ctx context.Context, action, actor, object string,
 	ts := time.Now().UTC().Format(time.RFC3339Nano)
 	canonicalDetails := canonicalizeDetails(details)
 	prevHash := a.getLastChainHash(ctx)
-	chainInput := prevHash + "|" + ts + "|" + action + "|" + actOut + "|" + objOut + "|" + canonicalDetails + "|" + rid
+	// Include tenantID in chain input for integrity
+	chainInput := prevHash + "|" + ts + "|" + tenantID + "|" + action + "|" + actOut + "|" + objOut + "|" + canonicalDetails + "|" + rid
 	chainHash := sha256Hex(chainInput)
-	if _, err := a.db.ExecContext(ctx, `INSERT INTO audit_events(ts, action, actor, object, details, request_id, chain_hash) VALUES(?,?,?,?,?,?,?)`, ts, action, actOut, objOut, string(b), rid, chainHash); err != nil {
+	if _, err := a.db.ExecContext(ctx, `INSERT INTO audit_events(ts, tenant_id, action, actor, object, details, request_id, chain_hash) VALUES(?,?,?,?,?,?,?,?)`, ts, tenantID, action, actOut, objOut, string(b), rid, chainHash); err != nil {
 		metrics.IncAuditFailure("exec")
 		status = "failure"
 	}
@@ -363,7 +368,7 @@ func (a *SqliteAuditor) ExportIntegrity(ctx context.Context, limit int) (Integri
 // VerifyChain recomputes the chain and detects the first mismatch.
 func (a *SqliteAuditor) VerifyChain(ctx context.Context) error {
 	start := time.Now()
-	rows, err := a.db.QueryContext(ctx, `SELECT ts, action, actor, object, details, request_id, chain_hash FROM audit_events ORDER BY seq ASC`)
+	rows, err := a.db.QueryContext(ctx, `SELECT ts, tenant_id, action, actor, object, details, request_id, chain_hash FROM audit_events ORDER BY seq ASC`)
 	if err != nil {
 		return err
 	}
@@ -371,8 +376,8 @@ func (a *SqliteAuditor) VerifyChain(ctx context.Context) error {
 	prev := ""
 	index := 0
 	for rows.Next() {
-		var ts, action, actor, object, detailsJSON, rid, storedHash sql.NullString
-		if err := rows.Scan(&ts, &action, &actor, &object, &detailsJSON, &rid, &storedHash); err != nil {
+		var ts, tenantID, action, actor, object, detailsJSON, rid, storedHash sql.NullString
+		if err := rows.Scan(&ts, &tenantID, &action, &actor, &object, &detailsJSON, &rid, &storedHash); err != nil {
 			return err
 		}
 		detMap := map[string]any{}
@@ -380,7 +385,7 @@ func (a *SqliteAuditor) VerifyChain(ctx context.Context) error {
 			_ = json.Unmarshal([]byte(detailsJSON.String), &detMap)
 		}
 		canonicalDetails := canonicalizeDetails(detMap)
-		chainInput := prev + "|" + ts.String + "|" + action.String + "|" + actor.String + "|" + object.String + "|" + canonicalDetails + "|" + rid.String
+		chainInput := prev + "|" + ts.String + "|" + tenantID.String + "|" + action.String + "|" + actor.String + "|" + object.String + "|" + canonicalDetails + "|" + rid.String
 		recomputed := sha256Hex(chainInput)
 		if index == 0 && prev == "" {
 			if !storedHash.Valid {
@@ -440,7 +445,7 @@ func (a *SqliteAuditor) VerifyFromAnchor(ctx context.Context, anchorSeq int64) e
 		row := a.db.QueryRowContext(ctx, `SELECT chain_hash FROM audit_events WHERE seq = ?`, anchorSeq-1)
 		_ = row.Scan(&prev)
 	}
-	rows, err := a.db.QueryContext(ctx, `SELECT seq, ts, action, actor, object, details, request_id, chain_hash FROM audit_events WHERE seq >= ? ORDER BY seq ASC`, anchorSeq)
+	rows, err := a.db.QueryContext(ctx, `SELECT seq, ts, tenant_id, action, actor, object, details, request_id, chain_hash FROM audit_events WHERE seq >= ? ORDER BY seq ASC`, anchorSeq)
 	if err != nil {
 		return err
 	}
@@ -448,8 +453,8 @@ func (a *SqliteAuditor) VerifyFromAnchor(ctx context.Context, anchorSeq int64) e
 	index := 0
 	for rows.Next() {
 		var seq int64
-		var ts, action, actor, object, detailsJSON, rid, storedHash sql.NullString
-		if err := rows.Scan(&seq, &ts, &action, &actor, &object, &detailsJSON, &rid, &storedHash); err != nil {
+		var ts, tenantID, action, actor, object, detailsJSON, rid, storedHash sql.NullString
+		if err := rows.Scan(&seq, &ts, &tenantID, &action, &actor, &object, &detailsJSON, &rid, &storedHash); err != nil {
 			return err
 		}
 		detMap := map[string]any{}
@@ -457,7 +462,7 @@ func (a *SqliteAuditor) VerifyFromAnchor(ctx context.Context, anchorSeq int64) e
 			_ = json.Unmarshal([]byte(detailsJSON.String), &detMap)
 		}
 		canonicalDetails := canonicalizeDetails(detMap)
-		chainInput := prev + "|" + ts.String + "|" + action.String + "|" + actor.String + "|" + object.String + "|" + canonicalDetails + "|" + rid.String
+		chainInput := prev + "|" + ts.String + "|" + tenantID.String + "|" + action.String + "|" + actor.String + "|" + object.String + "|" + canonicalDetails + "|" + rid.String
 		recomputed := sha256Hex(chainInput)
 		if index == 0 && prev == "" {
 			if !storedHash.Valid {

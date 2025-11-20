@@ -19,7 +19,7 @@ func TestInMemoryStoreConcurrent(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 			for j := 0; j < per; j++ {
-				store.Event(ctx, "TEST_EVENT", "actor", "object", map[string]any{"i": id, "j": j})
+				store.Event(ctx, "t1", "TEST_EVENT", "actor", "object", map[string]any{"i": id, "j": j})
 			}
 		}(i)
 	}
@@ -38,9 +38,9 @@ func TestInMemoryStoreHashing(t *testing.T) {
 	secret := []byte("test-secret-key")
 	store := NewInMemoryStore(WithHashing(secret))
 	ctx := context.Background()
-	store.Event(ctx, "ACTION", "userA", "net1", nil)
-	store.Event(ctx, "ACTION", "userA", "net1", nil)
-	store.Event(ctx, "ACTION", "userB", "net1", nil)
+	store.Event(ctx, "t1", "ACTION", "userA", "net1", nil)
+	store.Event(ctx, "t1", "ACTION", "userA", "net1", nil)
+	store.Event(ctx, "t1", "ACTION", "userB", "net1", nil)
 	evs := store.List()
 	if len(evs) != 3 {
 		t.Fatalf("expected 3 events")

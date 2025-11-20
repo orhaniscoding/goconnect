@@ -27,7 +27,7 @@ func TestIntegrityExportSigning(t *testing.T) {
 	defer a.Close()
 
 	ctx := context.Background()
-	a.Event(ctx, "ACTION", "actor-1", "object-1", map[string]any{"k": "v"})
+	a.Event(ctx, "t1", "ACTION", "actor-1", "object-1", map[string]any{"k": "v"})
 
 	exp, err := a.ExportIntegrity(ctx, 5)
 	if err != nil {
@@ -67,7 +67,7 @@ func TestIntegrityExportSigningWithKeyID(t *testing.T) {
 	}
 	defer a.Close()
 	ctx := context.Background()
-	a.Event(ctx, "ACTION", "actor-1", "object-1", map[string]any{"k": "v"})
+	a.Event(ctx, "t1", "ACTION", "actor-1", "object-1", map[string]any{"k": "v"})
 	exp, err := a.ExportIntegrity(ctx, 5)
 	if err != nil {
 		t.Fatalf("export integrity: %v", err)

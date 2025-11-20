@@ -34,7 +34,7 @@ func (s *NetworkService) SetAuditor(a Auditor) {
 }
 
 // CreateNetwork creates a new network with idempotency and business rule validation
-func (s *NetworkService) CreateNetwork(ctx context.Context, req *domain.CreateNetworkRequest, userID string, idempotencyKey string) (*domain.Network, error) {
+func (s *NetworkService) CreateNetwork(ctx context.Context, req *domain.CreateNetworkRequest, userID, tenantID string, idempotencyKey string) (*domain.Network, error) {
 	// Handle idempotency first before any business logic
 	if idempotencyKey != "" {
 		if existing, err := s.handleIdempotency(ctx, idempotencyKey, req); err == nil && existing != nil {
@@ -52,7 +52,7 @@ func (s *NetworkService) CreateNetwork(ctx context.Context, req *domain.CreateNe
 	}
 
 	// Check for CIDR overlap
-	overlap, err := s.networkRepo.CheckCIDROverlap(ctx, req.CIDR, "")
+	overlap, err := s.networkRepo.CheckCIDROverlap(ctx, req.CIDR, "", tenantID)
 	if err != nil {
 		return nil, domain.NewError(domain.ErrInternalServer, "Failed to check CIDR overlap", nil)
 	}
@@ -66,7 +66,7 @@ func (s *NetworkService) CreateNetwork(ctx context.Context, req *domain.CreateNe
 	now := time.Now()
 	network := &domain.Network{
 		ID:                 domain.GenerateNetworkID(),
-		TenantID:           "default", // TODO: Extract from user context
+		TenantID:           tenantID,
 		Name:               req.Name,
 		Visibility:         req.Visibility,
 		JoinPolicy:         req.JoinPolicy,
@@ -93,13 +93,13 @@ func (s *NetworkService) CreateNetwork(ctx context.Context, req *domain.CreateNe
 		}
 	}
 
-	s.audit(ctx, "NETWORK_CREATED", userID, network.ID, map[string]any{"name": network.Name, "cidr": network.CIDR})
+	s.audit(ctx, tenantID, "NETWORK_CREATED", userID, network.ID, map[string]any{"name": network.Name, "cidr": network.CIDR})
 
 	return network, nil
 }
 
 // ListNetworks retrieves networks with filtering and pagination
-func (s *NetworkService) ListNetworks(ctx context.Context, req *domain.ListNetworksRequest, userID string, isAdmin bool) ([]*domain.Network, string, error) {
+func (s *NetworkService) ListNetworks(ctx context.Context, req *domain.ListNetworksRequest, userID, tenantID string, isAdmin bool) ([]*domain.Network, string, error) {
 	// Validate visibility parameter
 	if req.Visibility != "public" && req.Visibility != "mine" && req.Visibility != "all" {
 		req.Visibility = "public"
@@ -115,6 +115,7 @@ func (s *NetworkService) ListNetworks(ctx context.Context, req *domain.ListNetwo
 	filter := repository.NetworkFilter{
 		Visibility: req.Visibility,
 		UserID:     userID,
+		TenantID:   tenantID,
 		IsAdmin:    isAdmin,
 		Search:     req.Search,
 		Limit:      req.Limit,
@@ -126,24 +127,39 @@ func (s *NetworkService) ListNetworks(ctx context.Context, req *domain.ListNetwo
 		return nil, "", err
 	}
 
-	s.audit(ctx, "NETWORK_LIST", userID, "", map[string]any{"visibility": req.Visibility, "count": len(networks)})
+	s.audit(ctx, tenantID, "NETWORK_LIST", userID, "", map[string]any{"visibility": req.Visibility, "count": len(networks)})
 
 	return networks, nextCursor, nil
 }
 
 // GetNetwork retrieves a single network by ID
-func (s *NetworkService) GetNetwork(ctx context.Context, id, actor string) (*domain.Network, error) {
+func (s *NetworkService) GetNetwork(ctx context.Context, id, actor, tenantID string) (*domain.Network, error) {
 	net, err := s.networkRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
+
+	// Ensure network belongs to the tenant
+	if net.TenantID != tenantID {
+		return nil, domain.NewError(domain.ErrNotFound, "Network not found", nil)
+	}
+
 	// Private networks: future enhancement may require membership check; for now always return if found
-	s.audit(ctx, "NETWORK_GET", actor, id, nil)
+	s.audit(ctx, tenantID, "NETWORK_GET", actor, id, nil)
 	return net, nil
 }
 
 // UpdateNetwork updates mutable fields (name, visibility, join_policy) enforcing uniqueness & simple validation
-func (s *NetworkService) UpdateNetwork(ctx context.Context, id string, actor string, patch map[string]any) (*domain.Network, error) {
+func (s *NetworkService) UpdateNetwork(ctx context.Context, id string, actor, tenantID string, patch map[string]any) (*domain.Network, error) {
+	// First check if network exists and belongs to tenant
+	existing, err := s.networkRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if existing.TenantID != tenantID {
+		return nil, domain.NewError(domain.ErrNotFound, "Network not found", nil)
+	}
+
 	updated, err := s.networkRepo.Update(ctx, id, func(n *domain.Network) error {
 		if v, ok := patch["name"].(string); ok && v != "" && v != n.Name {
 			if len(v) < 3 || len(v) > 64 {
@@ -170,16 +186,26 @@ func (s *NetworkService) UpdateNetwork(ctx context.Context, id string, actor str
 	if err != nil {
 		return nil, err
 	}
-	s.audit(ctx, "NETWORK_UPDATED", actor, id, patch)
+	s.audit(ctx, tenantID, "NETWORK_UPDATED", actor, id, patch)
 	return updated, nil
 }
 
 // DeleteNetwork performs a soft delete
-func (s *NetworkService) DeleteNetwork(ctx context.Context, id, actor string) error {
+func (s *NetworkService) DeleteNetwork(ctx context.Context, id, actor, tenantID string) error {
+	// First check if network exists and belongs to tenant
+	existing, err := s.networkRepo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if existing.TenantID != tenantID {
+		return domain.NewError(domain.ErrNotFound, "Network not found", nil)
+	}
+
 	if err := s.networkRepo.SoftDelete(ctx, id, time.Now()); err != nil {
 		return err
 	}
-	s.audit(ctx, "NETWORK_DELETED", actor, id, nil)
+
+	s.audit(ctx, tenantID, "NETWORK_DELETED", actor, id, nil)
 	return nil
 }
 
@@ -232,6 +258,6 @@ func (s *NetworkService) storeIdempotencyRecord(ctx context.Context, key string,
 }
 
 // logAuditEvent logs audit events (placeholder implementation)
-func (s *NetworkService) audit(ctx context.Context, action, actor, objectID string, details map[string]any) {
-	s.aud.Event(ctx, action, actor, objectID, details)
+func (s *NetworkService) audit(ctx context.Context, tenantID, action, actor, objectID string, details map[string]any) {
+	s.aud.Event(ctx, tenantID, action, actor, objectID, details)
 }

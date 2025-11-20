@@ -1,5 +1,13 @@
 ---
-applyTo: '**'
+GoConnect – Çalışma Protokolü (kanonik kaynak = docs/TECH_SPEC.md)
+
+⚠️ ÖNEMLİ: Geliştirme yapmadan önce Reports/ klasöründeki tüm raporları oku ve analiz et!
+Reports/ klasörü projenin durumunu, eksik özellikleri, teknik borcu ve öncelikli görevleri içerir.
+Her rapor tarih-saat damgalıdır ve proje kararlarında kritik referans kaynağıdır.
+
+Her görevde çıktı formatın PLAN → PATCHES → TESTS → DOCS → COMMIT.
+
+docs/TECH_SPEC.md'deki sözleşmeler bağlayıcıdır (RBAC, idempotency, hata kodları, chat moderasyon/soft-delete/redact, IPAM).To: '**'
 ---
 Provide project context and coding guidelines that AI should follow when generating code, answering questions, or reviewing changes.
 

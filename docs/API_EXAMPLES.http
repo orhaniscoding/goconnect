@@ -1,1 +1,440 @@
+### Health Check
 GET http://localhost:8080/health
+
+###
+
+# ========================================
+# Authentication API Examples
+# ========================================
+
+### Register New User
+POST http://localhost:8080/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "newuser@example.com",
+  "password": "securePassword123",
+  "locale": "en"
+}
+
+###
+
+### Register with Turkish Locale
+POST http://localhost:8080/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "yenikullanici@example.com",
+  "password": "güvenliŞifre123",
+  "locale": "tr"
+}
+
+###
+
+### Login
+POST http://localhost:8080/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "newuser@example.com",
+  "password": "securePassword123"
+}
+
+###
+
+### Refresh Token
+# Replace {refresh_token} with actual refresh token from login/register response
+POST http://localhost:8080/v1/auth/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+
+###
+
+### Logout
+# Replace {access_token} with actual access token
+POST http://localhost:8080/v1/auth/logout
+Authorization: Bearer {access_token}
+
+###
+
+# ========================================
+# Network API Examples
+# ========================================
+# Note: All network operations require authentication
+# Add: Authorization: Bearer {access_token}
+# to all requests below
+# ========================================
+
+### Create Network
+POST http://localhost:8080/v1/networks
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{
+  "name": "My Private Network",
+  "visibility": "public",
+  "join_policy": "open",
+  "cidr": "10.0.0.0/24"
+}
+
+###
+
+### List Public Networks
+GET http://localhost:8080/v1/networks?visibility=public&limit=10
+Authorization: Bearer {access_token}
+
+###
+
+### Get Network Details
+GET http://localhost:8080/v1/networks/{network_id}
+Authorization: Bearer {access_token}
+
+###
+
+### Update Network
+PATCH http://localhost:8080/v1/networks/{network_id}
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{
+  "name": "Updated Network Name"
+}
+
+###
+
+### Delete Network
+DELETE http://localhost:8080/v1/networks/{network_id}
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+###
+
+# ========================================
+# Membership API Examples
+# ========================================
+
+### Join Network
+POST http://localhost:8080/v1/networks/{network_id}/join
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+###
+
+### Approve Join Request (Admin)
+POST http://localhost:8080/v1/networks/{network_id}/approve
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{
+  "user_id": "user_to_approve"
+}
+
+###
+
+### Deny Join Request (Admin)
+POST http://localhost:8080/v1/networks/{network_id}/deny
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{
+  "user_id": "user_to_deny"
+}
+
+###
+
+### List Members
+GET http://localhost:8080/v1/networks/{network_id}/members?status=approved&limit=20
+Authorization: Bearer {access_token}
+
+###
+
+### Kick Member (Admin)
+POST http://localhost:8080/v1/networks/{network_id}/kick
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{
+  "user_id": "user_to_kick"
+}
+
+###
+
+### Ban Member (Admin)
+POST http://localhost:8080/v1/networks/{network_id}/ban
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{
+  "user_id": "user_to_ban"
+}
+
+###
+
+# ========================================
+# IP Allocation API Examples
+# ========================================
+
+### Allocate IP
+POST http://localhost:8080/v1/networks/{network_id}/ip-allocations
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{}
+
+###
+
+### List IP Allocations
+GET http://localhost:8080/v1/networks/{network_id}/ip-allocations
+Authorization: Bearer {access_token}
+
+###
+
+### Release Own IP
+DELETE http://localhost:8080/v1/networks/{network_id}/ip-allocation
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+###
+
+### Admin Release User IP
+DELETE http://localhost:8080/v1/networks/{network_id}/ip-allocations/{user_id}
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+###
+
+# ========================================
+# Chat API Examples
+# ========================================
+
+### List Messages in Host Scope
+GET http://localhost:8080/v1/chat?scope=host&limit=50
+Authorization: Bearer {access_token}
+
+###
+
+### List Messages in Network Scope
+GET http://localhost:8080/v1/chat?scope=network:net_123&limit=20
+Authorization: Bearer {access_token}
+
+###
+
+### List Messages with Pagination
+GET http://localhost:8080/v1/chat?scope=host&limit=10&cursor={cursor_from_previous_response}
+Authorization: Bearer {access_token}
+
+###
+
+### Get Specific Message
+GET http://localhost:8080/v1/chat/{message_id}
+Authorization: Bearer {access_token}
+
+###
+
+### Send Message to Host
+POST http://localhost:8080/v1/chat
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "scope": "host",
+  "body": "Hello everyone!",
+  "attachments": []
+}
+
+###
+
+### Send Message to Network
+POST http://localhost:8080/v1/chat
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "scope": "network:net_123",
+  "body": "Network chat message",
+  "attachments": ["https://example.com/file.pdf"]
+}
+
+###
+
+### Edit Message
+PATCH http://localhost:8080/v1/chat/{message_id}
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "body": "Updated message text"
+}
+
+###
+
+### Soft Delete Message
+DELETE http://localhost:8080/v1/chat/{message_id}?mode=soft
+Authorization: Bearer {access_token}
+
+###
+
+### Hard Delete Message (Permanent)
+DELETE http://localhost:8080/v1/chat/{message_id}?mode=hard
+Authorization: Bearer {access_token}
+
+###
+
+### Redact Message (Moderator Only)
+POST http://localhost:8080/v1/chat/{message_id}/redact
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "reason": "Inappropriate content"
+}
+
+###
+
+### Get Edit History
+GET http://localhost:8080/v1/chat/{message_id}/edits
+Authorization: Bearer {access_token}
+
+###
+
+# ========================================
+# Device API Examples
+# ========================================
+
+### Register New Device
+POST http://localhost:8080/v1/devices
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "name": "Work Laptop",
+  "platform": "windows",
+  "pubkey": "gOqRLN7xqkK7xKJGVz8M3bKhq8tZ6vS4r9pW3nA1bXY=",
+  "hostname": "DESKTOP-ABC123",
+  "os_version": "Windows 11 Pro 22H2",
+  "daemon_ver": "0.1.0"
+}
+
+###
+
+### List My Devices
+GET http://localhost:8080/v1/devices?limit=20
+Authorization: Bearer {access_token}
+
+###
+
+### List Active Devices Only
+GET http://localhost:8080/v1/devices?active=true
+Authorization: Bearer {access_token}
+
+###
+
+### Filter by Platform
+GET http://localhost:8080/v1/devices?platform=windows
+Authorization: Bearer {access_token}
+
+###
+
+### Get Specific Device
+GET http://localhost:8080/v1/devices/{device_id}
+Authorization: Bearer {access_token}
+
+###
+
+### Update Device Name
+PATCH http://localhost:8080/v1/devices/{device_id}
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "name": "Personal MacBook"
+}
+
+###
+
+### Update Device Public Key (key rotation)
+PATCH http://localhost:8080/v1/devices/{device_id}
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "pubkey": "nEw7xqkK7xKJGVz8M3bKhq8tZ6vS4r9pW3nA1bXYkey="
+}
+
+###
+
+### Device Heartbeat
+POST http://localhost:8080/v1/devices/{device_id}/heartbeat
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "ip_address": "192.168.1.100",
+  "daemon_ver": "0.1.1",
+  "os_version": "Windows 11 Pro 23H2"
+}
+
+###
+
+### Disable Device
+POST http://localhost:8080/v1/devices/{device_id}/disable
+Authorization: Bearer {access_token}
+
+###
+
+### Enable Device
+POST http://localhost:8080/v1/devices/{device_id}/enable
+Authorization: Bearer {access_token}
+
+###
+
+### Delete Device
+DELETE http://localhost:8080/v1/devices/{device_id}
+Authorization: Bearer {access_token}
+
+###
+
+# ========================================
+# WireGuard Profile API Examples
+# ========================================
+
+### Get WireGuard Profile for Device
+# Note: Requires approved membership in the network
+GET http://localhost:8080/v1/networks/{network_id}/wg/profile?device_id={device_id}
+Authorization: Bearer {access_token}
+
+###
+
+### Get WireGuard Profile Example
+GET http://localhost:8080/v1/networks/net_01JQKP7F4ZWX2BMYKP45G9NHMC/wg/profile?device_id=dev_01JQKP8H1VXY3CNZLQ56HA8PMD
+Authorization: Bearer {access_token}
+
+###
+
+# ========================================
+# Audit API Examples
+# ========================================
+
+### Export Audit Integrity
+GET http://localhost:8080/v1/audit/integrity?anchors=10
+
+###
+
+# ========================================
+# Metrics API Examples
+# ========================================
+
+### Prometheus Metrics
+GET http://localhost:8080/metrics
+
+###

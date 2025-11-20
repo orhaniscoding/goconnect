@@ -29,14 +29,14 @@ func TestIPAMSequentialAllocation(t *testing.T) {
 	ctx, svc, _, mRepo, netID := setupIPAMTestNetwork(t, "10.10.0.0/30") // /30 => 4 addresses => usable: 2
 	_, _ = mRepo.UpsertApproved(ctx, netID, "user1", domain.RoleMember, time.Now())
 	_, _ = mRepo.UpsertApproved(ctx, netID, "user2", domain.RoleMember, time.Now())
-	a1, err := svc.AllocateIP(ctx, netID, "user1")
+	a1, err := svc.AllocateIP(ctx, netID, "user1", "t1")
 	if err != nil {
 		t.Fatalf("alloc1: %v", err)
 	}
 	if a1.IP != "10.10.0.1" {
 		t.Fatalf("expected first usable 10.10.0.1 got %s", a1.IP)
 	}
-	a2, err := svc.AllocateIP(ctx, netID, "user2")
+	a2, err := svc.AllocateIP(ctx, netID, "user2", "t1")
 	if err != nil {
 		t.Fatalf("alloc2: %v", err)
 	}
@@ -45,7 +45,7 @@ func TestIPAMSequentialAllocation(t *testing.T) {
 	}
 	// Now exhausted
 	_, _ = mRepo.UpsertApproved(ctx, netID, "user3", domain.RoleMember, time.Now())
-	_, err = svc.AllocateIP(ctx, netID, "user3")
+	_, err = svc.AllocateIP(ctx, netID, "user3", "t1")
 	if err == nil {
 		t.Fatalf("expected exhaustion error")
 	}
@@ -58,11 +58,11 @@ func TestIPAMSequentialAllocation(t *testing.T) {
 func TestIPAMSameUserStable(t *testing.T) {
 	ctx, svc, _, mRepo, netID := setupIPAMTestNetwork(t, "10.20.0.0/29")
 	_, _ = mRepo.UpsertApproved(ctx, netID, "userX", domain.RoleMember, time.Now())
-	a1, err := svc.AllocateIP(ctx, netID, "userX")
+	a1, err := svc.AllocateIP(ctx, netID, "userX", "t1")
 	if err != nil {
 		t.Fatalf("alloc1: %v", err)
 	}
-	a2, err := svc.AllocateIP(ctx, netID, "userX")
+	a2, err := svc.AllocateIP(ctx, netID, "userX", "t1")
 	if err != nil {
 		t.Fatalf("alloc2: %v", err)
 	}
@@ -77,7 +77,7 @@ func TestIPAMInvalidNetwork(t *testing.T) {
 	mRepo := repository.NewInMemoryMembershipRepository()
 	ipRepo := repository.NewInMemoryIPAM()
 	svc := NewIPAMService(netRepo, mRepo, ipRepo)
-	_, err := svc.AllocateIP(ctx, "missing", "user1")
+	_, err := svc.AllocateIP(ctx, "missing", "user1", "t1")
 	if err == nil {
 		t.Fatalf("expected error for missing network")
 	}
@@ -89,7 +89,7 @@ func TestIPAMInvalidNetwork(t *testing.T) {
 
 func TestIPAMNonMemberDenied(t *testing.T) {
 	ctx, svc, _, _, netID := setupIPAMTestNetwork(t, "10.70.0.0/30")
-	_, err := svc.AllocateIP(ctx, netID, "userZ")
+	_, err := svc.AllocateIP(ctx, netID, "userZ", "t1")
 	if err == nil {
 		t.Fatalf("expected authorization error for non-member")
 	}
@@ -102,14 +102,14 @@ func TestIPAMNonMemberDenied(t *testing.T) {
 func TestIPAMReleaseReuseSameIP(t *testing.T) {
 	ctx, svc, _, mRepo, netID := setupIPAMTestNetwork(t, "10.80.0.0/30")
 	_, _ = mRepo.UpsertApproved(ctx, netID, "userA", domain.RoleMember, time.Now())
-	first, err := svc.AllocateIP(ctx, netID, "userA")
+	first, err := svc.AllocateIP(ctx, netID, "userA", "t1")
 	if err != nil {
 		t.Fatalf("alloc1: %v", err)
 	}
-	if err := svc.ReleaseIP(ctx, netID, "userA"); err != nil {
+	if err := svc.ReleaseIP(ctx, netID, "userA", "t1"); err != nil {
 		t.Fatalf("release: %v", err)
 	}
-	second, err := svc.AllocateIP(ctx, netID, "userA")
+	second, err := svc.AllocateIP(ctx, netID, "userA", "t1")
 	if err != nil {
 		t.Fatalf("alloc2: %v", err)
 	}
@@ -121,17 +121,17 @@ func TestIPAMReleaseReuseSameIP(t *testing.T) {
 func TestIPAMReleaseIdempotent(t *testing.T) {
 	ctx, svc, _, mRepo, netID := setupIPAMTestNetwork(t, "10.81.0.0/30")
 	_, _ = mRepo.UpsertApproved(ctx, netID, "userA", domain.RoleMember, time.Now())
-	if err := svc.ReleaseIP(ctx, netID, "userA"); err != nil {
+	if err := svc.ReleaseIP(ctx, netID, "userA", "t1"); err != nil {
 		t.Fatalf("first release: %v", err)
 	}
-	if err := svc.ReleaseIP(ctx, netID, "userA"); err != nil {
+	if err := svc.ReleaseIP(ctx, netID, "userA", "t1"); err != nil {
 		t.Fatalf("second release: %v", err)
 	}
 }
 
 func TestIPAMReleaseNonMemberDenied(t *testing.T) {
 	ctx, svc, _, _, netID := setupIPAMTestNetwork(t, "10.82.0.0/30")
-	err := svc.ReleaseIP(ctx, netID, "userB")
+	err := svc.ReleaseIP(ctx, netID, "userB", "t1")
 	if err == nil {
 		t.Fatalf("expected authorization error")
 	}
@@ -146,13 +146,13 @@ func TestIPAMAdminReleaseOtherUser(t *testing.T) {
 	now := time.Now()
 	_, _ = mRepo.UpsertApproved(ctx, netID, "admin1", domain.RoleAdmin, now)
 	_, _ = mRepo.UpsertApproved(ctx, netID, "user1", domain.RoleMember, now)
-	if _, err := svc.AllocateIP(ctx, netID, "user1"); err != nil {
+	if _, err := svc.AllocateIP(ctx, netID, "user1", "t1"); err != nil {
 		t.Fatalf("alloc target: %v", err)
 	}
-	if err := svc.ReleaseIPForActor(ctx, netID, "admin1", "user1"); err != nil {
+	if err := svc.ReleaseIPForActor(ctx, netID, "admin1", "user1", "t1"); err != nil {
 		t.Fatalf("admin release: %v", err)
 	}
-	a2, err := svc.AllocateIP(ctx, netID, "user1")
+	a2, err := svc.AllocateIP(ctx, netID, "user1", "t1")
 	if err != nil {
 		t.Fatalf("realloc: %v", err)
 	}
@@ -166,10 +166,10 @@ func TestIPAMAdminReleaseForbiddenForMember(t *testing.T) {
 	now := time.Now()
 	_, _ = mRepo.UpsertApproved(ctx, netID, "member1", domain.RoleMember, now)
 	_, _ = mRepo.UpsertApproved(ctx, netID, "user1", domain.RoleMember, now)
-	if _, err := svc.AllocateIP(ctx, netID, "user1"); err != nil {
+	if _, err := svc.AllocateIP(ctx, netID, "user1", "t1"); err != nil {
 		t.Fatalf("alloc target: %v", err)
 	}
-	err := svc.ReleaseIPForActor(ctx, netID, "member1", "user1")
+	err := svc.ReleaseIPForActor(ctx, netID, "member1", "user1", "t1")
 	if err == nil {
 		t.Fatalf("expected not authorized error")
 	}
@@ -184,16 +184,16 @@ func TestIPAMAdminReleaseIdempotent(t *testing.T) {
 	now := time.Now()
 	_, _ = mRepo.UpsertApproved(ctx, netID, "admin1", domain.RoleAdmin, now)
 	_, _ = mRepo.UpsertApproved(ctx, netID, "user1", domain.RoleMember, now)
-	if err := svc.ReleaseIPForActor(ctx, netID, "admin1", "user1"); err != nil {
+	if err := svc.ReleaseIPForActor(ctx, netID, "admin1", "user1", "t1"); err != nil {
 		t.Fatalf("first idempotent admin release: %v", err)
 	}
-	if _, err := svc.AllocateIP(ctx, netID, "user1"); err != nil {
+	if _, err := svc.AllocateIP(ctx, netID, "user1", "t1"); err != nil {
 		t.Fatalf("alloc: %v", err)
 	}
-	if err := svc.ReleaseIPForActor(ctx, netID, "admin1", "user1"); err != nil {
+	if err := svc.ReleaseIPForActor(ctx, netID, "admin1", "user1", "t1"); err != nil {
 		t.Fatalf("release: %v", err)
 	}
-	if err := svc.ReleaseIPForActor(ctx, netID, "admin1", "user1"); err != nil {
+	if err := svc.ReleaseIPForActor(ctx, netID, "admin1", "user1", "t1"); err != nil {
 		t.Fatalf("second release idempotent: %v", err)
 	}
 }
@@ -214,7 +214,7 @@ func TestIPAMConcurrentAllocRelease(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			uid := fmt.Sprintf("userC%d", i)
-			if _, err := svc.AllocateIP(ctx, netID, uid); err != nil {
+			if _, err := svc.AllocateIP(ctx, netID, uid, "t1"); err != nil {
 				errs <- err
 			}
 		}()
@@ -226,7 +226,7 @@ func TestIPAMConcurrentAllocRelease(t *testing.T) {
 			t.Fatalf("alloc error: %v", e)
 		}
 	}
-	allocs, err := svc.ListAllocations(ctx, netID, "userC0")
+	allocs, err := svc.ListAllocations(ctx, netID, "userC0", "t1")
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
@@ -244,7 +244,7 @@ func TestIPAMConcurrentAllocRelease(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			uid := fmt.Sprintf("userC%d", i)
-			if err := svc.ReleaseIP(ctx, netID, uid); err != nil {
+			if err := svc.ReleaseIP(ctx, netID, uid, "t1"); err != nil {
 				errs <- err
 			}
 		}()
@@ -255,5 +255,20 @@ func TestIPAMConcurrentAllocRelease(t *testing.T) {
 		if e != nil {
 			t.Fatalf("release error: %v", e)
 		}
+	}
+}
+
+func TestIPAMTenantIsolation(t *testing.T) {
+	ctx, svc, _, mRepo, netID := setupIPAMTestNetwork(t, "10.94.0.0/29")
+	_, _ = mRepo.UpsertApproved(ctx, netID, "user1", domain.RoleMember, time.Now())
+
+	// Try to allocate with wrong tenant
+	_, err := svc.AllocateIP(ctx, netID, "user1", "wrong-tenant")
+	if err == nil {
+		t.Fatalf("expected error for wrong tenant")
+	}
+	derr, ok := err.(*domain.Error)
+	if !ok || derr.Code != domain.ErrNotFound {
+		t.Fatalf("expected ErrNotFound got %+v", err)
 	}
 }

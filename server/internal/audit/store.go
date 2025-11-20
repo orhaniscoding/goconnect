@@ -11,6 +11,7 @@ import (
 // EventRecord is an in-memory representation of an audit event (PII redacted).
 type EventRecord struct {
 	TS        time.Time      `json:"ts"`
+	TenantID  string         `json:"tenant_id"`
 	Action    string         `json:"action"`
 	Actor     string         `json:"actor"`
 	Object    string         `json:"object"`
@@ -66,7 +67,7 @@ func NewInMemoryStore(opts ...Option) *InMemoryStore {
 }
 
 // Event implements Auditor interface (PII redacted).
-func (s *InMemoryStore) Event(ctx context.Context, action, actor, object string, details map[string]any) {
+func (s *InMemoryStore) Event(ctx context.Context, tenantID, action, actor, object string, details map[string]any) {
 	if details == nil {
 		details = map[string]any{}
 	}
@@ -80,6 +81,7 @@ func (s *InMemoryStore) Event(ctx context.Context, action, actor, object string,
 	}
 	rec := EventRecord{
 		TS:        time.Now().UTC(),
+		TenantID:  tenantID,
 		Action:    action,
 		Actor:     act,
 		Object:    obj,

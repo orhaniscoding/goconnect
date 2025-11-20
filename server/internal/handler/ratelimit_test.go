@@ -23,7 +23,7 @@ func TestRateLimit_Join429(t *testing.T) {
 	payload, _ := json.Marshal(create)
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "/v1/networks", bytes.NewBuffer(payload))
-	req.Header.Set("Authorization", "Bearer admin")
+	req.Header.Set("Authorization", "Bearer admin-token")
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
 	router.ServeHTTP(w, req)
@@ -48,7 +48,7 @@ func TestRateLimit_Join429(t *testing.T) {
 	for i := 0; i < 6; i++ {
 		last = httptest.NewRecorder()
 		jreq, _ := http.NewRequest("POST", "/v1/networks/"+netID+"/join", nil)
-		jreq.Header.Set("Authorization", "Bearer dev")
+		jreq.Header.Set("Authorization", "Bearer valid-token")
 		jreq.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
 		router.ServeHTTP(last, jreq)
 	}
@@ -63,3 +63,8 @@ func TestRateLimit_Join429(t *testing.T) {
 		t.Fatalf("expected code %s, got %s", domain.ErrRateLimited, errResp.Code)
 	}
 }
+
+
+
+
+

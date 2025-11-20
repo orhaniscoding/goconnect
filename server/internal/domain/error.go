@@ -21,6 +21,7 @@ func (e *Error) Error() string {
 // Error codes following ERR_SNAKE_CASE convention
 const (
 	ErrInvalidRequest      = "ERR_INVALID_REQUEST"
+	ErrValidation          = "ERR_VALIDATION"
 	ErrUnauthorized        = "ERR_UNAUTHORIZED"
 	ErrNotAuthorized       = "ERR_NOT_AUTHORIZED" // outward unified code for authz failures
 	ErrForbidden           = "ERR_FORBIDDEN"
@@ -29,6 +30,7 @@ const (
 	ErrCIDROverlap         = "ERR_CIDR_OVERLAP"
 	ErrCIDRInvalid         = "ERR_CIDR_INVALID"
 	ErrIdempotencyConflict = "ERR_IDEMPOTENCY_CONFLICT"
+	ErrConflict            = "ERR_CONFLICT" // Generic conflict (duplicate resource)
 	ErrInternalServer      = "ERR_INTERNAL_SERVER"
 	ErrNotImplemented      = "ERR_NOT_IMPLEMENTED"
 	// Membership/Join flow specific
@@ -37,6 +39,12 @@ const (
 	ErrAlreadyRequested = "ERR_ALREADY_REQUESTED"
 	ErrUserBanned       = "ERR_USER_BANNED"
 	ErrUserKicked       = "ERR_USER_KICKED"
+	// Authentication/User specific
+	ErrInvalidCredentials = "ERR_INVALID_CREDENTIALS" // Wrong email/password
+	ErrUserAlreadyExists  = "ERR_USER_ALREADY_EXISTS" // Email already registered
+	ErrInvalidToken       = "ERR_INVALID_TOKEN"       // Malformed or invalid JWT
+	ErrTokenExpired       = "ERR_TOKEN_EXPIRED"       // JWT expired
+	ErrUserNotFound       = "ERR_USER_NOT_FOUND"      // User ID not found
 )
 
 // NewError creates a new domain error
@@ -53,7 +61,7 @@ func (e *Error) ToHTTPStatus() int {
 	switch e.Code {
 	case ErrInvalidRequest, ErrCIDRInvalid:
 		return http.StatusBadRequest
-	case ErrUnauthorized:
+	case ErrUnauthorized, ErrInvalidToken, ErrTokenExpired, ErrInvalidCredentials:
 		return http.StatusUnauthorized
 	case ErrNotAuthorized:
 		return http.StatusForbidden
@@ -61,9 +69,9 @@ func (e *Error) ToHTTPStatus() int {
 		return http.StatusForbidden
 	case ErrRateLimited:
 		return http.StatusTooManyRequests
-	case ErrNotFound:
+	case ErrNotFound, ErrUserNotFound:
 		return http.StatusNotFound
-	case ErrCIDROverlap, ErrIdempotencyConflict, ErrIPExhausted:
+	case ErrCIDROverlap, ErrIdempotencyConflict, ErrIPExhausted, ErrUserAlreadyExists:
 		return http.StatusConflict
 	case ErrNetworkPrivate:
 		return http.StatusNotFound // hide private resource existence

@@ -17,8 +17,8 @@ func TestSqliteAuditor_Basic(t *testing.T) {
 	defer a.Close()
 
 	ctx := context.Background()
-	a.Event(ctx, ActionNetworkCreated, "alice", "net-1", map[string]any{"foo": "bar"})
-	a.Event(ctx, ActionIPAllocated, "alice", "net-1", map[string]any{"ip": "10.0.0.2"})
+	a.Event(ctx, "t1", ActionNetworkCreated, "alice", "net-1", map[string]any{"foo": "bar"})
+	a.Event(ctx, "t1", ActionIPAllocated, "alice", "net-1", map[string]any{"ip": "10.0.0.2"})
 
 	if c, err := a.Count(ctx); err != nil || c != 2 {
 		t.Fatalf("expected 2 events count=%d err=%v", c, err)
@@ -43,7 +43,7 @@ func TestSqliteAuditor_Hashing(t *testing.T) {
 	}
 	defer a.Close()
 	ctx := context.Background()
-	a.Event(ctx, ActionNetworkCreated, "bob", "net-9", nil)
+	a.Event(ctx, "t1", ActionNetworkCreated, "bob", "net-9", nil)
 	evs, err := a.ListRecent(ctx, 5)
 	if err != nil {
 		t.Fatalf("list: %v", err)
@@ -82,7 +82,7 @@ func BenchmarkSqliteAuditor_Event(b *testing.B) {
 	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		a.Event(ctx, ActionIPAllocated, "bench-actor", "net", map[string]any{"i": i})
+		a.Event(ctx, "t1", ActionIPAllocated, "bench-actor", "net", map[string]any{"i": i})
 	}
 	if _, err := os.Stat(dbPath); err != nil {
 		b.Fatalf("db not created: %v", err)

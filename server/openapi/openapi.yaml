@@ -221,6 +221,114 @@ components:
               format: date-time
             - type: "null"
 
+    User:
+      type: object
+      required: [id, tenant_id, email, locale, is_admin, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          example: usr_1234567890_123456
+          description: Unique user identifier
+        tenant_id:
+          type: string
+          example: tnt_1234567890_123456
+          description: User's tenant identifier
+        email:
+          type: string
+          format: email
+          example: user@example.com
+          description: User's email address
+        locale:
+          type: string
+          enum:
+            - en
+            - tr
+          example: en
+          description: User's preferred language
+        is_admin:
+          type: boolean
+          example: false
+          description: Global admin flag
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-10-29T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2025-10-29T10:00:00Z"
+
+    AuthResponse:
+      type: object
+      required: [access_token, refresh_token, expires_in, token_type, user]
+      properties:
+        access_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+          description: JWT access token (15 minutes)
+        refresh_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+          description: JWT refresh token (7 days)
+        expires_in:
+          type: integer
+          example: 900
+          description: Access token expiration in seconds
+        token_type:
+          type: string
+          example: Bearer
+          description: Token type for Authorization header
+        user:
+          $ref: "#/components/schemas/User"
+
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: newuser@example.com
+          description: User's email address
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+          example: securePassword123
+          description: User's password (8-72 characters)
+        locale:
+          type: string
+          enum:
+            - en
+            - tr
+          example: en
+          description: Preferred language (default - en)
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+          description: User's email address
+        password:
+          type: string
+          format: password
+          example: securePassword123
+          description: User's password
+
+    RefreshRequest:
+      type: object
+      required: [refresh_token]
+      properties:
+        refresh_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+          description: Refresh token from previous authentication
+
     MembersListResponse:
       type: object
       properties:
@@ -237,6 +345,133 @@ components:
               type: [string, "null"]
 
 paths:
+  /v1/auth/register:
+    post:
+      summary: Register new user
+      description: Create a new user account with email and password
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User successfully registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Invalid request (email format, password length, duplicate email)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                invalidEmail:
+                  value:
+                    code: ERR_INVALID_REQUEST
+                    message: Email is required
+                shortPassword:
+                  value:
+                    code: ERR_INVALID_REQUEST
+                    message: Password must be at least 8 characters
+                duplicateEmail:
+                  value:
+                    code: ERR_USER_ALREADY_EXISTS
+                    message: A user with this email already exists
+                    details:
+                      email: user@example.com
+
+  /v1/auth/login:
+    post:
+      summary: User login
+      description: Authenticate with email and password
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                code: ERR_INVALID_CREDENTIALS
+                message: Invalid email or password
+
+  /v1/auth/refresh:
+    post:
+      summary: Refresh access token
+      description: Get new access and refresh tokens using a valid refresh token
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshRequest"
+      responses:
+        "200":
+          description: Tokens refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                invalidToken:
+                  value:
+                    code: ERR_INVALID_TOKEN
+                    message: Invalid token
+                wrongType:
+                  value:
+                    code: ERR_INVALID_TOKEN
+                    message: Token is not a refresh token
+
+  /v1/auth/logout:
+    post:
+      summary: User logout
+      description: Invalidate current session (placeholder - token revocation requires Redis)
+      tags: [Authentication]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /v1/audit/integrity:
     get:
       summary: Export audit integrity snapshot

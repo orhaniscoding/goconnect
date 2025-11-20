@@ -1,3 +1,17 @@
+# GoConnect Configuration Flags
+
+## Server Environment Variables
+
+### Authentication
+
+- **JWT_SECRET**: Secret key for signing JWT tokens (REQUIRED in production)
+  - Example: `my-super-secret-key-change-in-production`
+  - Security: Use a strong random string (32+ characters)
+  - Default: `dev-secret-DO-NOT-USE-IN-PRODUCTION` (development only)
+  - Generate: `openssl rand -base64 32`
+
+### Audit Configuration
+
 features.json: beta_webchat, relay_enabled...
 
 Audit configuration (server via environment):
@@ -13,3 +27,4 @@ Audit configuration (server via environment):
 Notes:
 - Provide either MAX_ROWS or MAX_AGE or both; pruning is best-effort.
 - If signing key is present, GET /v1/audit/integrity includes signature and optional kid.
+

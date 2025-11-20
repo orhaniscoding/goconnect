@@ -18,10 +18,10 @@ type mockAuditor struct {
 	events []string
 }
 
-func (m *mockAuditor) Event(ctx context.Context, action, actor, object string, details map[string]any) {
+func (m *mockAuditor) Event(ctx context.Context, tenantID, action, actor, object string, details map[string]any) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.events = append(m.events, action+":"+actor+":"+object)
+	m.events = append(m.events, tenantID+":"+action+":"+actor+":"+object)
 }
 func (m *mockAuditor) Len() int { m.mu.Lock(); defer m.mu.Unlock(); return len(m.events) }
 
@@ -29,8 +29,8 @@ func TestAsyncAuditorDispatch(t *testing.T) {
 	base := &mockAuditor{}
 	async := NewAsyncAuditor(base, WithQueueSize(10), WithWorkers(2))
 	defer async.Close()
-	async.Event(context.Background(), "ACTION1", "alice", "net1", nil)
-	async.Event(context.Background(), "ACTION2", "bob", "net2", nil)
+	async.Event(context.Background(), "t1", "ACTION1", "alice", "net1", nil)
+	async.Event(context.Background(), "t1", "ACTION2", "bob", "net2", nil)
 	// allow worker to process
 	time.Sleep(30 * time.Millisecond)
 	if base.Len() != 2 {
@@ -43,10 +43,10 @@ func TestAsyncAuditorDropOnFull(t *testing.T) {
 	async := NewAsyncAuditor(base, WithQueueSize(1), WithWorkers(1))
 	defer async.Close()
 	// First enqueues
-	async.Event(context.Background(), "A1", "u1", "o1", nil)
+	async.Event(context.Background(), "t1", "A1", "u1", "o1", nil)
 	// Immediately attempt many to overrun queue (some should drop)
 	for i := 0; i < 50; i++ {
-		async.Event(context.Background(), "A2", "u2", "o2", nil)
+		async.Event(context.Background(), "t1", "A2", "u2", "o2", nil)
 	}
 	time.Sleep(40 * time.Millisecond)
 	l := base.Len()
@@ -62,7 +62,7 @@ func TestAsyncAuditorCloseFlushes(t *testing.T) {
 	base := &mockAuditor{}
 	async := NewAsyncAuditor(base, WithQueueSize(20), WithWorkers(1))
 	for i := 0; i < 5; i++ {
-		async.Event(context.Background(), "AX", "u", "o", nil)
+		async.Event(context.Background(), "t1", "AX", "u", "o", nil)
 	}
 	if err := async.Close(); err != nil {
 		t.Fatalf("close error: %v", err)
@@ -78,7 +78,7 @@ type panicAuditor struct {
 	panicked bool
 }
 
-func (p *panicAuditor) Event(ctx context.Context, action, actor, object string, details map[string]any) {
+func (p *panicAuditor) Event(ctx context.Context, tenantID, action, actor, object string, details map[string]any) {
 	p.mu.Lock()
 	if !p.panicked {
 		p.panicked = true
@@ -89,10 +89,10 @@ func (p *panicAuditor) Event(ctx context.Context, action, actor, object string, 
 }
 
 // AuditorFunc adapter
-type AuditorFunc func(ctx context.Context, action, actor, object string, details map[string]any)
+type AuditorFunc func(ctx context.Context, tenantID, action, actor, object string, details map[string]any)
 
-func (f AuditorFunc) Event(ctx context.Context, action, actor, object string, details map[string]any) {
-	f(ctx, action, actor, object, details)
+func (f AuditorFunc) Event(ctx context.Context, tenantID, action, actor, object string, details map[string]any) {
+	f(ctx, tenantID, action, actor, object, details)
 }
 
 func contains(s, sub string) bool { return strings.Contains(s, sub) }
@@ -103,9 +103,9 @@ func TestAsyncWorkerRestartMetric(t *testing.T) {
 	pa := &panicAuditor{}
 	async := NewAsyncAuditor(pa, WithQueueSize(10), WithWorkers(1))
 	defer async.Close()
-	async.Event(context.Background(), "A", "actor", "obj", nil)
+	async.Event(context.Background(), "t1", "A", "actor", "obj", nil)
 	time.Sleep(50 * time.Millisecond)
-	async.Event(context.Background(), "B", "actor", "obj", nil)
+	async.Event(context.Background(), "t1", "B", "actor", "obj", nil)
 	r := gin.New()
 	r.GET("/metrics", metrics.Handler())
 	w := httptest.NewRecorder()
@@ -126,13 +126,13 @@ func TestAsyncWorkerRestartMetric(t *testing.T) {
 func TestAsyncHighWatermarkMetric(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	metrics.Register()
-	slow := AuditorFunc(func(ctx context.Context, action, actor, object string, details map[string]any) {
+	slow := AuditorFunc(func(ctx context.Context, tenantID, action, actor, object string, details map[string]any) {
 		time.Sleep(5 * time.Millisecond)
 	})
 	async := NewAsyncAuditor(slow, WithQueueSize(30), WithWorkers(1))
 	defer async.Close()
 	for i := 0; i < 20; i++ {
-		async.Event(context.Background(), "HW", "a", "o", nil)
+		async.Event(context.Background(), "t1", "HW", "a", "o", nil)
 	}
 	time.Sleep(150 * time.Millisecond)
 	r := gin.New()
@@ -149,11 +149,11 @@ func TestAsyncHighWatermarkMetric(t *testing.T) {
 func TestAsyncDroppedReasonFull(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	metrics.Register()
-	noOp := AuditorFunc(func(context.Context, string, string, string, map[string]any) {})
+	noOp := AuditorFunc(func(context.Context, string, string, string, string, map[string]any) {})
 	async := NewAsyncAuditor(noOp, WithQueueSize(1), WithWorkers(1))
 	defer async.Close()
-	async.Event(context.Background(), "A", "a", "o", nil)
-	async.Event(context.Background(), "B", "a", "o", nil) // should drop
+	async.Event(context.Background(), "t1", "A", "a", "o", nil)
+	async.Event(context.Background(), "t1", "B", "a", "o", nil) // should drop
 	r := gin.New()
 	r.GET("/metrics", metrics.Handler())
 	w := httptest.NewRecorder()
