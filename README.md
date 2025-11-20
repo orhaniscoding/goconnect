@@ -141,8 +141,9 @@ AUDIT_SIGNING_KEY_ED25519_B64=<base64-key>
 **Client Daemon:**
 ```bash
 # Daemon Configuration
-GOCONNECT_SERVER_URL=http://localhost:8080
-GOCONNECT_API_TOKEN=<your-token>
+# The daemon uses ~/.goconnect/device.json to store identity and tokens.
+# You can override the server URL with a flag:
+./goconnect-daemon -server http://localhost:8080
 ```
 
 See [CONFIG_FLAGS.md](docs/CONFIG_FLAGS.md) for complete reference.
