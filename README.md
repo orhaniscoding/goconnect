@@ -55,6 +55,7 @@
 - **Node.js** 18+ and npm (for web UI)
 - **PostgreSQL** 14+ (optional, uses in-memory by default)
 - **Make** (optional but recommended)
+- **WireGuard**: The client daemon requires WireGuard to be installed on the system (or a compatible userspace implementation).
 
 ### Installation
 

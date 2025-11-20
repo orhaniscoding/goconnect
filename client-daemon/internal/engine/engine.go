@@ -8,21 +8,31 @@ import (
 
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/api"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/identity"
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/wireguard"
 )
 
 // Engine is the main daemon engine
 type Engine struct {
 	idMgr     *identity.Manager
 	apiClient *api.Client
+	wgMgr     *wireguard.Manager
 	stopChan  chan struct{}
 	version   string
 }
 
 // New creates a new engine
 func New(idMgr *identity.Manager, apiClient *api.Client, version string) *Engine {
+	// Initialize WireGuard manager
+	// TODO: Make interface name configurable
+	wgMgr, err := wireguard.NewManager("wg0")
+	if err != nil {
+		log.Printf("Warning: Failed to initialize WireGuard manager: %v", err)
+	}
+
 	return &Engine{
 		idMgr:     idMgr,
 		apiClient: apiClient,
+		wgMgr:     wgMgr,
 		stopChan:  make(chan struct{}),
 		version:   version,
 	}
@@ -74,6 +84,14 @@ func (e *Engine) syncConfig() {
 
 	// TODO: Apply config to WireGuard interface
 	log.Printf("Received config: %d peers, %v addresses", len(config.Peers), config.Interface.Addresses)
+
+	if e.wgMgr != nil {
+		if err := e.wgMgr.ApplyConfig(config, id.PrivateKey); err != nil {
+			log.Printf("Failed to apply WireGuard config: %v", err)
+		} else {
+			log.Println("WireGuard configuration applied successfully")
+		}
+	}
 }
 
 func (e *Engine) heartbeatLoop() {
