@@ -6,8 +6,10 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
+	"os"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
@@ -18,18 +20,27 @@ import (
 type AuthService struct {
 	userRepo   repository.UserRepository
 	tenantRepo repository.TenantRepository
-	// In a real implementation, we'd use a proper JWT library and secret management
-	// For now, we'll use a simple token map (sessions)
-	sessions map[string]*domain.TokenClaims // refreshToken -> claims
+	jwtSecret  []byte // Secret key for JWT signing
 }
 
 // NewAuthService creates a new authentication service
 func NewAuthService(userRepo repository.UserRepository, tenantRepo repository.TenantRepository) *AuthService {
+	// Get JWT secret from environment or use default (NOT for production!)
+	jwtSecret := []byte(getEnvOrDefault("JWT_SECRET", "dev-secret-change-in-production"))
+
 	return &AuthService{
 		userRepo:   userRepo,
 		tenantRepo: tenantRepo,
-		sessions:   make(map[string]*domain.TokenClaims),
+		jwtSecret:  jwtSecret,
 	}
+}
+
+// getEnvOrDefault gets an environment variable or returns a default value
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 // HashPassword hashes a password using Argon2id
@@ -114,6 +125,25 @@ func (s *AuthService) VerifyPassword(password, encodedHash string) (bool, error)
 	return subtle.ConstantTimeCompare(hash, computedHash) == 1, nil
 }
 
+// generateJWT generates a JWT token with the given claims
+func (s *AuthService) generateJWT(userID, tenantID, email string, isAdmin, isModerator bool, tokenType string, expiryDuration time.Duration) (string, error) {
+	now := time.Now()
+	claims := jwt.MapClaims{
+		"user_id":      userID,
+		"tenant_id":    tenantID,
+		"email":        email,
+		"is_admin":     isAdmin,
+		"is_moderator": isModerator,
+		"type":         tokenType, // "access" or "refresh"
+		"exp":          now.Add(expiryDuration).Unix(),
+		"iat":          now.Unix(),
+		"nbf":          now.Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(s.jwtSecret)
+}
+
 // Register creates a new user account and returns auth tokens (auto-login)
 func (s *AuthService) Register(ctx context.Context, req *domain.RegisterRequest) (*domain.AuthResponse, error) {
 	// Validate password strength (basic check)
@@ -163,20 +193,16 @@ func (s *AuthService) Register(ctx context.Context, req *domain.RegisterRequest)
 		return nil, err
 	}
 
-	// Auto-login: Generate tokens for the new user
-	accessToken := uuid.New().String()  // In production, use proper JWT
-	refreshToken := uuid.New().String() // In production, use proper JWT
-
-	// Store session (simplified; in production use Redis with TTL)
-	claims := &domain.TokenClaims{
-		UserID:   user.ID,
-		TenantID: user.TenantID,
-		Email:    user.Email,
-		IsAdmin:  false, // New users are not admin by default
-		Exp:      time.Now().Add(15 * time.Minute).Unix(),
-		Iat:      time.Now().Unix(),
+	// Generate JWT tokens
+	accessToken, err := s.generateJWT(user.ID, user.TenantID, user.Email, user.IsAdmin, user.IsModerator, "access", 15*time.Minute)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrInternalServer, "Failed to generate access token", nil)
 	}
-	s.sessions[refreshToken] = claims
+
+	refreshToken, err := s.generateJWT(user.ID, user.TenantID, user.Email, user.IsAdmin, user.IsModerator, "refresh", 7*24*time.Hour)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrInternalServer, "Failed to generate refresh token", nil)
+	}
 
 	return &domain.AuthResponse{
 		AccessToken:  accessToken,
@@ -202,20 +228,16 @@ func (s *AuthService) Login(ctx context.Context, req *domain.LoginRequest) (*dom
 		return nil, domain.NewError(domain.ErrInvalidCredentials, "Invalid email or password", nil)
 	}
 
-	// Generate tokens
-	accessToken := uuid.New().String()  // In production, use proper JWT
-	refreshToken := uuid.New().String() // In production, use proper JWT
-
-	// Store session (simplified; in production use Redis with TTL)
-	claims := &domain.TokenClaims{
-		UserID:   user.ID,
-		TenantID: user.TenantID,
-		Email:    user.Email,
-		IsAdmin:  true, // For now, first user is admin (simplified)
-		Exp:      time.Now().Add(15 * time.Minute).Unix(),
-		Iat:      time.Now().Unix(),
+	// Generate JWT tokens
+	accessToken, err := s.generateJWT(user.ID, user.TenantID, user.Email, user.IsAdmin, user.IsModerator, "access", 15*time.Minute)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrInternalServer, "Failed to generate access token", nil)
 	}
-	s.sessions[refreshToken] = claims
+
+	refreshToken, err := s.generateJWT(user.ID, user.TenantID, user.Email, user.IsAdmin, user.IsModerator, "refresh", 7*24*time.Hour)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrInternalServer, "Failed to generate refresh token", nil)
+	}
 
 	return &domain.AuthResponse{
 		AccessToken:  accessToken,
@@ -227,61 +249,106 @@ func (s *AuthService) Login(ctx context.Context, req *domain.LoginRequest) (*dom
 }
 
 // ValidateToken validates an access token and returns claims
-func (s *AuthService) ValidateToken(ctx context.Context, token string) (*domain.TokenClaims, error) {
-	// In production, decode and validate JWT
-	// For now, we'll accept any non-empty token and return mock claims
-	// This is a placeholder implementation
-	if token == "" {
+func (s *AuthService) ValidateToken(ctx context.Context, tokenString string) (*domain.TokenClaims, error) {
+	// Parse and validate JWT token
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Verify signing method
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return s.jwtSecret, nil
+	})
+
+	if err != nil {
 		return nil, domain.NewError(domain.ErrInvalidToken, "Invalid token", nil)
 	}
 
-	// For testing purposes, return mock claims
-	// In production, this would decode the JWT and verify signature
+	if !token.Valid {
+		return nil, domain.NewError(domain.ErrInvalidToken, "Invalid token", nil)
+	}
+
+	// Extract claims
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, domain.NewError(domain.ErrInvalidToken, "Invalid token claims", nil)
+	}
+
+	// Verify token type (must be "access" token for API requests)
+	tokenType, ok := claims["type"].(string)
+	if !ok || tokenType != "access" {
+		return nil, domain.NewError(domain.ErrInvalidToken, "Invalid token type", nil)
+	}
+
+	// Extract required fields
+	userID, _ := claims["user_id"].(string)
+	tenantID, _ := claims["tenant_id"].(string)
+	email, _ := claims["email"].(string)
+	isAdmin, _ := claims["is_admin"].(bool)
+	isModerator, _ := claims["is_moderator"].(bool)
+	exp, _ := claims["exp"].(float64)
+	iat, _ := claims["iat"].(float64)
+
 	return &domain.TokenClaims{
-		UserID:   "test-user",
-		TenantID: "test-tenant",
-		Email:    "test@example.com",
-		IsAdmin:  true,
-		Exp:      time.Now().Add(15 * time.Minute).Unix(),
-		Iat:      time.Now().Unix(),
+		UserID:      userID,
+		TenantID:    tenantID,
+		Email:       email,
+		IsAdmin:     isAdmin,
+		IsModerator: isModerator,
+		Type:        tokenType,
+		Exp:         int64(exp),
+		Iat:         int64(iat),
 	}, nil
 }
 
 // Refresh generates new tokens using a refresh token
 func (s *AuthService) Refresh(ctx context.Context, req *domain.RefreshRequest) (*domain.AuthResponse, error) {
-	// Get claims from session
-	claims, exists := s.sessions[req.RefreshToken]
-	if !exists {
+	// Parse and validate refresh token
+	token, err := jwt.Parse(req.RefreshToken, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return s.jwtSecret, nil
+	})
+
+	if err != nil {
 		return nil, domain.NewError(domain.ErrInvalidToken, "Invalid refresh token", nil)
 	}
 
-	// Check if refresh token is expired (in production, check JWT exp)
-	if time.Now().Unix() > claims.Exp+86400 { // 24 hours after access token exp
-		delete(s.sessions, req.RefreshToken)
-		return nil, domain.NewError(domain.ErrTokenExpired, "Refresh token expired", nil)
+	if !token.Valid {
+		return nil, domain.NewError(domain.ErrInvalidToken, "Invalid refresh token", nil)
 	}
 
-	// Get user
-	user, err := s.userRepo.GetByID(ctx, claims.UserID)
+	// Extract claims
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, domain.NewError(domain.ErrInvalidToken, "Invalid token claims", nil)
+	}
+
+	// Verify token type (must be "refresh" token)
+	tokenType, ok := claims["type"].(string)
+	if !ok || tokenType != "refresh" {
+		return nil, domain.NewError(domain.ErrInvalidToken, "Invalid token type", nil)
+	}
+
+	// Extract user info
+	userID, _ := claims["user_id"].(string)
+
+	// Get user to verify still exists
+	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Generate new tokens
-	newAccessToken := uuid.New().String()
-	newRefreshToken := uuid.New().String()
-
-	// Update session
-	delete(s.sessions, req.RefreshToken) // Remove old refresh token
-	newClaims := &domain.TokenClaims{
-		UserID:   user.ID,
-		TenantID: user.TenantID,
-		Email:    user.Email,
-		IsAdmin:  claims.IsAdmin,
-		Exp:      time.Now().Add(15 * time.Minute).Unix(),
-		Iat:      time.Now().Unix(),
+	newAccessToken, err := s.generateJWT(user.ID, user.TenantID, user.Email, user.IsAdmin, user.IsModerator, "access", 15*time.Minute)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrInternalServer, "Failed to generate access token", nil)
 	}
-	s.sessions[newRefreshToken] = newClaims
+
+	newRefreshToken, err := s.generateJWT(user.ID, user.TenantID, user.Email, user.IsAdmin, user.IsModerator, "refresh", 7*24*time.Hour)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrInternalServer, "Failed to generate refresh token", nil)
+	}
 
 	return &domain.AuthResponse{
 		AccessToken:  newAccessToken,
@@ -294,6 +361,8 @@ func (s *AuthService) Refresh(ctx context.Context, req *domain.RefreshRequest) (
 
 // Logout invalidates a refresh token
 func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
-	delete(s.sessions, refreshToken)
+	// With JWT, we can't truly invalidate tokens without a blacklist (Redis)
+	// For now, we just return success. In production, add token to Redis blacklist
+	// TODO: Implement token blacklist with Redis
 	return nil
 }
