@@ -1,9 +1,11 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -12,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/orhaniscoding/goconnect/server/internal/audit"
+	"github.com/orhaniscoding/goconnect/server/internal/database"
 	"github.com/orhaniscoding/goconnect/server/internal/handler"
 	"github.com/orhaniscoding/goconnect/server/internal/metrics"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
@@ -27,6 +30,8 @@ var (
 
 func main() {
 	showVersion := flag.Bool("version", false, "print version and exit")
+	runMigrations := flag.Bool("migrate", false, "run database migrations and exit")
+	usePostgres := flag.Bool("postgres", true, "use PostgreSQL instead of in-memory storage")
 	asyncAudit := flag.Bool("audit-async", true, "enable async audit buffering")
 	auditQueue := flag.Int("audit-queue", 1024, "audit async queue size")
 	auditWorkers := flag.Int("audit-workers", 1, "audit async worker count")
@@ -37,14 +42,60 @@ func main() {
 		return
 	}
 
+	// Database setup
+	var db *sql.DB
+	if *usePostgres {
+		dbConfig := database.LoadConfigFromEnv()
+		var err error
+		db, err = database.Connect(dbConfig)
+		if err != nil {
+			log.Fatalf("Failed to connect to PostgreSQL: %v", err)
+		}
+		defer db.Close()
+
+		fmt.Printf("Connected to PostgreSQL: %s@%s:%s/%s\n", dbConfig.User, dbConfig.Host, dbConfig.Port, dbConfig.DBName)
+
+		// Run migrations if requested
+		if *runMigrations {
+			migrationsPath := getEnvOrDefault("MIGRATIONS_PATH", "./migrations")
+			if err := database.RunMigrations(db, migrationsPath); err != nil {
+				log.Fatalf("Failed to run migrations: %v", err)
+			}
+			fmt.Println("Migrations completed successfully")
+			return
+		}
+	}
+
 	// Initialize repositories
-	networkRepo := repository.NewInMemoryNetworkRepository()
-	idempotencyRepo := repository.NewInMemoryIdempotencyRepository()
-	membershipRepo := repository.NewInMemoryMembershipRepository()
-	joinRepo := repository.NewInMemoryJoinRequestRepository()
-	ipamRepo := repository.NewInMemoryIPAM()
-	userRepo := repository.NewInMemoryUserRepository()
-	tenantRepo := repository.NewInMemoryTenantRepository()
+	var networkRepo repository.NetworkRepository
+	var idempotencyRepo repository.IdempotencyRepository
+	var membershipRepo repository.MembershipRepository
+	var joinRepo repository.JoinRequestRepository
+	var ipamRepo repository.IPAMRepository
+	var userRepo repository.UserRepository
+	var tenantRepo repository.TenantRepository
+
+	if *usePostgres && db != nil {
+		// PostgreSQL repositories
+		networkRepo = repository.NewPostgresNetworkRepository(db)
+		idempotencyRepo = repository.NewPostgresIdempotencyRepository(db)
+		membershipRepo = repository.NewPostgresMembershipRepository(db)
+		joinRepo = repository.NewPostgresJoinRequestRepository(db)
+		ipamRepo = repository.NewPostgresIPAMRepository(db)
+		userRepo = repository.NewPostgresUserRepository(db)
+		tenantRepo = repository.NewPostgresTenantRepository(db)
+		fmt.Println("Using PostgreSQL repositories")
+	} else {
+		// In-memory repositories (fallback)
+		networkRepo = repository.NewInMemoryNetworkRepository()
+		idempotencyRepo = repository.NewInMemoryIdempotencyRepository()
+		membershipRepo = repository.NewInMemoryMembershipRepository()
+		joinRepo = repository.NewInMemoryJoinRequestRepository()
+		ipamRepo = repository.NewInMemoryIPAM()
+		userRepo = repository.NewInMemoryUserRepository()
+		tenantRepo = repository.NewInMemoryTenantRepository()
+		fmt.Println("Using in-memory repositories (no data persistence)")
+	}
 
 	// Initialize services
 	networkService := service.NewNetworkService(networkRepo, idempotencyRepo)
@@ -174,4 +225,12 @@ func main() {
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		fmt.Printf("Server failed to start: %v\n", err)
 	}
+}
+
+// getEnvOrDefault gets an environment variable or returns a default value
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }

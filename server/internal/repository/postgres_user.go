@@ -66,14 +66,16 @@ func (r *PostgresUserRepository) GetByID(ctx context.Context, id string) (*domai
 	return user, nil
 }
 
-func (r *PostgresUserRepository) GetByEmail(ctx context.Context, tenantID, email string) (*domain.User, error) {
+func (r *PostgresUserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	query := `
 		SELECT id, tenant_id, email, password_hash, locale, is_admin, created_at, updated_at
 		FROM users
-		WHERE tenant_id = $1 AND email = $2
+		WHERE email = $1
+		ORDER BY created_at DESC
+		LIMIT 1
 	`
 	user := &domain.User{}
-	err := r.db.QueryRowContext(ctx, query, tenantID, email).Scan(
+	err := r.db.QueryRowContext(ctx, query, email).Scan(
 		&user.ID,
 		&user.TenantID,
 		&user.Email,
@@ -84,7 +86,7 @@ func (r *PostgresUserRepository) GetByEmail(ctx context.Context, tenantID, email
 		&user.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("%s: user not found", domain.ErrNotFound)
+		return nil, domain.NewError(domain.ErrUserNotFound, "User not found", map[string]string{"email": email})
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user by email: %w", err)
