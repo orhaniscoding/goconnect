@@ -22,11 +22,9 @@
 
 ### 🏢 Multi-Tenancy & Access Control
 - **Complete Tenant Isolation**: Security-first architecture with enforced boundaries
-- **JWT Authentication**: Production-ready JWT-based auth with Argon2id password hashing
 - **Role-Based Access Control (RBAC)**: Owner, Admin, Moderator, and Member roles
 - **Network Membership**: Flexible join policies (Open, Approval Required, Invite-Only)
 - **Join Request Workflow**: Approve/deny membership requests with audit trail
-- **Token Management**: Access tokens (15 min) and refresh tokens (7 days)
 
 ### 💬 Real-Time Communication
 - **Built-in Chat**: Network-scoped and global chat with WebSocket support
@@ -127,10 +125,6 @@ docker-compose up -d
 ```bash
 # Server
 PORT=8080
-
-# Authentication (JWT)
-JWT_SECRET=your-secure-secret-key-here  # REQUIRED in production
-# Generate: openssl rand -base64 32
 
 # Rate Limiting
 RATE_LIMIT_CAPACITY=5       # Requests per window
@@ -410,21 +404,7 @@ See [GitHub Projects](https://github.com/orhaniscoding/goconnect/projects) for d
 ## 🔒 Security
 
 ### Current Status
-✅ **JWT Authentication**: Production-ready JWT-based authentication with HS256 signing. All endpoints are protected with token validation.
-
-**Implemented:**
-- ✅ JWT token generation and validation
-- ✅ Argon2id password hashing
-- ✅ Access tokens (15 minutes) and refresh tokens (7 days)
-- ✅ Token type verification (access vs refresh)
-- ✅ Complete user registration and login flow
-- ✅ Token refresh mechanism
-
-**Recommended for Production:**
-- 🔄 **JWT_SECRET**: Set strong secret via environment variable (see [CONFIG_FLAGS.md](docs/CONFIG_FLAGS.md))
-- 🔄 **Redis Blacklist**: Implement token blacklist for logout and refresh rotation (optional but recommended)
-- 🔄 **HTTPS**: Use TLS/SSL in production (configure reverse proxy)
-- 🔄 **Rate Limiting**: Configure appropriate rate limits for your use case
+⚠️ **Development Mode**: The current authentication implementation is a **PLACEHOLDER** for development purposes only. Do not use in production without implementing proper JWT/OIDC authentication.
 
 ### Reporting Vulnerabilities
 Please report security vulnerabilities responsibly:
