@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.2.0](https://github.com/orhaniscoding/goconnect/compare/v1.1.0...v1.2.0) (2025-11-20)
+
+
+### Features
+
+* implement comprehensive authentication, chat, device and peer management system ([0a64ea7](https://github.com/orhaniscoding/goconnect/commit/0a64ea7b109ec97222a4b878cc4c73ad90c7aea7))
+* **server:** implement authentication system phase 1 ([#71](https://github.com/orhaniscoding/goconnect/issues/71)) ([ef9e5d8](https://github.com/orhaniscoding/goconnect/commit/ef9e5d8c9f097a4502f266b44dab7f4533f5d902))
+
+
+### Bug Fixes
+
+* add tenant_id parameter to network handler service calls ([3516b74](https://github.com/orhaniscoding/goconnect/commit/3516b74bd688992c2add13b66ef215d730411c04))
+* enforce tenant isolation in network repository list operations ([e9ccca9](https://github.com/orhaniscoding/goconnect/commit/e9ccca9eb0db02681d88a0b99b3936a994e88907))
+* resolve merge conflicts and unify codebase ([9c45145](https://github.com/orhaniscoding/goconnect/commit/9c45145a8d6d4b452d24399eb82b4589da8df568))
+* update test files for PassHash to PasswordHash migration and tenant_id parameters ([3b7e420](https://github.com/orhaniscoding/goconnect/commit/3b7e42074ec2e13a3084f0e86e9fdbacfac868ed))
+
 ## [1.1.0](https://github.com/orhaniscoding/goconnect/compare/v1.0.0...v1.1.0) (2025-10-10)
 
 
