@@ -37,17 +37,8 @@
 - **Metrics Export**: Prometheus-compatible metrics for monitoring
 - **Health Checks**: Readiness and liveness probes for container orchestration
 - **Rate Limiting**: Per-IP token bucket rate limiting (configurable)
-- **User Profile Management**: View user info, change password, manage account settings
 - **2FA Support**: TOTP-based two-factor authentication (planned)
 - **SSO Integration**: OAuth2/OIDC support (planned)
-
-### 👤 User Management
-- **Profile Page**: Dedicated user profile and settings page
-- **User Information Display**: View user ID, name, email, role, and tenant ID
-- **Password Management**: Secure password change with validation (8+ characters, confirmation)
-- **Role Display**: Visual role badges for Admin (👑), Moderator (🛡️), and User (👤)
-- **2FA Toggle**: UI ready for two-factor authentication (backend integration planned)
-- **Account Security**: Password change requires current password verification
 
 ### 🌐 Modern Tech Stack
 - **Backend**: Go 1.22+ with Gin web framework
