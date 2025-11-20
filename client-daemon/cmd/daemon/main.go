@@ -125,7 +125,7 @@ func setupHandlers(idMgr *identity.Manager, apiClient *api.Client) {
 		}
 
 		hostname, _ := os.Hostname()
-		
+
 		// Register with server
 		regReq := api.RegisterDeviceRequest{
 			Name:      hostname,
