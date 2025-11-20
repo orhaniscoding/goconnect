@@ -18,6 +18,7 @@
 - **Multi-Network Support**: Create and manage multiple isolated VPN networks
 - **IPAM (IP Address Management)**: Automatic IP allocation from CIDR ranges with conflict detection
 - **Device Management**: Register and track devices across platforms (Linux, Windows, macOS, iOS, Android)
+- **One-Click Registration**: Automatically detect and register local devices via Local Bridge
 - **Peer-to-Peer Mesh**: Full mesh networking with automatic peer discovery
 
 ### 🏢 Multi-Tenancy & Access Control

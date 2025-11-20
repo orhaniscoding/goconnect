@@ -14,6 +14,8 @@ import {
   Network
 } from '../../../../lib/api'
 import { getAccessToken } from '../../../../lib/auth'
+import { bridge } from '../../../../lib/bridge'
+import { useNotification } from '../../../../contexts/NotificationContext'
 import AuthGuard from '../../../../components/AuthGuard'
 import Footer from '../../../../components/Footer'
 import { generateQRCode } from '../../../../lib/qrcode'
@@ -22,11 +24,16 @@ type PlatformType = 'windows' | 'macos' | 'linux' | 'android' | 'ios'
 
 export default function DevicesPage() {
   const router = useRouter()
+  const notification = useNotification()
   const [devices, setDevices] = useState<Device[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [filterPlatform, setFilterPlatform] = useState<string>('')
+
+  // Local Daemon State
+  const [localDaemonStatus, setLocalDaemonStatus] = useState<any>(null)
+  const [registeringLocal, setRegisteringLocal] = useState(false)
 
   // Form state
   const [formData, setFormData] = useState<RegisterDeviceRequest>({
@@ -58,7 +65,46 @@ export default function DevicesPage() {
 
   useEffect(() => {
     loadNetworks()
+    checkLocalDaemon()
   }, [])
+
+  const checkLocalDaemon = async () => {
+    try {
+      const status = await bridge('/status')
+      setLocalDaemonStatus(status)
+    } catch (e) {
+      // Daemon not running, ignore
+      console.log('Local daemon not detected')
+    }
+  }
+
+  const handleRegisterLocalDevice = async () => {
+    setRegisteringLocal(true)
+    try {
+      const token = getAccessToken()
+      if (!token) {
+        notification.error('Authentication Error', 'Please log in again')
+        return
+      }
+
+      // Call local bridge to register
+      await bridge('/register', {
+        method: 'POST',
+        body: JSON.stringify({ token })
+      })
+
+      notification.success('Device Registered', 'This device has been successfully registered!')
+      
+      // Refresh status and list
+      await checkLocalDaemon()
+      await loadDevices()
+    } catch (err: any) {
+      console.error('Registration failed:', err)
+      notification.error('Registration Failed', 'Could not register this device. Is the daemon running?')
+    } finally {
+      setRegisteringLocal(false)
+    }
+  }
 
   const loadDevices = async () => {
     setLoading(true)
@@ -291,6 +337,49 @@ export default function DevicesPage() {
             ← Back to Dashboard
           </button>
         </div>
+
+        {/* Local Device Registration Banner */}
+        {localDaemonStatus && !localDaemonStatus.device.registered && (
+          <div style={{
+            marginBottom: 24,
+            padding: 20,
+            backgroundColor: '#eff6ff',
+            borderRadius: 8,
+            border: '1px solid #bfdbfe',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}>
+            <div>
+              <h3 style={{ margin: '0 0 8px 0', color: '#1e40af' }}>
+                New Device Detected
+              </h3>
+              <p style={{ margin: 0, color: '#1e3a8a', fontSize: 14 }}>
+                This device is running the GoConnect Daemon but is not registered yet.
+                <br />
+                Public Key: <code style={{ backgroundColor: 'rgba(255,255,255,0.5)', padding: '2px 4px', borderRadius: 4 }}>
+                  {localDaemonStatus.device.public_key.substring(0, 12)}...
+                </code>
+              </p>
+            </div>
+            <button
+              onClick={handleRegisterLocalDevice}
+              disabled={registeringLocal}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#2563eb',
+                color: 'white',
+                border: 'none',
+                borderRadius: 6,
+                cursor: registeringLocal ? 'not-allowed' : 'pointer',
+                fontWeight: 600,
+                opacity: registeringLocal ? 0.7 : 1
+              }}
+            >
+              {registeringLocal ? 'Registering...' : 'Register This Device'}
+            </button>
+          </div>
+        )}
 
         {/* Filter and Add Button */}
         <div style={{ marginBottom: 24, display: 'flex', gap: 12, alignItems: 'center' }}>
