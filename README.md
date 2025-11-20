@@ -27,11 +27,7 @@
 - **Join Request Workflow**: Approve/deny membership requests with audit trail
 
 ### 💬 Real-Time Communication
-- **Real-time Chat UI**: Modern chat interface with WebSocket integration
-- **Network-Scoped Chat**: Switch between global and network-specific chat rooms
-- **Room Management**: Automatic WebSocket room join/leave on scope changes
-- **Live Message Updates**: Real-time message delivery, editing, and deletion
-- **Message Filtering**: Only display messages for current scope (host or network:id)
+- **Built-in Chat**: Network-scoped and global chat with WebSocket support
 - **Message Moderation**: Redact, edit, and delete messages with full audit trail
 - **Edit History Tracking**: Complete message history with timestamps
 - **File Attachments**: Share files within chat (planned)
