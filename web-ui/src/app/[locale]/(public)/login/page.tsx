@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Footer from '../../../../components/Footer'
 import { login } from '../../../../lib/api'
 import { setTokens, setUser } from '../../../../lib/auth'
+import { useNotification } from '../../../../contexts/NotificationContext'
 
 interface LoginPageProps {
     params: { locale: string }
@@ -12,6 +13,7 @@ interface LoginPageProps {
 
 export default function Login({ params }: LoginPageProps) {
     const router = useRouter()
+    const notification = useNotification()
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [error, setError] = useState('')
@@ -38,12 +40,16 @@ export default function Login({ params }: LoginPageProps) {
 
         // Basic validation
         if (!email || !password) {
-            setError(t.errorRequired)
+            const msg = t.errorRequired
+            setError(msg)
+            notification.warning('Validation Error', msg)
             return
         }
 
         if (!email.includes('@')) {
-            setError(t.errorEmailFormat)
+            const msg = t.errorEmailFormat
+            setError(msg)
+            notification.warning('Validation Error', msg)
             return
         }
 
@@ -56,11 +62,15 @@ export default function Login({ params }: LoginPageProps) {
             setTokens(response.data.access_token, response.data.refresh_token)
             setUser(response.data.user)
 
+            notification.success('Welcome back!', 'Login successful')
+
             // Redirect to dashboard
             router.push(`/${params.locale}/dashboard`)
         } catch (err: any) {
             console.error('Login error:', err)
-            setError(err.message || t.errorNetwork)
+            const msg = err.message || t.errorNetwork
+            setError(msg)
+            notification.error('Login Failed', msg)
         } finally {
             setIsLoading(false)
         }

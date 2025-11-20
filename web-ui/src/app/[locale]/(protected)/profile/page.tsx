@@ -2,15 +2,17 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getUser } from '../../../../lib/auth'
+import { useNotification } from '../../../../contexts/NotificationContext'
 import AuthGuard from '../../../../components/AuthGuard'
 import Footer from '../../../../components/Footer'
 
 export default function ProfilePage() {
     const router = useRouter()
+    const notification = useNotification()
     const [user, setUser] = useState<any>(null)
     const [editing, setEditing] = useState(false)
     const [changePasswordMode, setChangePasswordMode] = useState(false)
-    
+
     // Password change form
     const [currentPassword, setCurrentPassword] = useState('')
     const [newPassword, setNewPassword] = useState('')
@@ -35,17 +37,23 @@ export default function ProfilePage() {
 
         // Validation
         if (!currentPassword || !newPassword || !confirmPassword) {
-            setPasswordError('All password fields are required')
+            const msg = 'All password fields are required'
+            setPasswordError(msg)
+            notification.warning('Validation Error', msg)
             return
         }
 
         if (newPassword !== confirmPassword) {
-            setPasswordError('New passwords do not match')
+            const msg = 'New passwords do not match'
+            setPasswordError(msg)
+            notification.warning('Validation Error', msg)
             return
         }
 
         if (newPassword.length < 8) {
-            setPasswordError('Password must be at least 8 characters')
+            const msg = 'Password must be at least 8 characters'
+            setPasswordError(msg)
+            notification.warning('Validation Error', msg)
             return
         }
 
@@ -53,10 +61,11 @@ export default function ProfilePage() {
         // For now, just show success message
         console.log('Password change requested')
         setPasswordSuccess(true)
+        notification.success('Success', 'Password changed successfully')
         setCurrentPassword('')
         setNewPassword('')
         setConfirmPassword('')
-        
+
         setTimeout(() => {
             setChangePasswordMode(false)
             setPasswordSuccess(false)
@@ -65,7 +74,9 @@ export default function ProfilePage() {
 
     const handleToggle2FA = () => {
         // TODO: Backend integration - enable/disable 2FA
-        setTwoFactorEnabled(!twoFactorEnabled)
+        const newState = !twoFactorEnabled
+        setTwoFactorEnabled(newState)
+        notification.info('2FA Status', `Two-factor authentication ${newState ? 'enabled' : 'disabled'}`)
     }
 
     if (!user) {
@@ -127,15 +138,15 @@ export default function ProfilePage() {
                         <h2 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 600, color: '#212529' }}>
                             User Information
                         </h2>
-                        
+
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                             <div>
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#6c757d', marginBottom: 6 }}>
                                     User ID
                                 </label>
-                                <div style={{ 
-                                    padding: '10px 12px', 
-                                    backgroundColor: '#f8f9fa', 
+                                <div style={{
+                                    padding: '10px 12px',
+                                    backgroundColor: '#f8f9fa',
                                     borderRadius: 6,
                                     fontFamily: 'monospace',
                                     fontSize: 14,
@@ -149,9 +160,9 @@ export default function ProfilePage() {
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#6c757d', marginBottom: 6 }}>
                                     Name
                                 </label>
-                                <div style={{ 
-                                    padding: '10px 12px', 
-                                    backgroundColor: '#f8f9fa', 
+                                <div style={{
+                                    padding: '10px 12px',
+                                    backgroundColor: '#f8f9fa',
                                     borderRadius: 6,
                                     fontSize: 15,
                                     color: '#212529'
@@ -164,9 +175,9 @@ export default function ProfilePage() {
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#6c757d', marginBottom: 6 }}>
                                     Email
                                 </label>
-                                <div style={{ 
-                                    padding: '10px 12px', 
-                                    backgroundColor: '#f8f9fa', 
+                                <div style={{
+                                    padding: '10px 12px',
+                                    backgroundColor: '#f8f9fa',
                                     borderRadius: 6,
                                     fontSize: 15,
                                     color: '#212529'
@@ -179,8 +190,8 @@ export default function ProfilePage() {
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#6c757d', marginBottom: 6 }}>
                                     Role
                                 </label>
-                                <div style={{ 
-                                    padding: '10px 12px', 
+                                <div style={{
+                                    padding: '10px 12px',
                                     backgroundColor: user.is_admin ? '#d1e7dd' : user.is_moderator ? '#cfe2ff' : '#f8f9fa',
                                     borderRadius: 6,
                                     fontSize: 15,
@@ -195,9 +206,9 @@ export default function ProfilePage() {
                                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#6c757d', marginBottom: 6 }}>
                                     Tenant ID
                                 </label>
-                                <div style={{ 
-                                    padding: '10px 12px', 
-                                    backgroundColor: '#f8f9fa', 
+                                <div style={{
+                                    padding: '10px 12px',
+                                    backgroundColor: '#f8f9fa',
                                     borderRadius: 6,
                                     fontFamily: 'monospace',
                                     fontSize: 14,
@@ -381,15 +392,15 @@ export default function ProfilePage() {
                         <h2 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 600, color: '#212529' }}>
                             Two-Factor Authentication (2FA)
                         </h2>
-                        
+
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div>
                                 <div style={{ fontSize: 15, color: '#212529', marginBottom: 4, fontWeight: 500 }}>
                                     2FA Status
                                 </div>
                                 <div style={{ fontSize: 14, color: '#6c757d' }}>
-                                    {twoFactorEnabled 
-                                        ? 'Two-factor authentication is enabled for your account' 
+                                    {twoFactorEnabled
+                                        ? 'Two-factor authentication is enabled for your account'
                                         : 'Enable 2FA for additional security (Coming soon)'}
                                 </div>
                             </div>
