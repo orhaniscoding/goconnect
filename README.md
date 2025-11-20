@@ -18,6 +18,8 @@
 - **Multi-Network Support**: Create and manage multiple isolated VPN networks
 - **IPAM (IP Address Management)**: Automatic IP allocation from CIDR ranges with conflict detection
 - **Device Management**: Register and track devices across platforms (Linux, Windows, macOS, iOS, Android)
+- **Config Generation**: Download WireGuard configurations with private key security
+- **QR Code Support**: Generate QR codes for easy mobile device configuration (iOS/Android)
 - **Peer-to-Peer Mesh**: Full mesh networking with automatic peer discovery
 
 ### 🏢 Multi-Tenancy & Access Control
@@ -235,6 +237,40 @@ POST   /v1/networks/:id/ip-allocations           Allocate IP
 GET    /v1/networks/:id/ip-allocations           List allocations
 DELETE /v1/networks/:id/ip-allocation            Release own IP
 DELETE /v1/networks/:id/ip-allocations/:user_id  Admin release
+```
+
+**Devices:**
+```
+POST   /v1/devices              Register new device
+GET    /v1/devices              List user's devices
+GET    /v1/devices/:id          Get specific device
+PATCH  /v1/devices/:id          Update device info
+DELETE /v1/devices/:id          Delete device
+POST   /v1/devices/:id/heartbeat   Device heartbeat
+POST   /v1/devices/:id/disable     Disable device
+POST   /v1/devices/:id/enable      Enable device
+```
+
+**WireGuard:**
+```
+GET    /v1/networks/:id/wg/profile    Download WireGuard config
+                                       Query params: device_id, private_key
+                                       Returns: .conf file or QR code
+```
+
+**Example - Download Config:**
+```bash
+# Desktop/CLI
+curl -H "Authorization: Bearer <token>" \
+  "http://localhost:8080/v1/networks/net-123/wg/profile?device_id=dev-456&private_key=<key>" \
+  -o my-device.conf
+
+# Mobile - Scan QR code from web UI
+# 1. Open GoConnect web dashboard
+# 2. Navigate to Devices page
+# 3. Click "Get Config" on your mobile device
+# 4. Click "Show QR" button
+# 5. Scan QR code with WireGuard mobile app
 ```
 
 **Audit:**
