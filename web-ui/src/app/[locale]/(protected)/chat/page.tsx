@@ -45,10 +45,16 @@ export default function ChatPage() {
     const [editText, setEditText] = useState('')
     const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null)
 
+    // User permissions
+    const [isModerator, setIsModerator] = useState(false)
+    const [isAdmin, setIsAdmin] = useState(false)
+
     useEffect(() => {
         const user = getUser()
         if (user) {
             setCurrentUserId(user.id)
+            setIsModerator(user.is_moderator || false)
+            setIsAdmin(user.is_admin || false)
         }
         loadNetworks()
         connectWebSocket()
@@ -334,6 +340,34 @@ export default function ChatPage() {
         }
     }
 
+    const handleRedactMessage = (messageId: string) => {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+            setError('Not connected to WebSocket')
+            return
+        }
+
+        if (!confirm('Redact this message? This action cannot be undone.')) {
+            return
+        }
+
+        const message: WebSocketMessage = {
+            type: 'chat.redact',
+            op_id: `redact-${Date.now()}`,
+            data: {
+                message_id: messageId,
+                mask: '[REDACTED BY MODERATOR]'
+            }
+        }
+
+        try {
+            ws.send(JSON.stringify(message))
+            setError(null)
+        } catch (err) {
+            setError('Failed to redact message')
+            console.error(err)
+        }
+    }
+
     return (
         <AuthGuard>
             <div style={{
@@ -474,7 +508,12 @@ export default function ChatPage() {
                                     boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
                                     wordBreak: 'break-word',
                                     fontSize: 15,
-                                    fontStyle: msg.redacted ? 'italic' : 'normal'
+                                    fontStyle: msg.redacted ? 'italic' : 'normal',
+                                    ...(msg.redacted && {
+                                        backgroundColor: '#f8d7da',
+                                        color: '#842029',
+                                        border: '1px solid #f5c2c7'
+                                    })
                                 }}>
                                     {msg.body}
                                 </div>
@@ -541,6 +580,37 @@ export default function ChatPage() {
                                             }}
                                         >
                                             🗑️ Delete
+                                        </button>
+                                    </div>
+                                )}
+                                {!isOwnMessage && (isModerator || isAdmin) && !msg.deleted_at && !msg.redacted && (
+                                    <div style={{
+                                        display: 'flex',
+                                        gap: 8,
+                                        marginTop: 6,
+                                        paddingLeft: 8,
+                                        paddingRight: 8
+                                    }}>
+                                        <button
+                                            onClick={() => handleRedactMessage(msg.id)}
+                                            style={{
+                                                padding: '4px 12px',
+                                                fontSize: 12,
+                                                backgroundColor: '#fff3cd',
+                                                border: '1px solid #ffc107',
+                                                borderRadius: 6,
+                                                cursor: 'pointer',
+                                                color: '#856404',
+                                                fontWeight: 500
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.backgroundColor = '#ffc107'
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.backgroundColor = '#fff3cd'
+                                            }}
+                                        >
+                                            🚫 Redact (Moderator)
                                         </button>
                                     </div>
                                 )}
