@@ -80,7 +80,7 @@ func TestTenantRepository_GetByID_NotFound(t *testing.T) {
 
 	domainErr, ok := err.(*domain.Error)
 	require.True(t, ok)
-	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
+	assert.Equal(t, domain.ErrTenantNotFound, domainErr.Code)
 	assert.Contains(t, domainErr.Message, "Tenant not found")
 }
 
@@ -110,7 +110,7 @@ func TestTenantRepository_Update_NotFound(t *testing.T) {
 	require.Error(t, err)
 	domainErr, ok := err.(*domain.Error)
 	require.True(t, ok)
-	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
+	assert.Equal(t, domain.ErrTenantNotFound, domainErr.Code)
 }
 
 func TestTenantRepository_Delete_Success(t *testing.T) {
@@ -135,7 +135,7 @@ func TestTenantRepository_Delete_NotFound(t *testing.T) {
 	require.Error(t, err)
 	domainErr, ok := err.(*domain.Error)
 	require.True(t, ok)
-	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
+	assert.Equal(t, domain.ErrTenantNotFound, domainErr.Code)
 }
 
 func TestTenantRepository_FullCRUDCycle(t *testing.T) {

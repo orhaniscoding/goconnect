@@ -14,15 +14,15 @@ import (
 func mkUser(id, email string, isAdmin, isModerator bool) *domain.User {
 	now := time.Now()
 	return &domain.User{
-		ID:          id,
-		TenantID:    "tenant-1",
-		Email:       email,
-		PasswordHash:    "hashed-password",
-		Locale:      "en",
-		IsAdmin:     isAdmin,
-		IsModerator: isModerator,
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ID:           id,
+		TenantID:     "tenant-1",
+		Email:        email,
+		PasswordHash: "hashed-password",
+		Locale:       "en",
+		IsAdmin:      isAdmin,
+		IsModerator:  isModerator,
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 }
 
@@ -61,12 +61,14 @@ func TestUserRepository_Create_DuplicateEmail(t *testing.T) {
 	require.Error(t, err2)
 	domainErr, ok := err2.(*domain.Error)
 	require.True(t, ok)
-	assert.Equal(t, domain.ErrInvalidRequest, domainErr.Code)
-	assert.Contains(t, domainErr.Message, "email already exists")
+	assert.Equal(t, domain.ErrEmailAlreadyExists, domainErr.Code)
+	assert.Contains(t, domainErr.Message, "Email already registered")
 
 	// Only first user should exist
 	assert.Equal(t, 1, len(repo.users))
-	assert.Equal(t, "user-1", repo.email["duplicate@example.com"])
+	user, exists := repo.email["duplicate@example.com"]
+	require.True(t, exists)
+	assert.Equal(t, "user-1", user.ID)
 }
 
 func TestUserRepository_Create_MultipleUsers(t *testing.T) {
@@ -111,8 +113,8 @@ func TestUserRepository_GetByID_NotFound(t *testing.T) {
 
 	domainErr, ok := err.(*domain.Error)
 	require.True(t, ok)
-	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
-	assert.Contains(t, domainErr.Message, "user not found")
+	assert.Equal(t, domain.ErrUserNotFound, domainErr.Code)
+	assert.Contains(t, domainErr.Message, "User not found")
 }
 
 func TestUserRepository_GetByEmail_Success(t *testing.T) {
@@ -139,7 +141,7 @@ func TestUserRepository_GetByEmail_NotFound(t *testing.T) {
 
 	domainErr, ok := err.(*domain.Error)
 	require.True(t, ok)
-	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
+	assert.Equal(t, domain.ErrUserNotFound, domainErr.Code)
 }
 
 func TestUserRepository_Update_Success(t *testing.T) {
@@ -190,7 +192,9 @@ func TestUserRepository_Update_EmailChange(t *testing.T) {
 	assert.Equal(t, "user-1", retrieved.ID)
 
 	// byEmail index should be updated
-	assert.Equal(t, "user-1", repo.email["new@example.com"])
+	newEmailUser, exists := repo.email["new@example.com"]
+	require.True(t, exists)
+	assert.Equal(t, "user-1", newEmailUser.ID)
 	assert.NotContains(t, repo.email, "old@example.com")
 }
 
@@ -203,7 +207,7 @@ func TestUserRepository_Update_NotFound(t *testing.T) {
 	require.Error(t, err)
 	domainErr, ok := err.(*domain.Error)
 	require.True(t, ok)
-	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
+	assert.Equal(t, domain.ErrUserNotFound, domainErr.Code)
 }
 
 func TestUserRepository_Delete_Success(t *testing.T) {
@@ -233,7 +237,7 @@ func TestUserRepository_Delete_NotFound(t *testing.T) {
 	require.Error(t, err)
 	domainErr, ok := err.(*domain.Error)
 	require.True(t, ok)
-	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
+	assert.Equal(t, domain.ErrUserNotFound, domainErr.Code)
 }
 
 func TestUserRepository_Delete_CleansEmailIndex(t *testing.T) {

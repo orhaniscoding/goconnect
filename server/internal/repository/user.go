@@ -77,8 +77,14 @@ func (r *InMemoryUserRepository) Update(ctx context.Context, user *domain.User) 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if _, exists := r.users[user.ID]; !exists {
+	oldUser, exists := r.users[user.ID]
+	if !exists {
 		return domain.NewError(domain.ErrUserNotFound, "User not found", map[string]string{"user_id": user.ID})
+	}
+
+	// If email changed, remove old email from index
+	if oldUser.Email != user.Email {
+		delete(r.email, oldUser.Email)
 	}
 
 	r.users[user.ID] = user
