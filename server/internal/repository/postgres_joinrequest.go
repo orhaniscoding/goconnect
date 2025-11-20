@@ -152,7 +152,7 @@ func (r *PostgresJoinRequestRepository) ListPending(ctx context.Context, network
 		WHERE network_id = $1 AND status = 'pending'
 		ORDER BY requested_at ASC
 	`
-	
+
 	rows, err := r.db.QueryContext(ctx, query, networkID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list pending join requests: %w", err)

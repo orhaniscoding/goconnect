@@ -374,3 +374,148 @@ export async function listJoinRequests(
     },
   })
 }
+
+// Device Management API
+
+export interface Device {
+  id: string
+  user_id: string
+  tenant_id: string
+  name: string
+  platform: 'windows' | 'macos' | 'linux' | 'android' | 'ios'
+  pubkey: string
+  hostname?: string
+  os_version?: string
+  daemon_ver?: string
+  last_seen?: string
+  last_ip?: string
+  active: boolean
+  disabled_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface RegisterDeviceRequest {
+  name: string
+  platform: 'windows' | 'macos' | 'linux' | 'android' | 'ios'
+  pubkey: string
+  hostname?: string
+  os_version?: string
+  daemon_ver?: string
+}
+
+export interface DeviceListResponse {
+  devices: Device[]
+  next_cursor?: string
+  has_more: boolean
+}
+
+/**
+ * Register a new device
+ * @param request - Device registration data
+ * @param accessToken - JWT access token
+ */
+export async function registerDevice(
+  request: RegisterDeviceRequest,
+  accessToken: string
+): Promise<Device> {
+  return api('/v1/devices', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(request),
+  })
+}
+
+/**
+ * List user's devices
+ * @param accessToken - JWT access token
+ * @param platform - Filter by platform (optional)
+ * @param cursor - Pagination cursor (optional)
+ */
+export async function listDevices(
+  accessToken: string,
+  platform?: string,
+  cursor?: string
+): Promise<DeviceListResponse> {
+  const params = new URLSearchParams()
+  if (platform) params.append('platform', platform)
+  if (cursor) params.append('cursor', cursor)
+
+  const queryString = params.toString()
+  const url = `/v1/devices${queryString ? '?' + queryString : ''}`
+
+  return api(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+}
+
+/**
+ * Get device by ID
+ * @param deviceId - Device ID
+ * @param accessToken - JWT access token
+ */
+export async function getDevice(
+  deviceId: string,
+  accessToken: string
+): Promise<Device> {
+  return api(`/v1/devices/${deviceId}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+}
+
+/**
+ * Delete a device
+ * @param deviceId - Device ID
+ * @param accessToken - JWT access token
+ */
+export async function deleteDevice(
+  deviceId: string,
+  accessToken: string
+): Promise<void> {
+  await api(`/v1/devices/${deviceId}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+}
+
+/**
+ * Disable a device
+ * @param deviceId - Device ID
+ * @param accessToken - JWT access token
+ */
+export async function disableDevice(
+  deviceId: string,
+  accessToken: string
+): Promise<void> {
+  await api(`/v1/devices/${deviceId}/disable`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+}
+
+/**
+ * Enable a device
+ * @param deviceId - Device ID
+ * @param accessToken - JWT access token
+ */
+export async function enableDevice(
+  deviceId: string,
+  accessToken: string
+): Promise<void> {
+  await api(`/v1/devices/${deviceId}/enable`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+}

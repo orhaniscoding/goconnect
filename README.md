@@ -237,6 +237,18 @@ DELETE /v1/networks/:id/ip-allocation            Release own IP
 DELETE /v1/networks/:id/ip-allocations/:user_id  Admin release
 ```
 
+**Devices:**
+```
+POST   /v1/devices              Register new device
+GET    /v1/devices              List user's devices
+GET    /v1/devices/:id          Get specific device
+PATCH  /v1/devices/:id          Update device info
+DELETE /v1/devices/:id          Delete device
+POST   /v1/devices/:id/heartbeat   Device heartbeat
+POST   /v1/devices/:id/disable     Disable device
+POST   /v1/devices/:id/enable      Enable device
+```
+
 **Audit:**
 ```
 GET    /v1/audit/integrity    Export integrity snapshot

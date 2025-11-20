@@ -101,6 +101,31 @@ export default function Dashboard() {
                     </div>
 
                     <div
+                        onClick={() => router.push('/en/devices')}
+                        style={{
+                            padding: 20,
+                            backgroundColor: '#fff',
+                            border: '2px solid #10b981',
+                            borderRadius: 8,
+                            cursor: 'pointer',
+                            transition: 'transform 0.2s, box-shadow 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-2px)'
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(16,185,129,0.2)'
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)'
+                            e.currentTarget.style.boxShadow = 'none'
+                        }}
+                    >
+                        <h3 style={{ margin: '0 0 8px 0', color: '#10b981' }}>💻 Devices</h3>
+                        <p style={{ margin: 0, color: '#666', fontSize: 14 }}>
+                            Manage your registered devices
+                        </p>
+                    </div>
+
+                    <div
                         style={{
                             padding: 20,
                             backgroundColor: '#fff',
