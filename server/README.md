@@ -17,7 +17,7 @@ Enterprise-grade self-hosted VPN management platform with WireGuard integration,
 - **Argon2id Password Hashing**: OWASP-recommended parameters
 - **RBAC**: Admin, Moderator, and User roles
 - **Content Moderation**: Message redaction and edit history
-- **2FA Support**: TOTP-ready architecture (implementation pending)
+- **2FA Support**: TOTP-based two-factor authentication
 
 ### Developer Experience
 - **Environment-based Configuration**: 12-factor app compliant

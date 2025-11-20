@@ -123,6 +123,84 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	})
 }
 
+// Generate2FA handles POST /v1/auth/2fa/generate
+func (h *AuthHandler) Generate2FA(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		errorResponse(c, domain.NewError(domain.ErrUnauthorized, "Unauthorized", nil))
+		return
+	}
+
+	secret, url, err := h.authService.Generate2FASecret(c.Request.Context(), userID)
+	if err != nil {
+		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to generate 2FA secret", nil))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": gin.H{
+			"secret": secret,
+			"url":    url,
+		},
+	})
+}
+
+// Enable2FA handles POST /v1/auth/2fa/enable
+func (h *AuthHandler) Enable2FA(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		errorResponse(c, domain.NewError(domain.ErrUnauthorized, "Unauthorized", nil))
+		return
+	}
+
+	var req domain.Enable2FARequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Invalid request", nil))
+		return
+	}
+
+	if err := h.authService.Enable2FA(c.Request.Context(), userID, req.Secret, req.Code); err != nil {
+		if domainErr, ok := err.(*domain.Error); ok {
+			errorResponse(c, domainErr)
+		} else {
+			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to enable 2FA", nil))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "2FA enabled successfully",
+	})
+}
+
+// Disable2FA handles POST /v1/auth/2fa/disable
+func (h *AuthHandler) Disable2FA(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		errorResponse(c, domain.NewError(domain.ErrUnauthorized, "Unauthorized", nil))
+		return
+	}
+
+	var req domain.Disable2FARequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Invalid request", nil))
+		return
+	}
+
+	if err := h.authService.Disable2FA(c.Request.Context(), userID, req.Code); err != nil {
+		if domainErr, ok := err.(*domain.Error); ok {
+			errorResponse(c, domainErr)
+		} else {
+			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to disable 2FA", nil))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "2FA disabled successfully",
+	})
+}
+
 // RegisterAuthRoutes registers all auth-related routes
 func RegisterAuthRoutes(r *gin.Engine, handler *AuthHandler) {
 	v1 := r.Group("/v1")
@@ -135,5 +213,8 @@ func RegisterAuthRoutes(r *gin.Engine, handler *AuthHandler) {
 		auth.POST("/login", handler.Login)
 		auth.POST("/refresh", handler.Refresh)
 		auth.POST("/logout", handler.Logout)
+		auth.POST("/2fa/generate", handler.Generate2FA)
+		auth.POST("/2fa/enable", handler.Enable2FA)
+		auth.POST("/2fa/disable", handler.Disable2FA)
 	}
 }

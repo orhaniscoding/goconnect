@@ -37,7 +37,7 @@
 - **Metrics Export**: Prometheus-compatible metrics for monitoring
 - **Health Checks**: Readiness and liveness probes for container orchestration
 - **Rate Limiting**: Per-IP token bucket rate limiting (configurable)
-- **2FA Support**: TOTP-based two-factor authentication (planned)
+- **2FA Support**: TOTP-based two-factor authentication
 - **SSO Integration**: OAuth2/OIDC support (planned)
 
 ### 🌐 Modern Tech Stack

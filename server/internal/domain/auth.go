@@ -37,6 +37,7 @@ type RegisterRequest struct {
 type LoginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required"`
+	Code     string `json:"code"` // TOTP Code (optional, required if 2FA enabled)
 }
 
 // RefreshRequest is the request body for token refresh
@@ -77,4 +78,15 @@ func (u *User) Sanitize() *User {
 		CreatedAt:   u.CreatedAt,
 		UpdatedAt:   u.UpdatedAt,
 	}
+}
+
+// Enable2FARequest is the request body for enabling 2FA
+type Enable2FARequest struct {
+	Secret string `json:"secret" binding:"required"`
+	Code   string `json:"code" binding:"required,len=6"`
+}
+
+// Disable2FARequest is the request body for disabling 2FA
+type Disable2FARequest struct {
+	Code string `json:"code" binding:"required,len=6"`
 }

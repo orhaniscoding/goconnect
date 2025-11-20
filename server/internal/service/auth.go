@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
+	"github.com/pquerna/otp/totp"
 	"golang.org/x/crypto/argon2"
 )
 
@@ -228,6 +229,16 @@ func (s *AuthService) Login(ctx context.Context, req *domain.LoginRequest) (*dom
 		return nil, domain.NewError(domain.ErrInvalidCredentials, "Invalid email or password", nil)
 	}
 
+	// Check 2FA
+	if user.TwoFAEnabled {
+		if req.Code == "" {
+			return nil, domain.NewError("ERR_2FA_REQUIRED", "Two-factor authentication required", nil)
+		}
+		if !totp.Validate(req.Code, user.TwoFAKey) {
+			return nil, domain.NewError(domain.ErrInvalidCredentials, "Invalid 2FA code", nil)
+		}
+	}
+
 	// Generate JWT tokens
 	accessToken, err := s.generateJWT(user.ID, user.TenantID, user.Email, user.IsAdmin, user.IsModerator, "access", 15*time.Minute)
 	if err != nil {
@@ -246,6 +257,64 @@ func (s *AuthService) Login(ctx context.Context, req *domain.LoginRequest) (*dom
 		TokenType:    "Bearer",
 		User:         user,
 	}, nil
+}
+
+// Generate2FASecret generates a new TOTP secret for the user
+func (s *AuthService) Generate2FASecret(ctx context.Context, userID string) (string, string, error) {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return "", "", err
+	}
+
+	key, err := totp.Generate(totp.GenerateOpts{
+		Issuer:      "GoConnect",
+		AccountName: user.Email,
+	})
+	if err != nil {
+		return "", "", fmt.Errorf("failed to generate TOTP key: %w", err)
+	}
+
+	return key.Secret(), key.URL(), nil
+}
+
+// Enable2FA verifies the code and enables 2FA for the user
+func (s *AuthService) Enable2FA(ctx context.Context, userID, secret, code string) error {
+	if !totp.Validate(code, secret) {
+		return domain.NewError(domain.ErrInvalidCredentials, "Invalid 2FA code", nil)
+	}
+
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	user.TwoFAKey = secret
+	user.TwoFAEnabled = true
+	user.UpdatedAt = time.Now().UTC()
+
+	return s.userRepo.Update(ctx, user)
+}
+
+// Disable2FA verifies the code and disables 2FA for the user
+func (s *AuthService) Disable2FA(ctx context.Context, userID, code string) error {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	if !user.TwoFAEnabled {
+		return nil
+	}
+
+	if !totp.Validate(code, user.TwoFAKey) {
+		return domain.NewError(domain.ErrInvalidCredentials, "Invalid 2FA code", nil)
+	}
+
+	user.TwoFAEnabled = false
+	user.TwoFAKey = ""
+	user.UpdatedAt = time.Now().UTC()
+
+	return s.userRepo.Update(ctx, user)
 }
 
 // ValidateToken validates an access token and returns claims
