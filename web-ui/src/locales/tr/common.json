@@ -1,3 +1,14 @@
 {
-  "footer.brand": "\u00a9 2025 GoConnect \u2014 orhaniscoding taraf\u0131ndan geli\u015ftirildi"
+  "footer.brand": "\u00a9 2025 GoConnect \u2014 orhaniscoding taraf\u0131ndan geli\u015ftirildi",
+  "login.title": "GoConnect'e Giriş Yap",
+  "login.email": "E-posta",
+  "login.password": "Şifre",
+  "login.submit": "Giriş Yap",
+  "login.submitting": "Giriş yapılıyor...",
+  "login.noAccount": "Hesabınız yok mu?",
+  "login.signUp": "Kayıt ol",
+  "login.error.invalid": "Geçersiz e-posta veya şifre",
+  "login.error.network": "Ağ hatası. Lütfen tekrar deneyin.",
+  "login.error.required": "Bu alan zorunludur",
+  "login.error.emailFormat": "Lütfen geçerli bir e-posta adresi girin"
 }

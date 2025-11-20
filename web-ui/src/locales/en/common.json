@@ -1,3 +1,14 @@
 {
-  "footer.brand": "\u00a9 2025 GoConnect \u2014 Built by orhaniscoding"
+  "footer.brand": "\u00a9 2025 GoConnect \u2014 Built by orhaniscoding",
+  "login.title": "Sign in to GoConnect",
+  "login.email": "Email",
+  "login.password": "Password",
+  "login.submit": "Sign In",
+  "login.submitting": "Signing in...",
+  "login.noAccount": "Don't have an account?",
+  "login.signUp": "Sign up",
+  "login.error.invalid": "Invalid email or password",
+  "login.error.network": "Network error. Please try again.",
+  "login.error.required": "This field is required",
+  "login.error.emailFormat": "Please enter a valid email address"
 }
