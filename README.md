@@ -17,6 +17,7 @@
 - **WireGuard Integration**: Automated peer provisioning and configuration generation
 - **Multi-Network Support**: Create and manage multiple isolated VPN networks
 - **IPAM (IP Address Management)**: Automatic IP allocation from CIDR ranges with conflict detection
+- **IP Allocation Display**: Real-time visualization of IP usage with admin release capability
 - **Device Management**: Register and track devices across platforms (Linux, Windows, macOS, iOS, Android)
 - **Peer-to-Peer Mesh**: Full mesh networking with automatic peer discovery
 

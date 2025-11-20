@@ -10,15 +10,18 @@ import {
   kickMember,
   banMember,
   listJoinRequests,
+  listIPAllocations,
+  adminReleaseIP,
   Network,
   Membership,
-  JoinRequest
+  JoinRequest,
+  IPAllocation
 } from '../../../../../lib/api'
 import { getAccessToken, getUser } from '../../../../../lib/auth'
 import AuthGuard from '../../../../../components/AuthGuard'
 import Footer from '../../../../../components/Footer'
 
-type Tab = 'overview' | 'members' | 'requests'
+type Tab = 'overview' | 'members' | 'requests' | 'ip-allocations'
 
 export default function NetworkDetailPage() {
   const router = useRouter()
@@ -28,6 +31,7 @@ export default function NetworkDetailPage() {
   const [network, setNetwork] = useState<Network | null>(null)
   const [members, setMembers] = useState<Membership[]>([])
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([])
+  const [ipAllocations, setIPAllocations] = useState<IPAllocation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<Tab>('overview')
@@ -52,7 +56,14 @@ export default function NetworkDetailPage() {
         loadJoinRequests(token)
       }
     }
-  }, [activeTab, isAdmin])
+    // Load IP allocations when switching to ip-allocations tab (for members)
+    if (activeTab === 'ip-allocations' && joinStatus === 'member') {
+      const token = getAccessToken()
+      if (token) {
+        loadIPAllocations(token)
+      }
+    }
+  }, [activeTab, isAdmin, joinStatus])
 
   const loadNetworkData = async () => {
     setLoading(true)
@@ -99,6 +110,32 @@ export default function NetworkDetailPage() {
       setJoinRequests(response.data || [])
     } catch (err) {
       console.error('Failed to load join requests:', err)
+    }
+  }
+
+  const loadIPAllocations = async (token: string) => {
+    try {
+      const response = await listIPAllocations(networkId, token)
+      setIPAllocations(response.data || [])
+    } catch (err) {
+      console.error('Failed to load IP allocations:', err)
+    }
+  }
+
+  const handleReleaseIP = async (userId: string) => {
+    if (!confirm(`Are you sure you want to release IP for user ${userId}?`)) {
+      return
+    }
+
+    try {
+      const token = getAccessToken()
+      if (!token) return
+
+      await adminReleaseIP(networkId, userId, token)
+      alert('IP released successfully')
+      loadIPAllocations(token)
+    } catch (err) {
+      alert('Failed to release IP: ' + (err instanceof Error ? err.message : 'Unknown error'))
     }
   }
 
@@ -351,6 +388,24 @@ export default function NetworkDetailPage() {
               Join Requests
             </button>
           )}
+          {joinStatus === 'member' && (
+            <button
+              onClick={() => setActiveTab('ip-allocations')}
+              style={{
+                padding: '12px 24px',
+                backgroundColor: 'transparent',
+                color: activeTab === 'ip-allocations' ? '#007bff' : '#666',
+                border: 'none',
+                borderBottom: activeTab === 'ip-allocations' ? '2px solid #007bff' : '2px solid transparent',
+                cursor: 'pointer',
+                fontSize: 14,
+                fontWeight: 500,
+                marginBottom: -2
+              }}
+            >
+              IP Allocations ({ipAllocations.length})
+            </button>
+          )}
         </div>
 
         {/* Tab Content */}
@@ -373,6 +428,15 @@ export default function NetworkDetailPage() {
             requests={joinRequests}
             onApprove={handleApprove}
             onDeny={handleDeny}
+          />
+        )}
+
+        {activeTab === 'ip-allocations' && joinStatus === 'member' && (
+          <IPAllocationsTab
+            allocations={ipAllocations}
+            network={network}
+            isOwnerOrAdmin={isOwnerOrAdmin}
+            onReleaseIP={handleReleaseIP}
           />
         )}
 
@@ -585,6 +649,147 @@ function JoinRequestsTab({
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+// IP Allocations Tab Component
+function IPAllocationsTab({ 
+  allocations, 
+  network, 
+  isOwnerOrAdmin,
+  onReleaseIP 
+}: { 
+  allocations: IPAllocation[]
+  network: Network
+  isOwnerOrAdmin: boolean
+  onReleaseIP: (userId: string) => void
+}) {
+  // Calculate CIDR stats
+  const getCIDRStats = (cidr: string) => {
+    try {
+      const [, maskBits] = cidr.split('/')
+      const mask = parseInt(maskBits)
+      const totalIPs = Math.pow(2, 32 - mask)
+      const usableIPs = totalIPs - 2 // Subtract network and broadcast addresses
+      const allocatedIPs = allocations.length
+      const availableIPs = usableIPs - allocatedIPs
+      const usagePercentage = Math.round((allocatedIPs / usableIPs) * 100)
+
+      return { totalIPs, usableIPs, allocatedIPs, availableIPs, usagePercentage }
+    } catch {
+      return { totalIPs: 0, usableIPs: 0, allocatedIPs: 0, availableIPs: 0, usagePercentage: 0 }
+    }
+  }
+
+  const stats = getCIDRStats(network.cidr)
+
+  return (
+    <div style={{ backgroundColor: '#fff', border: '1px solid #dee2e6', borderRadius: 8, padding: 24 }}>
+      <h3 style={{ marginTop: 0, marginBottom: 20 }}>IP Address Allocations</h3>
+
+      {/* Statistics */}
+      <div style={{ 
+        backgroundColor: '#f8f9fa', 
+        padding: 20, 
+        borderRadius: 8, 
+        marginBottom: 24,
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+        gap: 16
+      }}>
+        <div>
+          <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Network</div>
+          <div style={{ fontSize: 18, fontWeight: 600 }}>{network.cidr}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Allocated</div>
+          <div style={{ fontSize: 18, fontWeight: 600, color: '#3b82f6' }}>{stats.allocatedIPs}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Available</div>
+          <div style={{ fontSize: 18, fontWeight: 600, color: '#10b981' }}>{stats.availableIPs}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Usage</div>
+          <div style={{ fontSize: 18, fontWeight: 600 }}>{stats.usagePercentage}%</div>
+        </div>
+      </div>
+
+      {/* Progress Bar */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ 
+          width: '100%', 
+          height: 8, 
+          backgroundColor: '#e5e7eb', 
+          borderRadius: 4, 
+          overflow: 'hidden' 
+        }}>
+          <div style={{ 
+            width: `${stats.usagePercentage}%`, 
+            height: '100%', 
+            backgroundColor: stats.usagePercentage > 80 ? '#ef4444' : stats.usagePercentage > 50 ? '#f59e0b' : '#10b981',
+            transition: 'width 0.3s ease'
+          }} />
+        </div>
+      </div>
+
+      {/* Allocations List */}
+      {allocations.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 40, color: '#6b7280' }}>
+          <p>No IP addresses allocated yet</p>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 12 }}>
+          {allocations.map((allocation) => (
+            <div
+              key={`${allocation.user_id}-${allocation.ip}`}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: 16,
+                backgroundColor: '#f9fafb',
+                border: '1px solid #e5e7eb',
+                borderRadius: 8
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <div style={{ 
+                  fontFamily: 'monospace', 
+                  fontSize: 16, 
+                  fontWeight: 600,
+                  color: '#111827',
+                  marginBottom: 4
+                }}>
+                  {allocation.ip}
+                </div>
+                <div style={{ fontSize: 12, color: '#6b7280' }}>
+                  User ID: {allocation.user_id}
+                </div>
+              </div>
+
+              {isOwnerOrAdmin && (
+                <button
+                  onClick={() => onReleaseIP(allocation.user_id)}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#ef4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    fontWeight: 500
+                  }}
+                >
+                  Release
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

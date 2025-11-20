@@ -375,6 +375,97 @@ export async function listJoinRequests(
   })
 }
 
+// IP Allocation API
+
+export interface IPAllocation {
+  network_id: string
+  user_id: string
+  ip: string
+}
+
+export interface IPAllocationListResponse {
+  data: IPAllocation[]
+}
+
+/**
+ * List IP allocations for a network
+ * @param networkId - Network ID
+ * @param accessToken - JWT access token
+ */
+export async function listIPAllocations(
+  networkId: string,
+  accessToken: string
+): Promise<IPAllocationListResponse> {
+  return api(`/v1/networks/${networkId}/ip-allocations`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+}
+
+/**
+ * Allocate IP for current user
+ * @param networkId - Network ID
+ * @param accessToken - JWT access token
+ */
+export async function allocateIP(
+  networkId: string,
+  accessToken: string
+): Promise<{ data: IPAllocation }> {
+  const idempotencyKey = `allocate-ip-${networkId}-${Date.now()}-${Math.random().toString(36).substring(7)}`
+
+  return api(`/v1/networks/${networkId}/ip-allocations`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Idempotency-Key': idempotencyKey,
+    },
+    body: JSON.stringify({}),
+  })
+}
+
+/**
+ * Release own IP allocation
+ * @param networkId - Network ID
+ * @param accessToken - JWT access token
+ */
+export async function releaseIP(
+  networkId: string,
+  accessToken: string
+): Promise<void> {
+  const idempotencyKey = `release-ip-${networkId}-${Date.now()}-${Math.random().toString(36).substring(7)}`
+
+  await api(`/v1/networks/${networkId}/ip-allocation`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Idempotency-Key': idempotencyKey,
+    },
+  })
+}
+
+/**
+ * Admin: Release IP allocation for another user
+ * @param networkId - Network ID
+ * @param userId - User ID whose IP to release
+ * @param accessToken - JWT access token
+ */
+export async function adminReleaseIP(
+  networkId: string,
+  userId: string,
+  accessToken: string
+): Promise<void> {
+  const idempotencyKey = `admin-release-ip-${networkId}-${userId}-${Date.now()}`
+
+  await api(`/v1/networks/${networkId}/ip-allocations/${userId}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Idempotency-Key': idempotencyKey,
+    },
+  })
+}
+
 // Device Management API
 
 export interface Device {
