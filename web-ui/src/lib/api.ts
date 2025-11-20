@@ -173,6 +173,33 @@ export async function getNetwork(
 }
 
 /**
+ * Update network (admin only)
+ * @param id - Network ID
+ * @param patch - Partial network update
+ * @param accessToken - JWT access token
+ */
+export async function updateNetwork(
+  id: string,
+  patch: {
+    name?: string
+    visibility?: 'public' | 'private'
+    join_policy?: 'open' | 'approval' | 'invite'
+  },
+  accessToken: string
+): Promise<{ data: Network }> {
+  const idempotencyKey = `update-network-${id}-${Date.now()}`
+
+  return api(`/v1/networks/${id}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Idempotency-Key': idempotencyKey,
+    },
+    body: JSON.stringify(patch),
+  })
+}
+
+/**
  * Delete network (admin only)
  * @param id - Network ID
  * @param accessToken - JWT access token

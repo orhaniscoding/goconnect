@@ -12,6 +12,7 @@ import {
   listJoinRequests,
   listIPAllocations,
   adminReleaseIP,
+  updateNetwork,
   Network,
   Membership,
   JoinRequest,
@@ -21,7 +22,7 @@ import { getAccessToken, getUser } from '../../../../../lib/auth'
 import AuthGuard from '../../../../../components/AuthGuard'
 import Footer from '../../../../../components/Footer'
 
-type Tab = 'overview' | 'members' | 'requests' | 'ip-allocations'
+type Tab = 'overview' | 'members' | 'requests' | 'ip-allocations' | 'settings'
 
 export default function NetworkDetailPage() {
   const router = useRouter()
@@ -406,6 +407,24 @@ export default function NetworkDetailPage() {
               IP Allocations ({ipAllocations.length})
             </button>
           )}
+          {isOwnerOrAdmin && (
+            <button
+              onClick={() => setActiveTab('settings')}
+              style={{
+                padding: '12px 24px',
+                backgroundColor: 'transparent',
+                color: activeTab === 'settings' ? '#007bff' : '#666',
+                border: 'none',
+                borderBottom: activeTab === 'settings' ? '2px solid #007bff' : '2px solid transparent',
+                cursor: 'pointer',
+                fontSize: 14,
+                fontWeight: 500,
+                marginBottom: -2
+              }}
+            >
+              Settings
+            </button>
+          )}
         </div>
 
         {/* Tab Content */}
@@ -438,6 +457,10 @@ export default function NetworkDetailPage() {
             isOwnerOrAdmin={isOwnerOrAdmin}
             onReleaseIP={handleReleaseIP}
           />
+        )}
+
+        {activeTab === 'settings' && isOwnerOrAdmin && (
+          <SettingsTab network={network} onUpdate={loadNetworkData} />
         )}
 
         <div style={{ marginTop: 40 }}>
@@ -654,12 +677,12 @@ function JoinRequestsTab({
 }
 
 // IP Allocations Tab Component
-function IPAllocationsTab({ 
-  allocations, 
-  network, 
+function IPAllocationsTab({
+  allocations,
+  network,
   isOwnerOrAdmin,
-  onReleaseIP 
-}: { 
+  onReleaseIP
+}: {
   allocations: IPAllocation[]
   network: Network
   isOwnerOrAdmin: boolean
@@ -689,10 +712,10 @@ function IPAllocationsTab({
       <h3 style={{ marginTop: 0, marginBottom: 20 }}>IP Address Allocations</h3>
 
       {/* Statistics */}
-      <div style={{ 
-        backgroundColor: '#f8f9fa', 
-        padding: 20, 
-        borderRadius: 8, 
+      <div style={{
+        backgroundColor: '#f8f9fa',
+        padding: 20,
+        borderRadius: 8,
         marginBottom: 24,
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
@@ -718,16 +741,16 @@ function IPAllocationsTab({
 
       {/* Progress Bar */}
       <div style={{ marginBottom: 24 }}>
-        <div style={{ 
-          width: '100%', 
-          height: 8, 
-          backgroundColor: '#e5e7eb', 
-          borderRadius: 4, 
-          overflow: 'hidden' 
+        <div style={{
+          width: '100%',
+          height: 8,
+          backgroundColor: '#e5e7eb',
+          borderRadius: 4,
+          overflow: 'hidden'
         }}>
-          <div style={{ 
-            width: `${stats.usagePercentage}%`, 
-            height: '100%', 
+          <div style={{
+            width: `${stats.usagePercentage}%`,
+            height: '100%',
             backgroundColor: stats.usagePercentage > 80 ? '#ef4444' : stats.usagePercentage > 50 ? '#f59e0b' : '#10b981',
             transition: 'width 0.3s ease'
           }} />
@@ -755,9 +778,9 @@ function IPAllocationsTab({
               }}
             >
               <div style={{ flex: 1 }}>
-                <div style={{ 
-                  fontFamily: 'monospace', 
-                  fontSize: 16, 
+                <div style={{
+                  fontFamily: 'monospace',
+                  fontSize: 16,
                   fontWeight: 600,
                   color: '#111827',
                   marginBottom: 4
@@ -790,6 +813,208 @@ function IPAllocationsTab({
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+// Settings Tab Component
+interface SettingsTabProps {
+  network: Network
+  onUpdate: () => void
+}
+
+function SettingsTab({ network, onUpdate }: SettingsTabProps) {
+  const [name, setName] = useState(network.name)
+  const [visibility, setVisibility] = useState<'public' | 'private'>(network.visibility)
+  const [joinPolicy, setJoinPolicy] = useState<'open' | 'approval' | 'invite'>(network.join_policy)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setSuccess(false)
+
+    // Validation
+    if (!name.trim()) {
+      setError('Network name is required')
+      return
+    }
+
+    if (name.trim().length < 3 || name.trim().length > 64) {
+      setError('Network name must be between 3 and 64 characters')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const token = getAccessToken()
+      if (!token) {
+        setError('You must be logged in')
+        return
+      }
+
+      // Build patch object (only send changed fields)
+      const patch: {
+        name?: string
+        visibility?: 'public' | 'private'
+        join_policy?: 'open' | 'approval' | 'invite'
+      } = {}
+
+      if (name.trim() !== network.name) patch.name = name.trim()
+      if (visibility !== network.visibility) patch.visibility = visibility
+      if (joinPolicy !== network.join_policy) patch.join_policy = joinPolicy
+
+      // Only send patch if something changed
+      if (Object.keys(patch).length === 0) {
+        setError('No changes detected')
+        return
+      }
+
+      await updateNetwork(network.id, patch, token)
+      setSuccess(true)
+      onUpdate() // Reload network data
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update network settings')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ backgroundColor: '#fff', border: '1px solid #dee2e6', borderRadius: 8, padding: 24 }}>
+      <h3 style={{ marginTop: 0 }}>Network Settings</h3>
+
+      {error && (
+        <div style={{
+          padding: 12,
+          backgroundColor: '#f8d7da',
+          color: '#842029',
+          borderRadius: 6,
+          marginBottom: 16,
+          fontSize: 14
+        }}>
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div style={{
+          padding: 12,
+          backgroundColor: '#d1e7dd',
+          color: '#0f5132',
+          borderRadius: 6,
+          marginBottom: 16,
+          fontSize: 14
+        }}>
+          Settings updated successfully!
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit}>
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', marginBottom: 6, fontWeight: 500, fontSize: 14 }}>
+            Network Name *
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: 10,
+              border: '1px solid #dee2e6',
+              borderRadius: 6,
+              fontSize: 14,
+              boxSizing: 'border-box',
+              opacity: loading ? 0.6 : 1
+            }}
+          />
+          <small style={{ color: '#666', fontSize: 12 }}>
+            3-64 characters
+          </small>
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', marginBottom: 6, fontWeight: 500, fontSize: 14 }}>
+            Visibility *
+          </label>
+          <select
+            value={visibility}
+            onChange={(e) => setVisibility(e.target.value as 'public' | 'private')}
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: 10,
+              border: '1px solid #dee2e6',
+              borderRadius: 6,
+              fontSize: 14,
+              boxSizing: 'border-box',
+              opacity: loading ? 0.6 : 1
+            }}
+          >
+            <option value="public">Public (anyone can see)</option>
+            <option value="private">Private (invite-only)</option>
+          </select>
+        </div>
+
+        <div style={{ marginBottom: 24 }}>
+          <label style={{ display: 'block', marginBottom: 6, fontWeight: 500, fontSize: 14 }}>
+            Join Policy *
+          </label>
+          <select
+            value={joinPolicy}
+            onChange={(e) => setJoinPolicy(e.target.value as 'open' | 'approval' | 'invite')}
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: 10,
+              border: '1px solid #dee2e6',
+              borderRadius: 6,
+              fontSize: 14,
+              boxSizing: 'border-box',
+              opacity: loading ? 0.6 : 1
+            }}
+          >
+            <option value="open">Open (auto-approve)</option>
+            <option value="approval">Approval Required</option>
+            <option value="invite">Invite Only</option>
+          </select>
+        </div>
+
+        <div style={{
+          padding: 16,
+          backgroundColor: '#fff3cd',
+          borderRadius: 6,
+          marginBottom: 20,
+          fontSize: 13,
+          color: '#856404'
+        }}>
+          <strong>Note:</strong> CIDR block cannot be changed after network creation. DNS, MTU, and Split Tunnel settings are not yet editable via UI.
+        </div>
+
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              padding: '10px 24px',
+              backgroundColor: loading ? '#ccc' : '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: 6,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontSize: 14,
+              fontWeight: 500
+            }}
+          >
+            {loading ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </form>
     </div>
   )
 }
