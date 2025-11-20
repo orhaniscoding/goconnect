@@ -3,9 +3,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://go.dev/)
 [![Built with Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org/)
-[![Latest Release](https://img.shields.io/badge/version-v1.1.0-blue)](https://github.com/orhaniscoding/goconnect/releases)
+[![Latest Release](https://img.shields.io/badge/version-v0.0.0-blue)](https://github.com/orhaniscoding/goconnect/releases)
 
-> **Latest Release:** v1.1.0 · 2025-11-20  
+> **Latest Release:** v0.0.0 · 2025-11-20  
 > **Author:** [@orhaniscoding](https://github.com/orhaniscoding)  
 > **License:** MIT
 
@@ -330,12 +330,12 @@ Download pre-built binaries from [GitHub Releases](https://github.com/orhaniscod
 
 ```bash
 # Linux (amd64)
-wget https://github.com/orhaniscoding/goconnect/releases/download/v1.1.0/goconnect-server-linux-amd64
+wget https://github.com/orhaniscoding/goconnect/releases/download/v0.0.0/goconnect-server-linux-amd64
 chmod +x goconnect-server-linux-amd64
 ./goconnect-server-linux-amd64
 
 # macOS (arm64)
-wget https://github.com/orhaniscoding/goconnect/releases/download/v1.1.0/goconnect-server-darwin-arm64
+wget https://github.com/orhaniscoding/goconnect/releases/download/v0.0.0/goconnect-server-darwin-arm64
 chmod +x goconnect-server-darwin-arm64
 ./goconnect-server-darwin-arm64
 ```
@@ -356,8 +356,8 @@ make install-systemd
 ### Docker (Coming Soon)
 
 ```bash
-docker pull ghcr.io/orhaniscoding/goconnect-server:v1.1.0
-docker run -p 8080:8080 ghcr.io/orhaniscoding/goconnect-server:v1.1.0
+docker pull ghcr.io/orhaniscoding/goconnect-server:v0.0.0
+docker run -p 8080:8080 ghcr.io/orhaniscoding/goconnect-server:v0.0.0
 ```
 
 ## 🤝 Contributing
@@ -467,4 +467,4 @@ SOFTWARE.
 
 ---
 
-**Built with ❤️ by orhaniscoding** | Latest Release: v1.1.0 (2025-11-20)
+**Built with ❤️ by orhaniscoding** | Latest Release: v0.0.0 (2025-11-20)
