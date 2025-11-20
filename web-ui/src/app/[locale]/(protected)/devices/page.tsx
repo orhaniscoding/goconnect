@@ -94,7 +94,7 @@ export default function DevicesPage() {
       })
 
       notification.success('Device Registered', 'This device has been successfully registered!')
-      
+
       // Refresh status and list
       await checkLocalDaemon()
       await loadDevices()

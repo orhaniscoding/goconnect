@@ -248,6 +248,28 @@ func (h *DeviceHandler) DisableDevice(c *gin.Context) {
 	})
 }
 
+// GetDeviceConfig handles GET /v1/devices/:id/config
+func (h *DeviceHandler) GetDeviceConfig(c *gin.Context) {
+	deviceID := c.Param("id")
+	userID := c.GetString("user_id")
+	tenantID := c.GetString("tenant_id")
+
+	config, err := h.deviceService.GetDeviceConfig(c.Request.Context(), deviceID, userID, tenantID)
+	if err != nil {
+		if domainErr, ok := err.(*domain.Error); ok {
+			c.JSON(domainErr.ToHTTPStatus(), domainErr)
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    "ERR_INTERNAL_SERVER",
+			"message": "Failed to get device config",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, config)
+}
+
 // EnableDevice handles POST /v1/devices/:id/enable
 func (h *DeviceHandler) EnableDevice(c *gin.Context) {
 	deviceID := c.Param("id")
@@ -287,4 +309,5 @@ func RegisterDeviceRoutes(r *gin.Engine, handler *DeviceHandler, authMiddleware 
 	devices.POST("/:id/heartbeat", handler.Heartbeat)   // Device heartbeat
 	devices.POST("/:id/disable", handler.DisableDevice) // Disable device
 	devices.POST("/:id/enable", handler.EnableDevice)   // Enable device
+	devices.GET("/:id/config", handler.GetDeviceConfig) // Get device config
 }

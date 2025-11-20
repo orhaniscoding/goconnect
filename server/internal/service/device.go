@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
@@ -12,15 +13,17 @@ import (
 type DeviceService struct {
 	deviceRepo       repository.DeviceRepository
 	userRepo         repository.UserRepository
+	peerRepo         repository.PeerRepository
 	peerProvisioning *PeerProvisioningService
 	auditor          Auditor
 }
 
 // NewDeviceService creates a new device service
-func NewDeviceService(deviceRepo repository.DeviceRepository, userRepo repository.UserRepository) *DeviceService {
+func NewDeviceService(deviceRepo repository.DeviceRepository, userRepo repository.UserRepository, peerRepo repository.PeerRepository) *DeviceService {
 	return &DeviceService{
 		deviceRepo: deviceRepo,
 		userRepo:   userRepo,
+		peerRepo:   peerRepo,
 		auditor:    noopAuditor,
 	}
 }
@@ -298,14 +301,9 @@ func (s *DeviceService) DisableDevice(ctx context.Context, deviceID, userID, ten
 
 	// Disable
 	device.Disable()
-	if err := s.deviceRepo.Update(ctx, device); err != nil {
-		return fmt.Errorf("failed to disable device: %w", err)
-	}
+	device.UpdatedAt = time.Now()
 
-	// Audit
-	s.auditor.Event(ctx, tenantID, "DEVICE_DISABLED", userID, deviceID, nil)
-
-	return nil
+	return s.deviceRepo.Update(ctx, device)
 }
 
 // EnableDevice re-enables a disabled device
@@ -336,6 +334,68 @@ func (s *DeviceService) EnableDevice(ctx context.Context, deviceID, userID, tena
 	s.auditor.Event(ctx, tenantID, "DEVICE_ENABLED", userID, deviceID, nil)
 
 	return nil
+}
+
+// GetDeviceConfig retrieves the WireGuard configuration for a device
+func (s *DeviceService) GetDeviceConfig(ctx context.Context, deviceID, userID, tenantID string) (*domain.DeviceConfig, error) {
+	// Get device
+	device, err := s.deviceRepo.GetByID(ctx, deviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Authorization
+	if device.UserID != userID {
+		return nil, domain.NewError(domain.ErrForbidden, "You can only get config for your own devices", nil)
+	}
+
+	// Get all peer records for this device (to find assigned IPs)
+	devicePeers, err := s.peerRepo.GetByDeviceID(ctx, deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get device peers: %w", err)
+	}
+
+	config := &domain.DeviceConfig{
+		Interface: domain.InterfaceConfig{
+			ListenPort: 51820,
+			Addresses:  []string{},
+			DNS:        []string{"1.1.1.1"}, // TODO: Make configurable
+			MTU:        1420,
+		},
+		Peers: []domain.PeerConfig{},
+	}
+
+	// Collect assigned IPs and find networks
+	networkIDs := make([]string, 0)
+	for _, p := range devicePeers {
+		config.Interface.Addresses = append(config.Interface.Addresses, p.AllowedIPs...)
+		networkIDs = append(networkIDs, p.NetworkID)
+	}
+
+	// For each network, get other peers
+	for _, netID := range networkIDs {
+		peers, err := s.peerRepo.GetActivePeers(ctx, netID)
+		if err != nil {
+			continue
+		}
+
+		for _, p := range peers {
+			// Skip self
+			if p.DeviceID == deviceID {
+				continue
+			}
+
+			config.Peers = append(config.Peers, domain.PeerConfig{
+				PublicKey:           p.PublicKey,
+				Endpoint:            p.Endpoint,
+				AllowedIPs:          p.AllowedIPs,
+				PresharedKey:        p.PresharedKey,
+				PersistentKeepalive: p.PersistentKeepalive,
+			})
+		}
+	}
+
+	return config, nil
 }
 
 // Helper function to track which fields were updated

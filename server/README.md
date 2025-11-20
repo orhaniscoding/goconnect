@@ -159,6 +159,8 @@ PATCH  /v1/devices/:id
 DELETE /v1/devices/:id
 POST   /v1/devices/:id/heartbeat
 POST   /v1/devices/:id/disable
+POST   /v1/devices/:id/enable
+GET    /v1/devices/:id/config
 ```
 
 ### Chat (REST + WebSocket)

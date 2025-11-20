@@ -50,6 +50,30 @@ type DeviceHeartbeatRequest struct {
 	OSVersion string `json:"os_version,omitempty"`
 }
 
+// DeviceConfig represents the WireGuard configuration for a device
+type DeviceConfig struct {
+	Interface InterfaceConfig `json:"interface"`
+	Peers     []PeerConfig    `json:"peers"`
+}
+
+// InterfaceConfig represents the local interface configuration
+type InterfaceConfig struct {
+	PrivateKey string   `json:"private_key,omitempty"` // Usually not sent by server
+	ListenPort int      `json:"listen_port"`
+	Addresses  []string `json:"addresses"` // IPs assigned to this device
+	DNS        []string `json:"dns,omitempty"`
+	MTU        int      `json:"mtu,omitempty"`
+}
+
+// PeerConfig represents a remote WireGuard peer
+type PeerConfig struct {
+	PublicKey           string   `json:"public_key"`
+	Endpoint            string   `json:"endpoint,omitempty"`
+	AllowedIPs          []string `json:"allowed_ips"`
+	PresharedKey        string   `json:"preshared_key,omitempty"`
+	PersistentKeepalive int      `json:"persistent_keepalive,omitempty"`
+}
+
 // DeviceFilter represents filtering options for device queries
 type DeviceFilter struct {
 	UserID   string // Filter by user

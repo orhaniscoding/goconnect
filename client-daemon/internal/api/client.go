@@ -110,3 +110,52 @@ func (c *Client) SendHeartbeat(ctx context.Context, deviceID, authToken string, 
 
 	return nil
 }
+
+// DeviceConfig represents the WireGuard configuration
+type DeviceConfig struct {
+	Interface InterfaceConfig `json:"interface"`
+	Peers     []PeerConfig    `json:"peers"`
+}
+
+type InterfaceConfig struct {
+	ListenPort int      `json:"listen_port"`
+	Addresses  []string `json:"addresses"`
+	DNS        []string `json:"dns"`
+	MTU        int      `json:"mtu"`
+}
+
+type PeerConfig struct {
+	PublicKey           string   `json:"public_key"`
+	Endpoint            string   `json:"endpoint"`
+	AllowedIPs          []string `json:"allowed_ips"`
+	PresharedKey        string   `json:"preshared_key"`
+	PersistentKeepalive int      `json:"persistent_keepalive"`
+}
+
+// GetConfig retrieves the device configuration
+func (c *Client) GetConfig(ctx context.Context, deviceID, authToken string) (*DeviceConfig, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/v1/devices/%s/config", c.baseURL, deviceID), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+authToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("server returned status %d", resp.StatusCode)
+	}
+
+	var config DeviceConfig
+	if err := json.NewDecoder(resp.Body).Decode(&config); err != nil {
+		return nil, err
+	}
+
+	return &config, nil
+}

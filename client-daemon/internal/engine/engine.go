@@ -32,11 +32,48 @@ func New(idMgr *identity.Manager, apiClient *api.Client, version string) *Engine
 func (e *Engine) Start() {
 	log.Println("Starting daemon engine...")
 	go e.heartbeatLoop()
+	go e.configLoop()
 }
 
 // Stop stops the engine
 func (e *Engine) Stop() {
 	close(e.stopChan)
+}
+
+func (e *Engine) configLoop() {
+	ticker := time.NewTicker(60 * time.Second)
+	defer ticker.Stop()
+
+	// Initial sync
+	e.syncConfig()
+
+	for {
+		select {
+		case <-ticker.C:
+			e.syncConfig()
+		case <-e.stopChan:
+			return
+		}
+	}
+}
+
+func (e *Engine) syncConfig() {
+	id := e.idMgr.Get()
+	if id.DeviceID == "" || id.Token == "" {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	config, err := e.apiClient.GetConfig(ctx, id.DeviceID, id.Token)
+	if err != nil {
+		log.Printf("Config sync failed: %v", err)
+		return
+	}
+
+	// TODO: Apply config to WireGuard interface
+	log.Printf("Received config: %d peers, %v addresses", len(config.Peers), config.Interface.Addresses)
 }
 
 func (e *Engine) heartbeatLoop() {

@@ -74,6 +74,8 @@ func main() {
 	var ipamRepo repository.IPAMRepository
 	var userRepo repository.UserRepository
 	var tenantRepo repository.TenantRepository
+	var deviceRepo repository.DeviceRepository
+	var peerRepo repository.PeerRepository
 
 	if *usePostgres && db != nil {
 		// PostgreSQL repositories
@@ -84,6 +86,8 @@ func main() {
 		ipamRepo = repository.NewPostgresIPAMRepository(db)
 		userRepo = repository.NewPostgresUserRepository(db)
 		tenantRepo = repository.NewPostgresTenantRepository(db)
+		deviceRepo = repository.NewPostgresDeviceRepository(db)
+		peerRepo = repository.NewPostgresPeerRepository(db)
 		fmt.Println("Using PostgreSQL repositories")
 	} else {
 		// In-memory repositories (fallback)
@@ -94,6 +98,8 @@ func main() {
 		ipamRepo = repository.NewInMemoryIPAM()
 		userRepo = repository.NewInMemoryUserRepository()
 		tenantRepo = repository.NewInMemoryTenantRepository()
+		deviceRepo = repository.NewInMemoryDeviceRepository()
+		peerRepo = repository.NewInMemoryPeerRepository()
 		fmt.Println("Using in-memory repositories (no data persistence)")
 	}
 
@@ -102,6 +108,11 @@ func main() {
 	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idempotencyRepo)
 	ipamService := service.NewIPAMService(networkRepo, membershipRepo, ipamRepo)
 	authService := service.NewAuthService(userRepo, tenantRepo)
+
+	peerProvisioningService := service.NewPeerProvisioningService(peerRepo, deviceRepo, networkRepo, membershipRepo, ipamRepo)
+	deviceService := service.NewDeviceService(deviceRepo, userRepo, peerRepo)
+	deviceService.SetPeerProvisioning(peerProvisioningService)
+
 	metrics.Register()
 	// Auditor selection: default stdout, optionally SQLite-backed if configured via env.
 	baseAud := audit.NewStdoutAuditor()
@@ -180,10 +191,12 @@ func main() {
 	membershipService.SetAuditor(aud)
 	networkService.SetAuditor(aud)
 	ipamService.SetAuditor(aud)
+	deviceService.SetAuditor(aud)
 
 	// Initialize handlers
 	networkHandler := handler.NewNetworkHandler(networkService, membershipService).WithIPAM(ipamService)
 	authHandler := handler.NewAuthHandler(authService)
+	deviceHandler := handler.NewDeviceHandler(deviceService)
 
 	// Setup router
 	r := gin.New()
@@ -200,6 +213,9 @@ func main() {
 
 	// Register network routes (auth + role middleware applied within)
 	handler.RegisterNetworkRoutes(r, networkHandler, authService, membershipRepo)
+
+	// Register device routes
+	handler.RegisterDeviceRoutes(r, deviceHandler, handler.AuthMiddleware(authService))
 
 	// Metrics endpoint
 	r.GET("/metrics", metrics.Handler())
