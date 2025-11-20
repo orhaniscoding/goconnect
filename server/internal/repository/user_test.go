@@ -17,7 +17,7 @@ func mkUser(id, email string, isAdmin, isModerator bool) *domain.User {
 		ID:          id,
 		TenantID:    "tenant-1",
 		Email:       email,
-		PassHash:    "hashed-password",
+		PasswordHash:    "hashed-password",
 		Locale:      "en",
 		IsAdmin:     isAdmin,
 		IsModerator: isModerator,
@@ -31,9 +31,9 @@ func TestNewInMemoryUserRepository(t *testing.T) {
 
 	assert.NotNil(t, repo)
 	assert.NotNil(t, repo.users)
-	assert.NotNil(t, repo.byEmail)
+	assert.NotNil(t, repo.email)
 	assert.Equal(t, 0, len(repo.users))
-	assert.Equal(t, 0, len(repo.byEmail))
+	assert.Equal(t, 0, len(repo.email))
 }
 
 func TestUserRepository_Create_Success(t *testing.T) {
@@ -44,8 +44,8 @@ func TestUserRepository_Create_Success(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, 1, len(repo.users))
-	assert.Equal(t, 1, len(repo.byEmail))
-	assert.Equal(t, "user-1", repo.byEmail["test@example.com"])
+	assert.Equal(t, 1, len(repo.email))
+	assert.Equal(t, user, repo.email["test@example.com"])
 }
 
 func TestUserRepository_Create_DuplicateEmail(t *testing.T) {
@@ -66,7 +66,7 @@ func TestUserRepository_Create_DuplicateEmail(t *testing.T) {
 
 	// Only first user should exist
 	assert.Equal(t, 1, len(repo.users))
-	assert.Equal(t, "user-1", repo.byEmail["duplicate@example.com"])
+	assert.Equal(t, "user-1", repo.email["duplicate@example.com"])
 }
 
 func TestUserRepository_Create_MultipleUsers(t *testing.T) {
@@ -83,7 +83,7 @@ func TestUserRepository_Create_MultipleUsers(t *testing.T) {
 	}
 
 	assert.Equal(t, 3, len(repo.users))
-	assert.Equal(t, 3, len(repo.byEmail))
+	assert.Equal(t, 3, len(repo.email))
 }
 
 func TestUserRepository_GetByID_Success(t *testing.T) {
@@ -120,7 +120,7 @@ func TestUserRepository_GetByEmail_Success(t *testing.T) {
 	original := mkUser("user-1", "test@example.com", true, false)
 	repo.Create(context.Background(), original)
 
-	retrieved, err := repo.GetByEmail(context.Background(), original.TenantID, "test@example.com")
+	retrieved, err := repo.GetByEmail(context.Background(), "test@example.com")
 
 	require.NoError(t, err)
 	require.NotNil(t, retrieved)
@@ -132,7 +132,7 @@ func TestUserRepository_GetByEmail_Success(t *testing.T) {
 func TestUserRepository_GetByEmail_NotFound(t *testing.T) {
 	repo := NewInMemoryUserRepository()
 
-	retrieved, err := repo.GetByEmail(context.Background(), "", "nonexistent@example.com")
+	retrieved, err := repo.GetByEmail(context.Background(), "nonexistent@example.com")
 
 	require.Error(t, err)
 	assert.Nil(t, retrieved)
@@ -169,7 +169,7 @@ func TestUserRepository_Update_EmailChange(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify old email works before update
-	_, err = repo.GetByEmail(context.Background(), user.TenantID, "old@example.com")
+	_, err = repo.GetByEmail(context.Background(), "old@example.com")
 	require.NoError(t, err)
 
 	// Create a new user object with different email for update
@@ -181,17 +181,17 @@ func TestUserRepository_Update_EmailChange(t *testing.T) {
 	require.NoError(t, err)
 
 	// Old email should not work
-	_, err = repo.GetByEmail(context.Background(), user.TenantID, "old@example.com")
+	_, err = repo.GetByEmail(context.Background(), "old@example.com")
 	assert.Error(t, err)
 
 	// New email should work
-	retrieved, err := repo.GetByEmail(context.Background(), updatedUser.TenantID, "new@example.com")
+	retrieved, err := repo.GetByEmail(context.Background(), "new@example.com")
 	require.NoError(t, err)
 	assert.Equal(t, "user-1", retrieved.ID)
 
 	// byEmail index should be updated
-	assert.Equal(t, "user-1", repo.byEmail["new@example.com"])
-	assert.NotContains(t, repo.byEmail, "old@example.com")
+	assert.Equal(t, "user-1", repo.email["new@example.com"])
+	assert.NotContains(t, repo.email, "old@example.com")
 }
 
 func TestUserRepository_Update_NotFound(t *testing.T) {
@@ -215,13 +215,13 @@ func TestUserRepository_Delete_Success(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, 0, len(repo.users))
-	assert.Equal(t, 0, len(repo.byEmail))
+	assert.Equal(t, 0, len(repo.email))
 
 	// Verify user is gone
 	_, err = repo.GetByID(context.Background(), "user-1")
 	assert.Error(t, err)
 
-	_, err = repo.GetByEmail(context.Background(), user.TenantID, "test@example.com")
+	_, err = repo.GetByEmail(context.Background(), "test@example.com")
 	assert.Error(t, err)
 }
 
@@ -245,7 +245,7 @@ func TestUserRepository_Delete_CleansEmailIndex(t *testing.T) {
 
 	// Both indexes should be cleaned
 	assert.NotContains(t, repo.users, "user-1")
-	assert.NotContains(t, repo.byEmail, "test@example.com")
+	assert.NotContains(t, repo.email, "test@example.com")
 }
 
 func TestUserRepository_DifferentRoles(t *testing.T) {
@@ -309,7 +309,7 @@ func TestUserRepository_ConcurrentReadsSafe(t *testing.T) {
 		go func() {
 			_, err := repo.GetByID(context.Background(), "user-1")
 			assert.NoError(t, err)
-			_, err = repo.GetByEmail(context.Background(), user.TenantID, "test@example.com")
+			_, err = repo.GetByEmail(context.Background(), "test@example.com")
 			assert.NoError(t, err)
 			done <- true
 		}()
@@ -343,12 +343,12 @@ func TestUserRepository_LocaleSupport(t *testing.T) {
 func TestUserRepository_PasswordHashNotExposed(t *testing.T) {
 	repo := NewInMemoryUserRepository()
 	user := mkUser("user-1", "test@example.com", false, false)
-	user.PassHash = "secret-hash-value"
+	user.PasswordHash = "secret-hash-value"
 
 	repo.Create(context.Background(), user)
 
 	retrieved, _ := repo.GetByID(context.Background(), "user-1")
-	assert.Equal(t, "secret-hash-value", retrieved.PassHash)
+	assert.Equal(t, "secret-hash-value", retrieved.PasswordHash)
 }
 
 func TestUserRepository_FullCRUDCycle(t *testing.T) {
@@ -365,7 +365,7 @@ func TestUserRepository_FullCRUDCycle(t *testing.T) {
 	assert.Equal(t, "test@example.com", retrieved.Email)
 
 	// Read by Email
-	retrieved, err = repo.GetByEmail(context.Background(), user.TenantID, "test@example.com")
+	retrieved, err = repo.GetByEmail(context.Background(), "test@example.com")
 	require.NoError(t, err)
 	assert.Equal(t, "user-1", retrieved.ID)
 

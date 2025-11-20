@@ -53,6 +53,7 @@ func AuthMiddleware(authService TokenValidator) gin.HandlerFunc {
 		c.Set("user_id", claims.UserID)
 		c.Set("tenant_id", claims.TenantID)
 		c.Set("is_admin", claims.IsAdmin)
+		c.Set("is_moderator", claims.IsModerator)
 		c.Next()
 	}
 }
@@ -67,6 +68,22 @@ func RequireAdmin() gin.HandlerFunc {
 			return
 		}
 		c.Next()
+	}
+}
+
+// RequireModerator ensures the user has moderator or admin privileges
+func RequireModerator() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		isAdmin, _ := c.Get("is_admin")
+		isModerator, _ := c.Get("is_moderator")
+
+		if (isAdmin != nil && isAdmin.(bool)) || (isModerator != nil && isModerator.(bool)) {
+			c.Next()
+			return
+		}
+
+		errorResponse(c, domain.NewError(domain.ErrNotAuthorized, "Moderator or administrator privileges required", nil))
+		c.Abort()
 	}
 }
 

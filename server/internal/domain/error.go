@@ -40,11 +40,16 @@ const (
 	ErrUserBanned       = "ERR_USER_BANNED"
 	ErrUserKicked       = "ERR_USER_KICKED"
 	// Authentication/User specific
-	ErrInvalidCredentials = "ERR_INVALID_CREDENTIALS" // Wrong email/password
-	ErrUserAlreadyExists  = "ERR_USER_ALREADY_EXISTS" // Email already registered
-	ErrInvalidToken       = "ERR_INVALID_TOKEN"       // Malformed or invalid JWT
-	ErrTokenExpired       = "ERR_TOKEN_EXPIRED"       // JWT expired
-	ErrUserNotFound       = "ERR_USER_NOT_FOUND"      // User ID not found
+	ErrInvalidCredentials = "ERR_INVALID_CREDENTIALS"  // Wrong email/password
+	ErrEmailAlreadyExists = "ERR_EMAIL_ALREADY_EXISTS" // Email already registered (alias for ErrUserAlreadyExists)
+	ErrUserAlreadyExists  = "ERR_USER_ALREADY_EXISTS"  // Email already registered
+	ErrInvalidToken       = "ERR_INVALID_TOKEN"        // Malformed or invalid JWT
+	ErrTokenExpired       = "ERR_TOKEN_EXPIRED"        // JWT expired
+	ErrUserNotFound       = "ERR_USER_NOT_FOUND"       // User ID not found
+	ErrTenantNotFound     = "ERR_TENANT_NOT_FOUND"     // Tenant ID not found
+	ErrWeakPassword       = "ERR_WEAK_PASSWORD"        // Password too weak
+	ErrSessionExpired     = "ERR_SESSION_EXPIRED"      // Session expired
+	ErrRefreshTokenReuse  = "ERR_REFRESH_TOKEN_REUSE"  // Refresh token reuse detected
 )
 
 // NewError creates a new domain error

@@ -16,13 +16,14 @@ type NetworkRepository interface {
 	Create(ctx context.Context, network *domain.Network) error
 	GetByID(ctx context.Context, id string) (*domain.Network, error)
 	List(ctx context.Context, filter NetworkFilter) ([]*domain.Network, string, error)
-	CheckCIDROverlap(ctx context.Context, cidr string, excludeID string) (bool, error)
+	CheckCIDROverlap(ctx context.Context, cidr string, excludeID string, tenantID string) (bool, error)
 	Update(ctx context.Context, id string, mutate func(n *domain.Network) error) (*domain.Network, error)
 	SoftDelete(ctx context.Context, id string, at time.Time) error
 }
 
 // NetworkFilter represents filtering options for listing networks
 type NetworkFilter struct {
+	TenantID   string // filter by tenant
 	Visibility string // public|mine|all
 	UserID     string // for "mine" filtering
 	IsAdmin    bool   // for "all" filtering
@@ -144,13 +145,18 @@ func (r *InMemoryNetworkRepository) List(ctx context.Context, filter NetworkFilt
 }
 
 // CheckCIDROverlap checks if the given CIDR overlaps with existing networks
-func (r *InMemoryNetworkRepository) CheckCIDROverlap(ctx context.Context, cidr string, excludeID string) (bool, error) {
+func (r *InMemoryNetworkRepository) CheckCIDROverlap(ctx context.Context, cidr string, excludeID string, tenantID string) (bool, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	for _, network := range r.networks {
 		// Skip soft-deleted networks and excluded network
 		if network.SoftDeletedAt != nil || network.ID == excludeID {
+			continue
+		}
+
+		// Skip networks from different tenants
+		if tenantID != "" && network.TenantID != tenantID {
 			continue
 		}
 

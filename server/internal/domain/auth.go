@@ -4,16 +4,17 @@ import "time"
 
 // User represents a user in the system
 type User struct {
-	ID          string    `json:"id"`
-	TenantID    string    `json:"tenant_id"`
-	Email       string    `json:"email"`
-	PassHash    string    `json:"-"`            // Never expose in JSON
-	Locale      string    `json:"locale"`       // "tr" or "en"
-	IsAdmin     bool      `json:"is_admin"`     // Global admin flag
-	IsModerator bool      `json:"is_moderator"` // Can moderate chat/content
-	TwoFAKey    string    `json:"-"`            // TOTP secret (future)
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID           string    `json:"id"`
+	TenantID     string    `json:"tenant_id"`
+	Email        string    `json:"email"`
+	PasswordHash string    `json:"-"`            // Never expose in JSON
+	Locale       string    `json:"locale"`       // "tr" or "en"
+	IsAdmin      bool      `json:"is_admin"`     // Global admin flag
+	IsModerator  bool      `json:"is_moderator"` // Can moderate chat/content
+	TwoFAKey     string    `json:"-"`            // TOTP secret (future)
+	TwoFAEnabled bool      `json:"two_fa_enabled"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 // Tenant represents a tenant (organization) in the system
@@ -60,6 +61,8 @@ type TokenClaims struct {
 	IsAdmin     bool   `json:"is_admin"`
 	IsModerator bool   `json:"is_moderator"`
 	Type        string `json:"type"` // "access" or "refresh"
+	Exp         int64  `json:"exp"`  // Unix timestamp - expiration
+	Iat         int64  `json:"iat"`  // Unix timestamp - issued at
 }
 
 // Sanitize removes sensitive fields for logging
