@@ -23,7 +23,7 @@ export default function DevicesPage() {
     const [error, setError] = useState<string | null>(null)
     const [showAddForm, setShowAddForm] = useState(false)
     const [filterPlatform, setFilterPlatform] = useState<string>('')
-    
+
     // Form state
     const [formData, setFormData] = useState<RegisterDeviceRequest>({
         name: '',
@@ -72,7 +72,7 @@ export default function DevicesPage() {
             if (!token) return
 
             await registerDevice(formData, token)
-            
+
             // Reset form and close
             setFormData({
                 name: '',
@@ -415,21 +415,21 @@ export default function DevicesPage() {
                                     <h3 style={{ margin: 0, marginBottom: 8, fontSize: 18 }}>
                                         {device.name}
                                         {device.disabled_at && (
-                                            <span style={{ 
-                                                marginLeft: 8, 
-                                                fontSize: 12, 
-                                                padding: '2px 8px', 
-                                                backgroundColor: '#fee2e2', 
+                                            <span style={{
+                                                marginLeft: 8,
+                                                fontSize: 12,
+                                                padding: '2px 8px',
+                                                backgroundColor: '#fee2e2',
                                                 color: '#991b1b',
-                                                borderRadius: 4 
+                                                borderRadius: 4
                                             }}>
                                                 DISABLED
                                             </span>
                                         )}
                                     </h3>
                                     <div style={{ fontSize: 14, color: '#6b7280', marginBottom: 4 }}>
-                                        <span style={{ 
-                                            padding: '2px 8px', 
+                                        <span style={{
+                                            padding: '2px 8px',
                                             backgroundColor: getPlatformColor(device.platform) + '20',
                                             color: getPlatformColor(device.platform),
                                             borderRadius: 4,
@@ -456,10 +456,10 @@ export default function DevicesPage() {
                                 {/* Public Key */}
                                 <div style={{ marginBottom: 16 }}>
                                     <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Public Key:</div>
-                                    <div style={{ 
-                                        fontSize: 11, 
-                                        fontFamily: 'monospace', 
-                                        backgroundColor: '#f3f4f6', 
+                                    <div style={{
+                                        fontSize: 11,
+                                        fontFamily: 'monospace',
+                                        backgroundColor: '#f3f4f6',
                                         padding: '6px 8px',
                                         borderRadius: 4,
                                         wordBreak: 'break-all'
