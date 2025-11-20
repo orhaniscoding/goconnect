@@ -10,5 +10,20 @@
   "login.error.invalid": "Invalid email or password",
   "login.error.network": "Network error. Please try again.",
   "login.error.required": "This field is required",
-  "login.error.emailFormat": "Please enter a valid email address"
+  "login.error.emailFormat": "Please enter a valid email address",
+  "register.title": "Create your GoConnect account",
+  "register.name": "Full Name",
+  "register.email": "Email",
+  "register.password": "Password",
+  "register.confirmPassword": "Confirm Password",
+  "register.submit": "Create Account",
+  "register.submitting": "Creating account...",
+  "register.haveAccount": "Already have an account?",
+  "register.signIn": "Sign in",
+  "register.error.required": "This field is required",
+  "register.error.emailFormat": "Please enter a valid email address",
+  "register.error.passwordTooShort": "Password must be at least 8 characters",
+  "register.error.passwordMismatch": "Passwords do not match",
+  "register.error.network": "Network error. Please try again.",
+  "register.success": "Account created successfully! Redirecting..."
 }

@@ -10,5 +10,20 @@
   "login.error.invalid": "Geçersiz e-posta veya şifre",
   "login.error.network": "Ağ hatası. Lütfen tekrar deneyin.",
   "login.error.required": "Bu alan zorunludur",
-  "login.error.emailFormat": "Lütfen geçerli bir e-posta adresi girin"
+  "login.error.emailFormat": "Lütfen geçerli bir e-posta adresi girin",
+  "register.title": "GoConnect hesabınızı oluşturun",
+  "register.name": "Ad Soyad",
+  "register.email": "E-posta",
+  "register.password": "Şifre",
+  "register.confirmPassword": "Şifre Tekrarı",
+  "register.submit": "Hesap Oluştur",
+  "register.submitting": "Hesap oluşturuluyor...",
+  "register.haveAccount": "Zaten hesabınız var mı?",
+  "register.signIn": "Giriş yap",
+  "register.error.required": "Bu alan zorunludur",
+  "register.error.emailFormat": "Lütfen geçerli bir e-posta adresi girin",
+  "register.error.passwordTooShort": "Şifre en az 8 karakter olmalıdır",
+  "register.error.passwordMismatch": "Şifreler eşleşmiyor",
+  "register.error.network": "Ağ hatası. Lütfen tekrar deneyin.",
+  "register.success": "Hesap başarıyla oluşturuldu! Yönlendiriliyorsunuz..."
 }

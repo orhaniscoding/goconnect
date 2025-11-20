@@ -8,12 +8,12 @@ export async function api(path: string, init?: RequestInit): Promise<any> {
       ...(init?.headers || {}),
     },
   })
-  
+
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: 'Unknown error' }))
     throw new Error(error.message || `HTTP ${res.status}`)
   }
-  
+
   return res.json()
 }
 
