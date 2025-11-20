@@ -9,8 +9,10 @@ import {
     denyMember,
     kickMember,
     banMember,
+    listJoinRequests,
     Network,
-    Membership
+    Membership,
+    JoinRequest
 } from '../../../../../lib/api'
 import { getAccessToken, getUser } from '../../../../../lib/auth'
 import AuthGuard from '../../../../../components/AuthGuard'
@@ -25,6 +27,7 @@ export default function NetworkDetailPage() {
 
     const [network, setNetwork] = useState<Network | null>(null)
     const [members, setMembers] = useState<Membership[]>([])
+    const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [activeTab, setActiveTab] = useState<Tab>('overview')
@@ -40,6 +43,16 @@ export default function NetworkDetailPage() {
         }
         loadNetworkData()
     }, [networkId])
+
+    useEffect(() => {
+        // Load join requests when switching to requests tab (only for admins)
+        if (activeTab === 'requests' && isAdmin) {
+            const token = getAccessToken()
+            if (token) {
+                loadJoinRequests(token)
+            }
+        }
+    }, [activeTab, isAdmin])
 
     const loadNetworkData = async () => {
         setLoading(true)
@@ -77,6 +90,15 @@ export default function NetworkDetailPage() {
             }
         } catch (err) {
             console.error('Failed to load members:', err)
+        }
+    }
+
+    const loadJoinRequests = async (token: string) => {
+        try {
+            const response = await listJoinRequests(networkId, token)
+            setJoinRequests(response.data || [])
+        } catch (err) {
+            console.error('Failed to load join requests:', err)
         }
     }
 
@@ -348,7 +370,7 @@ export default function NetworkDetailPage() {
 
                 {activeTab === 'requests' && isOwnerOrAdmin && (
                     <JoinRequestsTab
-                        networkId={networkId}
+                        requests={joinRequests}
                         onApprove={handleApprove}
                         onDeny={handleDeny}
                     />
@@ -490,20 +512,79 @@ function MembersTab({
     )
 }
 
-// Join Requests Tab Component (placeholder for now - would need backend endpoint)
+// Join Requests Tab Component
 function JoinRequestsTab({
-    networkId,
+    requests,
     onApprove,
     onDeny
 }: {
-    networkId: string
+    requests: JoinRequest[]
     onApprove: (userId: string) => void
     onDeny: (userId: string) => void
 }) {
+    if (requests.length === 0) {
+        return (
+            <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>
+                <p>No pending join requests</p>
+            </div>
+        )
+    }
+
     return (
-        <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>
-            <p>Join requests management coming soon</p>
-            <p style={{ fontSize: 14, marginTop: 8 }}>Backend endpoint for listing pending join requests will be added in next iteration.</p>
+        <div style={{ padding: 24 }}>
+            <h3 style={{ marginTop: 0, marginBottom: 16 }}>Pending Join Requests</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {requests.map(request => (
+                    <div
+                        key={request.id}
+                        style={{
+                            padding: 16,
+                            border: '1px solid #e0e0e0',
+                            borderRadius: 8,
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                        }}
+                    >
+                        <div>
+                            <div style={{ fontWeight: 500, marginBottom: 4 }}>
+                                User ID: {request.user_id}
+                            </div>
+                            <div style={{ fontSize: 14, color: '#666' }}>
+                                Requested: {new Date(request.created_at).toLocaleString()}
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            <button
+                                onClick={() => onApprove(request.user_id)}
+                                style={{
+                                    padding: '8px 16px',
+                                    backgroundColor: '#10b981',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: 6,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                ✓ Approve
+                            </button>
+                            <button
+                                onClick={() => onDeny(request.user_id)}
+                                style={{
+                                    padding: '8px 16px',
+                                    backgroundColor: '#ef4444',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: 6,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                ✗ Deny
+                            </button>
+                        </div>
+                    </div>
+                ))}
+            </div>
         </div>
     )
 }

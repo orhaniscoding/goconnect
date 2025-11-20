@@ -21,6 +21,7 @@ type JoinRequestRepository interface {
 	CreatePending(ctx context.Context, networkID, userID string) (*domain.JoinRequest, error)
 	GetPending(ctx context.Context, networkID, userID string) (*domain.JoinRequest, error)
 	Decide(ctx context.Context, id string, approve bool) error
+	ListPending(ctx context.Context, networkID string) ([]*domain.JoinRequest, error)
 }
 
 type InMemoryMembershipRepository struct {
@@ -180,4 +181,23 @@ func (r *InMemoryJoinRequestRepository) Decide(ctx context.Context, id string, a
 	now := time.Now()
 	jr.DecidedAt = &now
 	return nil
+}
+
+func (r *InMemoryJoinRequestRepository) ListPending(ctx context.Context, networkID string) ([]*domain.JoinRequest, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var result []*domain.JoinRequest
+	for _, jr := range r.byID {
+		if jr.NetworkID == networkID && jr.Status == "pending" {
+			result = append(result, jr)
+		}
+	}
+
+	// Sort by creation time (oldest first)
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].CreatedAt.Before(result[j].CreatedAt)
+	})
+
+	return result, nil
 }

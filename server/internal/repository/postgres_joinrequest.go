@@ -144,3 +144,48 @@ func (r *PostgresJoinRequestRepository) Decide(ctx context.Context, id string, a
 
 	return nil
 }
+
+func (r *PostgresJoinRequestRepository) ListPending(ctx context.Context, networkID string) ([]*domain.JoinRequest, error) {
+	query := `
+		SELECT id, network_id, user_id, status, requested_at, reviewed_at
+		FROM join_requests
+		WHERE network_id = $1 AND status = 'pending'
+		ORDER BY requested_at ASC
+	`
+	
+	rows, err := r.db.QueryContext(ctx, query, networkID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list pending join requests: %w", err)
+	}
+	defer rows.Close()
+
+	var result []*domain.JoinRequest
+	for rows.Next() {
+		jr := &domain.JoinRequest{}
+		var reviewedAt sql.NullTime
+
+		err := rows.Scan(
+			&jr.ID,
+			&jr.NetworkID,
+			&jr.UserID,
+			&jr.Status,
+			&jr.CreatedAt,
+			&reviewedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan join request: %w", err)
+		}
+
+		if reviewedAt.Valid {
+			jr.DecidedAt = &reviewedAt.Time
+		}
+
+		result = append(result, jr)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating join requests: %w", err)
+	}
+
+	return result, nil
+}

@@ -359,3 +359,18 @@ export async function banMember(
   })
 }
 
+/**
+ * List join requests for a network (admin/owner only)
+ * @param networkId - Network ID
+ * @param accessToken - JWT access token
+ */
+export async function listJoinRequests(
+  networkId: string,
+  accessToken: string
+): Promise<{ data: JoinRequest[] }> {
+  return api(`/v1/networks/${networkId}/join-requests`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+}

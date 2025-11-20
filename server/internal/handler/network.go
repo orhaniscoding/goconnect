@@ -229,6 +229,7 @@ func RegisterNetworkRoutes(r *gin.Engine, handler *NetworkHandler, authService T
 	networks.POST(":id/kick", rl, RequireNetworkAdmin(), handler.Kick)
 	networks.POST(":id/ban", rl, RequireNetworkAdmin(), handler.Ban)
 	networks.GET("/:id/members", handler.ListMembers)
+	networks.GET("/:id/join-requests", RequireNetworkAdmin(), handler.ListJoinRequests)
 }
 
 // Helper function to convert string to int with default
@@ -392,6 +393,24 @@ func (h *NetworkHandler) ListMembers(c *gin.Context) {
 		resp["pagination"].(gin.H)["next_cursor"] = next
 	}
 	c.JSON(http.StatusOK, resp)
+}
+
+// ListJoinRequests handles GET /v1/networks/:id/join-requests (admin/owner only)
+func (h *NetworkHandler) ListJoinRequests(c *gin.Context) {
+	networkID := c.Param("id")
+	tenantID := c.MustGet("tenant_id").(string)
+
+	requests, err := h.memberService.ListJoinRequests(c.Request.Context(), networkID, tenantID)
+	if err != nil {
+		if derr, ok := err.(*domain.Error); ok {
+			errorResponse(c, derr)
+			return
+		}
+		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": requests})
 }
 
 // AllocateIP handles POST /v1/networks/:id/ip-allocations

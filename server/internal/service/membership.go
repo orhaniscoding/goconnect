@@ -245,6 +245,19 @@ func (s *MembershipService) ListMembers(ctx context.Context, networkID, status, 
 	return s.members.List(ctx, networkID, status, limit, cursor)
 }
 
+// ListJoinRequests lists pending join requests for a network (admin/owner only)
+func (s *MembershipService) ListJoinRequests(ctx context.Context, networkID, tenantID string) ([]*domain.JoinRequest, error) {
+	// Verify network tenant
+	net, err := s.networks.GetByID(ctx, networkID)
+	if err != nil {
+		return nil, err
+	}
+	if net.TenantID != tenantID {
+		return nil, domain.NewError(domain.ErrNotFound, "Network not found", nil)
+	}
+	return s.joins.ListPending(ctx, networkID)
+}
+
 func (s *MembershipService) hasManagePrivilege(ctx context.Context, networkID, userID string) bool {
 	m, err := s.members.Get(ctx, networkID, userID)
 	if err != nil {

@@ -195,18 +195,18 @@ export default function NetworksPage() {
 // Network Card Component
 function NetworkCard({ network, onDelete, isAdmin }: { network: Network; onDelete: (id: string, name: string) => void; isAdmin: boolean }) {
     const router = useRouter()
-    
+
     return (
-        <div 
+        <div
             onClick={() => router.push(`/en/networks/${network.id}`)}
             style={{
-            padding: 16,
-            backgroundColor: '#fff',
-            border: '1px solid #dee2e6',
-            borderRadius: 8,
-            transition: 'box-shadow 0.2s',
-            cursor: 'pointer'
-        }}
+                padding: 16,
+                backgroundColor: '#fff',
+                border: '1px solid #dee2e6',
+                borderRadius: 8,
+                transition: 'box-shadow 0.2s',
+                cursor: 'pointer'
+            }}
             onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'}
             onMouseLeave={(e) => e.currentTarget.style.boxShadow = 'none'}
         >
