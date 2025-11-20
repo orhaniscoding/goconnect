@@ -68,6 +68,69 @@ export default function Dashboard() {
                     </div>
                 )}
 
+                {/* Quick Actions */}
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                    gap: 16,
+                    marginBottom: 24
+                }}>
+                    <div
+                        onClick={() => router.push('/en/networks')}
+                        style={{
+                            padding: 20,
+                            backgroundColor: '#fff',
+                            border: '2px solid #007bff',
+                            borderRadius: 8,
+                            cursor: 'pointer',
+                            transition: 'transform 0.2s, box-shadow 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-2px)'
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,123,255,0.2)'
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)'
+                            e.currentTarget.style.boxShadow = 'none'
+                        }}
+                    >
+                        <h3 style={{ margin: '0 0 8px 0', color: '#007bff' }}>🌐 Networks</h3>
+                        <p style={{ margin: 0, color: '#666', fontSize: 14 }}>
+                            Manage your VPN networks
+                        </p>
+                    </div>
+
+                    <div
+                        style={{
+                            padding: 20,
+                            backgroundColor: '#fff',
+                            border: '2px solid #dee2e6',
+                            borderRadius: 8,
+                            opacity: 0.6
+                        }}
+                    >
+                        <h3 style={{ margin: '0 0 8px 0', color: '#666' }}>💬 Chat</h3>
+                        <p style={{ margin: 0, color: '#999', fontSize: 14 }}>
+                            Coming soon
+                        </p>
+                    </div>
+
+                    <div
+                        style={{
+                            padding: 20,
+                            backgroundColor: '#fff',
+                            border: '2px solid #dee2e6',
+                            borderRadius: 8,
+                            opacity: 0.6
+                        }}
+                    >
+                        <h3 style={{ margin: '0 0 8px 0', color: '#666' }}>⚙️ Settings</h3>
+                        <p style={{ margin: 0, color: '#999', fontSize: 14 }}>
+                            Coming soon
+                        </p>
+                    </div>
+                </div>
+
                 <div style={{
                     padding: 16,
                     backgroundColor: '#fff',
