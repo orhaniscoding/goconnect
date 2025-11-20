@@ -195,13 +195,18 @@ func TestAuthHandler_Logout(t *testing.T) {
 		r, handler, _ := setupAuthTest()
 		r.POST("/logout", handler.Logout)
 
-		req := httptest.NewRequest("POST", "/logout", nil)
+		// Logout requires refresh_token in body
+		body := map[string]interface{}{"refresh_token": "dummy-refresh-token"}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("POST", "/logout", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		var response map[string]interface{}
 		json.Unmarshal(w.Body.Bytes(), &response)
-		assert.Equal(t, "Logged out successfully", response["message"])
+		assert.Equal(t, true, response["ok"])
 	})
 }

@@ -76,7 +76,7 @@ func (e *Error) ToHTTPStatus() int {
 		return http.StatusTooManyRequests
 	case ErrNotFound, ErrUserNotFound:
 		return http.StatusNotFound
-	case ErrCIDROverlap, ErrIdempotencyConflict, ErrIPExhausted, ErrUserAlreadyExists:
+	case ErrCIDROverlap, ErrIdempotencyConflict, ErrIPExhausted, ErrUserAlreadyExists, ErrEmailAlreadyExists:
 		return http.StatusConflict
 	case ErrNetworkPrivate:
 		return http.StatusNotFound // hide private resource existence

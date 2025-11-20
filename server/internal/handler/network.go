@@ -283,7 +283,7 @@ func (h *NetworkHandler) Approve(c *gin.Context) {
 		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Invalid body", nil))
 		return
 	}
-	m, err := h.memberService.Approve(c.Request.Context(), networkID, body.UserID, c.MustGet("tenant_id").(string), actor)
+	m, err := h.memberService.Approve(c.Request.Context(), networkID, body.UserID, actor, c.MustGet("tenant_id").(string))
 	if err != nil {
 		if derr, ok := err.(*domain.Error); ok {
 			errorResponse(c, derr)
@@ -309,7 +309,7 @@ func (h *NetworkHandler) Deny(c *gin.Context) {
 		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Invalid body", nil))
 		return
 	}
-	if err := h.memberService.Deny(c.Request.Context(), networkID, body.UserID, c.MustGet("tenant_id").(string), actor); err != nil {
+	if err := h.memberService.Deny(c.Request.Context(), networkID, body.UserID, actor, c.MustGet("tenant_id").(string)); err != nil {
 		if derr, ok := err.(*domain.Error); ok {
 			errorResponse(c, derr)
 			return
@@ -334,7 +334,7 @@ func (h *NetworkHandler) Kick(c *gin.Context) {
 		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Invalid body", nil))
 		return
 	}
-	if err := h.memberService.Kick(c.Request.Context(), networkID, body.UserID, c.MustGet("tenant_id").(string), actor); err != nil {
+	if err := h.memberService.Kick(c.Request.Context(), networkID, body.UserID, actor, c.MustGet("tenant_id").(string)); err != nil {
 		if derr, ok := err.(*domain.Error); ok {
 			errorResponse(c, derr)
 			return
@@ -359,7 +359,7 @@ func (h *NetworkHandler) Ban(c *gin.Context) {
 		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Invalid body", nil))
 		return
 	}
-	if err := h.memberService.Ban(c.Request.Context(), networkID, body.UserID, c.MustGet("tenant_id").(string), actor); err != nil {
+	if err := h.memberService.Ban(c.Request.Context(), networkID, body.UserID, actor, c.MustGet("tenant_id").(string)); err != nil {
 		if derr, ok := err.(*domain.Error); ok {
 			errorResponse(c, derr)
 			return
@@ -378,7 +378,7 @@ func (h *NetworkHandler) ListMembers(c *gin.Context) {
 		limit = 20
 	}
 	cursor := c.Query("cursor")
-	data, next, err := h.memberService.ListMembers(c.Request.Context(), networkID, c.MustGet("tenant_id").(string), status, limit, cursor)
+	data, next, err := h.memberService.ListMembers(c.Request.Context(), networkID, status, c.MustGet("tenant_id").(string), limit, cursor)
 	if err != nil {
 		if derr, ok := err.(*domain.Error); ok {
 			errorResponse(c, derr)

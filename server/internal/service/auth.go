@@ -114,8 +114,8 @@ func (s *AuthService) VerifyPassword(password, encodedHash string) (bool, error)
 	return subtle.ConstantTimeCompare(hash, computedHash) == 1, nil
 }
 
-// Register creates a new user account
-func (s *AuthService) Register(ctx context.Context, req *domain.RegisterRequest) (*domain.User, error) {
+// Register creates a new user account and returns auth tokens (auto-login)
+func (s *AuthService) Register(ctx context.Context, req *domain.RegisterRequest) (*domain.AuthResponse, error) {
 	// Validate password strength (basic check)
 	if len(req.Password) < 8 {
 		return nil, domain.NewError(domain.ErrWeakPassword, "Password must be at least 8 characters", nil)
@@ -163,7 +163,28 @@ func (s *AuthService) Register(ctx context.Context, req *domain.RegisterRequest)
 		return nil, err
 	}
 
-	return user, nil
+	// Auto-login: Generate tokens for the new user
+	accessToken := uuid.New().String()  // In production, use proper JWT
+	refreshToken := uuid.New().String() // In production, use proper JWT
+
+	// Store session (simplified; in production use Redis with TTL)
+	claims := &domain.TokenClaims{
+		UserID:   user.ID,
+		TenantID: user.TenantID,
+		Email:    user.Email,
+		IsAdmin:  false, // New users are not admin by default
+		Exp:      time.Now().Add(15 * time.Minute).Unix(),
+		Iat:      time.Now().Unix(),
+	}
+	s.sessions[refreshToken] = claims
+
+	return &domain.AuthResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ExpiresIn:    900, // 15 minutes
+		TokenType:    "Bearer",
+		User:         user,
+	}, nil
 }
 
 // Login authenticates a user and returns tokens

@@ -52,7 +52,7 @@ func TestAuthService_Register(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			user, err := authService.Register(context.Background(), tt.req)
+			authResp, err := authService.Register(context.Background(), tt.req)
 
 			if tt.wantErr {
 				if err == nil {
@@ -70,16 +70,26 @@ func TestAuthService_Register(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			if user.Email != tt.req.Email {
-				t.Errorf("expected email %s, got %s", tt.req.Email, user.Email)
+			// Register now returns AuthResponse with User field
+			if authResp.User.Email != tt.req.Email {
+				t.Errorf("expected email %s, got %s", tt.req.Email, authResp.User.Email)
 			}
 
-			if user.PasswordHash == "" {
+			if authResp.User.PasswordHash == "" {
 				t.Error("expected password hash to be set")
 			}
 
-			if user.PasswordHash == tt.req.Password {
+			if authResp.User.PasswordHash == tt.req.Password {
 				t.Error("password should be hashed, not stored in plaintext")
+			}
+
+			// Check that tokens are returned
+			if authResp.AccessToken == "" {
+				t.Error("expected access token to be set")
+			}
+
+			if authResp.RefreshToken == "" {
+				t.Error("expected refresh token to be set")
 			}
 		})
 	}
