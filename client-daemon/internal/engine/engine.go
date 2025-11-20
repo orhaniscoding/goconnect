@@ -8,6 +8,7 @@ import (
 
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/api"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/identity"
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/system"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/wireguard"
 )
 
@@ -16,6 +17,7 @@ type Engine struct {
 	idMgr     *identity.Manager
 	apiClient *api.Client
 	wgMgr     *wireguard.Manager
+	sysConf   system.Configurator
 	stopChan  chan struct{}
 	version   string
 }
@@ -33,6 +35,7 @@ func New(idMgr *identity.Manager, apiClient *api.Client, version string) *Engine
 		idMgr:     idMgr,
 		apiClient: apiClient,
 		wgMgr:     wgMgr,
+		sysConf:   system.NewConfigurator(),
 		stopChan:  make(chan struct{}),
 		version:   version,
 	}
@@ -90,6 +93,13 @@ func (e *Engine) syncConfig() {
 			log.Printf("Failed to apply WireGuard config: %v", err)
 		} else {
 			log.Println("WireGuard configuration applied successfully")
+			
+			// Apply system network configuration (IPs, MTU)
+			if err := e.sysConf.ConfigureInterface("wg0", config.Interface.Addresses, config.Interface.DNS, config.Interface.MTU); err != nil {
+				log.Printf("Failed to configure network interface: %v", err)
+			} else {
+				log.Println("Network interface configured successfully")
+			}
 		}
 	}
 }
