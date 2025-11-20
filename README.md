@@ -29,9 +29,12 @@
 - **Join Request Workflow**: Approve/deny membership requests with audit trail
 
 ### 💬 Real-Time Communication
+- **Real-time Chat UI**: Modern chat interface with WebSocket integration
 - **Built-in Chat**: Network-scoped and global chat with WebSocket support
+- **Live Message Updates**: Real-time message delivery, editing, and deletion
 - **Message Moderation**: Redact, edit, and delete messages with full audit trail
 - **Edit History Tracking**: Complete message history with timestamps
+- **Auto-reconnection**: Automatic WebSocket reconnection with 3s retry
 - **File Attachments**: Share files within chat (planned)
 
 ### 🔍 Observability & Security
