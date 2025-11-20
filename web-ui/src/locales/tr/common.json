@@ -25,5 +25,16 @@
   "register.error.passwordTooShort": "Şifre en az 8 karakter olmalıdır",
   "register.error.passwordMismatch": "Şifreler eşleşmiyor",
   "register.error.network": "Ağ hatası. Lütfen tekrar deneyin.",
-  "register.success": "Hesap başarıyla oluşturuldu! Yönlendiriliyorsunuz..."
+  "register.success": "Hesap başarıyla oluşturuldu! Yönlendiriliyorsunuz...",
+  "dashboard.title": "Kontrol Paneli",
+  "dashboard.welcome": "Hoş geldiniz",
+  "dashboard.email": "E-posta",
+  "dashboard.role": "Rol",
+  "dashboard.bridgeStatus": "Bridge Durumu",
+  "dashboard.loading": "Yükleniyor...",
+  "dashboard.bridgeError": "Bridge hatası",
+  "dashboard.logout": "Çıkış Yap",
+  "role.admin": "Yönetici",
+  "role.moderator": "Moderatör",
+  "role.user": "Kullanıcı"
 }

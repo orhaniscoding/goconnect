@@ -25,5 +25,16 @@
   "register.error.passwordTooShort": "Password must be at least 8 characters",
   "register.error.passwordMismatch": "Passwords do not match",
   "register.error.network": "Network error. Please try again.",
-  "register.success": "Account created successfully! Redirecting..."
+  "register.success": "Account created successfully! Redirecting...",
+  "dashboard.title": "Dashboard",
+  "dashboard.welcome": "Welcome",
+  "dashboard.email": "Email",
+  "dashboard.role": "Role",
+  "dashboard.bridgeStatus": "Bridge Status",
+  "dashboard.loading": "Loading...",
+  "dashboard.bridgeError": "Bridge error",
+  "dashboard.logout": "Logout",
+  "role.admin": "Admin",
+  "role.moderator": "Moderator",
+  "role.user": "User"
 }
