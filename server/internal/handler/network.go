@@ -47,6 +47,8 @@ func (h *NetworkHandler) CreateNetwork(c *gin.Context) {
 	// Extract user info from context
 	userID, _ := c.Get("user_id")
 	userIDStr := userID.(string)
+	tenantID, _ := c.Get("tenant_id")
+	tenantIDStr := tenantID.(string)
 
 	// Extract idempotency key (required for mutations)
 	idempotencyKey := c.GetHeader("Idempotency-Key")
@@ -58,7 +60,7 @@ func (h *NetworkHandler) CreateNetwork(c *gin.Context) {
 	}
 
 	// Call service
-	network, err := h.networkService.CreateNetwork(c.Request.Context(), &req, userIDStr, idempotencyKey)
+	network, err := h.networkService.CreateNetwork(c.Request.Context(), &req, userIDStr, tenantIDStr, idempotencyKey)
 	if err != nil {
 		if domainErr, ok := err.(*domain.Error); ok {
 			errorResponse(c, domainErr)
@@ -96,13 +98,15 @@ func (h *NetworkHandler) ListNetworks(c *gin.Context) {
 
 	// Extract user info from context
 	userID, _ := c.Get("user_id")
+	tenantID, _ := c.Get("tenant_id")
 	isAdmin, _ := c.Get("is_admin")
 
 	userIDStr := userID.(string)
+	tenantIDStr := tenantID.(string)
 	isAdminBool := isAdmin.(bool)
 
 	// Call service
-	networks, nextCursor, err := h.networkService.ListNetworks(c.Request.Context(), &req, userIDStr, isAdminBool)
+	networks, nextCursor, err := h.networkService.ListNetworks(c.Request.Context(), &req, userIDStr, tenantIDStr, isAdminBool)
 	if err != nil {
 		if domainErr, ok := err.(*domain.Error); ok {
 			errorResponse(c, domainErr)
@@ -132,7 +136,8 @@ func (h *NetworkHandler) ListNetworks(c *gin.Context) {
 func (h *NetworkHandler) GetNetwork(c *gin.Context) {
 	id := c.Param("id")
 	userID := c.MustGet("user_id").(string)
-	net, err := h.networkService.GetNetwork(c.Request.Context(), id, userID)
+	tenantID := c.MustGet("tenant_id").(string)
+	net, err := h.networkService.GetNetwork(c.Request.Context(), id, userID, tenantID)
 	if err != nil {
 		if derr, ok := err.(*domain.Error); ok {
 			errorResponse(c, derr)
@@ -152,12 +157,13 @@ func (h *NetworkHandler) UpdateNetwork(c *gin.Context) {
 	}
 	id := c.Param("id")
 	actor := c.MustGet("user_id").(string)
+	tenantID := c.MustGet("tenant_id").(string)
 	var patch map[string]any
 	if err := c.ShouldBindJSON(&patch); err != nil {
 		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Invalid body", map[string]string{"details": err.Error()}))
 		return
 	}
-	updated, err := h.networkService.UpdateNetwork(c.Request.Context(), id, actor, patch)
+	updated, err := h.networkService.UpdateNetwork(c.Request.Context(), id, actor, tenantID, patch)
 	if err != nil {
 		if derr, ok := err.(*domain.Error); ok {
 			errorResponse(c, derr)
@@ -177,7 +183,8 @@ func (h *NetworkHandler) DeleteNetwork(c *gin.Context) {
 	}
 	id := c.Param("id")
 	actor := c.MustGet("user_id").(string)
-	if err := h.networkService.DeleteNetwork(c.Request.Context(), id, actor); err != nil {
+	tenantID := c.MustGet("tenant_id").(string)
+	if err := h.networkService.DeleteNetwork(c.Request.Context(), id, actor, tenantID); err != nil {
 		if derr, ok := err.(*domain.Error); ok {
 			errorResponse(c, derr)
 			return
@@ -239,12 +246,13 @@ func parseIntWithDefault(s string, defaultVal int) int {
 func (h *NetworkHandler) JoinNetwork(c *gin.Context) {
 	networkID := c.Param("id")
 	userID := c.MustGet("user_id").(string)
+	tenantID := c.MustGet("tenant_id").(string)
 	idem := c.GetHeader("Idempotency-Key")
 	if idem == "" {
 		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Idempotency-Key header is required for mutation operations", map[string]string{"required_header": "Idempotency-Key"}))
 		return
 	}
-	m, jr, err := h.memberService.JoinNetwork(c.Request.Context(), networkID, userID, idem)
+	m, jr, err := h.memberService.JoinNetwork(c.Request.Context(), networkID, userID, tenantID, idem)
 	if err != nil {
 		if derr, ok := err.(*domain.Error); ok {
 			errorResponse(c, derr)
@@ -275,7 +283,7 @@ func (h *NetworkHandler) Approve(c *gin.Context) {
 		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Invalid body", nil))
 		return
 	}
-	m, err := h.memberService.Approve(c.Request.Context(), networkID, body.UserID, actor)
+	m, err := h.memberService.Approve(c.Request.Context(), networkID, body.UserID, c.MustGet("tenant_id").(string), actor)
 	if err != nil {
 		if derr, ok := err.(*domain.Error); ok {
 			errorResponse(c, derr)
@@ -301,7 +309,7 @@ func (h *NetworkHandler) Deny(c *gin.Context) {
 		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Invalid body", nil))
 		return
 	}
-	if err := h.memberService.Deny(c.Request.Context(), networkID, body.UserID, actor); err != nil {
+	if err := h.memberService.Deny(c.Request.Context(), networkID, body.UserID, c.MustGet("tenant_id").(string), actor); err != nil {
 		if derr, ok := err.(*domain.Error); ok {
 			errorResponse(c, derr)
 			return
@@ -326,7 +334,7 @@ func (h *NetworkHandler) Kick(c *gin.Context) {
 		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Invalid body", nil))
 		return
 	}
-	if err := h.memberService.Kick(c.Request.Context(), networkID, body.UserID, actor); err != nil {
+	if err := h.memberService.Kick(c.Request.Context(), networkID, body.UserID, c.MustGet("tenant_id").(string), actor); err != nil {
 		if derr, ok := err.(*domain.Error); ok {
 			errorResponse(c, derr)
 			return
@@ -351,7 +359,7 @@ func (h *NetworkHandler) Ban(c *gin.Context) {
 		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Invalid body", nil))
 		return
 	}
-	if err := h.memberService.Ban(c.Request.Context(), networkID, body.UserID, actor); err != nil {
+	if err := h.memberService.Ban(c.Request.Context(), networkID, body.UserID, c.MustGet("tenant_id").(string), actor); err != nil {
 		if derr, ok := err.(*domain.Error); ok {
 			errorResponse(c, derr)
 			return
@@ -370,7 +378,7 @@ func (h *NetworkHandler) ListMembers(c *gin.Context) {
 		limit = 20
 	}
 	cursor := c.Query("cursor")
-	data, next, err := h.memberService.ListMembers(c.Request.Context(), networkID, status, limit, cursor)
+	data, next, err := h.memberService.ListMembers(c.Request.Context(), networkID, c.MustGet("tenant_id").(string), status, limit, cursor)
 	if err != nil {
 		if derr, ok := err.(*domain.Error); ok {
 			errorResponse(c, derr)
@@ -407,7 +415,7 @@ func (h *NetworkHandler) AllocateIP(c *gin.Context) {
 	// We need membership repository access; quick path: call ListMembers with limit 1 filtering not implemented -> fallback to internal repo not exposed.
 	// Simplify: attempt allocation; if network Get ok and not admin maybe enforce membership by future improvement.
 	// For now we enforce by checking membership role presence using service private method isn't accessible -> compromise: treat any user as allowed (will adjust later when repository accessible here).
-	alloc, err := h.ipamService.AllocateIP(c.Request.Context(), networkID, userID)
+	alloc, err := h.ipamService.AllocateIP(c.Request.Context(), networkID, userID, c.MustGet("tenant_id").(string))
 	if err != nil {
 		if derr, ok := err.(*domain.Error); ok {
 			errorResponse(c, derr)
@@ -427,7 +435,7 @@ func (h *NetworkHandler) ListIPAllocations(c *gin.Context) {
 	}
 	networkID := c.Param("id")
 	userID := c.MustGet("user_id").(string)
-	allocs, err := h.ipamService.ListAllocations(c.Request.Context(), networkID, userID)
+	allocs, err := h.ipamService.ListAllocations(c.Request.Context(), networkID, userID, c.MustGet("tenant_id").(string))
 	if err != nil {
 		if derr, ok := err.(*domain.Error); ok {
 			errorResponse(c, derr)
@@ -451,7 +459,7 @@ func (h *NetworkHandler) ReleaseIP(c *gin.Context) {
 	}
 	networkID := c.Param("id")
 	userID := c.MustGet("user_id").(string)
-	if err := h.ipamService.ReleaseIP(c.Request.Context(), networkID, userID); err != nil {
+	if err := h.ipamService.ReleaseIP(c.Request.Context(), networkID, userID, c.MustGet("tenant_id").(string)); err != nil {
 		if derr, ok := err.(*domain.Error); ok {
 			errorResponse(c, derr)
 			return
@@ -475,7 +483,7 @@ func (h *NetworkHandler) AdminReleaseIP(c *gin.Context) {
 	networkID := c.Param("id")
 	targetUserID := c.Param("user_id")
 	actorUserID := c.MustGet("user_id").(string)
-	if err := h.ipamService.ReleaseIPForActor(c.Request.Context(), networkID, actorUserID, targetUserID); err != nil {
+	if err := h.ipamService.ReleaseIPForActor(c.Request.Context(), networkID, actorUserID, targetUserID, c.MustGet("tenant_id").(string)); err != nil {
 		if derr, ok := err.(*domain.Error); ok {
 			errorResponse(c, derr)
 			return
