@@ -93,7 +93,7 @@ export default function ProfilePage() {
                 if (!token) return
                 const data = await generate2FA(token)
                 setSecret(data.secret)
-                
+
                 // Generate QR code data URL
                 try {
                     const url = await QRCode.toDataURL(data.url)
@@ -101,7 +101,7 @@ export default function ProfilePage() {
                 } catch (e) {
                     console.error(e)
                 }
-                
+
                 setShow2FAModal(true)
                 setError2FA(null)
                 setCode('')

@@ -72,6 +72,8 @@ type PeerConfig struct {
 	AllowedIPs          []string `json:"allowed_ips"`
 	PresharedKey        string   `json:"preshared_key,omitempty"`
 	PersistentKeepalive int      `json:"persistent_keepalive,omitempty"`
+	Name                string   `json:"name,omitempty"`     // Friendly name of the peer device
+	Hostname            string   `json:"hostname,omitempty"` // Hostname of the peer device
 }
 
 // DeviceFilter represents filtering options for device queries

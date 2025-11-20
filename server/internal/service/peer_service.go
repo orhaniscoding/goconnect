@@ -143,6 +143,34 @@ func (s *PeerService) GetActivePeers(ctx context.Context, networkID string) ([]*
 	return s.peerRepo.GetActivePeers(ctx, networkID)
 }
 
+// GetActivePeersConfig retrieves active peers with device metadata for configuration
+func (s *PeerService) GetActivePeersConfig(ctx context.Context, networkID string) ([]domain.PeerConfig, error) {
+	peers, err := s.GetActivePeers(ctx, networkID)
+	if err != nil {
+		return nil, err
+	}
+
+	configs := make([]domain.PeerConfig, 0, len(peers))
+	for _, peer := range peers {
+		device, err := s.deviceRepo.GetByID(ctx, peer.DeviceID)
+		if err != nil {
+			// Log error but continue
+			continue
+		}
+
+		configs = append(configs, domain.PeerConfig{
+			PublicKey:           peer.PublicKey,
+			Endpoint:            peer.Endpoint,
+			AllowedIPs:          peer.AllowedIPs,
+			PresharedKey:        peer.PresharedKey,
+			PersistentKeepalive: peer.PersistentKeepalive,
+			Name:                device.Name,
+			Hostname:            device.HostName,
+		})
+	}
+	return configs, nil
+}
+
 // UpdatePeer updates a peer
 func (s *PeerService) UpdatePeer(ctx context.Context, peerID string, req *domain.UpdatePeerRequest) (*domain.Peer, error) {
 	// Get existing peer

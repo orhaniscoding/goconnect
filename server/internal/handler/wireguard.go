@@ -230,19 +230,63 @@ func (h *WireGuardHandler) GetProfile(c *gin.Context) {
 	}
 
 	// Add mesh peer configuration (other active peers in the network)
-	meshPeers, err := h.peerService.GetActivePeers(c.Request.Context(), networkID)
+	meshPeers, err := h.peerService.GetActivePeersConfig(c.Request.Context(), networkID)
+	
+	// Check for JSON request (used by Client Daemon for rich metadata)
+	if c.GetHeader("Accept") == "application/json" {
+		// Construct Interface Config
+		interfaceConfig := domain.InterfaceConfig{
+			PrivateKey: privateKey,
+			ListenPort: 51820, // Default, client can override
+			Addresses:  []string{deviceIP + "/" + fmt.Sprintf("%d", prefixLen)},
+			DNS:        []string{}, // TODO: Add DNS servers if managed
+		}
+
+		// Filter out self from peers
+		peers := make([]domain.PeerConfig, 0)
+		if err == nil {
+			for _, p := range meshPeers {
+				// We can't easily check DeviceID here because PeerConfig doesn't have it
+				// But we can check PublicKey
+				if p.PublicKey == device.PubKey {
+					continue
+				}
+				peers = append(peers, p)
+			}
+		}
+
+		c.JSON(http.StatusOK, domain.DeviceConfig{
+			Interface: interfaceConfig,
+			Peers:     peers,
+		})
+		
+		// Audit the profile generation
+		h.auditor.Event(c.Request.Context(), tenantID, "PROFILE_RENDERED_JSON", userID, networkID, map[string]any{
+			"device_id":   deviceID,
+			"device_name": device.Name,
+			"peers_count": len(peers),
+		})
+		return
+	}
+
 	if err == nil && len(meshPeers) > 0 {
 		var meshConfig strings.Builder
 		meshConfig.WriteString("\n# Mesh Peers (other devices in this network)\n")
 
 		for _, meshPeer := range meshPeers {
-			// Skip self
-			if meshPeer.DeviceID == deviceID {
+			// Skip self (check by public key since we don't have DeviceID in PeerConfig)
+			if meshPeer.PublicKey == device.PubKey {
 				continue
 			}
 
 			// Add peer configuration
 			meshConfig.WriteString("\n[Peer]\n")
+			if meshPeer.Name != "" {
+				meshConfig.WriteString(fmt.Sprintf("# Name: %s\n", meshPeer.Name))
+			}
+			if meshPeer.Hostname != "" {
+				meshConfig.WriteString(fmt.Sprintf("# Hostname: %s\n", meshPeer.Hostname))
+			}
 			meshConfig.WriteString(fmt.Sprintf("PublicKey = %s\n", meshPeer.PublicKey))
 			meshConfig.WriteString(fmt.Sprintf("AllowedIPs = %s\n", strings.Join(meshPeer.AllowedIPs, ", ")))
 
@@ -271,7 +315,7 @@ func (h *WireGuardHandler) GetProfile(c *gin.Context) {
 		"device_name": device.Name,
 		"device_ip":   deviceIP,
 		"network":     network.Name,
-		"mesh_peers":  len(meshPeers) - 1, // Excluding self
+		"mesh_peers":  len(meshPeers) - 1, // Excluding self (approx)
 	})
 
 	// Return config as plain text with proper content type
