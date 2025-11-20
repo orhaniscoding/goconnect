@@ -519,3 +519,37 @@ export async function enableDevice(
     },
   })
 }
+
+/**
+ * Download WireGuard config for a device in a network
+ * @param networkId - Network ID
+ * @param deviceId - Device ID
+ * @param privateKey - Device's WireGuard private key
+ * @param accessToken - JWT access token
+ * @returns Config file content as text
+ */
+export async function downloadWireGuardConfig(
+  networkId: string,
+  deviceId: string,
+  privateKey: string,
+  accessToken: string
+): Promise<string> {
+  const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080'
+  const params = new URLSearchParams({
+    device_id: deviceId,
+    private_key: privateKey
+  })
+
+  const res = await fetch(`${base}/v1/networks/${networkId}/wg/profile?${params}`, {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+    },
+  })
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ message: 'Failed to download config' }))
+    throw new Error(error.message || `HTTP ${res.status}`)
+  }
+
+  return res.text()
+}

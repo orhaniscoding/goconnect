@@ -7,8 +7,11 @@ import {
     deleteDevice,
     disableDevice,
     enableDevice,
+    downloadWireGuardConfig,
+    listNetworks,
     Device,
-    RegisterDeviceRequest
+    RegisterDeviceRequest,
+    Network
 } from '../../../../lib/api'
 import { getAccessToken } from '../../../../lib/auth'
 import AuthGuard from '../../../../components/AuthGuard'
@@ -36,9 +39,23 @@ export default function DevicesPage() {
     const [formError, setFormError] = useState<string | null>(null)
     const [submitting, setSubmitting] = useState(false)
 
+    // Config download state
+    const [showConfigModal, setShowConfigModal] = useState(false)
+    const [selectedDevice, setSelectedDevice] = useState<Device | null>(null)
+    const [networks, setNetworks] = useState<Network[]>([])
+    const [selectedNetworkId, setSelectedNetworkId] = useState<string>('')
+    const [privateKey, setPrivateKey] = useState<string>('')
+    const [generatedConfig, setGeneratedConfig] = useState<string>('')
+    const [configLoading, setConfigLoading] = useState(false)
+    const [configError, setConfigError] = useState<string | null>(null)
+
     useEffect(() => {
         loadDevices()
     }, [filterPlatform])
+
+    useEffect(() => {
+        loadNetworks()
+    }, [])
 
     const loadDevices = async () => {
         setLoading(true)
@@ -60,6 +77,79 @@ export default function DevicesPage() {
         } finally {
             setLoading(false)
         }
+    }
+
+    const loadNetworks = async () => {
+        try {
+            const token = getAccessToken()
+            if (!token) return
+
+            const response = await listNetworks('mine', token)
+            setNetworks(response.data || [])
+        } catch (err) {
+            console.error('Failed to load networks:', err)
+        }
+    }
+
+    const handleGetConfig = (device: Device) => {
+        setSelectedDevice(device)
+        setShowConfigModal(true)
+        setPrivateKey('')
+        setGeneratedConfig('')
+        setConfigError(null)
+    }
+
+    const handleGenerateConfig = async () => {
+        if (!selectedDevice || !selectedNetworkId || !privateKey) {
+            setConfigError('Please fill in all fields')
+            return
+        }
+
+        // Validate private key (44 character base64)
+        if (privateKey.length !== 44 || !/^[A-Za-z0-9+/]+=*$/.test(privateKey)) {
+            setConfigError('Invalid private key format. Must be 44 character base64 string.')
+            return
+        }
+
+        setConfigLoading(true)
+        setConfigError(null)
+        try {
+            const token = getAccessToken()
+            if (!token) return
+
+            const config = await downloadWireGuardConfig(
+                selectedNetworkId,
+                selectedDevice.id,
+                privateKey,
+                token
+            )
+            setGeneratedConfig(config)
+        } catch (err) {
+            setConfigError(err instanceof Error ? err.message : 'Failed to generate config')
+        } finally {
+            setConfigLoading(false)
+        }
+    }
+
+    const handleCopyConfig = () => {
+        if (generatedConfig) {
+            navigator.clipboard.writeText(generatedConfig)
+            alert('Config copied to clipboard!')
+        }
+    }
+
+    const handleDownloadConfig = () => {
+        if (!generatedConfig || !selectedDevice) return
+
+        const blob = new Blob([generatedConfig], { type: 'text/plain' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `${selectedDevice.name}.conf`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
     }
 
     const handleAddDevice = async (e: React.FormEvent) => {
@@ -478,6 +568,21 @@ export default function DevicesPage() {
                                 {/* Actions */}
                                 <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
                                     <button
+                                        onClick={() => handleGetConfig(device)}
+                                        style={{
+                                            flex: 1,
+                                            padding: '8px 12px',
+                                            backgroundColor: '#3b82f6',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: 6,
+                                            cursor: 'pointer',
+                                            fontSize: 13
+                                        }}
+                                    >
+                                        📥 Get Config
+                                    </button>
+                                    <button
                                         onClick={() => handleToggleDevice(device)}
                                         style={{
                                             flex: 1,
@@ -510,6 +615,212 @@ export default function DevicesPage() {
                                 </div>
                             </div>
                         ))}
+                    </div>
+                )}
+
+                {/* Config Download Modal */}
+                {showConfigModal && selectedDevice && (
+                    <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0,0,0,0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000
+                    }}>
+                        <div style={{
+                            backgroundColor: 'white',
+                            padding: 32,
+                            borderRadius: 12,
+                            maxWidth: 600,
+                            width: '90%',
+                            maxHeight: '90vh',
+                            overflow: 'auto'
+                        }}>
+                            <h2 style={{ marginTop: 0, marginBottom: 24 }}>
+                                Get WireGuard Config for {selectedDevice.name}
+                            </h2>
+
+                            {!generatedConfig ? (
+                                <>
+                                    <div style={{ marginBottom: 20 }}>
+                                        <label style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>
+                                            Select Network
+                                        </label>
+                                        <select
+                                            value={selectedNetworkId}
+                                            onChange={(e) => setSelectedNetworkId(e.target.value)}
+                                            style={{
+                                                width: '100%',
+                                                padding: 10,
+                                                borderRadius: 6,
+                                                border: '1px solid #d1d5db',
+                                                fontSize: 14
+                                            }}
+                                        >
+                                            <option value="">-- Choose Network --</option>
+                                            {networks.map(net => (
+                                                <option key={net.id} value={net.id}>
+                                                    {net.name} ({net.cidr})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div style={{ marginBottom: 20 }}>
+                                        <label style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>
+                                            Device Private Key
+                                        </label>
+                                        <input
+                                            type="password"
+                                            value={privateKey}
+                                            onChange={(e) => setPrivateKey(e.target.value)}
+                                            placeholder="Enter your device's WireGuard private key"
+                                            style={{
+                                                width: '100%',
+                                                padding: 10,
+                                                borderRadius: 6,
+                                                border: '1px solid #d1d5db',
+                                                fontSize: 14,
+                                                fontFamily: 'monospace'
+                                            }}
+                                        />
+                                        <p style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
+                                            44-character base64 string. Your private key is never stored on the server.
+                                        </p>
+                                    </div>
+
+                                    {configError && (
+                                        <div style={{
+                                            padding: 12,
+                                            backgroundColor: '#fee2e2',
+                                            border: '1px solid #fecaca',
+                                            borderRadius: 6,
+                                            color: '#991b1b',
+                                            marginBottom: 20,
+                                            fontSize: 14
+                                        }}>
+                                            {configError}
+                                        </div>
+                                    )}
+
+                                    <div style={{ display: 'flex', gap: 12 }}>
+                                        <button
+                                            onClick={handleGenerateConfig}
+                                            disabled={configLoading}
+                                            style={{
+                                                flex: 1,
+                                                padding: '10px 16px',
+                                                backgroundColor: '#3b82f6',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: 6,
+                                                cursor: configLoading ? 'not-allowed' : 'pointer',
+                                                fontSize: 14,
+                                                fontWeight: 600,
+                                                opacity: configLoading ? 0.6 : 1
+                                            }}
+                                        >
+                                            {configLoading ? 'Generating...' : 'Generate Config'}
+                                        </button>
+                                        <button
+                                            onClick={() => setShowConfigModal(false)}
+                                            style={{
+                                                flex: 1,
+                                                padding: '10px 16px',
+                                                backgroundColor: '#6b7280',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: 6,
+                                                cursor: 'pointer',
+                                                fontSize: 14,
+                                                fontWeight: 600
+                                            }}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div style={{ marginBottom: 20 }}>
+                                        <label style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>
+                                            Configuration File
+                                        </label>
+                                        <textarea
+                                            value={generatedConfig}
+                                            readOnly
+                                            style={{
+                                                width: '100%',
+                                                height: 300,
+                                                padding: 12,
+                                                borderRadius: 6,
+                                                border: '1px solid #d1d5db',
+                                                fontSize: 12,
+                                                fontFamily: 'monospace',
+                                                resize: 'none',
+                                                backgroundColor: '#f9fafb'
+                                            }}
+                                        />
+                                    </div>
+
+                                    <div style={{ display: 'flex', gap: 12 }}>
+                                        <button
+                                            onClick={handleCopyConfig}
+                                            style={{
+                                                flex: 1,
+                                                padding: '10px 16px',
+                                                backgroundColor: '#10b981',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: 6,
+                                                cursor: 'pointer',
+                                                fontSize: 14,
+                                                fontWeight: 600
+                                            }}
+                                        >
+                                            📋 Copy
+                                        </button>
+                                        <button
+                                            onClick={handleDownloadConfig}
+                                            style={{
+                                                flex: 1,
+                                                padding: '10px 16px',
+                                                backgroundColor: '#3b82f6',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: 6,
+                                                cursor: 'pointer',
+                                                fontSize: 14,
+                                                fontWeight: 600
+                                            }}
+                                        >
+                                            💾 Download
+                                        </button>
+                                        <button
+                                            onClick={() => setShowConfigModal(false)}
+                                            style={{
+                                                flex: 1,
+                                                padding: '10px 16px',
+                                                backgroundColor: '#6b7280',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: 6,
+                                                cursor: 'pointer',
+                                                fontSize: 14,
+                                                fontWeight: 600
+                                            }}
+                                        >
+                                            Close
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     </div>
                 )}
 
