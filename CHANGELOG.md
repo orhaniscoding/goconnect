@@ -1,5 +1,34 @@
 # Changelog
 
+## [2.0.0](https://github.com/orhaniscoding/goconnect/compare/v1.2.0...v2.0.0) (2025-11-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* **server:** Default storage backend changed from in-memory to PostgreSQL
+* **tests:** AuthService.Register now returns AuthResponse instead of User
+
+### Features
+
+* Add IP Allocation Display UI ([f00a049](https://github.com/orhaniscoding/goconnect/commit/f00a0493cde4515843706aaab133aaa1e42abe61))
+* Add QR code generation for WireGuard configs ([a4e8e22](https://github.com/orhaniscoding/goconnect/commit/a4e8e22c3cab0eb91c8ceb039ed4142d3504cf3a))
+* Add WireGuard config download UI ([d5cd0fd](https://github.com/orhaniscoding/goconnect/commit/d5cd0fda6ac968a1484f84222970218f45c2d98b))
+* **auth:** implement production-ready JWT authentication ([dda2132](https://github.com/orhaniscoding/goconnect/commit/dda2132f1d28823e2697702437ff2c2db4646783))
+* **dev:** add comprehensive Makefile system and developer documentation ([d626153](https://github.com/orhaniscoding/goconnect/commit/d6261534b4e6512176150fb7daf6b2d83a5d56f6))
+* implement join requests list endpoint and UI ([95c35a3](https://github.com/orhaniscoding/goconnect/commit/95c35a31957a0d99258654fc431ad07470a00e9c))
+* **server:** implement PostgreSQL persistence layer ([cd188bd](https://github.com/orhaniscoding/goconnect/commit/cd188bd5334da30212305384d291038911f76ea3))
+* **web-ui:** implement authentication guard for protected routes ([761c0d3](https://github.com/orhaniscoding/goconnect/commit/761c0d33e9967596a45dd66530f9f72c61b259c0))
+* **web-ui:** implement device management UI ([2d4c11d](https://github.com/orhaniscoding/goconnect/commit/2d4c11d120af2ca3e6e1b70422c1323c5335a279))
+* **web-ui:** implement login page with JWT authentication ([047c4d0](https://github.com/orhaniscoding/goconnect/commit/047c4d0b7169a5508d8671d583226dad65cb99db))
+* **web-ui:** implement network details page with membership management ([b89f415](https://github.com/orhaniscoding/goconnect/commit/b89f415ea76e69ced1f4f676f718b28e6fd0f74f))
+* **web-ui:** implement network management UI with CRUD operations ([43cb5ab](https://github.com/orhaniscoding/goconnect/commit/43cb5ab041fb6e2acc55991badcdeaa4c26457af))
+* **web-ui:** implement registration page with validation ([20b1eb6](https://github.com/orhaniscoding/goconnect/commit/20b1eb65b9fa6087887db843f79cfbaa8c97362f))
+
+
+### Bug Fixes
+
+* **tests:** resolve all handler test failures and parameter order bugs ([e53ed9d](https://github.com/orhaniscoding/goconnect/commit/e53ed9d2f0926e96f016430bce557de3a8375a30))
+
 ## [1.2.0](https://github.com/orhaniscoding/goconnect/compare/v1.1.0...v1.2.0) (2025-11-20)
 
 
