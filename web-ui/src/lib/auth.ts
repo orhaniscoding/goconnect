@@ -11,6 +11,7 @@ export interface User {
   is_admin: boolean
   is_moderator: boolean
   tenant_id: string
+  two_fa_enabled?: boolean
 }
 
 /**

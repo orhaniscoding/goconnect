@@ -1,10 +1,12 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getUser } from '../../../../lib/auth'
+import { getUser, getAccessToken } from '../../../../lib/auth'
+import { generate2FA, enable2FA, disable2FA } from '../../../../lib/api'
 import { useNotification } from '../../../../contexts/NotificationContext'
 import AuthGuard from '../../../../components/AuthGuard'
 import Footer from '../../../../components/Footer'
+import QRCode from 'qrcode'
 
 export default function ProfilePage() {
     const router = useRouter()
@@ -22,11 +24,17 @@ export default function ProfilePage() {
 
     // 2FA state
     const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
+    const [show2FAModal, setShow2FAModal] = useState(false)
+    const [qrCodeDataUrl, setQrCodeDataUrl] = useState('')
+    const [secret, setSecret] = useState('')
+    const [code, setCode] = useState('')
+    const [error2FA, setError2FA] = useState<string | null>(null)
 
     useEffect(() => {
         const userData = getUser()
         if (userData) {
             setUser(userData)
+            setTwoFactorEnabled(userData.two_fa_enabled || false)
         }
     }, [])
 
@@ -72,11 +80,55 @@ export default function ProfilePage() {
         }, 2000)
     }
 
-    const handleToggle2FA = () => {
-        // TODO: Backend integration - enable/disable 2FA
-        const newState = !twoFactorEnabled
-        setTwoFactorEnabled(newState)
-        notification.info('2FA Status', `Two-factor authentication ${newState ? 'enabled' : 'disabled'}`)
+    const handleToggle2FA = async () => {
+        if (twoFactorEnabled) {
+            // Disable flow
+            setShow2FAModal(true)
+            setError2FA(null)
+            setCode('')
+        } else {
+            // Enable flow
+            try {
+                const token = getAccessToken()
+                if (!token) return
+                const data = await generate2FA(token)
+                setSecret(data.secret)
+                
+                // Generate QR code data URL
+                try {
+                    const url = await QRCode.toDataURL(data.url)
+                    setQrCodeDataUrl(url)
+                } catch (e) {
+                    console.error(e)
+                }
+                
+                setShow2FAModal(true)
+                setError2FA(null)
+                setCode('')
+            } catch (err: any) {
+                notification.error('2FA Error', err.message)
+            }
+        }
+    }
+
+    const handleConfirm2FA = async () => {
+        try {
+            const token = getAccessToken()
+            if (!token) return
+
+            if (twoFactorEnabled) {
+                await disable2FA(token, code)
+                setTwoFactorEnabled(false)
+                notification.success('2FA Disabled', 'Two-factor authentication has been disabled')
+            } else {
+                await enable2FA(token, secret, code)
+                setTwoFactorEnabled(true)
+                notification.success('2FA Enabled', 'Two-factor authentication has been enabled')
+            }
+            setShow2FAModal(false)
+        } catch (err: any) {
+            setError2FA(err.message)
+        }
     }
 
     if (!user) {
@@ -89,13 +141,7 @@ export default function ProfilePage() {
 
     return (
         <AuthGuard>
-            <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                minHeight: '100vh',
-                fontFamily: 'system-ui, -apple-system, sans-serif',
-                backgroundColor: '#f8f9fa'
-            }}>
+            <div style={{ padding: 24, fontFamily: 'system-ui, -apple-system, sans-serif', maxWidth: 800, margin: '0 auto' }}>
                 {/* Header */}
                 <div style={{
                     padding: '16px 24px',

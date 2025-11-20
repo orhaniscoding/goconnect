@@ -21,6 +21,7 @@ export async function api(path: string, init?: RequestInit): Promise<any> {
 export interface LoginRequest {
   email: string
   password: string
+  code?: string
 }
 
 export interface RegisterRequest {
@@ -73,6 +74,36 @@ export async function logout(accessToken: string): Promise<void> {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
+  })
+}
+
+export async function generate2FA(accessToken: string): Promise<{ secret: string; url: string }> {
+  const res = await api('/v1/auth/2fa/generate', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+  return res.data
+}
+
+export async function enable2FA(accessToken: string, secret: string, code: string): Promise<void> {
+  await api('/v1/auth/2fa/enable', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ secret, code }),
+  })
+}
+
+export async function disable2FA(accessToken: string, code: string): Promise<void> {
+  await api('/v1/auth/2fa/disable', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ code }),
   })
 }
 
