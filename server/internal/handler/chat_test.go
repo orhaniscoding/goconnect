@@ -30,7 +30,7 @@ func setupChatTest() (*gin.Engine, *ChatHandler, *service.ChatService, repositor
 		ID:       "user-123",
 		TenantID: "tenant-1",
 		Email:    "test@example.com",
-		PassHash: "dummy",
+		PasswordHash: "dummy",
 	}
 	userRepo.Create(context.Background(), testUser)
 

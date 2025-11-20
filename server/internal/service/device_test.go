@@ -130,7 +130,7 @@ func TestDeviceService_GetDevice(t *testing.T) {
 		ID:       "user-123",
 		TenantID: "tenant-1",
 		Email:    "test@example.com",
-		PassHash: "dummy",
+		PasswordHash: "dummy",
 	}
 	require.NoError(t, userRepo.Create(ctx, user))
 
@@ -188,13 +188,13 @@ func TestDeviceService_ListDevices(t *testing.T) {
 		ID:       "user-1",
 		TenantID: "tenant-1",
 		Email:    "user1@example.com",
-		PassHash: "dummy",
+		PasswordHash: "dummy",
 	}
 	user2 := &domain.User{
 		ID:       "user-2",
 		TenantID: "tenant-1",
 		Email:    "user2@example.com",
-		PassHash: "dummy",
+		PasswordHash: "dummy",
 	}
 	require.NoError(t, userRepo.Create(ctx, user1))
 	require.NoError(t, userRepo.Create(ctx, user2))
@@ -250,7 +250,7 @@ func TestDeviceService_UpdateDevice(t *testing.T) {
 		ID:       "user-123",
 		TenantID: "tenant-1",
 		Email:    "test@example.com",
-		PassHash: "dummy",
+		PasswordHash: "dummy",
 	}
 	require.NoError(t, userRepo.Create(ctx, user))
 
@@ -326,7 +326,7 @@ func TestDeviceService_DeleteDevice(t *testing.T) {
 		ID:       "user-123",
 		TenantID: "tenant-1",
 		Email:    "test@example.com",
-		PassHash: "dummy",
+		PasswordHash: "dummy",
 	}
 	require.NoError(t, userRepo.Create(ctx, user))
 
@@ -379,7 +379,7 @@ func TestDeviceService_Heartbeat(t *testing.T) {
 		ID:       "user-123",
 		TenantID: "tenant-1",
 		Email:    "test@example.com",
-		PassHash: "dummy",
+		PasswordHash: "dummy",
 	}
 	require.NoError(t, userRepo.Create(ctx, user))
 
@@ -442,7 +442,7 @@ func TestDeviceService_DisableEnable(t *testing.T) {
 		ID:       "user-123",
 		TenantID: "tenant-1",
 		Email:    "test@example.com",
-		PassHash: "dummy",
+		PasswordHash: "dummy",
 	}
 	require.NoError(t, userRepo.Create(ctx, user))
 

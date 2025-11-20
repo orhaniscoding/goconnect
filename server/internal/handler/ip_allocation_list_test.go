@@ -34,7 +34,7 @@ func setupAllocList(t *testing.T) (*gin.Engine, string) {
 	}
 	// add membership & allocate
 	_, _ = mrepo.UpsertApproved(context.Background(), net.ID, "user_dev", domain.RoleMember, time.Now())
-	if _, err := ips.AllocateIP(context.Background(), net.ID, "user_dev"); err != nil {
+	if _, err := ips.AllocateIP(context.Background(), net.ID, "user_dev", "t1"); err != nil {
 		t.Fatalf("allocate: %v", err)
 	}
 	return r, net.ID

@@ -102,7 +102,7 @@ func TestAdminReleaseAudit(t *testing.T) {
 	_, _ = mrepo.UpsertApproved(context.Background(), netw.ID, "user_dev", domain.RoleAdmin, time.Now())
 	// target member
 	_, _ = mrepo.UpsertApproved(context.Background(), netw.ID, "memberB", domain.RoleMember, time.Now())
-	if _, err := ips.AllocateIP(context.Background(), netw.ID, "memberB"); err != nil {
+	if _, err := ips.AllocateIP(context.Background(), netw.ID, "memberB", "t1"); err != nil {
 		t.Fatalf("alloc target: %v", err)
 	}
 	// admin release target

@@ -17,7 +17,7 @@ import (
 
 type testAuditor struct{ events []string }
 
-func (t *testAuditor) Event(ctx context.Context, action, actor, object string, details map[string]any) {
+func (t *testAuditor) Event(ctx context.Context, tenantID, action, actor, object string, details map[string]any) {
 	t.events = append(t.events, action)
 }
 
@@ -168,7 +168,7 @@ func TestAdminReleaseIPEndpoint(t *testing.T) {
 	_, _ = mrepo.UpsertApproved(context.Background(), netID, "memberA", domain.RoleMember, time.Now())
 	// allocate for target (simulate by acting as memberA requires auth mapping; our AuthMiddleware maps token->user_dev only).
 	// Instead, bypass handler allocation by direct service call (allowed for test) then assert release via admin endpoint.
-	if _, err := ips.AllocateIP(context.Background(), netID, "memberA"); err != nil {
+	if _, err := ips.AllocateIP(context.Background(), netID, "memberA", "t1"); err != nil {
 		t.Fatalf("alloc memberA: %v", err)
 	}
 	// perform admin release via endpoint
@@ -183,7 +183,7 @@ func TestAdminReleaseIPEndpoint(t *testing.T) {
 	// member (non-admin) attempt: downgrade role and try again
 	_, _ = mrepo.UpsertApproved(context.Background(), netID, "user_dev", domain.RoleMember, time.Now())
 	// reallocate to target
-	if _, err := ips.AllocateIP(context.Background(), netID, "memberA"); err != nil {
+	if _, err := ips.AllocateIP(context.Background(), netID, "memberA", "t1"); err != nil {
 		t.Fatalf("realloc memberA: %v", err)
 	}
 	w2 := httptest.NewRecorder()
