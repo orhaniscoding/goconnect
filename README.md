@@ -42,7 +42,7 @@
 
 ### 🌐 Modern Tech Stack
 - **Backend**: Go 1.22+ with Gin web framework
-- **Frontend**: Next.js 15 with TypeScript and Tailwind CSS
+- **Frontend**: Next.js 15 with TypeScript and Tailwind CSS (placeholder)
 - **Database**: PostgreSQL 14+ (in-memory for development)
 - **Real-time**: WebSocket for live updates
 - **API**: RESTful JSON API with OpenAPI 3.0 specification
