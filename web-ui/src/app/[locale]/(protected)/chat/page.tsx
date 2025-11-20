@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { getAccessToken, getUser } from '../../../../lib/auth'
+import { listNetworks, Network } from '../../../../lib/api'
 import AuthGuard from '../../../../components/AuthGuard'
 import Footer from '../../../../components/Footer'
 
@@ -35,13 +36,16 @@ export default function ChatPage() {
   const [error, setError] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string>('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const [scope, setScope] = useState<string>('host') // 'host' for global chat
+  const [scope, setScope] = useState<string>('host') // 'host' or 'network:<id>'
+  const [networks, setNetworks] = useState<Network[]>([])
+  const [loadingNetworks, setLoadingNetworks] = useState(true)
 
   useEffect(() => {
     const user = getUser()
     if (user) {
       setCurrentUserId(user.id)
     }
+    loadNetworks()
     connectWebSocket()
 
     return () => {
@@ -51,10 +55,43 @@ export default function ChatPage() {
     }
   }, [])
 
+  const loadNetworks = async () => {
+    try {
+      const token = getAccessToken()
+      if (!token) return
+
+      const response = await listNetworks({ visibility: 'mine' }, token)
+      setNetworks(response.data)
+    } catch (err) {
+      console.error('Failed to load networks:', err)
+    } finally {
+      setLoadingNetworks(false)
+    }
+  }
+
   useEffect(() => {
     // Auto-scroll to bottom when new messages arrive
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  useEffect(() => {
+    // Handle room join/leave when scope changes
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      if (scope.startsWith('network:')) {
+        // Join network room
+        const roomName = scope
+        const joinMessage: WebSocketMessage = {
+          type: 'room.join',
+          op_id: `join-${Date.now()}`,
+          data: { room: roomName }
+        }
+        ws.send(JSON.stringify(joinMessage))
+        console.log(`Joining room: ${roomName}`)
+      }
+      // Clear messages when switching scope
+      setMessages([])
+    }
+  }, [scope, ws])
 
   const connectWebSocket = () => {
     const token = getAccessToken()
@@ -71,6 +108,16 @@ export default function ChatPage() {
         console.log('WebSocket connected')
         setConnected(true)
         setError(null)
+        
+        // Join initial room if network scope
+        if (scope.startsWith('network:')) {
+          const joinMessage: WebSocketMessage = {
+            type: 'room.join',
+            op_id: `join-${Date.now()}`,
+            data: { room: scope }
+          }
+          websocket.send(JSON.stringify(joinMessage))
+        }
       }
 
       websocket.onmessage = (event) => {
@@ -226,7 +273,7 @@ export default function ChatPage() {
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
-          <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <button
               onClick={() => router.push('/en/dashboard')}
               style={{
@@ -236,13 +283,36 @@ export default function ChatPage() {
                 border: 'none',
                 borderRadius: 4,
                 cursor: 'pointer',
-                fontSize: 14,
-                marginRight: 16
+                fontSize: 14
               }}
             >
               ← Back
             </button>
-            <span style={{ fontSize: 20, fontWeight: 600 }}>💬 Global Chat</span>
+            <span style={{ fontSize: 20, fontWeight: 600 }}>
+              💬 {scope === 'host' ? 'Global Chat' : 
+                   networks.find(n => `network:${n.id}` === scope)?.name || 'Network Chat'}
+            </span>
+            <select
+              value={scope}
+              onChange={(e) => setScope(e.target.value)}
+              disabled={!connected || loadingNetworks}
+              style={{
+                padding: '8px 12px',
+                borderRadius: 6,
+                border: '1px solid #dee2e6',
+                fontSize: 14,
+                cursor: connected ? 'pointer' : 'not-allowed',
+                backgroundColor: 'white',
+                minWidth: 200
+              }}
+            >
+              <option value="host">🌐 Global Chat</option>
+              {networks.map((network) => (
+                <option key={network.id} value={`network:${network.id}`}>
+                  🔒 {network.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{
