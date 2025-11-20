@@ -194,8 +194,12 @@ export default function NetworksPage() {
 
 // Network Card Component
 function NetworkCard({ network, onDelete, isAdmin }: { network: Network; onDelete: (id: string, name: string) => void; isAdmin: boolean }) {
+    const router = useRouter()
+    
     return (
-        <div style={{
+        <div 
+            onClick={() => router.push(`/en/networks/${network.id}`)}
+            style={{
             padding: 16,
             backgroundColor: '#fff',
             border: '1px solid #dee2e6',

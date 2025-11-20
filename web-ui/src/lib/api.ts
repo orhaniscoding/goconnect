@@ -192,3 +192,170 @@ export async function deleteNetwork(
   })
 }
 
+// Membership Management API
+export interface Membership {
+  id: string
+  network_id: string
+  user_id: string
+  role: 'owner' | 'admin' | 'moderator' | 'member'
+  status: 'approved' | 'banned'
+  joined_at: string
+  updated_at: string
+}
+
+export interface JoinRequest {
+  id: string
+  network_id: string
+  user_id: string
+  status: 'pending' | 'approved' | 'denied'
+  created_at: string
+  decided_at?: string
+}
+
+export interface ListMembersResponse {
+  data: Membership[]
+  pagination: {
+    limit: number
+    next_cursor?: string
+  }
+}
+
+/**
+ * Join a network
+ * @param networkId - Network ID to join
+ * @param accessToken - JWT access token
+ */
+export async function joinNetwork(
+  networkId: string,
+  accessToken: string
+): Promise<{ data?: Membership; join_request?: JoinRequest }> {
+  const idempotencyKey = `join-network-${networkId}-${Date.now()}`
+
+  return api(`/v1/networks/${networkId}/join`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Idempotency-Key': idempotencyKey,
+    },
+  })
+}
+
+/**
+ * List network members
+ * @param networkId - Network ID
+ * @param accessToken - JWT access token
+ * @param status - Filter by status (approved/banned)
+ * @param cursor - Pagination cursor
+ */
+export async function listMembers(
+  networkId: string,
+  accessToken: string,
+  status?: string,
+  cursor?: string
+): Promise<ListMembersResponse> {
+  const params = new URLSearchParams()
+  if (status) params.append('status', status)
+  if (cursor) params.append('cursor', cursor)
+
+  const queryString = params.toString()
+  const url = `/v1/networks/${networkId}/members${queryString ? '?' + queryString : ''}`
+
+  return api(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+}
+
+/**
+ * Approve a join request (admin/owner only)
+ * @param networkId - Network ID
+ * @param userId - User ID to approve
+ * @param accessToken - JWT access token
+ */
+export async function approveMember(
+  networkId: string,
+  userId: string,
+  accessToken: string
+): Promise<{ data: Membership }> {
+  const idempotencyKey = `approve-${networkId}-${userId}-${Date.now()}`
+
+  return api(`/v1/networks/${networkId}/approve`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Idempotency-Key': idempotencyKey,
+    },
+    body: JSON.stringify({ user_id: userId }),
+  })
+}
+
+/**
+ * Deny a join request (admin/owner only)
+ * @param networkId - Network ID
+ * @param userId - User ID to deny
+ * @param accessToken - JWT access token
+ */
+export async function denyMember(
+  networkId: string,
+  userId: string,
+  accessToken: string
+): Promise<void> {
+  const idempotencyKey = `deny-${networkId}-${userId}-${Date.now()}`
+
+  await api(`/v1/networks/${networkId}/deny`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Idempotency-Key': idempotencyKey,
+    },
+    body: JSON.stringify({ user_id: userId }),
+  })
+}
+
+/**
+ * Kick a member from network (admin/owner only)
+ * @param networkId - Network ID
+ * @param userId - User ID to kick
+ * @param accessToken - JWT access token
+ */
+export async function kickMember(
+  networkId: string,
+  userId: string,
+  accessToken: string
+): Promise<void> {
+  const idempotencyKey = `kick-${networkId}-${userId}-${Date.now()}`
+
+  await api(`/v1/networks/${networkId}/kick`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Idempotency-Key': idempotencyKey,
+    },
+    body: JSON.stringify({ user_id: userId }),
+  })
+}
+
+/**
+ * Ban a member from network (admin/owner only)
+ * @param networkId - Network ID
+ * @param userId - User ID to ban
+ * @param accessToken - JWT access token
+ */
+export async function banMember(
+  networkId: string,
+  userId: string,
+  accessToken: string
+): Promise<void> {
+  const idempotencyKey = `ban-${networkId}-${userId}-${Date.now()}`
+
+  await api(`/v1/networks/${networkId}/ban`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Idempotency-Key': idempotencyKey,
+    },
+    body: JSON.stringify({ user_id: userId }),
+  })
+}
+
