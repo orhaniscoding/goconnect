@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"log"
+	"os"
 	"runtime"
 	"time"
 
@@ -26,14 +27,19 @@ type Engine struct {
 func New(idMgr *identity.Manager, apiClient *api.Client, version string) *Engine {
 	sysConf := system.NewConfigurator()
 
+	// Get interface name from env or default to wg0
+	ifaceName := os.Getenv("GOCONNECT_INTERFACE")
+	if ifaceName == "" {
+		ifaceName = "wg0"
+	}
+
 	// Ensure interface exists (Linux only mostly)
-	if err := sysConf.EnsureInterface("wg0"); err != nil {
-		log.Printf("Warning: Failed to ensure interface wg0: %v", err)
+	if err := sysConf.EnsureInterface(ifaceName); err != nil {
+		log.Printf("Warning: Failed to ensure interface %s: %v", ifaceName, err)
 	}
 
 	// Initialize WireGuard manager
-	// TODO: Make interface name configurable
-	wgMgr, err := wireguard.NewManager("wg0")
+	wgMgr, err := wireguard.NewManager(ifaceName)
 	if err != nil {
 		log.Printf("Warning: Failed to initialize WireGuard manager: %v", err)
 	}
@@ -92,7 +98,6 @@ func (e *Engine) syncConfig() {
 		return
 	}
 
-	// TODO: Apply config to WireGuard interface
 	log.Printf("Received config: %d peers, %v addresses", len(config.Peers), config.Interface.Addresses)
 
 	if e.wgMgr != nil {

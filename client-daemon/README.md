@@ -64,6 +64,7 @@ The daemon uses a configuration file located at:
 ### Environment Variables
 
 - `GOCONNECT_SERVER_URL`: URL of the GoConnect Server (default: `http://localhost:8080`)
+- `GOCONNECT_INTERFACE`: Name of the WireGuard interface (default: `wg0`)
 - `GOCONNECT_LOG_LEVEL`: Logging level (`debug`, `info`, `warn`, `error`)
 
 ## 🛠️ Development
