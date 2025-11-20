@@ -17,8 +17,6 @@
 - **WireGuard Integration**: Automated peer provisioning and configuration generation
 - **Multi-Network Support**: Create and manage multiple isolated VPN networks
 - **IPAM (IP Address Management)**: Automatic IP allocation from CIDR ranges with conflict detection
-- **IP Allocation Display**: Real-time visualization of IP usage with admin release capability
-- **Network Settings Editor**: Update network configuration (name, visibility, join policy) at runtime
 - **Device Management**: Register and track devices across platforms (Linux, Windows, macOS, iOS, Android)
 - **Peer-to-Peer Mesh**: Full mesh networking with automatic peer discovery
 
@@ -29,12 +27,9 @@
 - **Join Request Workflow**: Approve/deny membership requests with audit trail
 
 ### 💬 Real-Time Communication
-- **Real-time Chat UI**: Modern chat interface with WebSocket integration
 - **Built-in Chat**: Network-scoped and global chat with WebSocket support
-- **Live Message Updates**: Real-time message delivery, editing, and deletion
 - **Message Moderation**: Redact, edit, and delete messages with full audit trail
 - **Edit History Tracking**: Complete message history with timestamps
-- **Auto-reconnection**: Automatic WebSocket reconnection with 3s retry
 - **File Attachments**: Share files within chat (planned)
 
 ### 🔍 Observability & Security
