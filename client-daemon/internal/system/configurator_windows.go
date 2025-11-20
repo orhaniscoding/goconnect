@@ -12,6 +12,13 @@ func newConfigurator() Configurator {
 	return &windowsConfigurator{}
 }
 
+func (c *windowsConfigurator) EnsureInterface(name string) error {
+	// On Windows, creating the interface usually requires the WireGuard driver/service.
+	// For now, we assume it exists or is managed by the user/installer.
+	// We could check existence via Get-NetAdapter.
+	return nil
+}
+
 func (c *windowsConfigurator) ConfigureInterface(name string, addresses []string, dns []string, mtu int) error {
 	// Windows requires the interface to exist.
 	// Using netsh for compatibility.
@@ -21,9 +28,9 @@ func (c *windowsConfigurator) ConfigureInterface(name string, addresses []string
 	// PowerShell New-NetIPAddress is better but slower.
 	// Let's try netsh.
 	// netsh interface ip set address "name" static <ip> <mask>
-	
+
 	// For simplicity in this prototype, we'll assume PowerShell is available (since we are on Windows 10+ usually)
-	
+
 	for _, addr := range addresses {
 		// Parse CIDR
 		parts := strings.Split(addr, "/")
@@ -35,10 +42,10 @@ func (c *windowsConfigurator) ConfigureInterface(name string, addresses []string
 
 		// Remove existing (ignore error)
 		// Remove-NetIPAddress -InterfaceAlias "name" -Confirm:$false
-		
+
 		// Add new
 		// New-NetIPAddress -InterfaceAlias "name" -IPAddress <ip> -PrefixLength <prefix>
-		
+
 		cmd := fmt.Sprintf("New-NetIPAddress -InterfaceAlias \"%s\" -IPAddress %s -PrefixLength %s -PolicyStore ActiveStore -Confirm:$false", name, ip, prefix)
 		// Ignore errors for now (e.g. if already exists)
 		_ = runPowerShell(cmd)
@@ -54,6 +61,16 @@ func (c *windowsConfigurator) ConfigureInterface(name string, addresses []string
 		}
 	}
 
+	return nil
+}
+
+func (c *windowsConfigurator) AddRoutes(name string, routes []string) error {
+	for _, route := range routes {
+		// New-NetRoute -DestinationPrefix <cidr> -InterfaceAlias <name> -PolicyStore ActiveStore
+		// Ignore errors if exists
+		cmd := fmt.Sprintf("New-NetRoute -DestinationPrefix %s -InterfaceAlias \"%s\" -PolicyStore ActiveStore -Confirm:$false -ErrorAction SilentlyContinue", route, name)
+		_ = runPowerShell(cmd)
+	}
 	return nil
 }
 

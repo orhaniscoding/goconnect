@@ -24,6 +24,13 @@ type Engine struct {
 
 // New creates a new engine
 func New(idMgr *identity.Manager, apiClient *api.Client, version string) *Engine {
+	sysConf := system.NewConfigurator()
+
+	// Ensure interface exists (Linux only mostly)
+	if err := sysConf.EnsureInterface("wg0"); err != nil {
+		log.Printf("Warning: Failed to ensure interface wg0: %v", err)
+	}
+
 	// Initialize WireGuard manager
 	// TODO: Make interface name configurable
 	wgMgr, err := wireguard.NewManager("wg0")
@@ -35,7 +42,7 @@ func New(idMgr *identity.Manager, apiClient *api.Client, version string) *Engine
 		idMgr:     idMgr,
 		apiClient: apiClient,
 		wgMgr:     wgMgr,
-		sysConf:   system.NewConfigurator(),
+		sysConf:   sysConf,
 		stopChan:  make(chan struct{}),
 		version:   version,
 	}
@@ -93,12 +100,25 @@ func (e *Engine) syncConfig() {
 			log.Printf("Failed to apply WireGuard config: %v", err)
 		} else {
 			log.Println("WireGuard configuration applied successfully")
-			
+
 			// Apply system network configuration (IPs, MTU)
 			if err := e.sysConf.ConfigureInterface("wg0", config.Interface.Addresses, config.Interface.DNS, config.Interface.MTU); err != nil {
 				log.Printf("Failed to configure network interface: %v", err)
 			} else {
 				log.Println("Network interface configured successfully")
+			}
+
+			// Apply routes
+			routes := make([]string, 0)
+			for _, peer := range config.Peers {
+				routes = append(routes, peer.AllowedIPs...)
+			}
+			if len(routes) > 0 {
+				if err := e.sysConf.AddRoutes("wg0", routes); err != nil {
+					log.Printf("Failed to add routes: %v", err)
+				} else {
+					log.Printf("Added %d routes successfully", len(routes))
+				}
 			}
 		}
 	}
