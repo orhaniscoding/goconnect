@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/api"
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/engine"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/identity"
 )
 
@@ -48,6 +49,11 @@ func main() {
 	// Initialize API Client
 	apiClient := api.NewClient(*serverURL)
 
+	// Initialize and Start Engine
+	eng := engine.New(idMgr, apiClient, version)
+	eng.Start()
+	defer eng.Stop()
+
 	// Choose a pseudo-random port in a small range using crypto/rand
 	var b [2]byte
 	if _, err := rand.Read(b[:]); err != nil {
@@ -57,7 +63,7 @@ func main() {
 	port := int(12000 + n)
 
 	// Setup Handlers
-	setupHandlers(idMgr, apiClient)
+	setupHandlers(idMgr, apiClient, eng)
 
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 	log.Printf("daemon bridge at http://%s", addr)
@@ -72,7 +78,7 @@ func main() {
 	log.Fatal(srv.ListenAndServe())
 }
 
-func setupHandlers(idMgr *identity.Manager, apiClient *api.Client) {
+func setupHandlers(idMgr *identity.Manager, apiClient *api.Client, eng *engine.Engine) {
 	// CORS middleware
 	cors := func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
