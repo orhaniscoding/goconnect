@@ -19,7 +19,6 @@
 - **IPAM (IP Address Management)**: Automatic IP allocation from CIDR ranges with conflict detection
 - **Device Management**: Register and track devices across platforms (Linux, Windows, macOS, iOS, Android)
 - **Peer-to-Peer Mesh**: Full mesh networking with automatic peer discovery
-- **Cross-Platform Client**: Native daemon for Windows, Linux, and macOS with auto-configuration
 
 ### 🏢 Multi-Tenancy & Access Control
 - **Complete Tenant Isolation**: Security-first architecture with enforced boundaries
@@ -84,7 +83,6 @@ make dev-web
 #### Manual Setup
 
 **Server:**
-See [server/README.md](server/README.md) for detailed instructions.
 ```bash
 cd server
 go mod download
@@ -92,11 +90,9 @@ go run -ldflags "-X main.version=dev" ./cmd/server
 ```
 
 **Client Daemon:**
-See [client-daemon/README.md](client-daemon/README.md) for installation and service setup.
 ```bash
 cd client-daemon
 go mod download
-# Requires Admin/Root privileges
 go run -ldflags "-X main.version=dev" ./cmd/daemon
 ```
 
