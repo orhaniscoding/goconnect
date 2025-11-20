@@ -671,3 +671,42 @@ export async function downloadWireGuardConfig(
 
   return res.text()
 }
+
+// Chat API
+
+export interface ChatMessage {
+  id: string
+  scope: string
+  user_id: string
+  body: string
+  redacted: boolean
+  deleted_at?: string
+  created_at: string
+  updated_at?: string
+  attachments?: string[]
+}
+
+export interface ListChatMessagesResponse {
+  messages: ChatMessage[]
+  next_cursor: string
+  has_more: boolean
+}
+
+export async function listChatMessages(
+  scope: string,
+  accessToken: string,
+  limit: number = 50,
+  cursor?: string
+): Promise<ListChatMessagesResponse> {
+  const params = new URLSearchParams({
+    scope,
+    limit: limit.toString(),
+  })
+  if (cursor) params.append('cursor', cursor)
+
+  return api(`/v1/chat?${params}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+}

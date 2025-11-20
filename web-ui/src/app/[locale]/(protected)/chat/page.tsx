@@ -2,20 +2,9 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { getAccessToken, getUser } from '../../../../lib/auth'
-import { listNetworks, Network } from '../../../../lib/api'
+import { listNetworks, Network, listChatMessages, ChatMessage } from '../../../../lib/api'
 import AuthGuard from '../../../../components/AuthGuard'
 import Footer from '../../../../components/Footer'
-
-interface ChatMessage {
-    id: string
-    scope: string
-    user_id: string
-    body: string
-    redacted: boolean
-    deleted_at?: string
-    created_at: string
-    updated_at?: string
-}
 
 interface WebSocketMessage {
     type: string
@@ -101,8 +90,22 @@ export default function ChatPage() {
             }
             // Clear messages when switching scope
             setMessages([])
+            loadMessages()
         }
     }, [scope, ws])
+
+    const loadMessages = async () => {
+        try {
+            const token = getAccessToken()
+            if (!token) return
+
+            const response = await listChatMessages(scope, token, 50)
+            // Reverse to show oldest first (chat style)
+            setMessages(response.messages.reverse())
+        } catch (err) {
+            console.error('Failed to load messages:', err)
+        }
+    }
 
     const connectWebSocket = () => {
         const token = getAccessToken()
