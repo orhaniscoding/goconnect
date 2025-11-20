@@ -151,17 +151,27 @@ export default function Dashboard() {
                     </div>
 
                     <div
+                        onClick={() => router.push('/en/profile')}
                         style={{
                             padding: 20,
                             backgroundColor: '#fff',
                             border: '2px solid #dee2e6',
                             borderRadius: 8,
-                            opacity: 0.6
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = '#ffc107'
+                            e.currentTarget.style.transform = 'translateY(-2px)'
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = '#dee2e6'
+                            e.currentTarget.style.transform = 'translateY(0)'
                         }}
                     >
-                        <h3 style={{ margin: '0 0 8px 0', color: '#666' }}>⚙️ Settings</h3>
-                        <p style={{ margin: 0, color: '#999', fontSize: 14 }}>
-                            Coming soon
+                        <h3 style={{ margin: '0 0 8px 0', color: '#ffc107' }}>👤 Profile</h3>
+                        <p style={{ margin: 0, color: '#666', fontSize: 14 }}>
+                            Account settings
                         </p>
                     </div>
                 </div>
