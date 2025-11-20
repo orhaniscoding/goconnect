@@ -175,13 +175,19 @@ func (r *InMemoryNetworkRepository) CheckCIDROverlap(ctx context.Context, cidr s
 
 // matchesVisibilityFilter checks if network matches visibility filter
 func (r *InMemoryNetworkRepository) matchesVisibilityFilter(network *domain.Network, filter NetworkFilter) bool {
+	// CRITICAL: Always enforce tenant isolation first
+	// Networks must belong to the same tenant, regardless of visibility
+	if network.TenantID != filter.TenantID {
+		return false
+	}
+
 	switch filter.Visibility {
 	case "public":
 		return network.Visibility == domain.NetworkVisibilityPublic
 	case "mine":
 		return network.CreatedBy == filter.UserID
 	case "all":
-		return filter.IsAdmin // Only admins can see all networks
+		return filter.IsAdmin // Only admins can see all networks within their tenant
 	default:
 		return network.Visibility == domain.NetworkVisibilityPublic
 	}

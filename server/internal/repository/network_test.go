@@ -35,7 +35,7 @@ func TestInMemoryNetworkRepository_CreateListAndCursor(t *testing.T) {
 	}
 
 	// List public (should include only n1)
-	got, next, err := r.List(ctx, NetworkFilter{Visibility: "public", Limit: 10})
+	got, next, err := r.List(ctx, NetworkFilter{Visibility: "public", TenantID: "default", Limit: 10})
 	if err != nil {
 		t.Fatalf("list public: %v", err)
 	}
@@ -47,7 +47,7 @@ func TestInMemoryNetworkRepository_CreateListAndCursor(t *testing.T) {
 	}
 
 	// Cursor: start after n1, limit 1 over all visible to admin
-	got, next, err = r.List(ctx, NetworkFilter{Visibility: "all", IsAdmin: true, Limit: 1, Cursor: "n1"})
+	got, next, err = r.List(ctx, NetworkFilter{Visibility: "all", TenantID: "default", IsAdmin: true, Limit: 1, Cursor: "n1"})
 	if err != nil {
 		t.Fatalf("list all cursor: %v", err)
 	}
@@ -220,7 +220,7 @@ func TestInMemoryNetworkRepository_List_AdvancedFilters(t *testing.T) {
 	r.Create(ctx, mkNet("n3", "Gamma", "10.0.2.0/24", "u2", domain.NetworkVisibilityPublic))
 
 	// Filter: Mine (User1) -> Should get n1, n2
-	got, _, err := r.List(ctx, NetworkFilter{Visibility: "mine", UserID: "u1", Limit: 10})
+	got, _, err := r.List(ctx, NetworkFilter{Visibility: "mine", TenantID: "default", UserID: "u1", Limit: 10})
 	if err != nil {
 		t.Fatalf("list mine: %v", err)
 	}
@@ -229,7 +229,7 @@ func TestInMemoryNetworkRepository_List_AdvancedFilters(t *testing.T) {
 	}
 
 	// Filter: Search "alp" -> Should get n1
-	got, _, err = r.List(ctx, NetworkFilter{Visibility: "public", Search: "alp", Limit: 10})
+	got, _, err = r.List(ctx, NetworkFilter{Visibility: "public", TenantID: "default", Search: "alp", Limit: 10})
 	if err != nil {
 		t.Fatalf("list search: %v", err)
 	}
@@ -238,7 +238,7 @@ func TestInMemoryNetworkRepository_List_AdvancedFilters(t *testing.T) {
 	}
 
 	// Filter: Search "ta" -> Should get n2 (if searching in mine)
-	got, _, err = r.List(ctx, NetworkFilter{Visibility: "mine", UserID: "u1", Search: "ta", Limit: 10})
+	got, _, err = r.List(ctx, NetworkFilter{Visibility: "mine", TenantID: "default", UserID: "u1", Search: "ta", Limit: 10})
 	if err != nil {
 		t.Fatalf("list search mine: %v", err)
 	}
