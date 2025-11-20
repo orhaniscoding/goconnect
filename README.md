@@ -221,13 +221,12 @@ DELETE /v1/networks/:id            Delete network (soft)
 
 **Memberships:**
 ```
-POST   /v1/networks/:id/join            Join network
-POST   /v1/networks/:id/approve         Approve join request (admin)
-POST   /v1/networks/:id/deny            Deny join request (admin)
-POST   /v1/networks/:id/kick            Kick member (admin)
-POST   /v1/networks/:id/ban             Ban member (admin)
-GET    /v1/networks/:id/members         List members
-GET    /v1/networks/:id/join-requests   List pending join requests (admin)
+POST   /v1/networks/:id/join       Join network
+POST   /v1/networks/:id/approve    Approve join request (admin)
+POST   /v1/networks/:id/deny       Deny join request (admin)
+POST   /v1/networks/:id/kick       Kick member (admin)
+POST   /v1/networks/:id/ban        Ban member (admin)
+GET    /v1/networks/:id/members    List members
 ```
 
 **IP Allocation:**
