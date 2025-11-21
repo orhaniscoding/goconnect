@@ -2,7 +2,9 @@ package wireguard
 
 import (
 	"fmt"
+	"time"
 
+	"github.com/orhaniscoding/goconnect/server/internal/metrics"
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
@@ -52,6 +54,32 @@ func (m *Manager) SyncPeers(peers []wgtypes.PeerConfig) error {
 
 	if err := m.client.ConfigureDevice(m.interfaceName, cfg); err != nil {
 		return fmt.Errorf("failed to configure device %s: %w", m.interfaceName, err)
+	}
+
+	return nil
+}
+
+// UpdateMetrics fetches device stats and updates Prometheus metrics
+func (m *Manager) UpdateMetrics() error {
+	dev, err := m.client.Device(m.interfaceName)
+	if err != nil {
+		return fmt.Errorf("failed to get device %s: %w", m.interfaceName, err)
+	}
+
+	metrics.SetWGPeersTotal(len(dev.Peers))
+
+	for _, peer := range dev.Peers {
+		lastHandshake := time.Since(peer.LastHandshakeTime).Seconds()
+		if peer.LastHandshakeTime.IsZero() {
+			lastHandshake = -1
+		}
+
+		metrics.SetWGPeerStats(
+			peer.PublicKey.String(),
+			peer.ReceiveBytes,
+			peer.TransmitBytes,
+			lastHandshake,
+		)
 	}
 
 	return nil

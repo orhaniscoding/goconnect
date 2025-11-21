@@ -112,12 +112,35 @@ var (
 		Name:      "audit_integrity_signed_total",
 		Help:      "Total integrity export snapshots successfully signed",
 	})
+
+	// WireGuard Metrics
+	wgPeersTotal = prom.NewGauge(prom.GaugeOpts{
+		Namespace: "goconnect",
+		Name:      "wg_peers_total",
+		Help:      "Total number of peers configured on the WireGuard interface",
+	})
+	wgPeerRxBytes = prom.NewGaugeVec(prom.GaugeOpts{
+		Namespace: "goconnect",
+		Name:      "wg_peer_rx_bytes_total",
+		Help:      "Total bytes received from peer",
+	}, []string{"public_key"})
+	wgPeerTxBytes = prom.NewGaugeVec(prom.GaugeOpts{
+		Namespace: "goconnect",
+		Name:      "wg_peer_tx_bytes_total",
+		Help:      "Total bytes transmitted to peer",
+	}, []string{"public_key"})
+	wgPeerLastHandshake = prom.NewGaugeVec(prom.GaugeOpts{
+		Namespace: "goconnect",
+		Name:      "wg_peer_last_handshake_seconds",
+		Help:      "Seconds since last handshake with peer",
+	}, []string{"public_key"})
 )
 
 // Register all metrics (idempotent safe to call once at startup).
 func Register() {
 	registerOnce.Do(func() {
 		prom.MustRegister(reqCounter, reqLatency, auditEvents, auditEvictions, auditFailures, auditInsertLatency, auditQueueDepth, auditDropped, auditDispatchLatency, auditQueueHighWatermark, auditDroppedByReason, auditWorkerRestarts, chainHeadAdvance, chainVerifyDuration, chainVerifyFailures, chainAnchorCreated, integrityExportCounter, integrityExportDuration, integritySignedCounter)
+		prom.MustRegister(wgPeersTotal, wgPeerRxBytes, wgPeerTxBytes, wgPeerLastHandshake)
 	})
 }
 
@@ -209,3 +232,13 @@ func ObserveIntegrityExport(seconds float64) {
 
 // IncIntegritySigned increments the signed export counter.
 func IncIntegritySigned() { integritySignedCounter.Inc() }
+
+// SetWGPeersTotal sets the total number of peers.
+func SetWGPeersTotal(n int) { wgPeersTotal.Set(float64(n)) }
+
+// SetWGPeerStats sets the stats for a specific peer.
+func SetWGPeerStats(pubKey string, rx, tx int64, lastHandshakeSeconds float64) {
+	wgPeerRxBytes.WithLabelValues(pubKey).Set(float64(rx))
+	wgPeerTxBytes.WithLabelValues(pubKey).Set(float64(tx))
+	wgPeerLastHandshake.WithLabelValues(pubKey).Set(lastHandshakeSeconds)
+}

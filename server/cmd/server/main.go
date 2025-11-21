@@ -41,6 +41,9 @@ func main() {
 	auditWorkers := flag.Int("audit-workers", 1, "audit async worker count")
 	flag.Parse()
 
+	// Register metrics early
+	metrics.Register()
+
 	if *showVersion {
 		fmt.Printf("goconnect-server %s (commit %s, build %s) built by %s\n", version, commit, date, builtBy)
 		return
@@ -146,12 +149,22 @@ func main() {
 			wgSyncService := service.NewWireGuardSyncService(peerRepo, wgManager)
 			// Start sync loop in background
 			go wgSyncService.StartSyncLoop(context.Background(), 10*time.Second)
+
+			// Start metrics collection loop
+			go func() {
+				ticker := time.NewTicker(15 * time.Second)
+				defer ticker.Stop()
+				for range ticker.C {
+					if err := wgManager.UpdateMetrics(); err != nil {
+						log.Printf("Error updating WireGuard metrics: %v", err)
+					}
+				}
+			}()
 		}
 	} else {
 		log.Println("Warning: WG_PRIVATE_KEY not set. WireGuard manager disabled.")
 	}
 
-	metrics.Register()
 	// Auditor selection: default stdout, optionally SQLite-backed if configured via env.
 	baseAud := audit.NewStdoutAuditor()
 	var aud audit.Auditor = audit.WrapWithMetrics(baseAud, metrics.IncAudit)

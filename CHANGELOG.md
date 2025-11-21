@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Features
+
+* **metrics:** add WireGuard interface metrics (peers, bytes, handshake) to Prometheus endpoint
+
 ## [2.4.0] (2025-11-22)
 
 
