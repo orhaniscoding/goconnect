@@ -467,3 +467,25 @@ GET http://localhost:8080/v1/audit-logs?action=NETWORK_CREATED&actor_id={user_id
 Authorization: Bearer {access_token}
 
 ###
+
+# ========================================
+# Admin API Examples
+# ========================================
+
+### Get System Stats (Admin Only)
+GET http://localhost:8080/v1/admin/stats
+Authorization: Bearer {access_token}
+
+###
+
+### List All Users (Admin Only)
+GET http://localhost:8080/v1/admin/users?limit=10&offset=0
+Authorization: Bearer {access_token}
+
+###
+
+### List All Tenants (Admin Only)
+GET http://localhost:8080/v1/admin/tenants?limit=10&offset=0
+Authorization: Bearer {access_token}
+
+###

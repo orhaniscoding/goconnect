@@ -6,9 +6,11 @@ import {
     getSystemStats,
     listUsers,
     listTenants,
+    listAuditLogs,
     SystemStats,
     AdminUser,
-    Tenant
+    Tenant,
+    AuditLog
 } from '../../../../lib/api'
 import AuthGuard from '../../../../components/AuthGuard'
 import Footer from '../../../../components/Footer'
@@ -16,11 +18,12 @@ import Footer from '../../../../components/Footer'
 export default function AdminPage() {
     const router = useRouter()
     const [currentUser, setCurrentUser] = useState<any>(null)
-    const [activeTab, setActiveTab] = useState<'stats' | 'users' | 'tenants'>('stats')
+    const [activeTab, setActiveTab] = useState<'stats' | 'users' | 'tenants' | 'audit'>('stats')
 
     const [stats, setStats] = useState<SystemStats | null>(null)
     const [users, setUsers] = useState<AdminUser[]>([])
     const [tenants, setTenants] = useState<Tenant[]>([])
+    const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
@@ -42,15 +45,17 @@ export default function AdminPage() {
             const token = getAccessToken()
             if (!token) return
 
-            const [statsRes, usersRes, tenantsRes] = await Promise.all([
+            const [statsRes, usersRes, tenantsRes, auditRes] = await Promise.all([
                 getSystemStats(token),
                 listUsers(50, 0, token),
-                listTenants(50, 0, token)
+                listTenants(50, 0, token),
+                listAuditLogs(1, 50, token)
             ])
 
             setStats(statsRes.data)
             setUsers(usersRes.data)
             setTenants(tenantsRes.data)
+            setAuditLogs(auditRes.data)
         } catch (err: any) {
             console.error('Failed to load admin data:', err)
             setError(err.message || 'Failed to load data')
@@ -184,6 +189,21 @@ export default function AdminPage() {
                             }}
                         >
                             🏢 Tenants
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('audit')}
+                            style={{
+                                padding: '8px 16px',
+                                backgroundColor: activeTab === 'audit' ? '#007bff' : 'transparent',
+                                color: activeTab === 'audit' ? 'white' : '#6c757d',
+                                border: 'none',
+                                borderRadius: 6,
+                                cursor: 'pointer',
+                                fontSize: 14,
+                                fontWeight: 500
+                            }}
+                        >
+                            📜 Audit Logs
                         </button>
                     </div>
                 </div>
@@ -462,6 +482,82 @@ export default function AdminPage() {
                                             </div>
                                         </div>
                                     ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Audit Logs Tab */}
+                    {activeTab === 'audit' && (
+                        <div>
+                            <div style={{
+                                backgroundColor: 'white',
+                                borderRadius: 12,
+                                padding: 24,
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                            }}>
+                                <h2 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 600 }}>
+                                    System Audit Logs
+                                </h2>
+
+                                <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
+                                        <thead>
+                                            <tr style={{ borderBottom: '2px solid #dee2e6', textAlign: 'left' }}>
+                                                <th style={{ padding: '12px', color: '#495057' }}>Time</th>
+                                                <th style={{ padding: '12px', color: '#495057' }}>Action</th>
+                                                <th style={{ padding: '12px', color: '#495057' }}>Actor</th>
+                                                <th style={{ padding: '12px', color: '#495057' }}>Object</th>
+                                                <th style={{ padding: '12px', color: '#495057' }}>Details</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {auditLogs.map((log) => (
+                                                <tr key={log.seq} style={{ borderBottom: '1px solid #dee2e6' }}>
+                                                    <td style={{ padding: '12px' }}>
+                                                        {new Date(log.timestamp).toLocaleString()}
+                                                    </td>
+                                                    <td style={{ padding: '12px' }}>
+                                                        <span style={{
+                                                            padding: '4px 8px',
+                                                            backgroundColor: '#e9ecef',
+                                                            borderRadius: 4,
+                                                            fontSize: 12,
+                                                            fontWeight: 600,
+                                                            color: '#495057'
+                                                        }}>
+                                                            {log.action}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ padding: '12px', fontFamily: 'monospace' }}>
+                                                        {log.actor}
+                                                    </td>
+                                                    <td style={{ padding: '12px', fontFamily: 'monospace' }}>
+                                                        {log.object}
+                                                    </td>
+                                                    <td style={{ padding: '12px' }}>
+                                                        <pre style={{
+                                                            margin: 0,
+                                                            fontSize: 11,
+                                                            maxWidth: '300px',
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis',
+                                                            whiteSpace: 'nowrap'
+                                                        }} title={JSON.stringify(log.details, null, 2)}>
+                                                            {JSON.stringify(log.details)}
+                                                        </pre>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {auditLogs.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#6c757d' }}>
+                                                        No audit logs found.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
