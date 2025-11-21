@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/orhaniscoding/goconnect/server/internal/config"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
 )
@@ -14,17 +15,27 @@ type DeviceService struct {
 	deviceRepo       repository.DeviceRepository
 	userRepo         repository.UserRepository
 	peerRepo         repository.PeerRepository
+	networkRepo      repository.NetworkRepository
 	peerProvisioning *PeerProvisioningService
 	auditor          Auditor
+	wgConfig         config.WireGuardConfig
 }
 
 // NewDeviceService creates a new device service
-func NewDeviceService(deviceRepo repository.DeviceRepository, userRepo repository.UserRepository, peerRepo repository.PeerRepository) *DeviceService {
+func NewDeviceService(
+	deviceRepo repository.DeviceRepository,
+	userRepo repository.UserRepository,
+	peerRepo repository.PeerRepository,
+	networkRepo repository.NetworkRepository,
+	wgConfig config.WireGuardConfig,
+) *DeviceService {
 	return &DeviceService{
-		deviceRepo: deviceRepo,
-		userRepo:   userRepo,
-		peerRepo:   peerRepo,
-		auditor:    noopAuditor,
+		deviceRepo:  deviceRepo,
+		userRepo:    userRepo,
+		peerRepo:    peerRepo,
+		networkRepo: networkRepo,
+		auditor:     noopAuditor,
+		wgConfig:    wgConfig,
 	}
 }
 
@@ -337,62 +348,90 @@ func (s *DeviceService) EnableDevice(ctx context.Context, deviceID, userID, tena
 }
 
 // GetDeviceConfig retrieves the WireGuard configuration for a device
-func (s *DeviceService) GetDeviceConfig(ctx context.Context, deviceID, userID, tenantID string) (*domain.DeviceConfig, error) {
-	// Get device
+func (s *DeviceService) GetDeviceConfig(ctx context.Context, deviceID, userID string) (*domain.DeviceConfig, error) {
+	// Verify device ownership
 	device, err := s.deviceRepo.GetByID(ctx, deviceID)
 	if err != nil {
 		return nil, err
 	}
-
-	// Authorization
 	if device.UserID != userID {
-		return nil, domain.NewError(domain.ErrForbidden, "You can only get config for your own devices", nil)
+		return nil, domain.NewError(domain.ErrForbidden, "Device does not belong to user", nil)
 	}
 
-	// Get all peer records for this device (to find assigned IPs)
-	devicePeers, err := s.peerRepo.GetByDeviceID(ctx, deviceID)
+	// Get all peers for this device (across all networks)
+	peers, err := s.peerRepo.GetByDeviceID(ctx, deviceID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get device peers: %w", err)
+		return nil, err
 	}
 
-	config := &domain.DeviceConfig{
-		Interface: domain.InterfaceConfig{
-			ListenPort: 51820,
-			Addresses:  []string{},
-			DNS:        []string{"1.1.1.1"}, // TODO: Make configurable
-			MTU:        1420,
-		},
-		Peers: []domain.PeerConfig{},
+	if len(peers) == 0 {
+		return nil, domain.NewError(domain.ErrNotFound, "No network configuration found for this device", nil)
 	}
 
-	// Collect assigned IPs and find networks
-	networkIDs := make([]string, 0)
-	for _, p := range devicePeers {
-		config.Interface.Addresses = append(config.Interface.Addresses, p.AllowedIPs...)
-		networkIDs = append(networkIDs, p.NetworkID)
-	}
+	// For now, we assume the device is connected to one primary network or we aggregate.
+	// The client daemon expects a single interface config.
+	// If a device is in multiple networks, WireGuard usually handles this by having multiple AllowedIPs on the interface
+	// and multiple peers (one per network gateway, or just one gateway if they share the same server).
+	// Since we have a single server endpoint, we can aggregate all networks into one config.
 
-	// For each network, get other peers
-	for _, netID := range networkIDs {
-		peers, err := s.peerRepo.GetActivePeers(ctx, netID)
+	// Collect all assigned IPs
+	var addresses []string
+	var dnsServers []string
+	var mtu int = 1420 // Default
+
+	// We need to fetch networks to get DNS and MTU settings
+	// We'll use the settings from the first network found, or merge them.
+	// Merging DNS is tricky, usually we just take the first one or append.
+
+	// The server is the only peer for now (Hub-and-Spoke)
+	// But we need to calculate the AllowedIPs for the server peer.
+	// The server should route traffic for all networks the device is in.
+	var serverAllowedIPs []string
+
+	for _, peer := range peers {
+		if len(peer.AllowedIPs) > 0 {
+			addresses = append(addresses, peer.AllowedIPs...)
+		}
+
+		network, err := s.networkRepo.GetByID(ctx, peer.NetworkID)
 		if err != nil {
 			continue
 		}
 
-		for _, p := range peers {
-			// Skip self
-			if p.DeviceID == deviceID {
-				continue
-			}
-
-			config.Peers = append(config.Peers, domain.PeerConfig{
-				PublicKey:           p.PublicKey,
-				Endpoint:            p.Endpoint,
-				AllowedIPs:          p.AllowedIPs,
-				PresharedKey:        p.PresharedKey,
-				PersistentKeepalive: p.PersistentKeepalive,
-			})
+		if network.DNS != nil && *network.DNS != "" {
+			dnsServers = append(dnsServers, *network.DNS)
 		}
+		if network.MTU != nil && *network.MTU > 0 {
+			mtu = *network.MTU
+		}
+
+		// Add network CIDR to server's AllowedIPs so client routes traffic for this network to server
+		serverAllowedIPs = append(serverAllowedIPs, network.CIDR)
+	}
+
+	// Default DNS if none provided
+	if len(dnsServers) == 0 {
+		dnsServers = []string{s.wgConfig.DNS}
+	}
+
+	// Construct the config
+	config := &domain.DeviceConfig{
+		Interface: domain.InterfaceConfig{
+			ListenPort: 51820, // Client listen port (can be random, but let's set default)
+			Addresses:  addresses,
+			DNS:        dnsServers,
+			MTU:        mtu,
+		},
+		Peers: []domain.PeerConfig{
+			{
+				PublicKey:           s.wgConfig.ServerPubKey,
+				Endpoint:            s.wgConfig.ServerEndpoint,
+				AllowedIPs:          serverAllowedIPs,
+				PersistentKeepalive: s.wgConfig.Keepalive,
+				Name:                "GoConnect Server",
+				Hostname:            "vpn.goconnect",
+			},
+		},
 	}
 
 	return config, nil

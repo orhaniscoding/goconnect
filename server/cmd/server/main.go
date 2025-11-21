@@ -21,8 +21,8 @@ import (
 	"github.com/orhaniscoding/goconnect/server/internal/metrics"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
 	"github.com/orhaniscoding/goconnect/server/internal/service"
-	"github.com/orhaniscoding/goconnect/server/internal/wireguard"
 	ws "github.com/orhaniscoding/goconnect/server/internal/websocket"
+	"github.com/orhaniscoding/goconnect/server/internal/wireguard"
 )
 
 var (
@@ -127,7 +127,7 @@ func main() {
 	authService := service.NewAuthService(userRepo, tenantRepo)
 
 	peerProvisioningService := service.NewPeerProvisioningService(peerRepo, deviceRepo, networkRepo, membershipRepo, ipamRepo)
-	deviceService := service.NewDeviceService(deviceRepo, userRepo, peerRepo)
+	deviceService := service.NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, cfg.WireGuard)
 	deviceService.SetPeerProvisioning(peerProvisioningService)
 
 	chatService := service.NewChatService(chatRepo, userRepo)

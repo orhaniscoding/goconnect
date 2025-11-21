@@ -72,7 +72,7 @@ func (s *WireGuardSyncService) StartSyncLoop(ctx context.Context, interval time.
 	defer ticker.Stop()
 
 	log.Printf("Starting WireGuard sync loop (interval: %v)", interval)
-	
+
 	// Initial sync
 	if err := s.Sync(ctx); err != nil {
 		log.Printf("Initial WireGuard sync failed: %v", err)

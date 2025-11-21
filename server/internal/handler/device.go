@@ -191,6 +191,27 @@ func (h *DeviceHandler) DeleteDevice(c *gin.Context) {
 	})
 }
 
+// GetDeviceConfig handles GET /v1/devices/:id/config
+func (h *DeviceHandler) GetDeviceConfig(c *gin.Context) {
+	deviceID := c.Param("id")
+	userID := c.GetString("user_id")
+
+	config, err := h.deviceService.GetDeviceConfig(c.Request.Context(), deviceID, userID)
+	if err != nil {
+		if domainErr, ok := err.(*domain.Error); ok {
+			c.JSON(domainErr.ToHTTPStatus(), domainErr)
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    "ERR_INTERNAL_SERVER",
+			"message": "Failed to get device configuration",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, config)
+}
+
 // Heartbeat handles POST /v1/devices/:id/heartbeat
 func (h *DeviceHandler) Heartbeat(c *gin.Context) {
 	deviceID := c.Param("id")
@@ -246,28 +267,6 @@ func (h *DeviceHandler) DisableDevice(c *gin.Context) {
 		"status":    "disabled",
 		"device_id": deviceID,
 	})
-}
-
-// GetDeviceConfig handles GET /v1/devices/:id/config
-func (h *DeviceHandler) GetDeviceConfig(c *gin.Context) {
-	deviceID := c.Param("id")
-	userID := c.GetString("user_id")
-	tenantID := c.GetString("tenant_id")
-
-	config, err := h.deviceService.GetDeviceConfig(c.Request.Context(), deviceID, userID, tenantID)
-	if err != nil {
-		if domainErr, ok := err.(*domain.Error); ok {
-			c.JSON(domainErr.ToHTTPStatus(), domainErr)
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    "ERR_INTERNAL_SERVER",
-			"message": "Failed to get device config",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, config)
 }
 
 // EnableDevice handles POST /v1/devices/:id/enable
