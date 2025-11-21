@@ -202,7 +202,7 @@ func (h *AuthHandler) Disable2FA(c *gin.Context) {
 }
 
 // RegisterAuthRoutes registers all auth-related routes
-func RegisterAuthRoutes(r *gin.Engine, handler *AuthHandler) {
+func RegisterAuthRoutes(r *gin.Engine, handler *AuthHandler, authMiddleware gin.HandlerFunc) {
 	v1 := r.Group("/v1")
 	v1.Use(RequestIDMiddleware())
 	v1.Use(CORSMiddleware())
@@ -213,8 +213,13 @@ func RegisterAuthRoutes(r *gin.Engine, handler *AuthHandler) {
 		auth.POST("/login", handler.Login)
 		auth.POST("/refresh", handler.Refresh)
 		auth.POST("/logout", handler.Logout)
-		auth.POST("/2fa/generate", handler.Generate2FA)
-		auth.POST("/2fa/enable", handler.Enable2FA)
-		auth.POST("/2fa/disable", handler.Disable2FA)
+	}
+
+	authProtected := v1.Group("/auth")
+	authProtected.Use(authMiddleware)
+	{
+		authProtected.POST("/2fa/generate", handler.Generate2FA)
+		authProtected.POST("/2fa/enable", handler.Enable2FA)
+		authProtected.POST("/2fa/disable", handler.Disable2FA)
 	}
 }

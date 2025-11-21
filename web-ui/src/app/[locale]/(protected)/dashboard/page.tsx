@@ -234,7 +234,7 @@ export default function Dashboard() {
                                     {status.wg?.active ? '● Connected' : '○ Disconnected'}
                                 </div>
                             </div>
-                            
+
                             {status.wg?.active && (
                                 <>
                                     <div>
@@ -246,15 +246,15 @@ export default function Dashboard() {
                                     <div>
                                         <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>Data Transfer</div>
                                         <div style={{ fontSize: 14 }}>
-                                            ⬇️ {formatBytes(status.wg?.total_rx || 0)}<br/>
+                                            ⬇️ {formatBytes(status.wg?.total_rx || 0)}<br />
                                             ⬆️ {formatBytes(status.wg?.total_tx || 0)}
                                         </div>
                                     </div>
                                     <div>
                                         <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>Last Handshake</div>
                                         <div style={{ fontSize: 14 }}>
-                                            {status.wg?.last_handshake && new Date(status.wg.last_handshake).getFullYear() > 1970 
-                                                ? new Date(status.wg.last_handshake).toLocaleTimeString() 
+                                            {status.wg?.last_handshake && new Date(status.wg.last_handshake).getFullYear() > 1970
+                                                ? new Date(status.wg.last_handshake).toLocaleTimeString()
                                                 : 'Never'}
                                         </div>
                                     </div>

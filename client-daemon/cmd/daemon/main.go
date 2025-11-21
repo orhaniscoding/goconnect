@@ -96,17 +96,17 @@ func setupHandlers(idMgr *identity.Manager, apiClient *api.Client, eng *engine.E
 	http.HandleFunc("/status", cors(func(w http.ResponseWriter, _ *http.Request) {
 		id := idMgr.Get()
 		w.Header().Set("Content-Type", "application/json")
-		
+
 		// Get engine status
 		resp := eng.GetStatus()
-		
+
 		// Enrich with identity info
 		resp["device"] = map[string]interface{}{
 			"registered": id.DeviceID != "",
 			"public_key": id.PublicKey,
 			"device_id":  id.DeviceID,
 		}
-		
+
 		json.NewEncoder(w).Encode(resp)
 	}))
 

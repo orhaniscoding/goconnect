@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/base64"
 	"flag"
@@ -19,6 +20,7 @@ import (
 	"github.com/orhaniscoding/goconnect/server/internal/metrics"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
 	"github.com/orhaniscoding/goconnect/server/internal/service"
+	ws "github.com/orhaniscoding/goconnect/server/internal/websocket"
 )
 
 var (
@@ -76,6 +78,7 @@ func main() {
 	var tenantRepo repository.TenantRepository
 	var deviceRepo repository.DeviceRepository
 	var peerRepo repository.PeerRepository
+	var chatRepo repository.ChatRepository
 
 	if *usePostgres && db != nil {
 		// PostgreSQL repositories
@@ -88,6 +91,7 @@ func main() {
 		tenantRepo = repository.NewPostgresTenantRepository(db)
 		deviceRepo = repository.NewPostgresDeviceRepository(db)
 		peerRepo = repository.NewPostgresPeerRepository(db)
+		chatRepo = repository.NewPostgresChatRepository(db)
 		fmt.Println("Using PostgreSQL repositories")
 	} else {
 		// In-memory repositories (fallback)
@@ -100,6 +104,7 @@ func main() {
 		tenantRepo = repository.NewInMemoryTenantRepository()
 		deviceRepo = repository.NewInMemoryDeviceRepository()
 		peerRepo = repository.NewInMemoryPeerRepository()
+		chatRepo = repository.NewInMemoryChatRepository()
 		fmt.Println("Using in-memory repositories (no data persistence)")
 	}
 
@@ -112,6 +117,8 @@ func main() {
 	peerProvisioningService := service.NewPeerProvisioningService(peerRepo, deviceRepo, networkRepo, membershipRepo, ipamRepo)
 	deviceService := service.NewDeviceService(deviceRepo, userRepo, peerRepo)
 	deviceService.SetPeerProvisioning(peerProvisioningService)
+
+	chatService := service.NewChatService(chatRepo, userRepo)
 
 	metrics.Register()
 	// Auditor selection: default stdout, optionally SQLite-backed if configured via env.
@@ -192,11 +199,25 @@ func main() {
 	networkService.SetAuditor(aud)
 	ipamService.SetAuditor(aud)
 	deviceService.SetAuditor(aud)
+	chatService.SetAuditor(aud)
 
 	// Initialize handlers
 	networkHandler := handler.NewNetworkHandler(networkService, membershipService).WithIPAM(ipamService)
 	authHandler := handler.NewAuthHandler(authService)
 	deviceHandler := handler.NewDeviceHandler(deviceService)
+	chatHandler := handler.NewChatHandler(chatService)
+
+	// Initialize WebSocket components
+	// Circular dependency resolution: Handler -> Hub -> Handler
+	wsMsgHandler := ws.NewDefaultMessageHandler(nil, chatService)
+	hub := ws.NewHub(wsMsgHandler)
+	wsMsgHandler.SetHub(hub)
+
+	// Start Hub
+	go hub.Run(context.Background())
+
+	// Initialize WebSocket HTTP handler
+	webSocketHandler := handler.NewWebSocketHandler(hub)
 
 	// Setup router
 	r := gin.New()
@@ -208,14 +229,20 @@ func main() {
 		c.JSON(200, gin.H{"ok": true, "service": "goconnect-server"})
 	})
 
-	// Register auth routes (no auth required)
-	handler.RegisterAuthRoutes(r, authHandler)
+	// Register auth routes (some require auth)
+	handler.RegisterAuthRoutes(r, authHandler, handler.AuthMiddleware(authService))
 
 	// Register network routes (auth + role middleware applied within)
 	handler.RegisterNetworkRoutes(r, networkHandler, authService, membershipRepo)
 
 	// Register device routes
 	handler.RegisterDeviceRoutes(r, deviceHandler, handler.AuthMiddleware(authService))
+
+	// Register chat routes
+	handler.RegisterChatRoutes(r, chatHandler, handler.AuthMiddleware(authService))
+
+	// Register WebSocket route
+	r.GET("/ws", handler.AuthMiddleware(authService), webSocketHandler.HandleUpgrade)
 
 	// Metrics endpoint
 	r.GET("/metrics", metrics.Handler())

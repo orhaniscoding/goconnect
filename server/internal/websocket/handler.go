@@ -22,6 +22,11 @@ func NewDefaultMessageHandler(hub *Hub, chatService *service.ChatService) *Defau
 	}
 }
 
+// SetHub sets the hub for the message handler
+func (h *DefaultMessageHandler) SetHub(hub *Hub) {
+	h.hub = hub
+}
+
 // HandleMessage processes inbound WebSocket messages
 func (h *DefaultMessageHandler) HandleMessage(ctx context.Context, client *Client, msg *InboundMessage) error {
 	switch msg.Type {

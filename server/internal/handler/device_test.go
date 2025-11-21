@@ -23,18 +23,19 @@ func setupDeviceTest() (*gin.Engine, *DeviceHandler, *service.DeviceService, rep
 	// Setup repositories
 	deviceRepo := repository.NewInMemoryDeviceRepository()
 	userRepo := repository.NewInMemoryUserRepository()
+	peerRepo := repository.NewInMemoryPeerRepository()
 
 	// Create test user
 	testUser := &domain.User{
-		ID:       "user-123",
-		TenantID: "tenant-1",
-		Email:    "test@example.com",
+		ID:           "user-123",
+		TenantID:     "tenant-1",
+		Email:        "test@example.com",
 		PasswordHash: "dummy",
 	}
 	userRepo.Create(context.Background(), testUser)
 
 	// Setup service
-	deviceService := service.NewDeviceService(deviceRepo, userRepo)
+	deviceService := service.NewDeviceService(deviceRepo, userRepo, peerRepo)
 
 	// Setup handler
 	handler := NewDeviceHandler(deviceService)

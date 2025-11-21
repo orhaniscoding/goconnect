@@ -16,6 +16,7 @@
 ### 🔐 Core VPN Management
 - **WireGuard Integration**: Automated peer provisioning and configuration generation
 - **Multi-Network Support**: Create and manage multiple isolated VPN networks
+- **MagicDNS Lite**: Automatic hostname resolution via hosts file management
 - **IPAM (IP Address Management)**: Automatic IP allocation from CIDR ranges with conflict detection
 - **Device Management**: Register and track devices across platforms (Linux, Windows, macOS, iOS, Android)
 - **Peer-to-Peer Mesh**: Full mesh networking with automatic peer discovery
@@ -42,7 +43,7 @@
 
 ### 🌐 Modern Tech Stack
 - **Backend**: Go 1.22+ with Gin web framework
-- **Frontend**: Next.js 15 with TypeScript and Tailwind CSS (placeholder)
+- **Frontend**: Next.js 15 with TypeScript and Tailwind CSS
 - **Database**: PostgreSQL 14+ (in-memory for development)
 - **Real-time**: WebSocket for live updates
 - **API**: RESTful JSON API with OpenAPI 3.0 specification
