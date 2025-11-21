@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getUser, clearAuth } from '../../../../lib/auth'
+import { getUser, clearAuth, getAccessToken } from '../../../../lib/auth'
+import { bridge } from '../../../../lib/bridge'
 import { useNotification } from '../../../../contexts/NotificationContext'
 import { useDaemon } from '../../../../contexts/DaemonContext'
 import AuthGuard from '../../../../components/AuthGuard'
@@ -10,14 +11,38 @@ import Footer from '../../../../components/Footer'
 export default function Dashboard() {
     const router = useRouter()
     const notification = useNotification()
-    const { status, error: err } = useDaemon()
+    const { status, error: err, refresh } = useDaemon()
     const [user, setUser] = useState<any>(null)
+    const [registering, setRegistering] = useState(false)
 
     useEffect(() => {
         // Get user info
         const userData = getUser()
         setUser(userData)
     }, [])
+
+    const handleRegister = async () => {
+        setRegistering(true)
+        try {
+            const token = getAccessToken()
+            if (!token) {
+                notification.error('Registration Failed', 'No access token found')
+                return
+            }
+
+            await bridge('/register', {
+                method: 'POST',
+                body: JSON.stringify({ token })
+            })
+
+            notification.success('Device Registered', 'Your device has been successfully registered.')
+            await refresh()
+        } catch (e) {
+            notification.error('Registration Failed', String(e))
+        } finally {
+            setRegistering(false)
+        }
+    }
 
     const handleLogout = () => {
         clearAuth()
@@ -63,6 +88,49 @@ export default function Dashboard() {
                         </p>
                     </div>
                 )}
+
+                {/* Device Status Card */}
+                <div style={{
+                    padding: 16,
+                    backgroundColor: status?.device?.registered ? '#d4edda' : '#fff3cd',
+                    borderRadius: 8,
+                    marginBottom: 24,
+                    border: `1px solid ${status?.device?.registered ? '#c3e6cb' : '#ffeeba'}`,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                }}>
+                    <div>
+                        <h3 style={{ marginTop: 0, color: status?.device?.registered ? '#155724' : '#856404' }}>
+                            {status?.device?.registered ? 'Device Active' : 'Device Setup Required'}
+                        </h3>
+                        <p style={{ margin: '4px 0', color: status?.device?.registered ? '#155724' : '#856404' }}>
+                            {status?.device?.registered 
+                                ? `This device is registered and ready to connect. ID: ${status.device.device_id.substring(0, 8)}...`
+                                : 'This device is not registered with GoConnect yet.'}
+                        </p>
+                        {!status && !err && <p>Checking daemon status...</p>}
+                        {err && <p style={{color: 'red'}}>Error: {err}</p>}
+                    </div>
+                    
+                    {status && !status.device.registered && (
+                        <button
+                            onClick={handleRegister}
+                            disabled={registering}
+                            style={{
+                                padding: '8px 16px',
+                                backgroundColor: '#28a745',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: 4,
+                                cursor: registering ? 'not-allowed' : 'pointer',
+                                opacity: registering ? 0.7 : 1
+                            }}
+                        >
+                            {registering ? 'Registering...' : 'Register Device'}
+                        </button>
+                    )}
+                </div>
 
                 {/* Quick Actions */}
                 <div style={{
