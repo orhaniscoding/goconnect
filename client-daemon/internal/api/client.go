@@ -130,6 +130,8 @@ type PeerConfig struct {
 	AllowedIPs          []string `json:"allowed_ips"`
 	PresharedKey        string   `json:"preshared_key"`
 	PersistentKeepalive int      `json:"persistent_keepalive"`
+	Name                string   `json:"name"`     // Friendly name
+	Hostname            string   `json:"hostname"` // DNS hostname
 }
 
 // GetConfig retrieves the device configuration

@@ -19,6 +19,7 @@
 - **IPAM (IP Address Management)**: Automatic IP allocation from CIDR ranges with conflict detection
 - **Device Management**: Register and track devices across platforms (Linux, Windows, macOS, iOS, Android)
 - **Peer-to-Peer Mesh**: Full mesh networking with automatic peer discovery
+- **MagicDNS Lite**: Automatic `/etc/hosts` management for resolving devices by name
 
 ### 🏢 Multi-Tenancy & Access Control
 - **Complete Tenant Isolation**: Security-first architecture with enforced boundaries

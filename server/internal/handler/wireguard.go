@@ -231,7 +231,7 @@ func (h *WireGuardHandler) GetProfile(c *gin.Context) {
 
 	// Add mesh peer configuration (other active peers in the network)
 	meshPeers, err := h.peerService.GetActivePeersConfig(c.Request.Context(), networkID)
-	
+
 	// Check for JSON request (used by Client Daemon for rich metadata)
 	if c.GetHeader("Accept") == "application/json" {
 		// Construct Interface Config
@@ -259,7 +259,7 @@ func (h *WireGuardHandler) GetProfile(c *gin.Context) {
 			Interface: interfaceConfig,
 			Peers:     peers,
 		})
-		
+
 		// Audit the profile generation
 		h.auditor.Event(c.Request.Context(), tenantID, "PROFILE_RENDERED_JSON", userID, networkID, map[string]any{
 			"device_id":   deviceID,

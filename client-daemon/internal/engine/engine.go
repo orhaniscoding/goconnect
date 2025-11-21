@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/api"
@@ -19,6 +20,7 @@ type Engine struct {
 	apiClient *api.Client
 	wgMgr     *wireguard.Manager
 	sysConf   system.Configurator
+	hostsMgr  *system.HostsManager
 	stopChan  chan struct{}
 	version   string
 }
@@ -26,6 +28,7 @@ type Engine struct {
 // New creates a new engine
 func New(idMgr *identity.Manager, apiClient *api.Client, version string) *Engine {
 	sysConf := system.NewConfigurator()
+	hostsMgr := system.NewHostsManager()
 
 	// Get interface name from env or default to wg0
 	ifaceName := os.Getenv("GOCONNECT_INTERFACE")
@@ -49,6 +52,7 @@ func New(idMgr *identity.Manager, apiClient *api.Client, version string) *Engine
 		apiClient: apiClient,
 		wgMgr:     wgMgr,
 		sysConf:   sysConf,
+		hostsMgr:  hostsMgr,
 		stopChan:  make(chan struct{}),
 		version:   version,
 	}
@@ -123,6 +127,40 @@ func (e *Engine) syncConfig() {
 					log.Printf("Failed to add routes: %v", err)
 				} else {
 					log.Printf("Added %d routes successfully", len(routes))
+				}
+			}
+
+			// Update hosts file (MagicDNS Lite)
+			hostEntries := make([]system.HostEntry, 0)
+			for _, peer := range config.Peers {
+				if len(peer.AllowedIPs) > 0 {
+					// Use the first allowed IP (usually the device IP)
+					// Strip CIDR mask if present
+					ip := peer.AllowedIPs[0]
+					if idx := strings.Index(ip, "/"); idx != -1 {
+						ip = ip[:idx]
+					}
+
+					if peer.Name != "" {
+						hostEntries = append(hostEntries, system.HostEntry{
+							IP:       ip,
+							Hostname: peer.Name, // Use friendly name
+						})
+					}
+					if peer.Hostname != "" && peer.Hostname != peer.Name {
+						hostEntries = append(hostEntries, system.HostEntry{
+							IP:       ip,
+							Hostname: peer.Hostname, // Use actual hostname
+						})
+					}
+				}
+			}
+
+			if len(hostEntries) > 0 {
+				if err := e.hostsMgr.UpdateHosts(hostEntries); err != nil {
+					log.Printf("Failed to update hosts file: %v", err)
+				} else {
+					log.Printf("Updated hosts file with %d entries", len(hostEntries))
 				}
 			}
 		}
