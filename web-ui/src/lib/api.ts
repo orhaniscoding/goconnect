@@ -886,4 +886,11 @@ export async function listTenants(limit: number, offset: number, accessToken: st
   })
 }
 
+export async function toggleUserAdmin(userId: string, accessToken: string): Promise<{ data: AdminUser }> {
+  return api(`/v1/admin/users/${userId}/toggle-admin`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` }
+  })
+}
+
 

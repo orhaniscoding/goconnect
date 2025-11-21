@@ -101,3 +101,18 @@ func (s *AdminService) GetSystemStats(ctx context.Context) (*SystemStats, error)
 		MessagesToday:     messagesToday,
 	}, nil
 }
+
+// ToggleUserAdmin toggles the admin status of a user
+func (s *AdminService) ToggleUserAdmin(ctx context.Context, userID string) (*domain.User, error) {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	user.IsAdmin = !user.IsAdmin
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}

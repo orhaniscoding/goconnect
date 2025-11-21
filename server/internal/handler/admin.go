@@ -79,3 +79,24 @@ func (h *AdminHandler) GetSystemStats(c *gin.Context) {
 		"data": stats,
 	})
 }
+
+func (h *AdminHandler) ToggleUserAdmin(c *gin.Context) {
+	userID := c.Param("id")
+	if userID == "" {
+		errorResponse(c, &domain.Error{
+			Code:    domain.ErrInvalidRequest,
+			Message: "User ID is required",
+		})
+		return
+	}
+
+	user, err := h.adminService.ToggleUserAdmin(c.Request.Context(), userID)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": user,
+	})
+}

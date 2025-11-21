@@ -287,6 +287,7 @@ func main() {
 	adminGroup.Use(handler.RequireAdmin())
 	{
 		adminGroup.GET("/users", adminHandler.ListUsers)
+		adminGroup.POST("/users/:id/toggle-admin", adminHandler.ToggleUserAdmin)
 		adminGroup.GET("/tenants", adminHandler.ListTenants)
 		adminGroup.GET("/stats", adminHandler.GetSystemStats)
 	}
