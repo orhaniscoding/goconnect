@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.0] (2025-11-22)
+
+
+### Features
+
+* implement search and filtering for users, tenants, networks, and devices in admin dashboard
+
 ## [2.3.0](https://github.com/orhaniscoding/goconnect/compare/v2.2.0...v2.3.0) (2025-11-21)
 
 
