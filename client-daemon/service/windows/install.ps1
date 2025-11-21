@@ -45,6 +45,9 @@ if (!$Service) {
         -DisplayName "GoConnect Daemon" `
         -Description "GoConnect VPN Client Daemon" `
         -StartupType Automatic
+    
+    # Set recovery options (restart on failure)
+    sc.exe failure GoConnectDaemon reset= 86400 actions= restart/60000/restart/60000/restart/60000
 }
 else {
     Write-Host "Service already exists, updating binary..."
