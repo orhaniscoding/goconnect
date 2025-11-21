@@ -7,12 +7,14 @@ import (
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
 )
 
-// AdminService handles administrative operations
+// AdminService handles admin-related operations
 type AdminService struct {
-	userRepo    repository.UserRepository
-	tenantRepo  repository.TenantRepository
-	networkRepo repository.NetworkRepository
-	deviceRepo  repository.DeviceRepository
+	userRepo             repository.UserRepository
+	tenantRepo           repository.TenantRepository
+	networkRepo          repository.NetworkRepository
+	deviceRepo           repository.DeviceRepository
+	chatRepo             repository.ChatRepository
+	getActiveConnections func() int
 }
 
 // NewAdminService creates a new admin service
@@ -21,14 +23,19 @@ func NewAdminService(
 	tenantRepo repository.TenantRepository,
 	networkRepo repository.NetworkRepository,
 	deviceRepo repository.DeviceRepository,
+	chatRepo repository.ChatRepository,
+	getActiveConnections func() int,
 ) *AdminService {
 	return &AdminService{
-		userRepo:    userRepo,
-		tenantRepo:  tenantRepo,
-		networkRepo: networkRepo,
-		deviceRepo:  deviceRepo,
+		userRepo:             userRepo,
+		tenantRepo:           tenantRepo,
+		networkRepo:          networkRepo,
+		deviceRepo:           deviceRepo,
+		chatRepo:             chatRepo,
+		getActiveConnections: getActiveConnections,
 	}
 }
+
 
 // ListUsers retrieves a paginated list of users
 func (s *AdminService) ListUsers(ctx context.Context, limit, offset int) ([]*domain.User, int, error) {
@@ -75,10 +82,23 @@ func (s *AdminService) GetSystemStats(ctx context.Context) (*SystemStats, error)
 		return nil, err
 	}
 
+	activeConnections := 0
+	if s.getActiveConnections != nil {
+		activeConnections = s.getActiveConnections()
+	}
+
+	messagesToday, err := s.chatRepo.CountToday(ctx)
+	if err != nil {
+		// Log error but don't fail the whole request
+		messagesToday = 0
+	}
+
 	return &SystemStats{
-		TotalUsers:    userCount,
-		TotalTenants:  tenantCount,
-		TotalNetworks: networkCount,
-		TotalDevices:  deviceCount,
+		TotalUsers:        userCount,
+		TotalTenants:      tenantCount,
+		TotalNetworks:     networkCount,
+		TotalDevices:      deviceCount,
+		ActiveConnections: activeConnections,
+		MessagesToday:     messagesToday,
 	}, nil
 }

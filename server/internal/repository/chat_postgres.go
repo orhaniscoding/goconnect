@@ -319,3 +319,21 @@ func (r *PostgresChatRepository) GetEdits(ctx context.Context, messageID string)
 
 	return edits, nil
 }
+
+// CountToday returns the number of messages created today
+func (r *PostgresChatRepository) CountToday(ctx context.Context) (int, error) {
+	query := `
+		SELECT COUNT(*) 
+		FROM chat_messages 
+		WHERE created_at >= CURRENT_DATE 
+		AND created_at < CURRENT_DATE + INTERVAL '1 day'
+	`
+
+	var count int
+	err := r.db.QueryRowContext(ctx, query).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}

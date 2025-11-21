@@ -20,6 +20,9 @@ type ChatRepository interface {
 	// Edit history
 	AddEdit(ctx context.Context, edit *domain.ChatMessageEdit) error
 	GetEdits(ctx context.Context, messageID string) ([]*domain.ChatMessageEdit, error)
+
+	// Stats
+	CountToday(ctx context.Context) (int, error)
 }
 
 // InMemoryChatRepository implements ChatRepository with in-memory storage
@@ -232,4 +235,23 @@ func (r *InMemoryChatRepository) GetEdits(ctx context.Context, messageID string)
 	}
 
 	return edits, nil
+}
+
+// CountToday returns the number of messages created today
+func (r *InMemoryChatRepository) CountToday(ctx context.Context) (int, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	count := 0
+	now := time.Now()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	todayEnd := todayStart.Add(24 * time.Hour)
+
+	for _, msg := range r.messages {
+		if (msg.CreatedAt.Equal(todayStart) || msg.CreatedAt.After(todayStart)) && msg.CreatedAt.Before(todayEnd) {
+			count++
+		}
+	}
+
+	return count, nil
 }

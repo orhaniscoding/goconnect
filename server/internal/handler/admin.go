@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/service"
 )
 
@@ -16,13 +17,24 @@ func NewAdminHandler(adminService *service.AdminService) *AdminHandler {
 	return &AdminHandler{adminService: adminService}
 }
 
+func (h *AdminHandler) handleError(c *gin.Context, err error) {
+	if derr, ok := err.(*domain.Error); ok {
+		errorResponse(c, derr)
+	} else {
+		errorResponse(c, &domain.Error{
+			Code:    domain.ErrInternalServer,
+			Message: err.Error(),
+		})
+	}
+}
+
 func (h *AdminHandler) ListUsers(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
 	users, total, err := h.adminService.ListUsers(c.Request.Context(), limit, offset)
 	if err != nil {
-		errorResponse(c, err)
+		h.handleError(c, err)
 		return
 	}
 
@@ -42,7 +54,7 @@ func (h *AdminHandler) ListTenants(c *gin.Context) {
 
 	tenants, total, err := h.adminService.ListTenants(c.Request.Context(), limit, offset)
 	if err != nil {
-		errorResponse(c, err)
+		h.handleError(c, err)
 		return
 	}
 
@@ -59,7 +71,7 @@ func (h *AdminHandler) ListTenants(c *gin.Context) {
 func (h *AdminHandler) GetSystemStats(c *gin.Context) {
 	stats, err := h.adminService.GetSystemStats(c.Request.Context())
 	if err != nil {
-		errorResponse(c, err)
+		h.handleError(c, err)
 		return
 	}
 

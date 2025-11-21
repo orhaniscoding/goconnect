@@ -235,6 +235,13 @@ func (h *Hub) GetRoomCount() int {
 	return len(h.rooms)
 }
 
+// GetActiveConnectionCount returns the number of currently connected clients
+func (h *Hub) GetActiveConnectionCount() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return len(h.clients)
+}
+
 // mustMarshal marshals a message or panics (should never fail for valid types)
 func mustMarshal(msg *OutboundMessage) []byte {
 	data, err := json.Marshal(msg)

@@ -232,16 +232,12 @@ func main() {
 	deviceService.SetAuditor(aud)
 	chatService.SetAuditor(aud)
 
-	// Initialize Admin Service
-	adminService := service.NewAdminService(userRepo, tenantRepo, networkRepo, deviceRepo)
-
 	// Initialize handlers
 	networkHandler := handler.NewNetworkHandler(networkService, membershipService, deviceService, peerRepo, cfg.WireGuard).WithIPAM(ipamService)
 	authHandler := handler.NewAuthHandler(authService)
 	deviceHandler := handler.NewDeviceHandler(deviceService)
 	chatHandler := handler.NewChatHandler(chatService)
 	uploadHandler := handler.NewUploadHandler("./uploads", "/uploads")
-	adminHandler := handler.NewAdminHandler(adminService)
 
 	// Initialize WebSocket components
 	// Circular dependency resolution: Handler -> Hub -> Handler
@@ -251,6 +247,10 @@ func main() {
 
 	// Start Hub
 	go hub.Run(context.Background())
+
+	// Initialize Admin Service
+	adminService := service.NewAdminService(userRepo, tenantRepo, networkRepo, deviceRepo, chatRepo, hub.GetActiveConnectionCount)
+	adminHandler := handler.NewAdminHandler(adminService)
 
 	// Initialize WebSocket HTTP handler
 	webSocketHandler := handler.NewWebSocketHandler(hub)
