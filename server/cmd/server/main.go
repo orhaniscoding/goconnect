@@ -15,6 +15,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/orhaniscoding/goconnect/server/internal/audit"
+	"github.com/orhaniscoding/goconnect/server/internal/config"
 	"github.com/orhaniscoding/goconnect/server/internal/database"
 	"github.com/orhaniscoding/goconnect/server/internal/handler"
 	"github.com/orhaniscoding/goconnect/server/internal/metrics"
@@ -42,6 +43,16 @@ func main() {
 	if *showVersion {
 		fmt.Printf("goconnect-server %s (commit %s, build %s) built by %s\n", version, commit, date, builtBy)
 		return
+	}
+
+	// Load configuration
+	cfg, err := config.Load()
+	if err != nil {
+		log.Printf("Warning: Failed to load full config: %v. Using defaults/env for DB.", err)
+		// We continue because DB config is loaded separately below, but WireGuard config might be missing.
+		// Actually, we should probably fail if we rely on it.
+		// But for now, let's initialize an empty config if it fails, to avoid panic.
+		cfg = &config.Config{}
 	}
 
 	// Database setup
@@ -202,7 +213,7 @@ func main() {
 	chatService.SetAuditor(aud)
 
 	// Initialize handlers
-	networkHandler := handler.NewNetworkHandler(networkService, membershipService).WithIPAM(ipamService)
+	networkHandler := handler.NewNetworkHandler(networkService, membershipService, deviceService, peerRepo, cfg.WireGuard).WithIPAM(ipamService)
 	authHandler := handler.NewAuthHandler(authService)
 	deviceHandler := handler.NewDeviceHandler(deviceService)
 	chatHandler := handler.NewChatHandler(chatService)

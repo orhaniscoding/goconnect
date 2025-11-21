@@ -1,14 +1,19 @@
 package handler
 
 import (
+	"fmt"
+	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/orhaniscoding/goconnect/server/internal/config"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
 	"github.com/orhaniscoding/goconnect/server/internal/service"
+	"github.com/orhaniscoding/goconnect/server/internal/wireguard"
 )
 
 // NetworkHandler handles HTTP requests for network operations
@@ -16,13 +21,25 @@ type NetworkHandler struct {
 	networkService *service.NetworkService
 	memberService  *service.MembershipService
 	ipamService    *service.IPAMService
+	deviceService  *service.DeviceService
+	peerRepo       repository.PeerRepository
+	wgConfig       config.WireGuardConfig
 }
 
 // NewNetworkHandler creates a new network handler
-func NewNetworkHandler(networkService *service.NetworkService, memberService *service.MembershipService) *NetworkHandler {
+func NewNetworkHandler(
+	networkService *service.NetworkService,
+	memberService *service.MembershipService,
+	deviceService *service.DeviceService,
+	peerRepo repository.PeerRepository,
+	wgConfig config.WireGuardConfig,
+) *NetworkHandler {
 	return &NetworkHandler{
 		networkService: networkService,
 		memberService:  memberService,
+		deviceService:  deviceService,
+		peerRepo:       peerRepo,
+		wgConfig:       wgConfig,
 	}
 }
 
@@ -227,6 +244,8 @@ func RegisterNetworkRoutes(r *gin.Engine, handler *NetworkHandler, authService T
 	networks.POST(":id/approve", rl, RequireNetworkAdmin(), handler.Approve)
 	networks.POST(":id/deny", rl, RequireNetworkAdmin(), handler.Deny)
 	networks.POST(":id/kick", rl, RequireNetworkAdmin(), handler.Kick)
+	networks.POST("/:id/config", rl, handler.GenerateConfig)
+
 	networks.POST(":id/ban", rl, RequireNetworkAdmin(), handler.Ban)
 	networks.GET("/:id/members", handler.ListMembers)
 	networks.GET("/:id/join-requests", RequireNetworkAdmin(), handler.ListJoinRequests)
@@ -511,4 +530,101 @@ func (h *NetworkHandler) AdminReleaseIP(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+// GenerateConfig handles POST /v1/networks/:id/config
+func (h *NetworkHandler) GenerateConfig(c *gin.Context) {
+	networkID := c.Param("id")
+	userID := c.MustGet("user_id").(string)
+	tenantID := c.MustGet("tenant_id").(string)
+	userEmail := c.GetString("user_email")
+
+	// 1. Check if user is a member of the network
+	network, err := h.networkService.GetNetwork(c.Request.Context(), networkID, userID, tenantID)
+	if err != nil {
+		if derr, ok := err.(*domain.Error); ok {
+			errorResponse(c, derr)
+			return
+		}
+		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
+		return
+	}
+
+	// 2. Generate Key Pair
+	keyPair, err := wireguard.GenerateKeyPair()
+	if err != nil {
+		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to generate keys", nil))
+		return
+	}
+
+	// 3. Register a new "Manual" Device
+	deviceName := fmt.Sprintf("Manual Config %s", time.Now().Format("2006-01-02 15:04"))
+	regReq := &domain.RegisterDeviceRequest{
+		Name:     deviceName,
+		Platform: "linux", // Generic
+		PubKey:   keyPair.PublicKey,
+	}
+
+	device, err := h.deviceService.RegisterDevice(c.Request.Context(), userID, tenantID, regReq)
+	if err != nil {
+		if derr, ok := err.(*domain.Error); ok {
+			errorResponse(c, derr)
+			return
+		}
+		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to register device", nil))
+		return
+	}
+
+	// 4. Get the Peer (IP Allocation) for this network
+	peer, err := h.peerRepo.GetByNetworkAndDevice(c.Request.Context(), networkID, device.ID)
+	if err != nil {
+		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to retrieve peer allocation", nil))
+		return
+	}
+
+	// 5. Generate Config
+	gen := wireguard.NewProfileGenerator(
+		h.wgConfig.ServerEndpoint,
+		h.wgConfig.ServerPubKey,
+		h.wgConfig.DNS,
+		h.wgConfig.MTU,
+		h.wgConfig.Keepalive,
+	)
+
+	// Parse CIDR to get prefix length
+	_, ipNet, _ := net.ParseCIDR(network.CIDR)
+	prefixLen, _ := ipNet.Mask.Size()
+
+	// Extract IP from AllowedIPs
+	if len(peer.AllowedIPs) == 0 {
+		errorResponse(c, domain.NewError(domain.ErrInternalServer, "No IP allocated", nil))
+		return
+	}
+	deviceIP := peer.AllowedIPs[0]
+	if idx := strings.Index(deviceIP, "/"); idx != -1 {
+		deviceIP = deviceIP[:idx]
+	}
+
+	profReq := &wireguard.ProfileRequest{
+		NetworkID:        network.ID,
+		NetworkName:      network.Name,
+		NetworkCIDR:      network.CIDR,
+		DeviceID:         device.ID,
+		DeviceName:       device.Name,
+		DeviceIP:         deviceIP,
+		DevicePrivateKey: keyPair.PrivateKey,
+		PrefixLen:        prefixLen,
+		UserID:           userID,
+		UserEmail:        userEmail,
+	}
+
+	configContent, err := gen.GenerateClientConfig(c.Request.Context(), profReq)
+	if err != nil {
+		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to generate config", nil))
+		return
+	}
+
+	// 6. Return Config
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s.conf\"", network.Name))
+	c.Data(http.StatusOK, "application/x-wireguard-profile", []byte(configContent))
 }
