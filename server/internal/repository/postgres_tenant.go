@@ -176,3 +176,13 @@ func (r *PostgresTenantRepository) ListAll(ctx context.Context, limit, offset in
 
 	return tenants, total, nil
 }
+
+func (r *PostgresTenantRepository) Count(ctx context.Context) (int, error) {
+	query := `SELECT COUNT(*) FROM tenants`
+	var count int
+	err := r.db.QueryRowContext(ctx, query).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count tenants: %w", err)
+	}
+	return count, nil
+}

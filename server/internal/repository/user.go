@@ -15,6 +15,7 @@ type UserRepository interface {
 	Update(ctx context.Context, user *domain.User) error
 	Delete(ctx context.Context, id string) error
 	ListAll(ctx context.Context, limit, offset int) ([]*domain.User, int, error)
+	Count(ctx context.Context) (int, error)
 }
 
 // InMemoryUserRepository is an in-memory implementation of UserRepository
@@ -131,4 +132,11 @@ func (r *InMemoryUserRepository) ListAll(ctx context.Context, limit, offset int)
 	}
 
 	return users[offset:end], total, nil
+}
+
+// Count returns the total number of users
+func (r *InMemoryUserRepository) Count(ctx context.Context) (int, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return len(r.users), nil
 }

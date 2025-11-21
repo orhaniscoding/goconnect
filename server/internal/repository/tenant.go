@@ -14,6 +14,7 @@ type TenantRepository interface {
 	Update(ctx context.Context, tenant *domain.Tenant) error
 	Delete(ctx context.Context, id string) error
 	ListAll(ctx context.Context, limit, offset int) ([]*domain.Tenant, int, error)
+	Count(ctx context.Context) (int, error)
 }
 
 // InMemoryTenantRepository is an in-memory implementation of TenantRepository
@@ -100,4 +101,11 @@ func (r *InMemoryTenantRepository) ListAll(ctx context.Context, limit, offset in
 	}
 
 	return tenants[offset:end], total, nil
+}
+
+// Count returns the total number of tenants
+func (r *InMemoryTenantRepository) Count(ctx context.Context) (int, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return len(r.tenants), nil
 }

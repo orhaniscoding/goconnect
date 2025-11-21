@@ -224,3 +224,13 @@ func (r *PostgresUserRepository) ListAll(ctx context.Context, limit, offset int)
 
 	return users, total, nil
 }
+
+func (r *PostgresUserRepository) Count(ctx context.Context) (int, error) {
+	query := `SELECT COUNT(*) FROM users`
+	var count int
+	err := r.db.QueryRowContext(ctx, query).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count users: %w", err)
+	}
+	return count, nil
+}

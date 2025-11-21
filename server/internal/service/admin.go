@@ -58,15 +58,12 @@ type SystemStats struct {
 
 // GetSystemStats retrieves system statistics
 func (s *AdminService) GetSystemStats(ctx context.Context) (*SystemStats, error) {
-	// We can optimize this by adding Count() methods to repositories
-	// For now, we'll use ListAll with limit 1 to get the total count
-
-	_, userCount, err := s.userRepo.ListAll(ctx, 1, 0)
+	userCount, err := s.userRepo.Count(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	_, tenantCount, err := s.tenantRepo.ListAll(ctx, 1, 0)
+	tenantCount, err := s.tenantRepo.Count(ctx)
 	if err != nil {
 		return nil, err
 	}
