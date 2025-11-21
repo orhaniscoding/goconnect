@@ -98,20 +98,49 @@ func (m *Manager) ApplyConfig(config *api.DeviceConfig, privateKey string) error
 	cfg := wgtypes.Config{
 		PrivateKey:   &key,
 		ListenPort:   &config.Interface.ListenPort,
-		ReplacePeers: true, // Remove peers not in the list
 		Peers:        peers,
+		ReplacePeers: true,
 	}
 
-	// TODO: Ensure interface exists before configuring
-	// For now, we assume it exists or we fail.
-	// In a real implementation, we need to create the TUN device here.
+	return m.client.ConfigureDevice(m.interfaceName, cfg)
+}
 
-	if err := m.client.ConfigureDevice(m.interfaceName, cfg); err != nil {
-		return fmt.Errorf("failed to configure device %s: %w", m.interfaceName, err)
+// Status represents the WireGuard interface status
+type Status struct {
+	Active      bool      `json:"active"`
+	PublicKey   string    `json:"public_key"`
+	ListenPort  int       `json:"listen_port"`
+	Peers       int       `json:"peers"`
+	TotalRx     int64     `json:"total_rx"`
+	TotalTx     int64     `json:"total_tx"`
+	LastHandshake time.Time `json:"last_handshake"`
+}
+
+// GetStatus retrieves the current interface status
+func (m *Manager) GetStatus() (*Status, error) {
+	dev, err := m.client.Device(m.interfaceName)
+	if err != nil {
+		return &Status{Active: false}, nil // Interface likely doesn't exist
 	}
 
-	// TODO: Configure IP addresses and routes on the interface (OS specific)
-	// This requires netlink on Linux, or other syscalls on Windows/macOS.
+	var totalRx, totalTx int64
+	var lastHandshake time.Time
 
-	return nil
+	for _, peer := range dev.Peers {
+		totalRx += peer.ReceiveBytes
+		totalTx += peer.TransmitBytes
+		if peer.LastHandshakeTime.After(lastHandshake) {
+			lastHandshake = peer.LastHandshakeTime
+		}
+	}
+
+	return &Status{
+		Active:        true,
+		PublicKey:     dev.PublicKey.String(),
+		ListenPort:    dev.ListenPort,
+		Peers:         len(dev.Peers),
+		TotalRx:       totalRx,
+		TotalTx:       totalTx,
+		LastHandshake: lastHandshake,
+	}, nil
 }

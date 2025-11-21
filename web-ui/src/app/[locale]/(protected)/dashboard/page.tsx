@@ -212,30 +212,64 @@ export default function Dashboard() {
                     )}
                 </div>
 
-                {/* Notification System Demo Section - REMOVED */}
-
+                {/* Connection Status */}
                 <div style={{
-                    padding: 16,
+                    padding: 20,
                     backgroundColor: '#fff',
                     borderRadius: 8,
                     border: '1px solid #dee2e6',
                     marginBottom: 24
                 }}>
-                    <h3 style={{ marginTop: 0 }}>Bridge Status</h3>
+                    <h3 style={{ marginTop: 0, marginBottom: 16 }}>Connection Status</h3>
                     {err ? (
-                        <p style={{ color: 'crimson' }}>Bridge error: {err}</p>
+                        <div style={{ color: '#dc3545', display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span>🔴</span>
+                            <span>Daemon not reachable ({err})</span>
+                        </div>
                     ) : status ? (
-                        <pre style={{
-                            backgroundColor: '#f8f9fa',
-                            padding: 12,
-                            borderRadius: 4,
-                            overflow: 'auto',
-                            fontSize: 13
-                        }}>
-                            {JSON.stringify(status, null, 2)}
-                        </pre>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20 }}>
+                            <div>
+                                <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>VPN State</div>
+                                <div style={{ fontSize: 18, fontWeight: 600, color: status.wg?.active ? '#10b981' : '#6b7280' }}>
+                                    {status.wg?.active ? '● Connected' : '○ Disconnected'}
+                                </div>
+                            </div>
+                            
+                            {status.wg?.active && (
+                                <>
+                                    <div>
+                                        <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>Peers</div>
+                                        <div style={{ fontSize: 18, fontWeight: 600 }}>
+                                            {status.wg?.peers || 0} devices
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>Data Transfer</div>
+                                        <div style={{ fontSize: 14 }}>
+                                            ⬇️ {formatBytes(status.wg?.total_rx || 0)}<br/>
+                                            ⬆️ {formatBytes(status.wg?.total_tx || 0)}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>Last Handshake</div>
+                                        <div style={{ fontSize: 14 }}>
+                                            {status.wg?.last_handshake && new Date(status.wg.last_handshake).getFullYear() > 1970 
+                                                ? new Date(status.wg.last_handshake).toLocaleTimeString() 
+                                                : 'Never'}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+                            <div>
+                                <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>Daemon Version</div>
+                                <div style={{ fontSize: 14, fontFamily: 'monospace' }}>
+                                    {status.version || 'Unknown'}
+                                </div>
+                            </div>
+                        </div>
                     ) : (
-                        <p style={{ color: '#666' }}>Loading...</p>
+                        <p style={{ color: '#666' }}>Loading status...</p>
                     )}
                 </div>
 
@@ -243,4 +277,13 @@ export default function Dashboard() {
             </div>
         </AuthGuard>
     )
+}
+
+function formatBytes(bytes: number, decimals = 2) {
+    if (!+bytes) return '0 B'
+    const k = 1024
+    const dm = decimals < 0 ? 0 : decimals
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`
 }

@@ -167,6 +167,27 @@ func (e *Engine) syncConfig() {
 	}
 }
 
+// GetStatus returns the current engine status
+func (e *Engine) GetStatus() map[string]interface{} {
+	status := map[string]interface{}{
+		"running": true,
+		"version": e.version,
+	}
+
+	if e.wgMgr != nil {
+		wgStatus, err := e.wgMgr.GetStatus()
+		if err == nil {
+			status["wg"] = wgStatus
+		} else {
+			status["wg"] = map[string]interface{}{"active": false, "error": err.Error()}
+		}
+	} else {
+		status["wg"] = map[string]interface{}{"active": false}
+	}
+
+	return status
+}
+
 func (e *Engine) heartbeatLoop() {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
