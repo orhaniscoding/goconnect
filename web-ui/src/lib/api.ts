@@ -781,3 +781,36 @@ export async function uploadFile(
 
   return res.json()
 }
+
+// Audit API
+export interface AuditLog {
+  seq: number
+  timestamp: string
+  tenant_id: string
+  action: string
+  actor: string
+  object: string
+  details: any
+  request_id: string
+}
+
+export interface ListAuditLogsResponse {
+  data: AuditLog[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+  }
+}
+
+export async function listAuditLogs(
+  page: number,
+  limit: number,
+  accessToken: string
+): Promise<ListAuditLogsResponse> {
+  return api(`/v1/audit/logs?page=${page}&limit=${limit}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+}

@@ -430,6 +430,12 @@ GET http://localhost:8080/v1/audit/integrity?anchors=10
 
 ###
 
+### List Audit Logs (Admin Only)
+GET http://localhost:8080/v1/audit/logs?page=1&limit=10
+Authorization: Bearer {access_token}
+
+###
+
 # ========================================
 # Metrics API Examples
 # ========================================

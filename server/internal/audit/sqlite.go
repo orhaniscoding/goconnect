@@ -485,3 +485,53 @@ func (a *SqliteAuditor) VerifyFromAnchor(ctx context.Context, anchorSeq int64) e
 
 // ErrNotSupported indicates the sqlite auditor is not configured.
 var ErrNotSupported = errors.New("sqlite auditor not configured")
+
+// LogEntry represents a single audit log entry
+type LogEntry struct {
+	Seq       int64          `json:"seq"`
+	Timestamp string         `json:"timestamp"`
+	TenantID  string         `json:"tenant_id"`
+	Action    string         `json:"action"`
+	Actor     string         `json:"actor"`
+	Object    string         `json:"object"`
+	Details   map[string]any `json:"details"`
+	RequestID string         `json:"request_id"`
+}
+
+// QueryLogs retrieves audit logs with filtering and pagination
+func (a *SqliteAuditor) QueryLogs(ctx context.Context, tenantID string, limit, offset int) ([]LogEntry, int, error) {
+	// Count total
+	var total int
+	countQuery := `SELECT COUNT(*) FROM audit_events WHERE tenant_id = ?`
+	if err := a.db.QueryRowContext(ctx, countQuery, tenantID).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("failed to count logs: %w", err)
+	}
+
+	// Query logs
+	query := `
+		SELECT seq, ts, tenant_id, action, actor, object, details, request_id
+		FROM audit_events
+		WHERE tenant_id = ?
+		ORDER BY seq DESC
+		LIMIT ? OFFSET ?
+	`
+	rows, err := a.db.QueryContext(ctx, query, tenantID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query logs: %w", err)
+	}
+	defer rows.Close()
+
+	var logs []LogEntry
+	for rows.Next() {
+		var l LogEntry
+		var detailsJSON sql.NullString
+		if err := rows.Scan(&l.Seq, &l.Timestamp, &l.TenantID, &l.Action, &l.Actor, &l.Object, &detailsJSON, &l.RequestID); err != nil {
+			return nil, 0, err
+		}
+		if detailsJSON.Valid && detailsJSON.String != "" {
+			_ = json.Unmarshal([]byte(detailsJSON.String), &l.Details)
+		}
+		logs = append(logs, l)
+	}
+	return logs, total, nil
+}

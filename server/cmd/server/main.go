@@ -256,8 +256,10 @@ func main() {
 	// Pass through the underlying sqlite auditor if present so ExportIntegrity works.
 	if sqliteAudRef != nil {
 		r.GET("/v1/audit/integrity", handler.AuditIntegrityHandler(sqliteAudRef))
+		r.GET("/v1/audit/logs", handler.AuthMiddleware(authService), handler.AuditListHandler(sqliteAudRef))
 	} else {
 		r.GET("/v1/audit/integrity", handler.AuditIntegrityHandler(aud))
+		r.GET("/v1/audit/logs", handler.AuthMiddleware(authService), handler.AuditListHandler(aud))
 	}
 
 	// Start server with timeouts
