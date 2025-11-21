@@ -8,20 +8,20 @@
 This release introduces comprehensive search and filtering capabilities to the Admin Dashboard, allowing administrators to efficiently manage Users, Tenants, Networks, and Devices. It also includes the implementation of device management within the dashboard.
 
 ## Build Status
-| Component | Platform | Arch | Status | Artifact |
-|-----------|----------|------|--------|----------|
-| Server | Linux | amd64 | ✅ Success | `goconnect-server-linux-amd64` |
-| Server | Linux | arm64 | ✅ Success | `goconnect-server-linux-arm64` |
-| Server | macOS | amd64 | ✅ Success | `goconnect-server-darwin-amd64` |
-| Server | macOS | arm64 | ✅ Success | `goconnect-server-darwin-arm64` |
-| Server | Windows | amd64 | ✅ Success | `goconnect-server-windows-amd64.exe` |
-| Server | Windows | arm64 | ✅ Success | `goconnect-server-windows-arm64.exe` |
-| Daemon | Linux | amd64 | ✅ Success | `goconnect-daemon-linux-amd64` |
-| Daemon | Linux | arm64 | ✅ Success | `goconnect-daemon-linux-arm64` |
-| Daemon | macOS | amd64 | ✅ Success | `goconnect-daemon-darwin-amd64` |
-| Daemon | macOS | arm64 | ✅ Success | `goconnect-daemon-darwin-arm64` |
-| Daemon | Windows | amd64 | ✅ Success | `goconnect-daemon-windows-amd64.exe` |
-| Daemon | Windows | arm64 | ✅ Success | `goconnect-daemon-windows-arm64.exe` |
+| Component | Platform | Arch  | Status    | Artifact                             |
+| --------- | -------- | ----- | --------- | ------------------------------------ |
+| Server    | Linux    | amd64 | ✅ Success | `goconnect-server-linux-amd64`       |
+| Server    | Linux    | arm64 | ✅ Success | `goconnect-server-linux-arm64`       |
+| Server    | macOS    | amd64 | ✅ Success | `goconnect-server-darwin-amd64`      |
+| Server    | macOS    | arm64 | ✅ Success | `goconnect-server-darwin-arm64`      |
+| Server    | Windows  | amd64 | ✅ Success | `goconnect-server-windows-amd64.exe` |
+| Server    | Windows  | arm64 | ✅ Success | `goconnect-server-windows-arm64.exe` |
+| Daemon    | Linux    | amd64 | ✅ Success | `goconnect-daemon-linux-amd64`       |
+| Daemon    | Linux    | arm64 | ✅ Success | `goconnect-daemon-linux-arm64`       |
+| Daemon    | macOS    | amd64 | ✅ Success | `goconnect-daemon-darwin-amd64`      |
+| Daemon    | macOS    | arm64 | ✅ Success | `goconnect-daemon-darwin-arm64`      |
+| Daemon    | Windows  | amd64 | ✅ Success | `goconnect-daemon-windows-amd64.exe` |
+| Daemon    | Windows  | arm64 | ✅ Success | `goconnect-daemon-windows-arm64.exe` |
 
 ## Packaging
 All binaries have been packaged into platform-specific archives in `dist/v2.4.0/`.
