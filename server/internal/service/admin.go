@@ -36,7 +36,6 @@ func NewAdminService(
 	}
 }
 
-
 // ListUsers retrieves a paginated list of users
 func (s *AdminService) ListUsers(ctx context.Context, limit, offset int) ([]*domain.User, int, error) {
 	return s.userRepo.ListAll(ctx, limit, offset)
