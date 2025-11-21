@@ -389,6 +389,16 @@ func (r *PostgresDeviceRepository) MarkInactive(ctx context.Context, id string) 
 	return nil
 }
 
+// Count returns the total number of devices
+func (r *PostgresDeviceRepository) Count(ctx context.Context) (int, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM devices").Scan(&count)
+	if err != nil {
+		return 0, domain.NewError(domain.ErrInternalServer, "Failed to count devices", map[string]string{"error": err.Error()})
+	}
+	return count, nil
+}
+
 // Helper function to convert int to string for query building
 func intToString(i int) string {
 	return strconv.Itoa(i)

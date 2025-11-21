@@ -65,14 +65,15 @@ func (s *AdminService) GetSystemStats(ctx context.Context) (*SystemStats, error)
 		return nil, err
 	}
 
-	// For networks and devices, we might need to add Count methods or ListAll
-	// Assuming List returns total count or we just count the slice (inefficient for large datasets)
-	// For now, let's just return 0 for those if we can't easily get the count without fetching all
-	// Or we can add Count() to the interfaces.
+	networkCount, err := s.networkRepo.Count(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-	// Let's assume 0 for now to keep it simple and safe
-	networkCount := 0
-	deviceCount := 0
+	deviceCount, err := s.deviceRepo.Count(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	return &SystemStats{
 		TotalUsers:    userCount,

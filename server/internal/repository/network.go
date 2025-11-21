@@ -19,6 +19,7 @@ type NetworkRepository interface {
 	CheckCIDROverlap(ctx context.Context, cidr string, excludeID string, tenantID string) (bool, error)
 	Update(ctx context.Context, id string, mutate func(n *domain.Network) error) (*domain.Network, error)
 	SoftDelete(ctx context.Context, id string, at time.Time) error
+	Count(ctx context.Context) (int, error)
 }
 
 // NetworkFilter represents filtering options for listing networks
@@ -227,4 +228,11 @@ func (r *InMemoryNetworkRepository) SoftDelete(ctx context.Context, id string, a
 	n.SoftDeletedAt = &at
 	n.UpdatedAt = at
 	return nil
+}
+
+// Count returns the total number of networks
+func (r *InMemoryNetworkRepository) Count(ctx context.Context) (int, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return len(r.networks), nil
 }

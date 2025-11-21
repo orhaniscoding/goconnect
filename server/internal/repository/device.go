@@ -20,6 +20,7 @@ type DeviceRepository interface {
 	// Heartbeat operations
 	UpdateHeartbeat(ctx context.Context, id string, ipAddress string) error
 	MarkInactive(ctx context.Context, id string) error
+	Count(ctx context.Context) (int, error)
 }
 
 // InMemoryDeviceRepository implements DeviceRepository with in-memory storage
@@ -255,4 +256,11 @@ func (r *InMemoryDeviceRepository) MarkInactive(ctx context.Context, id string) 
 
 	device.MarkInactive()
 	return nil
+}
+
+// Count returns the total number of devices
+func (r *InMemoryDeviceRepository) Count(ctx context.Context) (int, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return len(r.devices), nil
 }

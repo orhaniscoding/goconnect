@@ -2,13 +2,13 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getUser, getAccessToken } from '../../../../lib/auth'
-import { 
-    getSystemStats, 
-    listUsers, 
-    listTenants, 
-    SystemStats, 
-    AdminUser, 
-    Tenant 
+import {
+    getSystemStats,
+    listUsers,
+    listTenants,
+    SystemStats,
+    AdminUser,
+    Tenant
 } from '../../../../lib/api'
 import AuthGuard from '../../../../components/AuthGuard'
 import Footer from '../../../../components/Footer'
@@ -17,7 +17,7 @@ export default function AdminPage() {
     const router = useRouter()
     const [currentUser, setCurrentUser] = useState<any>(null)
     const [activeTab, setActiveTab] = useState<'stats' | 'users' | 'tenants'>('stats')
-    
+
     const [stats, setStats] = useState<SystemStats | null>(null)
     const [users, setUsers] = useState<AdminUser[]>([])
     const [tenants, setTenants] = useState<Tenant[]>([])
@@ -190,7 +190,7 @@ export default function AdminPage() {
 
                 {/* Main Content */}
                 <div style={{ flex: 1, padding: 24, maxWidth: 1400, margin: '0 auto', width: '100%' }}>
-                    
+
                     {loading && (
                         <div style={{ textAlign: 'center', padding: 40 }}>
                             <div style={{ fontSize: 24 }}>⏳ Loading...</div>
@@ -198,12 +198,12 @@ export default function AdminPage() {
                     )}
 
                     {error && (
-                        <div style={{ 
-                            padding: 16, 
-                            backgroundColor: '#f8d7da', 
-                            color: '#842029', 
+                        <div style={{
+                            padding: 16,
+                            backgroundColor: '#f8d7da',
+                            color: '#842029',
                             borderRadius: 8,
-                            marginBottom: 24 
+                            marginBottom: 24
                         }}>
                             {error}
                         </div>
@@ -333,7 +333,7 @@ export default function AdminPage() {
                                 <h2 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 600 }}>
                                     User Management
                                 </h2>
-                                
+
                                 <div style={{ overflowX: 'auto' }}>
                                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                         <thead>
@@ -417,7 +417,7 @@ export default function AdminPage() {
                                 <h2 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 600 }}>
                                     Tenant Management
                                 </h2>
-                                
+
                                 <div style={{ display: 'grid', gap: 16 }}>
                                     {tenants.map((tenant) => (
                                         <div
@@ -454,7 +454,7 @@ export default function AdminPage() {
                                                     Manage
                                                 </button>
                                             </div>
-                                            
+
                                             <div style={{ display: 'flex', gap: 24, fontSize: 14, color: '#6c757d' }}>
                                                 <div>
                                                     <span style={{ fontWeight: 500 }}>Created:</span> {formatDate(tenant.created_at)}

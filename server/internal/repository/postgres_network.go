@@ -276,3 +276,12 @@ func (r *PostgresNetworkRepository) SoftDelete(ctx context.Context, id string, a
 	}
 	return nil
 }
+
+func (r *PostgresNetworkRepository) Count(ctx context.Context) (int, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM networks WHERE deleted_at IS NULL").Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count networks: %w", err)
+	}
+	return count, nil
+}
