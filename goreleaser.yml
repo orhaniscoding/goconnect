@@ -2,14 +2,16 @@ version: 2
 env: [CGO_ENABLED=0]
 builds:
   - id: server
-    main: ./server/cmd/server/main.go
+    dir: ./server
+    main: ./cmd/server/main.go
     binary: goconnect-server
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=orhaniscoding
     goos: [linux, darwin, windows]
     goarch: [amd64, arm64]
   - id: daemon
-    main: ./client-daemon/cmd/daemon/main.go
+    dir: ./client-daemon
+    main: ./cmd/daemon/main.go
     binary: goconnect-daemon
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=orhaniscoding
@@ -19,6 +21,9 @@ archives:
   - id: archive
     formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
 nfpms:
   - id: linux
     package_name: goconnect
@@ -27,11 +32,10 @@ nfpms:
     description: "GoConnect — Host/Daemon"
     formats: [deb, rpm]
     contents:
-      - src: ./dist/goconnect-server_{{ .Os }}_{{ .Arch }}
+      - src: ./client-daemon/service/linux/goconnect-daemon.service
+        dst: /usr/lib/systemd/system/goconnect-daemon.service
+        type: config
+      - src: ./dist/server_{{ .Os }}_{{ .Arch }}/goconnect-server
         dst: /usr/local/bin/goconnect-server
-        type: file
-        mode: 0755
-      - src: ./dist/goconnect-daemon_{{ .Os }}_{{ .Arch }}
+      - src: ./dist/daemon_{{ .Os }}_{{ .Arch }}/goconnect-daemon
         dst: /usr/local/bin/goconnect-daemon
-        type: file
-        mode: 0755
