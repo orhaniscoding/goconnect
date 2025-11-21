@@ -232,12 +232,16 @@ func main() {
 	deviceService.SetAuditor(aud)
 	chatService.SetAuditor(aud)
 
+	// Initialize Admin Service
+	adminService := service.NewAdminService(userRepo, tenantRepo, networkRepo, deviceRepo)
+
 	// Initialize handlers
 	networkHandler := handler.NewNetworkHandler(networkService, membershipService, deviceService, peerRepo, cfg.WireGuard).WithIPAM(ipamService)
 	authHandler := handler.NewAuthHandler(authService)
 	deviceHandler := handler.NewDeviceHandler(deviceService)
 	chatHandler := handler.NewChatHandler(chatService)
 	uploadHandler := handler.NewUploadHandler("./uploads", "/uploads")
+	adminHandler := handler.NewAdminHandler(adminService)
 
 	// Initialize WebSocket components
 	// Circular dependency resolution: Handler -> Hub -> Handler
@@ -276,6 +280,16 @@ func main() {
 	// Register upload routes
 	handler.RegisterUploadRoutes(r, uploadHandler, handler.AuthMiddleware(authService))
 	r.Static("/uploads", "./uploads")
+
+	// Register admin routes
+	adminGroup := r.Group("/v1/admin")
+	adminGroup.Use(handler.AuthMiddleware(authService))
+	adminGroup.Use(handler.RequireAdmin())
+	{
+		adminGroup.GET("/users", adminHandler.ListUsers)
+		adminGroup.GET("/tenants", adminHandler.ListTenants)
+		adminGroup.GET("/stats", adminHandler.GetSystemStats)
+	}
 
 	// Register WebSocket route
 	r.GET("/ws", handler.AuthMiddleware(authService), webSocketHandler.HandleUpgrade)

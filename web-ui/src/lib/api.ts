@@ -839,3 +839,49 @@ export async function listAuditLogs(
     },
   })
 }
+
+// Admin API
+export interface SystemStats {
+  total_users: number
+  total_tenants: number
+  total_networks: number
+  total_devices: number
+  active_connections: number
+  messages_today: number
+}
+
+export interface AdminUser {
+  id: string
+  tenant_id: string
+  email: string
+  locale: string
+  is_admin: boolean
+  is_moderator: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface Tenant {
+  id: string
+  name: string
+  created_at: string
+  updated_at: string
+}
+
+export async function getSystemStats(accessToken: string): Promise<{ data: SystemStats }> {
+  return api('/v1/admin/stats', {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  })
+}
+
+export async function listUsers(limit: number, offset: number, accessToken: string): Promise<{ data: AdminUser[], meta: any }> {
+  return api(`/v1/admin/users?limit=${limit}&offset=${offset}`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  })
+}
+
+export async function listTenants(limit: number, offset: number, accessToken: string): Promise<{ data: Tenant[], meta: any }> {
+  return api(`/v1/admin/tenants?limit=${limit}&offset=${offset}`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  })
+}

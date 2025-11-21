@@ -178,3 +178,49 @@ func (r *PostgresUserRepository) List(ctx context.Context, tenantID string) ([]*
 
 	return users, nil
 }
+
+func (r *PostgresUserRepository) ListAll(ctx context.Context, limit, offset int) ([]*domain.User, int, error) {
+	// Get total count
+	var total int
+	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM users").Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count users: %w", err)
+	}
+
+	query := `
+		SELECT id, tenant_id, email, password_hash, locale, is_admin, created_at, updated_at
+		FROM users
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+	rows, err := r.db.QueryContext(ctx, query, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []*domain.User
+	for rows.Next() {
+		user := &domain.User{}
+		err := rows.Scan(
+			&user.ID,
+			&user.TenantID,
+			&user.Email,
+			&user.PasswordHash,
+			&user.Locale,
+			&user.IsAdmin,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan user: %w", err)
+		}
+		users = append(users, user)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("failed to iterate users: %w", err)
+	}
+
+	return users, total, nil
+}

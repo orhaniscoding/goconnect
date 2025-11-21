@@ -14,6 +14,7 @@ type UserRepository interface {
 	GetByEmail(ctx context.Context, email string) (*domain.User, error)
 	Update(ctx context.Context, user *domain.User) error
 	Delete(ctx context.Context, id string) error
+	ListAll(ctx context.Context, limit, offset int) ([]*domain.User, int, error)
 }
 
 // InMemoryUserRepository is an in-memory implementation of UserRepository
@@ -105,4 +106,29 @@ func (r *InMemoryUserRepository) Delete(ctx context.Context, id string) error {
 	delete(r.users, id)
 	delete(r.email, user.Email)
 	return nil
+}
+
+// ListAll retrieves a list of users with pagination
+func (r *InMemoryUserRepository) ListAll(ctx context.Context, limit, offset int) ([]*domain.User, int, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	users := make([]*domain.User, 0, len(r.users))
+	for _, user := range r.users {
+		users = append(users, user)
+	}
+
+	total := len(users)
+
+	// Apply pagination
+	if offset >= total {
+		return []*domain.User{}, total, nil
+	}
+
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+
+	return users[offset:end], total, nil
 }

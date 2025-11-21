@@ -1,105 +1,63 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { getUser } from '../../../../lib/auth'
+import { getUser, getAccessToken } from '../../../../lib/auth'
+import { 
+    getSystemStats, 
+    listUsers, 
+    listTenants, 
+    SystemStats, 
+    AdminUser, 
+    Tenant 
+} from '../../../../lib/api'
 import AuthGuard from '../../../../components/AuthGuard'
 import Footer from '../../../../components/Footer'
-
-interface User {
-    id: string
-    name: string
-    email: string
-    is_admin: boolean
-    is_moderator: boolean
-    tenant_id: string
-    created_at: string
-}
-
-interface Tenant {
-    id: string
-    name: string
-    user_count: number
-    network_count: number
-    created_at: string
-}
-
-interface SystemStats {
-    total_users: number
-    total_tenants: number
-    total_networks: number
-    total_devices: number
-    active_connections: number
-    messages_today: number
-}
 
 export default function AdminPage() {
     const router = useRouter()
     const [currentUser, setCurrentUser] = useState<any>(null)
     const [activeTab, setActiveTab] = useState<'stats' | 'users' | 'tenants'>('stats')
     
-    // Mock data - will be replaced with real API calls
-    const [stats] = useState<SystemStats>({
-        total_users: 42,
-        total_tenants: 8,
-        total_networks: 15,
-        total_devices: 127,
-        active_connections: 89,
-        messages_today: 1543
-    })
+    const [stats, setStats] = useState<SystemStats | null>(null)
+    const [users, setUsers] = useState<AdminUser[]>([])
+    const [tenants, setTenants] = useState<Tenant[]>([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
 
-    const [users] = useState<User[]>([
-        {
-            id: '550e8400-e29b-41d4-a716-446655440000',
-            name: 'Admin User',
-            email: 'admin@goconnect.local',
-            is_admin: true,
-            is_moderator: false,
-            tenant_id: 'tenant-001',
-            created_at: '2025-11-01T10:00:00Z'
-        },
-        {
-            id: '550e8400-e29b-41d4-a716-446655440001',
-            name: 'John Moderator',
-            email: 'mod@goconnect.local',
-            is_admin: false,
-            is_moderator: true,
-            tenant_id: 'tenant-001',
-            created_at: '2025-11-05T14:30:00Z'
-        },
-        {
-            id: '550e8400-e29b-41d4-a716-446655440002',
-            name: 'Jane User',
-            email: 'user@goconnect.local',
-            is_admin: false,
-            is_moderator: false,
-            tenant_id: 'tenant-002',
-            created_at: '2025-11-10T09:15:00Z'
+    useEffect(() => {
+        const user = getUser()
+        if (user) {
+            setCurrentUser(user)
+            if (!user.is_admin) {
+                router.push('/en/dashboard')
+                return
+            }
+            loadData()
         }
-    ])
+    }, [])
 
-    const [tenants] = useState<Tenant[]>([
-        {
-            id: 'tenant-001',
-            name: 'Main Organization',
-            user_count: 25,
-            network_count: 8,
-            created_at: '2025-10-15T08:00:00Z'
-        },
-        {
-            id: 'tenant-002',
-            name: 'Partner Company',
-            user_count: 12,
-            network_count: 4,
-            created_at: '2025-10-20T10:30:00Z'
-        },
-        {
-            id: 'tenant-003',
-            name: 'Test Environment',
-            user_count: 5,
-            network_count: 3,
-            created_at: '2025-11-01T14:00:00Z'
+    const loadData = async () => {
+        try {
+            setLoading(true)
+            const token = getAccessToken()
+            if (!token) return
+
+            const [statsRes, usersRes, tenantsRes] = await Promise.all([
+                getSystemStats(token),
+                listUsers(50, 0, token),
+                listTenants(50, 0, token)
+            ])
+
+            setStats(statsRes.data)
+            setUsers(usersRes.data)
+            setTenants(tenantsRes.data)
+        } catch (err: any) {
+            console.error('Failed to load admin data:', err)
+            setError(err.message || 'Failed to load data')
+        } finally {
+            setLoading(false)
         }
-    ])
+    }
 
     useEffect(() => {
         const user = getUser()
@@ -121,12 +79,8 @@ export default function AdminPage() {
         )
     }
 
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        })
+    function formatDate(dateString: string) {
+        return new Date(dateString).toLocaleDateString()
     }
 
     return (
@@ -237,8 +191,26 @@ export default function AdminPage() {
                 {/* Main Content */}
                 <div style={{ flex: 1, padding: 24, maxWidth: 1400, margin: '0 auto', width: '100%' }}>
                     
+                    {loading && (
+                        <div style={{ textAlign: 'center', padding: 40 }}>
+                            <div style={{ fontSize: 24 }}>⏳ Loading...</div>
+                        </div>
+                    )}
+
+                    {error && (
+                        <div style={{ 
+                            padding: 16, 
+                            backgroundColor: '#f8d7da', 
+                            color: '#842029', 
+                            borderRadius: 8,
+                            marginBottom: 24 
+                        }}>
+                            {error}
+                        </div>
+                    )}
+
                     {/* Statistics Tab */}
-                    {activeTab === 'stats' && (
+                    {activeTab === 'stats' && stats && (
                         <div>
                             <div style={{
                                 display: 'grid',
@@ -367,9 +339,6 @@ export default function AdminPage() {
                                         <thead>
                                             <tr style={{ borderBottom: '2px solid #dee2e6' }}>
                                                 <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>
-                                                    Name
-                                                </th>
-                                                <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>
                                                     Email
                                                 </th>
                                                 <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>
@@ -389,10 +358,7 @@ export default function AdminPage() {
                                         <tbody>
                                             {users.map((user) => (
                                                 <tr key={user.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                                                    <td style={{ padding: '12px', fontSize: 14 }}>
-                                                        {user.name}
-                                                    </td>
-                                                    <td style={{ padding: '12px', fontSize: 14, color: '#6c757d' }}>
+                                                    <td style={{ padding: '12px', fontSize: 14, color: '#212529' }}>
                                                         {user.email}
                                                     </td>
                                                     <td style={{ padding: '12px' }}>
@@ -435,17 +401,6 @@ export default function AdminPage() {
                                         </tbody>
                                     </table>
                                 </div>
-                            </div>
-
-                            <div style={{
-                                backgroundColor: '#fff3cd',
-                                padding: 16,
-                                borderRadius: 8,
-                                color: '#856404',
-                                fontSize: 14,
-                                marginTop: 16
-                            }}>
-                                ⚠️ User management features are coming soon. Backend API integration is planned.
                             </div>
                         </div>
                     )}
@@ -502,29 +457,12 @@ export default function AdminPage() {
                                             
                                             <div style={{ display: 'flex', gap: 24, fontSize: 14, color: '#6c757d' }}>
                                                 <div>
-                                                    <span style={{ fontWeight: 500 }}>Users:</span> {tenant.user_count}
-                                                </div>
-                                                <div>
-                                                    <span style={{ fontWeight: 500 }}>Networks:</span> {tenant.network_count}
-                                                </div>
-                                                <div>
                                                     <span style={{ fontWeight: 500 }}>Created:</span> {formatDate(tenant.created_at)}
                                                 </div>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
-                            </div>
-
-                            <div style={{
-                                backgroundColor: '#fff3cd',
-                                padding: 16,
-                                borderRadius: 8,
-                                color: '#856404',
-                                fontSize: 14,
-                                marginTop: 16
-                            }}>
-                                ⚠️ Tenant management features are coming soon. Backend API integration is planned.
                             </div>
                         </div>
                     )}

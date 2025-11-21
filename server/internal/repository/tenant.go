@@ -13,6 +13,7 @@ type TenantRepository interface {
 	GetByID(ctx context.Context, id string) (*domain.Tenant, error)
 	Update(ctx context.Context, tenant *domain.Tenant) error
 	Delete(ctx context.Context, id string) error
+	ListAll(ctx context.Context, limit, offset int) ([]*domain.Tenant, int, error)
 }
 
 // InMemoryTenantRepository is an in-memory implementation of TenantRepository
@@ -74,4 +75,29 @@ func (r *InMemoryTenantRepository) Delete(ctx context.Context, id string) error 
 
 	delete(r.tenants, id)
 	return nil
+}
+
+// ListAll retrieves a list of tenants with pagination
+func (r *InMemoryTenantRepository) ListAll(ctx context.Context, limit, offset int) ([]*domain.Tenant, int, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	tenants := make([]*domain.Tenant, 0, len(r.tenants))
+	for _, tenant := range r.tenants {
+		tenants = append(tenants, tenant)
+	}
+
+	total := len(tenants)
+
+	// Apply pagination
+	if offset >= total {
+		return []*domain.Tenant{}, total, nil
+	}
+
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+
+	return tenants[offset:end], total, nil
 }
