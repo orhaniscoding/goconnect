@@ -140,3 +140,23 @@ func (h *AdminHandler) DeleteTenant(c *gin.Context) {
 		"message": "Tenant deleted successfully",
 	})
 }
+
+func (h *AdminHandler) ListNetworks(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	cursor := c.DefaultQuery("cursor", "")
+
+	networks, nextCursor, err := h.adminService.ListNetworks(c.Request.Context(), limit, cursor)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": networks,
+		"meta": gin.H{
+			"limit":       limit,
+			"next_cursor": nextCursor,
+			"has_more":    nextCursor != "",
+		},
+	})
+}

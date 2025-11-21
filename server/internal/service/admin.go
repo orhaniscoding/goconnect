@@ -129,3 +129,13 @@ func (s *AdminService) DeleteTenant(ctx context.Context, tenantID string) error 
 	// otherwise we might need to delete users/networks first.
 	return s.tenantRepo.Delete(ctx, tenantID)
 }
+
+// ListNetworks retrieves a paginated list of all networks (system-wide)
+func (s *AdminService) ListNetworks(ctx context.Context, limit int, cursor string) ([]*domain.Network, string, error) {
+	return s.networkRepo.List(ctx, repository.NetworkFilter{
+		TenantID: "", // Empty means all tenants
+		IsAdmin:  true,
+		Limit:    limit,
+		Cursor:   cursor,
+	})
+}

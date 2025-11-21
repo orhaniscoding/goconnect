@@ -89,6 +89,13 @@ func (r *PostgresNetworkRepository) List(ctx context.Context, filter NetworkFilt
 	args := []interface{}{}
 	argIndex := 1
 
+	// Apply tenant filter
+	if filter.TenantID != "" {
+		query += fmt.Sprintf(" AND tenant_id = $%d", argIndex)
+		args = append(args, filter.TenantID)
+		argIndex++
+	}
+
 	// Apply visibility filter
 	if filter.Visibility == "public" {
 		query += fmt.Sprintf(" AND visibility = $%d", argIndex)

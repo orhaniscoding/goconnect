@@ -90,7 +90,8 @@
 
 ### Bug Fixes
 
-* **tests:** resolve all handler test failures and parameter order bugs ([e53ed9d](https://github.com/orhaniscoding/goconnect/commit/e53ed9d2f0926e96f016430bce557de3a8375a30))
+* **repo:** enforce tenant isolation in postgres network repository
+* **tests:** resolve all handler test failures and parameter order bugs
 
 ## [1.2.0](https://github.com/orhaniscoding/goconnect/compare/v1.1.0...v1.2.0) (2025-11-20)
 
@@ -139,6 +140,7 @@
 
 ### Features
 
+* **admin:** implement network management in admin dashboard
 * **admin:** implement delete user functionality
 * **admin:** implement delete tenant functionality
 * **admin:** optimize system stats with efficient count queries

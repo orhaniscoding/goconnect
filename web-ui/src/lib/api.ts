@@ -828,6 +828,37 @@ export interface ListAuditLogsResponse {
   }
 }
 
+export interface ListNetworksResponse {
+  data: Network[]
+  meta: {
+    limit: number
+    next_cursor: string
+    has_more: boolean
+  }
+}
+
+/**
+ * List all networks (admin only)
+ * @param limit - Page limit
+ * @param cursor - Pagination cursor
+ * @param accessToken - JWT access token
+ */
+export async function listAllNetworks(
+  limit: number,
+  cursor: string,
+  accessToken: string
+): Promise<ListNetworksResponse> {
+  const query = new URLSearchParams({
+    limit: limit.toString(),
+    cursor: cursor || '',
+  })
+  return api(`/v1/admin/networks?${query}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+}
+
 export async function listAuditLogs(
   page: number,
   limit: number,

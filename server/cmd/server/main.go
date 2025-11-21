@@ -291,6 +291,7 @@ func main() {
 		adminGroup.DELETE("/users/:id", adminHandler.DeleteUser)
 		adminGroup.GET("/tenants", adminHandler.ListTenants)
 		adminGroup.DELETE("/tenants/:id", adminHandler.DeleteTenant)
+		adminGroup.GET("/networks", adminHandler.ListNetworks)
 		adminGroup.GET("/stats", adminHandler.GetSystemStats)
 	}
 

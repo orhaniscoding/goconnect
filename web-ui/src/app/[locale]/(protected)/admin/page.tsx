@@ -6,6 +6,7 @@ import {
   getSystemStats,
   listUsers,
   listTenants,
+  listAllNetworks,
   listAuditLogs,
   toggleUserAdmin,
   deleteUser,
@@ -13,6 +14,7 @@ import {
   SystemStats,
   AdminUser,
   Tenant,
+  Network,
   AuditLog
 } from '../../../../lib/api'
 import AuthGuard from '../../../../components/AuthGuard'
@@ -21,11 +23,12 @@ import Footer from '../../../../components/Footer'
 export default function AdminPage() {
   const router = useRouter()
   const [currentUser, setCurrentUser] = useState<any>(null)
-  const [activeTab, setActiveTab] = useState<'stats' | 'users' | 'tenants' | 'audit'>('stats')
+  const [activeTab, setActiveTab] = useState<'stats' | 'users' | 'tenants' | 'networks' | 'audit'>('stats')
 
   const [stats, setStats] = useState<SystemStats | null>(null)
   const [users, setUsers] = useState<AdminUser[]>([])
   const [tenants, setTenants] = useState<Tenant[]>([])
+  const [networks, setNetworks] = useState<Network[]>([])
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -48,16 +51,18 @@ export default function AdminPage() {
       const token = getAccessToken()
       if (!token) return
 
-      const [statsRes, usersRes, tenantsRes, auditRes] = await Promise.all([
+      const [statsRes, usersRes, tenantsRes, networksRes, auditRes] = await Promise.all([
         getSystemStats(token),
         listUsers(50, 0, token),
         listTenants(50, 0, token),
+        listAllNetworks(50, '', token),
         listAuditLogs(1, 50, token)
       ])
 
       setStats(statsRes.data)
       setUsers(usersRes.data)
       setTenants(tenantsRes.data)
+      setNetworks(networksRes.data)
       setAuditLogs(auditRes.data)
     } catch (err: any) {
       console.error('Failed to load admin data:', err)
@@ -248,6 +253,21 @@ export default function AdminPage() {
               }}
             >
               🏢 Tenants
+            </button>
+            <button
+              onClick={() => setActiveTab('networks')}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: activeTab === 'networks' ? '#007bff' : 'transparent',
+                color: activeTab === 'networks' ? 'white' : '#6c757d',
+                border: 'none',
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontSize: 14,
+                fontWeight: 500
+              }}
+            >
+              🌐 Networks
             </button>
             <button
               onClick={() => setActiveTab('audit')}
@@ -550,6 +570,53 @@ export default function AdminPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Networks Tab */}
+          {activeTab === 'networks' && (
+            <div>
+              <div style={{
+                backgroundColor: 'white',
+                borderRadius: 12,
+                padding: 24,
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+              }}>
+                <h2 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 600 }}>
+                  Network Management
+                </h2>
+
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #dee2e6' }}>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>Name</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>CIDR</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>Tenant ID</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>Created</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {networks.map((network) => (
+                        <tr key={network.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                          <td style={{ padding: '12px', fontSize: 14, color: '#212529', fontWeight: 500 }}>
+                            {network.name}
+                          </td>
+                          <td style={{ padding: '12px', fontSize: 14, fontFamily: 'monospace', color: '#6c757d' }}>
+                            {network.cidr}
+                          </td>
+                          <td style={{ padding: '12px', fontSize: 13, fontFamily: 'monospace', color: '#6c757d' }}>
+                            {network.tenant_id.substring(0, 12)}...
+                          </td>
+                          <td style={{ padding: '12px', fontSize: 13, color: '#6c757d' }}>
+                            {formatDate(network.created_at)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
