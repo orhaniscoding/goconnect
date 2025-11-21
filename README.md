@@ -96,6 +96,22 @@ go mod download
 go run -ldflags "-X main.version=dev" ./cmd/daemon
 ```
 
+### Daemon Service Installation
+
+**Linux (Systemd):**
+```bash
+cd client-daemon
+make build
+make install-systemd
+```
+
+**Windows (PowerShell Admin):**
+```powershell
+cd client-daemon
+make build
+make install-windows
+```
+
 **Web UI:**
 ```bash
 cd web-ui

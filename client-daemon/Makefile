@@ -67,10 +67,8 @@ clean:
 ## install-systemd: Install systemd service (Linux)
 install-systemd:
 	@echo "Installing systemd service..."
-	sudo cp service/linux/goconnect-daemon.service /etc/systemd/system/
-	sudo systemctl daemon-reload
-	sudo systemctl enable goconnect-daemon
-	@echo "✅ Systemd service installed. Start with: sudo systemctl start goconnect-daemon"
+	@chmod +x service/linux/install.sh
+	@sudo ./service/linux/install.sh
 
 ## install-launchd: Install launchd service (macOS)
 install-launchd:
