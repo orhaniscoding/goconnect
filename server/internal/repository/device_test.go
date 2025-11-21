@@ -493,25 +493,49 @@ func TestDeviceRepository_List_Search(t *testing.T) {
 	repo := NewInMemoryDeviceRepository()
 	ctx := context.Background()
 	devices := []*domain.Device{
-		mkDevice("d1", "u1", "Alpha Device", "k1", "linux"),
-		mkDevice("d2", "u1", "Beta Device", "k2", "windows"),
+		mkDevice("d1", "u1", "Alpha Device", "pk1", "linux"),
+		mkDevice("d2", "u1", "Beta Device", "pk2", "windows"),
+		mkDevice("d3", "u1", "Gamma Device", "pk3", "macos"),
 	}
-	// Set hostname for d2
+	// Set hostname for one device to test hostname search
 	devices[1].HostName = "beta-host"
 
 	for _, d := range devices {
 		repo.Create(ctx, d)
 	}
 
-	// Search by name "alpha"
-	got, _, err := repo.List(ctx, domain.DeviceFilter{Search: "alpha", Limit: 10})
+	// Test search by name "Alpha"
+	results, _, err := repo.List(ctx, domain.DeviceFilter{
+		TenantID: "tenant-1",
+		Search:   "Alpha",
+	})
 	require.NoError(t, err)
-	assert.Len(t, got, 1)
-	assert.Equal(t, "Alpha Device", got[0].Name)
+	assert.Len(t, results, 1)
+	assert.Equal(t, "Alpha Device", results[0].Name)
 
-	// Search by hostname "host"
-	got, _, err = repo.List(ctx, domain.DeviceFilter{Search: "host", Limit: 10})
+	// Test search by hostname "beta-host"
+	results, _, err = repo.List(ctx, domain.DeviceFilter{
+		TenantID: "tenant-1",
+		Search:   "beta-host",
+	})
 	require.NoError(t, err)
-	assert.Len(t, got, 1)
-	assert.Equal(t, "Beta Device", got[0].Name)
+	assert.Len(t, results, 1)
+	assert.Equal(t, "Beta Device", results[0].Name)
+
+	// Test case insensitive
+	results, _, err = repo.List(ctx, domain.DeviceFilter{
+		TenantID: "tenant-1",
+		Search:   "GAMMA",
+	})
+	require.NoError(t, err)
+	assert.Len(t, results, 1)
+	assert.Equal(t, "Gamma Device", results[0].Name)
+
+	// Test empty search
+	results, _, err = repo.List(ctx, domain.DeviceFilter{
+		TenantID: "tenant-1",
+		Search:   "",
+	})
+	require.NoError(t, err)
+	assert.Len(t, results, 3)
 }

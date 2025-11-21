@@ -299,29 +299,58 @@ func TestInMemoryNetworkRepository_CIDROverlap_TenantIsolation(t *testing.T) {
 func TestInMemoryNetworkRepository_List_Search(t *testing.T) {
 	r := NewInMemoryNetworkRepository()
 	ctx := context.Background()
-	// Create networks
-	if err := r.Create(ctx, mkNet("n1", "Alpha Net", "10.0.0.0/24", "u1", domain.NetworkVisibilityPublic)); err != nil {
-		t.Fatalf("create n1: %v", err)
-	}
-	if err := r.Create(ctx, mkNet("n2", "Beta Net", "10.0.1.0/24", "u2", domain.NetworkVisibilityPublic)); err != nil {
-		t.Fatalf("create n2: %v", err)
+
+	networks := []*domain.Network{
+		mkNet("n1", "Alpha Network", "10.0.0.0/24", "u1", domain.NetworkVisibilityPublic),
+		mkNet("n2", "Beta Network", "10.0.1.0/24", "u1", domain.NetworkVisibilityPublic),
+		mkNet("n3", "Gamma Network", "10.0.2.0/24", "u1", domain.NetworkVisibilityPublic),
 	}
 
-	// Search "alpha"
-	got, _, err := r.List(ctx, NetworkFilter{Search: "alpha", TenantID: "default", Limit: 10})
+	for _, n := range networks {
+		if err := r.Create(ctx, n); err != nil {
+			t.Fatalf("create %s: %v", n.Name, err)
+		}
+	}
+
+	// Test search "Beta"
+	got, _, err := r.List(ctx, NetworkFilter{
+		TenantID: "default",
+		IsAdmin:  true,
+		Limit:    10,
+		Search:   "Beta",
+	})
 	if err != nil {
 		t.Fatalf("list search: %v", err)
 	}
-	if len(got) != 1 || got[0].Name != "Alpha Net" {
-		t.Fatalf("unexpected search result: %+v", got)
+	if len(got) != 1 || got[0].Name != "Beta Network" {
+		t.Fatalf("expected Beta Network, got %+v", got)
 	}
 
-	// Search "NET" (case insensitive)
-	got, _, err = r.List(ctx, NetworkFilter{Search: "NET", TenantID: "default", Limit: 10})
+	// Test case insensitive "alpha"
+	got, _, err = r.List(ctx, NetworkFilter{
+		TenantID: "default",
+		IsAdmin:  true,
+		Limit:    10,
+		Search:   "alpha",
+	})
 	if err != nil {
-		t.Fatalf("list search case insensitive: %v", err)
+		t.Fatalf("list search: %v", err)
 	}
-	if len(got) != 2 {
-		t.Fatalf("expected 2 results, got %d", len(got))
+	if len(got) != 1 || got[0].Name != "Alpha Network" {
+		t.Fatalf("expected Alpha Network, got %+v", got)
+	}
+
+	// Test empty search
+	got, _, err = r.List(ctx, NetworkFilter{
+		TenantID: "default",
+		IsAdmin:  true,
+		Limit:    10,
+		Search:   "",
+	})
+	if err != nil {
+		t.Fatalf("list search: %v", err)
+	}
+	if len(got) != 3 {
+		t.Fatalf("expected 3 networks, got %d", len(got))
 	}
 }

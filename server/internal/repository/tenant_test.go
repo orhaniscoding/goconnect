@@ -204,8 +204,8 @@ func TestTenantRepository_ListAll_Search(t *testing.T) {
 	repo := NewInMemoryTenantRepository()
 	tenants := []*domain.Tenant{
 		mkTenant("tenant-1", "Acme Corp", "owner-1"),
-		mkTenant("tenant-2", "Beta Inc", "owner-2"),
-		mkTenant("tenant-3", "Charlie Ltd", "owner-3"),
+		mkTenant("tenant-2", "Globex Corporation", "owner-2"),
+		mkTenant("tenant-3", "Soylent Corp", "owner-3"),
 	}
 
 	for _, tenant := range tenants {
@@ -213,14 +213,14 @@ func TestTenantRepository_ListAll_Search(t *testing.T) {
 	}
 
 	// Test search
-	results, total, err := repo.ListAll(context.Background(), 10, 0, "beta")
+	results, total, err := repo.ListAll(context.Background(), 10, 0, "Globex")
 	require.NoError(t, err)
 	assert.Equal(t, 1, total)
 	assert.Len(t, results, 1)
-	assert.Equal(t, "Beta Inc", results[0].Name)
+	assert.Equal(t, "Globex Corporation", results[0].Name)
 
 	// Test case insensitive
-	results, total, err = repo.ListAll(context.Background(), 10, 0, "ACME")
+	results, total, err = repo.ListAll(context.Background(), 10, 0, "acme")
 	require.NoError(t, err)
 	assert.Equal(t, 1, total)
 	assert.Len(t, results, 1)

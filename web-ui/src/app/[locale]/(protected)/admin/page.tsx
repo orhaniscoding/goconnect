@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { getUser, getAccessToken } from '../../../../lib/auth'
 import {
@@ -44,6 +44,12 @@ export default function AdminPage() {
   const [networksNextCursor, setNetworksNextCursor] = useState('')
   const [devicesNextCursor, setDevicesNextCursor] = useState('')
 
+  // Search state
+  const [userSearchQuery, setUserSearchQuery] = useState('')
+  const [tenantSearchQuery, setTenantSearchQuery] = useState('')
+  const [networkSearchQuery, setNetworkSearchQuery] = useState('')
+  const [deviceSearchQuery, setDeviceSearchQuery] = useState('')
+
   useEffect(() => {
     const user = getUser()
     if (user) {
@@ -64,10 +70,10 @@ export default function AdminPage() {
 
       const [statsRes, usersRes, tenantsRes, networksRes, devicesRes, auditRes] = await Promise.all([
         getSystemStats(token),
-        listUsers(50, 0, token),
-        listTenants(50, 0, token),
-        listAllNetworks(50, '', token),
-        listAllDevices(50, '', token),
+        listUsers(50, 0, token, userSearchQuery),
+        listTenants(50, 0, token, tenantSearchQuery),
+        listAllNetworks(50, '', token, networkSearchQuery),
+        listAllDevices(50, '', token, deviceSearchQuery),
         listAuditLogs(1, 50, token)
       ])
 
@@ -195,7 +201,7 @@ export default function AdminPage() {
       setLoading(true)
       const token = getAccessToken()
       if (!token) return
-      const res = await listUsers(50, newOffset, token)
+      const res = await listUsers(50, newOffset, token, userSearchQuery)
       setUsers(res.data)
       setUsersOffset(newOffset)
     } catch (err: any) {
@@ -211,7 +217,7 @@ export default function AdminPage() {
       setLoading(true)
       const token = getAccessToken()
       if (!token) return
-      const res = await listTenants(50, newOffset, token)
+      const res = await listTenants(50, newOffset, token, tenantSearchQuery)
       setTenants(res.data)
       setTenantsOffset(newOffset)
     } catch (err: any) {
@@ -227,7 +233,7 @@ export default function AdminPage() {
       setLoading(true)
       const token = getAccessToken()
       if (!token) return
-      const res = await listAllNetworks(50, networksNextCursor, token)
+      const res = await listAllNetworks(50, networksNextCursor, token, networkSearchQuery)
       setNetworks(res.data)
       setNetworksNextCursor(res.meta?.next_cursor || '')
     } catch (err: any) {
@@ -243,7 +249,7 @@ export default function AdminPage() {
       setLoading(true)
       const token = getAccessToken()
       if (!token) return
-      const res = await listAllDevices(50, devicesNextCursor, token)
+      const res = await listAllDevices(50, devicesNextCursor, token, deviceSearchQuery)
       setDevices(res.devices)
       setDevicesNextCursor(res.next_cursor || '')
     } catch (err: any) {
@@ -264,6 +270,70 @@ export default function AdminPage() {
       setAuditPage(newPage)
     } catch (err: any) {
       console.error('Failed to load audit logs:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleUserSearch = async (e: FormEvent) => {
+    e.preventDefault()
+    try {
+      setLoading(true)
+      const token = getAccessToken()
+      if (!token) return
+      const res = await listUsers(50, 0, token, userSearchQuery)
+      setUsers(res.data)
+      setUsersOffset(0)
+    } catch (err: any) {
+      console.error('Failed to search users:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleTenantSearch = async (e: FormEvent) => {
+    e.preventDefault()
+    try {
+      setLoading(true)
+      const token = getAccessToken()
+      if (!token) return
+      const res = await listTenants(50, 0, token, tenantSearchQuery)
+      setTenants(res.data)
+      setTenantsOffset(0)
+    } catch (err: any) {
+      console.error('Failed to search tenants:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleNetworkSearch = async (e: FormEvent) => {
+    e.preventDefault()
+    try {
+      setLoading(true)
+      const token = getAccessToken()
+      if (!token) return
+      const res = await listAllNetworks(50, '', token, networkSearchQuery)
+      setNetworks(res.data)
+      setNetworksNextCursor(res.meta?.next_cursor || '')
+    } catch (err: any) {
+      console.error('Failed to search networks:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeviceSearch = async (e: FormEvent) => {
+    e.preventDefault()
+    try {
+      setLoading(true)
+      const token = getAccessToken()
+      if (!token) return
+      const res = await listAllDevices(50, '', token, deviceSearchQuery)
+      setDevices(res.devices)
+      setDevicesNextCursor(res.next_cursor || '')
+    } catch (err: any) {
+      console.error('Failed to search devices:', err)
     } finally {
       setLoading(false)
     }
@@ -555,6 +625,38 @@ export default function AdminPage() {
                   User Management
                 </h2>
 
+                <form onSubmit={handleUserSearch} style={{ marginBottom: 16, display: 'flex', gap: 8 }}>
+                  <input
+                    type="text"
+                    value={userSearchQuery}
+                    onChange={(e) => setUserSearchQuery(e.target.value)}
+                    placeholder="Search users by email..."
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      border: '1px solid #ced4da',
+                      borderRadius: 4,
+                      fontSize: 14,
+                      color: '#495057'
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: '#007bff',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      fontWeight: 500
+                    }}
+                  >
+                    🔍 Search
+                  </button>
+                </form>
+
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
@@ -689,6 +791,38 @@ export default function AdminPage() {
                   Tenant Management
                 </h2>
 
+                <form onSubmit={handleTenantSearch} style={{ marginBottom: 16, display: 'flex', gap: 8 }}>
+                  <input
+                    type="text"
+                    value={tenantSearchQuery}
+                    onChange={(e) => setTenantSearchQuery(e.target.value)}
+                    placeholder="Search tenants by name..."
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      border: '1px solid #ced4da',
+                      borderRadius: 4,
+                      fontSize: 14,
+                      color: '#495057'
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: '#007bff',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      fontWeight: 500
+                    }}
+                  >
+                    🔍 Search
+                  </button>
+                </form>
+
                 <div style={{ display: 'grid', gap: 16 }}>
                   {tenants.map((tenant) => (
                     <div
@@ -780,6 +914,38 @@ export default function AdminPage() {
                   Network Management
                 </h2>
 
+                <form onSubmit={handleNetworkSearch} style={{ marginBottom: 16, display: 'flex', gap: 8 }}>
+                  <input
+                    type="text"
+                    value={networkSearchQuery}
+                    onChange={(e) => setNetworkSearchQuery(e.target.value)}
+                    placeholder="Search networks by name or CIDR..."
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      border: '1px solid #ced4da',
+                      borderRadius: 4,
+                      fontSize: 14,
+                      color: '#495057'
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: '#007bff',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      fontWeight: 500
+                    }}
+                  >
+                    🔍 Search
+                  </button>
+                </form>
+
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
@@ -842,6 +1008,38 @@ export default function AdminPage() {
                 <h2 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 600 }}>
                   Device Management
                 </h2>
+
+                <form onSubmit={handleDeviceSearch} style={{ marginBottom: 16, display: 'flex', gap: 8 }}>
+                  <input
+                    type="text"
+                    value={deviceSearchQuery}
+                    onChange={(e) => setDeviceSearchQuery(e.target.value)}
+                    placeholder="Search devices by name or IP..."
+                    style={{
+                      flex: 1,
+                      padding: '8px 12px',
+                      border: '1px solid #ced4da',
+                      borderRadius: 4,
+                      fontSize: 14,
+                      color: '#495057'
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: '#007bff',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      fontWeight: 500
+                    }}
+                  >
+                    🔍 Search
+                  </button>
+                </form>
 
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>

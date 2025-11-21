@@ -846,17 +846,56 @@ export interface ListNetworksResponse {
 export async function listAllNetworks(
   limit: number,
   cursor: string,
-  accessToken: string
+  accessToken: string,
+  searchQuery?: string
 ): Promise<ListNetworksResponse> {
-  const query = new URLSearchParams({
+  const params: Record<string, string> = {
     limit: limit.toString(),
     cursor: cursor || '',
-  })
+  }
+  if (searchQuery) {
+    params.q = searchQuery
+  }
+  const query = new URLSearchParams(params)
   return api(`/v1/admin/networks?${query}`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
   })
+}
+
+/**
+ * List all devices (admin only)
+ * @param limit - Page limit
+ * @param cursor - Pagination cursor
+ * @param accessToken - JWT access token
+ */
+export async function listAllDevices(
+  limit: number,
+  cursor: string,
+  accessToken: string,
+  searchQuery?: string
+): Promise<DeviceListResponse> {
+  const params: Record<string, string> = {
+    limit: limit.toString(),
+    cursor: cursor || '',
+  }
+  if (searchQuery) {
+    params.q = searchQuery
+  }
+  const query = new URLSearchParams(params)
+  const res = await api(`/v1/admin/devices?${query}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+
+  // Map backend response to DeviceListResponse
+  return {
+    devices: res.data,
+    next_cursor: res.meta.next_cursor,
+    has_more: res.meta.has_more
+  }
 }
 
 export async function listAuditLogs(
@@ -905,14 +944,22 @@ export async function getSystemStats(accessToken: string): Promise<{ data: Syste
   })
 }
 
-export async function listUsers(limit: number, offset: number, accessToken: string): Promise<{ data: AdminUser[], meta: any }> {
-  return api(`/v1/admin/users?limit=${limit}&offset=${offset}`, {
+export async function listUsers(limit: number, offset: number, accessToken: string, query?: string): Promise<{ data: AdminUser[], meta: any }> {
+  let url = `/v1/admin/users?limit=${limit}&offset=${offset}`
+  if (query) {
+    url += `&q=${encodeURIComponent(query)}`
+  }
+  return api(url, {
     headers: { Authorization: `Bearer ${accessToken}` }
   })
 }
 
-export async function listTenants(limit: number, offset: number, accessToken: string): Promise<{ data: Tenant[], meta: any }> {
-  return api(`/v1/admin/tenants?limit=${limit}&offset=${offset}`, {
+export async function listTenants(limit: number, offset: number, accessToken: string, query?: string): Promise<{ data: Tenant[], meta: any }> {
+  let url = `/v1/admin/tenants?limit=${limit}&offset=${offset}`
+  if (query) {
+    url += `&q=${encodeURIComponent(query)}`
+  }
+  return api(url, {
     headers: { Authorization: `Bearer ${accessToken}` }
   })
 }
