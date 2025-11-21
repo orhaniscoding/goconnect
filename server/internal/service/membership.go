@@ -269,3 +269,12 @@ func (s *MembershipService) hasManagePrivilege(ctx context.Context, networkID, u
 func (s *MembershipService) audit(ctx context.Context, tenantID, action, actor, object string, details map[string]any) {
 	s.aud.Event(ctx, tenantID, action, actor, object, details)
 }
+
+// IsMember checks if a user is an approved member of a network
+func (s *MembershipService) IsMember(ctx context.Context, networkID, userID string) (bool, error) {
+	m, err := s.members.Get(ctx, networkID, userID)
+	if err != nil {
+		return false, err
+	}
+	return m.Status == domain.StatusApproved, nil
+}

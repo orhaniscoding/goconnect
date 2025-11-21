@@ -10,15 +10,17 @@ import (
 
 // DefaultMessageHandler implements MessageHandler interface
 type DefaultMessageHandler struct {
-	hub         *Hub
-	chatService *service.ChatService
+	hub               *Hub
+	chatService       *service.ChatService
+	membershipService *service.MembershipService
 }
 
 // NewDefaultMessageHandler creates a new default message handler
-func NewDefaultMessageHandler(hub *Hub, chatService *service.ChatService) *DefaultMessageHandler {
+func NewDefaultMessageHandler(hub *Hub, chatService *service.ChatService, membershipService *service.MembershipService) *DefaultMessageHandler {
 	return &DefaultMessageHandler{
-		hub:         hub,
-		chatService: chatService,
+		hub:               hub,
+		chatService:       chatService,
+		membershipService: membershipService,
 	}
 }
 
@@ -254,8 +256,16 @@ func (h *DefaultMessageHandler) handleRoomJoin(ctx context.Context, client *Clie
 		return fmt.Errorf("room is required")
 	}
 
-	// TODO: Validate user has access to this room (check network membership)
-	// For now, allow joining any room
+	// Validate user has access to this room (check network membership)
+	isMember, err := h.membershipService.IsMember(ctx, data.Room, client.userID)
+	if err != nil {
+		// If error (e.g. not found), deny access
+		// We return error so the client knows something went wrong or access denied
+		return fmt.Errorf("failed to verify membership: %w", err)
+	}
+	if !isMember {
+		return fmt.Errorf("user is not a member of this network")
+	}
 
 	// Join room
 	h.hub.JoinRoom(client, data.Room)
