@@ -121,14 +121,14 @@ export default function Dashboard() {
                 }}>
                     <div>
                         <h3 style={{ marginTop: 0, color: status?.device?.registered ? (status.paused ? '#856404' : '#155724') : '#721c24' }}>
-                            {status?.device?.registered 
-                                ? (status.paused ? 'VPN Disconnected' : 'VPN Connected') 
+                            {status?.device?.registered
+                                ? (status.paused ? 'VPN Disconnected' : 'VPN Connected')
                                 : 'Device Setup Required'}
                         </h3>
                         <p style={{ margin: '4px 0', color: status?.device?.registered ? (status.paused ? '#856404' : '#155724') : '#721c24' }}>
                             {status?.device?.registered
-                                ? (status.paused 
-                                    ? 'Your device is registered but disconnected. Click Connect to start VPN.' 
+                                ? (status.paused
+                                    ? 'Your device is registered but disconnected. Click Connect to start VPN.'
                                     : `Connected securely. ID: ${status.device.device_id.substring(0, 8)}...`)
                                 : 'This device is not registered with GoConnect yet.'}
                         </p>

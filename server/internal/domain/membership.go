@@ -30,6 +30,8 @@ type Membership struct {
 	JoinedAt  *time.Time       `json:"joined_at,omitempty" db:"joined_at"`
 	CreatedAt time.Time        `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time        `json:"updated_at" db:"updated_at"`
+	// Enriched fields (not in DB)
+	OnlineDeviceCount int `json:"online_device_count,omitempty" db:"-"`
 }
 
 // JoinRequest represents join_requests table

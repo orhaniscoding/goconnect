@@ -598,8 +598,14 @@ function MembersTab({
               </span>
             </div>
           </div>
+          {/* Online Status Indicator */}
+          {(member as any).online_device_count > 0 ? (
+            <div title={`${(member as any).online_device_count} active device(s)`} style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#10b981', boxShadow: '0 0 0 2px #d1fae5' }}></div>
+          ) : (
+            <div title="Offline" style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#d1d5db' }}></div>
+          )}
           {isOwnerOrAdmin && member.user_id !== currentUserId && member.role !== 'owner' && (
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
               <button
                 onClick={() => onKick(member.user_id)}
                 style={{
