@@ -1,3 +1,5 @@
+import QRCode from 'qrcode'
+
 /**
  * Simple QR Code generator for WireGuard configs
  * Uses HTML Canvas API for client-side generation
@@ -10,15 +12,13 @@
  * @returns Promise<string> - Data URL of the QR code image
  */
 export async function generateQRCode(text: string, size: number = 256): Promise<string> {
-  // Use a lightweight QR library approach or external service
-  // For production, we'll use qrcode.react or similar
-  // For now, return a placeholder that shows we need the library
-  
-  // Option 1: Use external QR API (works without npm install)
-  const encodedText = encodeURIComponent(text)
-  const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodedText}`
-  
-  return apiUrl
+  try {
+    return await QRCode.toDataURL(text, { width: size, margin: 1 })
+  } catch (err) {
+    console.error('QR Code generation failed:', err)
+    // Fallback to empty string or error placeholder
+    return ''
+  }
 }
 
 /**
@@ -27,18 +27,9 @@ export async function generateQRCode(text: string, size: number = 256): Promise<
  * @param canvasElement - Canvas element to draw on
  */
 export function generateQRCodeOnCanvas(text: string, canvasElement: HTMLCanvasElement): void {
-  // This would require a QR library like 'qrcode' or 'qrcode-generator'
-  // For now, we'll use the external API approach
-  const img = new Image()
-  img.onload = () => {
-    const ctx = canvasElement.getContext('2d')
-    if (ctx) {
-      canvasElement.width = img.width
-      canvasElement.height = img.height
-      ctx.drawImage(img, 0, 0)
-    }
-  }
-  img.src = `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(text)}`
+  QRCode.toCanvas(canvasElement, text, { width: 256, margin: 1 }, (error) => {
+    if (error) console.error('QR Code canvas generation failed:', error)
+  })
 }
 
 /**

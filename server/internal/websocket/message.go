@@ -63,6 +63,11 @@ type ErrorData struct {
 	Details map[string]string `json:"details,omitempty"`
 }
 
+// AuthRefreshData represents data for auth.refresh messages
+type AuthRefreshData struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
 // ChatSendData represents data for chat.send messages
 type ChatSendData struct {
 	Scope       string   `json:"scope"` // "host" or "network:<id>"

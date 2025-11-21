@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/service"
 )
 
@@ -13,14 +14,16 @@ type DefaultMessageHandler struct {
 	hub               *Hub
 	chatService       *service.ChatService
 	membershipService *service.MembershipService
+	authService       *service.AuthService
 }
 
 // NewDefaultMessageHandler creates a new default message handler
-func NewDefaultMessageHandler(hub *Hub, chatService *service.ChatService, membershipService *service.MembershipService) *DefaultMessageHandler {
+func NewDefaultMessageHandler(hub *Hub, chatService *service.ChatService, membershipService *service.MembershipService, authService *service.AuthService) *DefaultMessageHandler {
 	return &DefaultMessageHandler{
 		hub:               hub,
 		chatService:       chatService,
 		membershipService: membershipService,
+		authService:       authService,
 	}
 }
 
@@ -57,11 +60,34 @@ func (h *DefaultMessageHandler) HandleMessage(ctx context.Context, client *Clien
 
 // handleAuthRefresh handles auth.refresh messages
 func (h *DefaultMessageHandler) handleAuthRefresh(ctx context.Context, client *Client, msg *InboundMessage) error {
-	// TODO: Implement token refresh logic
-	// For now, just acknowledge
-	client.sendAck(msg.OpID, map[string]string{
-		"status": "refresh_not_implemented",
+	var data AuthRefreshData
+	if err := json.Unmarshal(msg.Data, &data); err != nil {
+		return fmt.Errorf("invalid auth.refresh data: %w", err)
+	}
+
+	if data.RefreshToken == "" {
+		return fmt.Errorf("refresh_token is required")
+	}
+
+	// Call AuthService to refresh tokens
+	// We need to construct a domain.RefreshRequest
+	req := &domain.RefreshRequest{
+		RefreshToken: data.RefreshToken,
+	}
+
+	resp, err := h.authService.Refresh(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	// Send new tokens back in ack
+	client.sendAck(msg.OpID, map[string]interface{}{
+		"access_token":  resp.AccessToken,
+		"refresh_token": resp.RefreshToken,
+		"expires_in":    resp.ExpiresIn,
+		"status":        "refreshed",
 	})
+
 	return nil
 }
 

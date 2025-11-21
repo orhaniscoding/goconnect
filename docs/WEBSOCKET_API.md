@@ -66,7 +66,9 @@ All WebSocket messages follow this structure:
 {
   "type": "auth.refresh",
   "op_id": "op-1",
-  "data": {}
+  "data": {
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
 }
 ```
 
@@ -76,7 +78,10 @@ All WebSocket messages follow this structure:
   "type": "ack",
   "op_id": "op-1",
   "data": {
-    "status": "refresh_not_implemented"
+    "access_token": "new_access_token",
+    "refresh_token": "new_refresh_token",
+    "expires_in": 900,
+    "status": "refreshed"
   }
 }
 ```

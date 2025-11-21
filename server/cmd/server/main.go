@@ -210,7 +210,7 @@ func main() {
 
 	// Initialize WebSocket components
 	// Circular dependency resolution: Handler -> Hub -> Handler
-	wsMsgHandler := ws.NewDefaultMessageHandler(nil, chatService, membershipService)
+	wsMsgHandler := ws.NewDefaultMessageHandler(nil, chatService, membershipService, authService)
 	hub := ws.NewHub(wsMsgHandler)
 	wsMsgHandler.SetHub(hub)
 
