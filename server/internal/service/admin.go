@@ -52,8 +52,8 @@ type SystemStats struct {
 	TotalTenants      int `json:"total_tenants"`
 	TotalNetworks     int `json:"total_networks"`
 	TotalDevices      int `json:"total_devices"`
-	ActiveConnections int `json:"active_connections"` // Placeholder
-	MessagesToday     int `json:"messages_today"`     // Placeholder
+	ActiveConnections int `json:"active_connections"`
+	MessagesToday     int `json:"messages_today"`
 }
 
 // GetSystemStats retrieves system statistics
