@@ -28,6 +28,7 @@ export default function ChatPage() {
     const [scope, setScope] = useState<string>('host') // 'host' or 'network:<id>'
     const [networks, setNetworks] = useState<Network[]>([])
     const [loadingNetworks, setLoadingNetworks] = useState(true)
+    const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
 
     // Edit/Delete state
     const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
@@ -120,7 +121,9 @@ export default function ChatPage() {
         }
 
         try {
-            const wsUrl = `ws://localhost:8080/v1/ws?token=${token}`
+            const apiBase = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080'
+            const wsBase = apiBase.replace(/^http/, 'ws')
+            const wsUrl = `${wsBase}/v1/ws?token=${token}`
             const websocket = new WebSocket(wsUrl)
 
             websocket.onopen = () => {
@@ -211,6 +214,21 @@ export default function ChatPage() {
                                 : m
                         )
                     )
+                }
+                break
+
+            case 'presence.update':
+                if (msg.data) {
+                    const { user_id, status } = msg.data
+                    setOnlineUsers(prev => {
+                        const next = new Set(prev)
+                        if (status === 'online') {
+                            next.add(user_id)
+                        } else {
+                            next.delete(user_id)
+                        }
+                        return next
+                    })
                 }
                 break
 
@@ -494,285 +512,338 @@ export default function ChatPage() {
                     </div>
                 )}
 
-                {/* Messages Container */}
-                <div style={{
-                    flex: 1,
-                    overflowY: 'auto',
-                    padding: 24,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 16
-                }}>
-                    {messages.length === 0 && (
+                <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                        {/* Messages Container */}
                         <div style={{
-                            textAlign: 'center',
-                            padding: 40,
-                            color: '#6c757d'
+                            flex: 1,
+                            overflowY: 'auto',
+                            padding: 24,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 16
                         }}>
-                            <div style={{ fontSize: 48, marginBottom: 16 }}>💬</div>
-                            <div style={{ fontSize: 16 }}>No messages yet</div>
-                            <div style={{ fontSize: 14, marginTop: 8 }}>Be the first to say hi!</div>
-                        </div>
-                    )}
+                            {messages.length === 0 && (
+                                <div style={{
+                                    textAlign: 'center',
+                                    padding: 40,
+                                    color: '#6c757d'
+                                }}>
+                                    <div style={{ fontSize: 48, marginBottom: 16 }}>💬</div>
+                                    <div style={{ fontSize: 16 }}>No messages yet</div>
+                                    <div style={{ fontSize: 14, marginTop: 8 }}>Be the first to say hi!</div>
+                                </div>
+                            )}
 
-                    {messages.map((msg) => {
-                        const isOwnMessage = msg.user_id === currentUserId
-                        const canEdit = canEditMessage(msg)
-                        return (
-                            <div
-                                key={msg.id}
-                                style={{
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: isOwnMessage ? 'flex-end' : 'flex-start',
-                                    maxWidth: '70%',
-                                    marginLeft: isOwnMessage ? 'auto' : 0,
-                                    marginRight: isOwnMessage ? 0 : 'auto'
-                                }}
-                            >
-                                <div style={{
-                                    fontSize: 12,
-                                    color: '#6c757d',
-                                    marginBottom: 4,
-                                    paddingLeft: 8,
-                                    paddingRight: 8
-                                }}>
-                                    {isOwnMessage ? 'You' : `User ${msg.user_id.substring(0, 8)}`} · {formatTime(msg.created_at)}
-                                </div>
-                                <div style={{
-                                    padding: '12px 16px',
-                                    borderRadius: 12,
-                                    backgroundColor: isOwnMessage ? '#007bff' : 'white',
-                                    color: isOwnMessage ? 'white' : '#212529',
-                                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                                    wordBreak: 'break-word',
-                                    fontSize: 15,
-                                    fontStyle: msg.redacted ? 'italic' : 'normal',
-                                    ...(msg.redacted && {
-                                        backgroundColor: '#f8d7da',
-                                        color: '#842029',
-                                        border: '1px solid #f5c2c7'
-                                    })
-                                }}>
-                                    {msg.body}
-                                </div>
-                                {msg.attachments && msg.attachments.length > 0 && (
-                                    <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                        {msg.attachments.map((url, i) => (
-                                            <a
-                                                key={i}
-                                                href={url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                style={{
-                                                    fontSize: 13,
-                                                    color: isOwnMessage ? 'white' : '#007bff',
-                                                    textDecoration: 'underline',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: 4
-                                                }}
-                                            >
-                                                📎 Attachment {i + 1}
-                                            </a>
-                                        ))}
-                                    </div>
-                                )}
-                                {msg.updated_at && msg.updated_at !== msg.created_at && (
-                                    <div style={{
-                                        fontSize: 11,
-                                        color: '#6c757d',
-                                        marginTop: 4,
-                                        paddingLeft: 8,
-                                        paddingRight: 8,
-                                        fontStyle: 'italic'
-                                    }}>
-                                        (edited)
-                                    </div>
-                                )}
-                                {isOwnMessage && !msg.deleted_at && !msg.redacted && (
-                                    <div style={{
-                                        display: 'flex',
-                                        gap: 8,
-                                        marginTop: 6,
-                                        paddingLeft: 8,
-                                        paddingRight: 8
-                                    }}>
-                                        {canEdit && (
-                                            <button
-                                                onClick={() => handleStartEdit(msg)}
-                                                style={{
-                                                    padding: '4px 12px',
-                                                    fontSize: 12,
-                                                    backgroundColor: '#e9ecef',
-                                                    border: '1px solid #dee2e6',
-                                                    borderRadius: 6,
-                                                    cursor: 'pointer',
-                                                    color: '#495057',
-                                                    fontWeight: 500
-                                                }}
-                                                onMouseEnter={(e) => {
-                                                    e.currentTarget.style.backgroundColor = '#dee2e6'
-                                                }}
-                                                onMouseLeave={(e) => {
-                                                    e.currentTarget.style.backgroundColor = '#e9ecef'
-                                                }}
-                                            >
-                                                ✏️ Edit
-                                            </button>
-                                        )}
-                                        <button
-                                            onClick={() => handleDeleteMessage(msg.id)}
-                                            style={{
-                                                padding: '4px 12px',
-                                                fontSize: 12,
+                            {messages.map((msg) => {
+                                const isOwnMessage = msg.user_id === currentUserId
+                                const canEdit = canEditMessage(msg)
+                                return (
+                                    <div
+                                        key={msg.id}
+                                        style={{
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: isOwnMessage ? 'flex-end' : 'flex-start',
+                                            maxWidth: '70%',
+                                            marginLeft: isOwnMessage ? 'auto' : 0,
+                                            marginRight: isOwnMessage ? 0 : 'auto'
+                                        }}
+                                    >
+                                        <div style={{
+                                            fontSize: 12,
+                                            color: '#6c757d',
+                                            marginBottom: 4,
+                                            paddingLeft: 8,
+                                            paddingRight: 8
+                                        }}>
+                                            {isOwnMessage ? 'You' : `User ${msg.user_id.substring(0, 8)}`} · {formatTime(msg.created_at)}
+                                        </div>
+                                        <div style={{
+                                            padding: '12px 16px',
+                                            borderRadius: 12,
+                                            backgroundColor: isOwnMessage ? '#007bff' : 'white',
+                                            color: isOwnMessage ? 'white' : '#212529',
+                                            boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                                            wordBreak: 'break-word',
+                                            fontSize: 15,
+                                            fontStyle: msg.redacted ? 'italic' : 'normal',
+                                            ...(msg.redacted && {
                                                 backgroundColor: '#f8d7da',
-                                                border: '1px solid #f5c2c7',
-                                                borderRadius: 6,
-                                                cursor: 'pointer',
                                                 color: '#842029',
-                                                fontWeight: 500
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                e.currentTarget.style.backgroundColor = '#f5c2c7'
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.currentTarget.style.backgroundColor = '#f8d7da'
-                                            }}
-                                        >
-                                            🗑️ Delete
-                                        </button>
+                                                border: '1px solid #f5c2c7'
+                                            })
+                                        }}>
+                                            {msg.body}
+                                        </div>
+                                        {msg.attachments && msg.attachments.length > 0 && (
+                                            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                                {msg.attachments.map((url, i) => (
+                                                    <a
+                                                        key={i}
+                                                        href={url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        style={{
+                                                            fontSize: 13,
+                                                            color: isOwnMessage ? 'white' : '#007bff',
+                                                            textDecoration: 'underline',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: 4
+                                                        }}
+                                                    >
+                                                        📎 Attachment {i + 1}
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {msg.updated_at && msg.updated_at !== msg.created_at && (
+                                            <div style={{
+                                                fontSize: 11,
+                                                color: '#6c757d',
+                                                marginTop: 4,
+                                                paddingLeft: 8,
+                                                paddingRight: 8,
+                                                fontStyle: 'italic'
+                                            }}>
+                                                (edited)
+                                            </div>
+                                        )}
+                                        {isOwnMessage && !msg.deleted_at && !msg.redacted && (
+                                            <div style={{
+                                                display: 'flex',
+                                                gap: 8,
+                                                marginTop: 6,
+                                                paddingLeft: 8,
+                                                paddingRight: 8
+                                            }}>
+                                                {canEdit && (
+                                                    <button
+                                                        onClick={() => handleStartEdit(msg)}
+                                                        style={{
+                                                            padding: '4px 12px',
+                                                            fontSize: 12,
+                                                            backgroundColor: '#e9ecef',
+                                                            border: '1px solid #dee2e6',
+                                                            borderRadius: 6,
+                                                            cursor: 'pointer',
+                                                            color: '#495057',
+                                                            fontWeight: 500
+                                                        }}
+                                                        onMouseEnter={(e) => {
+                                                            e.currentTarget.style.backgroundColor = '#dee2e6'
+                                                        }}
+                                                        onMouseLeave={(e) => {
+                                                            e.currentTarget.style.backgroundColor = '#e9ecef'
+                                                        }}
+                                                    >
+                                                        ✏️ Edit
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => handleDeleteMessage(msg.id)}
+                                                    style={{
+                                                        padding: '4px 12px',
+                                                        fontSize: 12,
+                                                        backgroundColor: '#f8d7da',
+                                                        border: '1px solid #f5c2c7',
+                                                        borderRadius: 6,
+                                                        cursor: 'pointer',
+                                                        color: '#842029',
+                                                        fontWeight: 500
+                                                    }}
+                                                    onMouseEnter={(e) => {
+                                                        e.currentTarget.style.backgroundColor = '#f5c2c7'
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                        e.currentTarget.style.backgroundColor = '#f8d7da'
+                                                    }}
+                                                >
+                                                    🗑️ Delete
+                                                </button>
+                                            </div>
+                                        )}
+                                        {!isOwnMessage && (isModerator || isAdmin) && !msg.deleted_at && !msg.redacted && (
+                                            <div style={{
+                                                display: 'flex',
+                                                gap: 8,
+                                                marginTop: 6,
+                                                paddingLeft: 8,
+                                                paddingRight: 8
+                                            }}>
+                                                <button
+                                                    onClick={() => handleRedactMessage(msg.id)}
+                                                    style={{
+                                                        padding: '4px 12px',
+                                                        fontSize: 12,
+                                                        backgroundColor: '#fff3cd',
+                                                        border: '1px solid #ffc107',
+                                                        borderRadius: 6,
+                                                        cursor: 'pointer',
+                                                        color: '#856404',
+                                                        fontWeight: 500
+                                                    }}
+                                                    onMouseEnter={(e) => {
+                                                        e.currentTarget.style.backgroundColor = '#ffc107'
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                        e.currentTarget.style.backgroundColor = '#fff3cd'
+                                                    }}
+                                                >
+                                                    🚫 Redact (Moderator)
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
-                                )}
-                                {!isOwnMessage && (isModerator || isAdmin) && !msg.deleted_at && !msg.redacted && (
-                                    <div style={{
-                                        display: 'flex',
-                                        gap: 8,
-                                        marginTop: 6,
-                                        paddingLeft: 8,
-                                        paddingRight: 8
-                                    }}>
-                                        <button
-                                            onClick={() => handleRedactMessage(msg.id)}
-                                            style={{
-                                                padding: '4px 12px',
-                                                fontSize: 12,
-                                                backgroundColor: '#fff3cd',
-                                                border: '1px solid #ffc107',
-                                                borderRadius: 6,
-                                                cursor: 'pointer',
-                                                color: '#856404',
-                                                fontWeight: 500
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                e.currentTarget.style.backgroundColor = '#ffc107'
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.currentTarget.style.backgroundColor = '#fff3cd'
-                                            }}
-                                        >
-                                            🚫 Redact (Moderator)
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        )
-                    })}
-                    <div ref={messagesEndRef} />
-                </div>
+                                )
+                            })}
+                            <div ref={messagesEndRef} />
+                        </div>
 
-                {/* Message Input */}
-                <div style={{
-                    padding: 24,
-                    backgroundColor: 'white',
-                    borderTop: '1px solid #dee2e6'
-                }}>
-                    {attachments.length > 0 && (
-                        <div style={{ marginBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            {attachments.map((url, i) => (
-                                <div key={i} style={{
-                                    padding: '4px 8px',
-                                    backgroundColor: '#e9ecef',
-                                    borderRadius: 4,
-                                    fontSize: 12,
+                        {/* Message Input */}
+                        <div style={{
+                            padding: 24,
+                            backgroundColor: 'white',
+                            borderTop: '1px solid #dee2e6'
+                        }}>
+                            {attachments.length > 0 && (
+                                <div style={{ marginBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                    {attachments.map((url, i) => (
+                                        <div key={i} style={{
+                                            padding: '4px 8px',
+                                            backgroundColor: '#e9ecef',
+                                            borderRadius: 4,
+                                            fontSize: 12,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 6
+                                        }}>
+                                            <span>📎 Attachment {i + 1}</span>
+                                            <button
+                                                onClick={() => removeAttachment(i)}
+                                                style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, color: '#dc3545' }}
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: 12 }}>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleFileSelect}
+                                    style={{ display: 'none' }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={!connected || uploading}
+                                    style={{
+                                        padding: '12px',
+                                        backgroundColor: '#f8f9fa',
+                                        border: '1px solid #dee2e6',
+                                        borderRadius: 8,
+                                        cursor: connected && !uploading ? 'pointer' : 'not-allowed',
+                                        fontSize: 20
+                                    }}
+                                    title="Attach file"
+                                >
+                                    {uploading ? '⏳' : '📎'}
+                                </button>
+                                <input
+                                    type="text"
+                                    value={messageText}
+                                    onChange={(e) => setMessageText(e.target.value)}
+                                    placeholder="Type a message..."
+                                    disabled={!connected}
+                                    style={{
+                                        flex: 1,
+                                        padding: '12px 16px',
+                                        borderRadius: 8,
+                                        border: '1px solid #dee2e6',
+                                        fontSize: 15,
+                                        outline: 'none',
+                                        transition: 'border-color 0.2s',
+                                    }}
+                                    onFocus={(e) => {
+                                        e.target.style.borderColor = '#007bff'
+                                    }}
+                                    onBlur={(e) => {
+                                        e.target.style.borderColor = '#dee2e6'
+                                    }}
+                                />
+                                <button
+                                    type="submit"
+                                    disabled={!connected || (!messageText.trim() && attachments.length === 0)}
+                                    style={{
+                                        padding: '12px 32px',
+                                        backgroundColor: connected && (messageText.trim() || attachments.length > 0) ? '#007bff' : '#6c757d',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: 8,
+                                        fontSize: 15,
+                                        fontWeight: 600,
+                                        cursor: connected && (messageText.trim() || attachments.length > 0) ? 'pointer' : 'not-allowed',
+                                        transition: 'background-color 0.2s'
+                                    }}
+                                >
+                                    Send
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    {/* Online Users Sidebar */}
+                    <div style={{
+                        width: 240,
+                        borderLeft: '1px solid #dee2e6',
+                        backgroundColor: 'white',
+                        display: 'flex',
+                        flexDirection: 'column'
+                    }}>
+                        <div style={{
+                            padding: '16px',
+                            borderBottom: '1px solid #dee2e6',
+                            fontWeight: 600,
+                            fontSize: 14,
+                            color: '#495057'
+                        }}>
+                            Online Users ({onlineUsers.size})
+                        </div>
+                        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+                            {Array.from(onlineUsers).map(userId => (
+                                <div key={userId} style={{
+                                    padding: '8px 16px',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: 6
+                                    gap: 8,
+                                    fontSize: 14
                                 }}>
-                                    <span>📎 Attachment {i + 1}</span>
-                                    <button
-                                        onClick={() => removeAttachment(i)}
-                                        style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, color: '#dc3545' }}
-                                    >
-                                        ✕
-                                    </button>
+                                    <div style={{
+                                        width: 8,
+                                        height: 8,
+                                        borderRadius: '50%',
+                                        backgroundColor: '#28a745'
+                                    }} />
+                                    <span style={{
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis'
+                                    }}>
+                                        {userId === currentUserId ? 'You' : `User ${userId.substring(0, 8)}`}
+                                    </span>
                                 </div>
                             ))}
+                            {onlineUsers.size === 0 && (
+                                <div style={{ padding: 16, color: '#6c757d', fontSize: 13, textAlign: 'center' }}>
+                                    No one else is online
+                                </div>
+                            )}
                         </div>
-                    )}
-                    <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: 12 }}>
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleFileSelect}
-                            style={{ display: 'none' }}
-                        />
-                        <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={!connected || uploading}
-                            style={{
-                                padding: '12px',
-                                backgroundColor: '#f8f9fa',
-                                border: '1px solid #dee2e6',
-                                borderRadius: 8,
-                                cursor: connected && !uploading ? 'pointer' : 'not-allowed',
-                                fontSize: 20
-                            }}
-                            title="Attach file"
-                        >
-                            {uploading ? '⏳' : '📎'}
-                        </button>
-                        <input
-                            type="text"
-                            value={messageText}
-                            onChange={(e) => setMessageText(e.target.value)}
-                            placeholder="Type a message..."
-                            disabled={!connected}
-                            style={{
-                                flex: 1,
-                                padding: '12px 16px',
-                                borderRadius: 8,
-                                border: '1px solid #dee2e6',
-                                fontSize: 15,
-                                outline: 'none',
-                                transition: 'border-color 0.2s',
-                            }}
-                            onFocus={(e) => {
-                                e.target.style.borderColor = '#007bff'
-                            }}
-                            onBlur={(e) => {
-                                e.target.style.borderColor = '#dee2e6'
-                            }}
-                        />
-                        <button
-                            type="submit"
-                            disabled={!connected || (!messageText.trim() && attachments.length === 0)}
-                            style={{
-                                padding: '12px 32px',
-                                backgroundColor: connected && (messageText.trim() || attachments.length > 0) ? '#007bff' : '#6c757d',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: 8,
-                                fontSize: 15,
-                                fontWeight: 600,
-                                cursor: connected && (messageText.trim() || attachments.length > 0) ? 'pointer' : 'not-allowed',
-                                transition: 'background-color 0.2s'
-                            }}
-                        >
-                            Send
-                        </button>
-                    </form>
+                    </div>
                 </div>
 
                 {/* Edit Message Modal */}

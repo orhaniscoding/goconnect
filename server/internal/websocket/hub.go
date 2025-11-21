@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 )
 
 // Hub maintains active clients and broadcasts messages to them
@@ -88,6 +89,22 @@ func (h *Hub) Run(ctx context.Context) {
 						delete(clients, client)
 						if len(clients) == 0 {
 							delete(h.rooms, room)
+						} else {
+							// Broadcast offline status to remaining clients in the room
+							// Use goroutine to avoid deadlock/blocking if broadcast channel is full
+							go func(r string, uid string) {
+								h.broadcast <- &BroadcastMessage{
+									Room: r,
+									Message: &OutboundMessage{
+										Type: TypePresenceUpdate,
+										Data: &PresenceUpdateData{
+											UserID: uid,
+											Status: "offline",
+											Since:  time.Now().Format(time.RFC3339),
+										},
+									},
+								}
+							}(room, client.userID)
 						}
 					}
 				}

@@ -175,6 +175,66 @@ All WebSocket messages follow this structure:
 
 **Status:** Not implemented (v0.1.0)
 
+#### 6. `room.join` - Join a Room
+
+**Payload:**
+```json
+{
+  "type": "room.join",
+  "op_id": "op-6",
+  "data": {
+    "room": "network:<id>|host"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "type": "ack",
+  "op_id": "op-6",
+  "data": {
+    "room": "network:<id>",
+    "status": "joined"
+  }
+}
+```
+
+#### 7. `room.leave` - Leave a Room
+
+**Payload:**
+```json
+{
+  "type": "room.leave",
+  "op_id": "op-7",
+  "data": {
+    "room": "network:<id>|host"
+  }
+}
+```
+
+#### 8. `presence.ping` - Keep-Alive Ping
+
+**Payload:**
+```json
+{
+  "type": "presence.ping",
+  "op_id": "op-8",
+  "data": {}
+}
+```
+
+**Response:**
+```json
+{
+  "type": "presence.pong",
+  "op_id": "op-8",
+  "data": {
+    "timestamp": "2025-11-21T10:00:00Z"
+  }
+}
+```
+
 ### Outbound Messages (Server → Client)
 
 #### 1. `chat.message` - New Chat Message
@@ -234,6 +294,20 @@ All WebSocket messages follow this structure:
     "message_id": "msg-123",
     "redaction_mask": "***",
     "redacted_by": "moderator-789"
+  }
+}
+```
+
+#### 5. `presence.update` - User Presence Update
+
+**Payload:**
+```json
+{
+  "type": "presence.update",
+  "data": {
+    "user_id": "user-123",
+    "status": "online|offline",
+    "since": "2025-11-21T10:00:00Z"
   }
 }
 ```

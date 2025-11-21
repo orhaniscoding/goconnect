@@ -32,6 +32,7 @@
 - **Message Moderation**: Redact, edit, and delete messages with full audit trail
 - **Edit History Tracking**: Complete message history with timestamps
 - **File Attachments**: Share files within chat (supported formats: images, docs, zip)
+- **Online Status**: Real-time online/offline status indicators for network members and chat users
 
 ### 🔍 Observability & Security
 - **Comprehensive Audit Logging**: Immutable SQLite-backed audit log with hash chain integrity

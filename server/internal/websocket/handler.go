@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/service"
@@ -296,6 +297,32 @@ func (h *DefaultMessageHandler) handleRoomJoin(ctx context.Context, client *Clie
 	// Join room
 	h.hub.JoinRoom(client, data.Room)
 
+	// Broadcast presence update
+	h.hub.Broadcast(data.Room, &OutboundMessage{
+		Type: TypePresenceUpdate,
+		Data: &PresenceUpdateData{
+			UserID: client.userID,
+			Status: "online",
+			Since:  time.Now().Format(time.RFC3339),
+		},
+	}, client)
+
+	// Send list of existing members to the joining client
+	existingClients := h.hub.GetRoomClients(data.Room)
+	for _, existingClient := range existingClients {
+		if existingClient.userID == client.userID {
+			continue
+		}
+		client.sendMessage(&OutboundMessage{
+			Type: TypePresenceUpdate,
+			Data: &PresenceUpdateData{
+				UserID: existingClient.userID,
+				Status: "online",
+				Since:  existingClient.lastActivity.Format(time.RFC3339),
+			},
+		})
+	}
+
 	// Acknowledge
 	client.sendAck(msg.OpID, map[string]string{
 		"room":   data.Room,
@@ -319,6 +346,16 @@ func (h *DefaultMessageHandler) handleRoomLeave(ctx context.Context, client *Cli
 
 	// Leave room
 	h.hub.LeaveRoom(client, data.Room)
+
+	// Broadcast presence update
+	h.hub.Broadcast(data.Room, &OutboundMessage{
+		Type: TypePresenceUpdate,
+		Data: &PresenceUpdateData{
+			UserID: client.userID,
+			Status: "offline",
+			Since:  time.Now().Format(time.RFC3339),
+		},
+	}, client)
 
 	// Acknowledge
 	client.sendAck(msg.OpID, map[string]string{
