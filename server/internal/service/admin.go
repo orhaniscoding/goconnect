@@ -114,6 +114,13 @@ func (s *AdminService) ToggleUserAdmin(ctx context.Context, userID string) (*dom
 	return user, nil
 }
 
+// DeleteUser deletes a user and all associated data
+func (s *AdminService) DeleteUser(ctx context.Context, userID string) error {
+	// In a real implementation, we should probably soft-delete or check for active resources
+	// For now, we'll just delete the user.
+	return s.userRepo.Delete(ctx, userID)
+}
+
 // DeleteTenant deletes a tenant and all associated data
 func (s *AdminService) DeleteTenant(ctx context.Context, tenantID string) error {
 	// In a real implementation, we should probably soft-delete or check for active resources

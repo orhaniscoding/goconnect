@@ -8,6 +8,7 @@ import {
   listTenants,
   listAuditLogs,
   toggleUserAdmin,
+  deleteUser,
   deleteTenant,
   SystemStats,
   AdminUser,
@@ -123,6 +124,26 @@ export default function AdminPage() {
     } catch (err: any) {
       console.error('Failed to delete tenant:', err)
       alert('Failed to delete tenant: ' + (err.message || 'Unknown error'))
+    }
+  }
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const token = getAccessToken()
+      if (!token) return
+
+      await deleteUser(userId, token)
+
+      // Refresh user list
+      const usersRes = await listUsers(50, 0, token)
+      setUsers(usersRes.data)
+    } catch (err: any) {
+      console.error('Failed to delete user:', err)
+      alert('Failed to delete user: ' + (err.message || 'Unknown error'))
     }
   }
 
@@ -366,16 +387,6 @@ export default function AdminPage() {
                   </div>
                 </div>
               </div>
-
-              <div style={{
-                backgroundColor: '#fff3cd',
-                padding: 16,
-                borderRadius: 8,
-                color: '#856404',
-                fontSize: 14
-              }}>
-                ⚠️ These are mock statistics. Backend integration is planned for future release.
-              </div>
             </div>
           )}
 
@@ -454,6 +465,24 @@ export default function AdminPage() {
                               title={user.id === currentUser?.id ? "You cannot change your own admin status" : (user.is_admin ? "Revoke Admin" : "Make Admin")}
                             >
                               {user.is_admin ? 'Revoke Admin' : 'Make Admin'}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(user.id)}
+                              disabled={user.id === currentUser?.id}
+                              style={{
+                                marginLeft: 8,
+                                padding: '4px 8px',
+                                backgroundColor: '#dc3545',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: 4,
+                                fontSize: 12,
+                                cursor: user.id === currentUser?.id ? 'not-allowed' : 'pointer',
+                                opacity: user.id === currentUser?.id ? 0.6 : 1
+                              }}
+                              title={user.id === currentUser?.id ? "You cannot delete yourself" : "Delete User"}
+                            >
+                              Delete
                             </button>
                           </td>
                         </tr>

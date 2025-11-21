@@ -886,13 +886,40 @@ export async function listTenants(limit: number, offset: number, accessToken: st
   })
 }
 
-export async function toggleUserAdmin(userId: string, accessToken: string): Promise<{ data: AdminUser }> {
+export async function toggleUserAdmin(
+  userId: string,
+  accessToken: string
+): Promise<{ data: AdminUser }> {
   return api(`/v1/admin/users/${userId}/toggle-admin`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}` }
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
   })
 }
 
+/**
+ * Delete user (admin only)
+ * @param userId - User ID
+ * @param accessToken - JWT access token
+ */
+export async function deleteUser(
+  userId: string,
+  accessToken: string
+): Promise<void> {
+  await api(`/v1/admin/users/${userId}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+}
+
+/**
+ * Delete tenant (admin only)
+ * @param tenantId - Tenant ID
+ * @param accessToken - JWT access token
+ */
 export async function deleteTenant(tenantId: string, accessToken: string): Promise<void> {
   return api(`/v1/admin/tenants/${tenantId}`, {
     method: 'DELETE',
