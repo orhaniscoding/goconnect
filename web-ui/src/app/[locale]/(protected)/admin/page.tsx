@@ -7,14 +7,17 @@ import {
   listUsers,
   listTenants,
   listAllNetworks,
+  listAllDevices,
   listAuditLogs,
   toggleUserAdmin,
   deleteUser,
   deleteTenant,
+  deleteDevice,
   SystemStats,
   AdminUser,
   Tenant,
   Network,
+  Device,
   AuditLog
 } from '../../../../lib/api'
 import AuthGuard from '../../../../components/AuthGuard'
@@ -23,15 +26,23 @@ import Footer from '../../../../components/Footer'
 export default function AdminPage() {
   const router = useRouter()
   const [currentUser, setCurrentUser] = useState<any>(null)
-  const [activeTab, setActiveTab] = useState<'stats' | 'users' | 'tenants' | 'networks' | 'audit'>('stats')
+  const [activeTab, setActiveTab] = useState<'stats' | 'users' | 'tenants' | 'networks' | 'devices' | 'audit'>('stats')
 
   const [stats, setStats] = useState<SystemStats | null>(null)
   const [users, setUsers] = useState<AdminUser[]>([])
   const [tenants, setTenants] = useState<Tenant[]>([])
   const [networks, setNetworks] = useState<Network[]>([])
+  const [devices, setDevices] = useState<Device[]>([])
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Pagination state
+  const [usersOffset, setUsersOffset] = useState(0)
+  const [tenantsOffset, setTenantsOffset] = useState(0)
+  const [auditPage, setAuditPage] = useState(1)
+  const [networksNextCursor, setNetworksNextCursor] = useState('')
+  const [devicesNextCursor, setDevicesNextCursor] = useState('')
 
   useEffect(() => {
     const user = getUser()
@@ -51,11 +62,12 @@ export default function AdminPage() {
       const token = getAccessToken()
       if (!token) return
 
-      const [statsRes, usersRes, tenantsRes, networksRes, auditRes] = await Promise.all([
+      const [statsRes, usersRes, tenantsRes, networksRes, devicesRes, auditRes] = await Promise.all([
         getSystemStats(token),
         listUsers(50, 0, token),
         listTenants(50, 0, token),
         listAllNetworks(50, '', token),
+        listAllDevices(50, '', token),
         listAuditLogs(1, 50, token)
       ])
 
@@ -63,7 +75,12 @@ export default function AdminPage() {
       setUsers(usersRes.data)
       setTenants(tenantsRes.data)
       setNetworks(networksRes.data)
+      setDevices(devicesRes.devices)
       setAuditLogs(auditRes.data)
+
+      // Set pagination data
+      setNetworksNextCursor(networksRes.meta?.next_cursor || '')
+      setDevicesNextCursor(devicesRes.next_cursor || '')
     } catch (err: any) {
       console.error('Failed to load admin data:', err)
       setError(err.message || 'Failed to load data')
@@ -149,6 +166,106 @@ export default function AdminPage() {
     } catch (err: any) {
       console.error('Failed to delete user:', err)
       alert('Failed to delete user: ' + (err.message || 'Unknown error'))
+    }
+  }
+
+  const handleDeleteDevice = async (deviceId: string) => {
+    if (!confirm('Are you sure you want to delete this device? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const token = getAccessToken()
+      if (!token) return
+
+      await deleteDevice(deviceId, token)
+
+      // Refresh device list
+      const devicesRes = await listAllDevices(50, '', token)
+      setDevices(devicesRes.devices)
+    } catch (err: any) {
+      console.error('Failed to delete device:', err)
+      alert('Failed to delete device: ' + (err.message || 'Unknown error'))
+    }
+  }
+
+  const handleUsersPageChange = async (newOffset: number) => {
+    if (newOffset < 0) return
+    try {
+      setLoading(true)
+      const token = getAccessToken()
+      if (!token) return
+      const res = await listUsers(50, newOffset, token)
+      setUsers(res.data)
+      setUsersOffset(newOffset)
+    } catch (err: any) {
+      console.error('Failed to load users:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleTenantsPageChange = async (newOffset: number) => {
+    if (newOffset < 0) return
+    try {
+      setLoading(true)
+      const token = getAccessToken()
+      if (!token) return
+      const res = await listTenants(50, newOffset, token)
+      setTenants(res.data)
+      setTenantsOffset(newOffset)
+    } catch (err: any) {
+      console.error('Failed to load tenants:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleNetworksNextPage = async () => {
+    if (!networksNextCursor) return
+    try {
+      setLoading(true)
+      const token = getAccessToken()
+      if (!token) return
+      const res = await listAllNetworks(50, networksNextCursor, token)
+      setNetworks(res.data)
+      setNetworksNextCursor(res.meta?.next_cursor || '')
+    } catch (err: any) {
+      console.error('Failed to load networks:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDevicesNextPage = async () => {
+    if (!devicesNextCursor) return
+    try {
+      setLoading(true)
+      const token = getAccessToken()
+      if (!token) return
+      const res = await listAllDevices(50, devicesNextCursor, token)
+      setDevices(res.devices)
+      setDevicesNextCursor(res.next_cursor || '')
+    } catch (err: any) {
+      console.error('Failed to load devices:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleAuditPageChange = async (newPage: number) => {
+    if (newPage < 1) return
+    try {
+      setLoading(true)
+      const token = getAccessToken()
+      if (!token) return
+      const res = await listAuditLogs(newPage, 50, token)
+      setAuditLogs(res.data)
+      setAuditPage(newPage)
+    } catch (err: any) {
+      console.error('Failed to load audit logs:', err)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -268,6 +385,21 @@ export default function AdminPage() {
               }}
             >
               🌐 Networks
+            </button>
+            <button
+              onClick={() => setActiveTab('devices')}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: activeTab === 'devices' ? '#007bff' : 'transparent',
+                color: activeTab === 'devices' ? 'white' : '#6c757d',
+                border: 'none',
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontSize: 14,
+                fontWeight: 500
+              }}
+            >
+              💻 Devices
             </button>
             <button
               onClick={() => setActiveTab('audit')}
@@ -510,6 +642,36 @@ export default function AdminPage() {
                     </tbody>
                   </table>
                 </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16, gap: 8 }}>
+                  <button
+                    onClick={() => handleUsersPageChange(usersOffset - 50)}
+                    disabled={usersOffset === 0 || loading}
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: '#f8f9fa',
+                      border: '1px solid #dee2e6',
+                      borderRadius: 4,
+                      cursor: (usersOffset === 0 || loading) ? 'not-allowed' : 'pointer',
+                      opacity: (usersOffset === 0 || loading) ? 0.6 : 1
+                    }}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => handleUsersPageChange(usersOffset + 50)}
+                    disabled={users.length < 50 || loading}
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: '#f8f9fa',
+                      border: '1px solid #dee2e6',
+                      borderRadius: 4,
+                      cursor: (users.length < 50 || loading) ? 'not-allowed' : 'pointer',
+                      opacity: (users.length < 50 || loading) ? 0.6 : 1
+                    }}
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -571,6 +733,36 @@ export default function AdminPage() {
                     </div>
                   ))}
                 </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16, gap: 8 }}>
+                  <button
+                    onClick={() => handleTenantsPageChange(tenantsOffset - 50)}
+                    disabled={tenantsOffset === 0 || loading}
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: '#f8f9fa',
+                      border: '1px solid #dee2e6',
+                      borderRadius: 4,
+                      cursor: (tenantsOffset === 0 || loading) ? 'not-allowed' : 'pointer',
+                      opacity: (tenantsOffset === 0 || loading) ? 0.6 : 1
+                    }}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => handleTenantsPageChange(tenantsOffset + 50)}
+                    disabled={tenants.length < 50 || loading}
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: '#f8f9fa',
+                      border: '1px solid #dee2e6',
+                      borderRadius: 4,
+                      cursor: (tenants.length < 50 || loading) ? 'not-allowed' : 'pointer',
+                      opacity: (tenants.length < 50 || loading) ? 0.6 : 1
+                    }}
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -617,6 +809,113 @@ export default function AdminPage() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+                  <button
+                    onClick={handleNetworksNextPage}
+                    disabled={!networksNextCursor || loading}
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: '#f8f9fa',
+                      border: '1px solid #dee2e6',
+                      borderRadius: 4,
+                      cursor: (!networksNextCursor || loading) ? 'not-allowed' : 'pointer',
+                      opacity: (!networksNextCursor || loading) ? 0.6 : 1
+                    }}
+                  >
+                    Next Page
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Devices Tab */}
+          {activeTab === 'devices' && (
+            <div>
+              <div style={{
+                backgroundColor: 'white',
+                borderRadius: 12,
+                padding: 24,
+                boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+              }}>
+                <h2 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 600 }}>
+                  Device Management
+                </h2>
+
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #dee2e6' }}>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>Name</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>IP Address</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>Public Key</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>Tenant ID</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>Last Seen</th>
+                        <th style={{ padding: '12px', textAlign: 'right', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {devices.map((device) => (
+                        <tr key={device.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                          <td style={{ padding: '12px', fontSize: 14, color: '#212529', fontWeight: 500 }}>
+                            {device.name}
+                          </td>
+                          <td style={{ padding: '12px', fontSize: 14, fontFamily: 'monospace', color: '#6c757d' }}>
+                            {device.ip_address}
+                          </td>
+                          <td style={{ padding: '12px', fontSize: 13, fontFamily: 'monospace', color: '#6c757d' }}>
+                            {device.public_key.substring(0, 12)}...
+                          </td>
+                          <td style={{ padding: '12px', fontSize: 13, fontFamily: 'monospace', color: '#6c757d' }}>
+                            {device.tenant_id.substring(0, 12)}...
+                          </td>
+                          <td style={{ padding: '12px', fontSize: 13, color: '#6c757d' }}>
+                            {formatDate(device.last_seen)}
+                          </td>
+                          <td style={{ padding: '12px', textAlign: 'right' }}>
+                            <button
+                              onClick={() => handleDeleteDevice(device.id)}
+                              style={{
+                                padding: '4px 8px',
+                                backgroundColor: '#dc3545',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: 4,
+                                cursor: 'pointer',
+                                fontSize: 12
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {devices.length === 0 && (
+                        <tr>
+                          <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: '#6c757d' }}>
+                            No devices found.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+                  <button
+                    onClick={handleDevicesNextPage}
+                    disabled={!devicesNextCursor || loading}
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: '#f8f9fa',
+                      border: '1px solid #dee2e6',
+                      borderRadius: 4,
+                      cursor: (!devicesNextCursor || loading) ? 'not-allowed' : 'pointer',
+                      opacity: (!devicesNextCursor || loading) ? 0.6 : 1
+                    }}
+                  >
+                    Next Page
+                  </button>
                 </div>
               </div>
             </div>
@@ -693,6 +992,36 @@ export default function AdminPage() {
                       )}
                     </tbody>
                   </table>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16, gap: 8 }}>
+                  <button
+                    onClick={() => handleAuditPageChange(auditPage - 1)}
+                    disabled={auditPage === 1 || loading}
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: '#f8f9fa',
+                      border: '1px solid #dee2e6',
+                      borderRadius: 4,
+                      cursor: (auditPage === 1 || loading) ? 'not-allowed' : 'pointer',
+                      opacity: (auditPage === 1 || loading) ? 0.6 : 1
+                    }}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => handleAuditPageChange(auditPage + 1)}
+                    disabled={auditLogs.length < 50 || loading}
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: '#f8f9fa',
+                      border: '1px solid #dee2e6',
+                      borderRadius: 4,
+                      cursor: (auditLogs.length < 50 || loading) ? 'not-allowed' : 'pointer',
+                      opacity: (auditLogs.length < 50 || loading) ? 0.6 : 1
+                    }}
+                  >
+                    Next
+                  </button>
                 </div>
               </div>
             </div>
