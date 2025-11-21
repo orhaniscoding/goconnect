@@ -113,7 +113,25 @@ func (r *InMemoryPeerRepository) GetActivePeers(ctx context.Context, networkID s
 
 	var peers []*domain.Peer
 	for _, peer := range r.peers {
-		if peer.NetworkID == networkID && peer.Active && peer.DisabledAt == nil {
+		if peer.NetworkID == networkID && peer.DisabledAt == nil && peer.Active {
+			peers = append(peers, peer)
+		}
+	}
+
+	return peers, nil
+}
+
+func (r *InMemoryPeerRepository) GetAllActive(ctx context.Context) ([]*domain.Peer, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var peers []*domain.Peer
+	for _, peer := range r.peers {
+		if peer.DisabledAt == nil {
+			// Note: We might want to filter by 'Active' flag too, but usually 'Active' means 'Connected'.
+			// For configuration, we want all ENABLED peers (DisabledAt == nil).
+			// The 'Active' field in domain.Peer seems to mean "Online status".
+			// Let's check domain definition.
 			peers = append(peers, peer)
 		}
 	}

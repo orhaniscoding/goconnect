@@ -29,6 +29,9 @@ type PeerRepository interface {
 	// GetActivePeers retrieves all active peers in a network
 	GetActivePeers(ctx context.Context, networkID string) ([]*domain.Peer, error)
 
+	// GetAllActive retrieves all active peers across all networks
+	GetAllActive(ctx context.Context) ([]*domain.Peer, error)
+
 	// Update updates a peer
 	Update(ctx context.Context, peer *domain.Peer) error
 

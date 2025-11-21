@@ -51,11 +51,14 @@ type JWTConfig struct {
 
 // WireGuardConfig holds WireGuard server configuration
 type WireGuardConfig struct {
+	InterfaceName  string // Interface name (default: wg0)
+	PrivateKey     string // Server's WireGuard private key
 	ServerEndpoint string // Public endpoint (e.g., "vpn.example.com:51820")
 	ServerPubKey   string // Server's WireGuard public key (44 chars base64)
 	DNS            string // DNS servers for clients (comma-separated)
 	MTU            int    // MTU for the interface
 	Keepalive      int    // Persistent keepalive in seconds
+	Port           int    // Listen port (default: 51820)
 }
 
 // AuditConfig holds audit logging configuration
@@ -170,11 +173,14 @@ func loadJWTConfig() JWTConfig {
 
 func loadWireGuardConfig() WireGuardConfig {
 	return WireGuardConfig{
+		InterfaceName:  getEnv("WG_INTERFACE_NAME", "wg0"),
+		PrivateKey:     getEnv("WG_PRIVATE_KEY", ""),
 		ServerEndpoint: getEnv("WG_SERVER_ENDPOINT", ""),
 		ServerPubKey:   getEnv("WG_SERVER_PUBKEY", ""),
 		DNS:            getEnv("WG_DNS", "1.1.1.1, 1.0.0.1"),
 		MTU:            getIntEnv("WG_MTU", 1420),
 		Keepalive:      getIntEnv("WG_KEEPALIVE", 25),
+		Port:           getIntEnv("WG_PORT", 51820),
 	}
 }
 

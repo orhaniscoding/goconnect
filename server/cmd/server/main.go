@@ -21,6 +21,7 @@ import (
 	"github.com/orhaniscoding/goconnect/server/internal/metrics"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
 	"github.com/orhaniscoding/goconnect/server/internal/service"
+	"github.com/orhaniscoding/goconnect/server/internal/wireguard"
 	ws "github.com/orhaniscoding/goconnect/server/internal/websocket"
 )
 
@@ -130,6 +131,25 @@ func main() {
 	deviceService.SetPeerProvisioning(peerProvisioningService)
 
 	chatService := service.NewChatService(chatRepo, userRepo)
+
+	// Initialize WireGuard Manager & Sync Service
+	var wgManager *wireguard.Manager
+	if cfg.WireGuard.PrivateKey != "" {
+		var err error
+		wgManager, err = wireguard.NewManager(cfg.WireGuard.InterfaceName, cfg.WireGuard.PrivateKey, cfg.WireGuard.Port)
+		if err != nil {
+			log.Printf("Warning: Failed to initialize WireGuard manager: %v. Peer sync will be disabled.", err)
+		} else {
+			defer wgManager.Close()
+			log.Printf("WireGuard manager initialized for interface %s", cfg.WireGuard.InterfaceName)
+
+			wgSyncService := service.NewWireGuardSyncService(peerRepo, wgManager)
+			// Start sync loop in background
+			go wgSyncService.StartSyncLoop(context.Background(), 10*time.Second)
+		}
+	} else {
+		log.Println("Warning: WG_PRIVATE_KEY not set. WireGuard manager disabled.")
+	}
 
 	metrics.Register()
 	// Auditor selection: default stdout, optionally SQLite-backed if configured via env.

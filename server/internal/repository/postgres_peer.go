@@ -245,8 +245,7 @@ func (r *PostgresPeerRepository) GetActivePeers(ctx context.Context, networkID s
 			   endpoint, allowed_ips, persistent_keepalive, last_handshake,
 			   rx_bytes, tx_bytes, active, created_at, updated_at, disabled_at
 		FROM peers
-		WHERE network_id = $1 AND active = true AND disabled_at IS NULL
-		ORDER BY last_handshake DESC NULLS LAST
+		WHERE network_id = $1 AND disabled_at IS NULL AND active = true
 	`
 
 	rows, err := r.db.QueryContext(ctx, query, networkID)
@@ -255,7 +254,93 @@ func (r *PostgresPeerRepository) GetActivePeers(ctx context.Context, networkID s
 	}
 	defer rows.Close()
 
-	return r.scanPeers(rows)
+	var peers []*domain.Peer
+	for rows.Next() {
+		peer := &domain.Peer{}
+		var allowedIPs pq.StringArray
+		var lastHandshake sql.NullTime
+
+		if err := rows.Scan(
+			&peer.ID,
+			&peer.NetworkID,
+			&peer.DeviceID,
+			&peer.TenantID,
+			&peer.PublicKey,
+			&peer.PresharedKey,
+			&peer.Endpoint,
+			&allowedIPs,
+			&peer.PersistentKeepalive,
+			&lastHandshake,
+			&peer.RxBytes,
+			&peer.TxBytes,
+			&peer.Active,
+			&peer.CreatedAt,
+			&peer.UpdatedAt,
+			&peer.DisabledAt,
+		); err != nil {
+			return nil, err
+		}
+
+		peer.AllowedIPs = allowedIPs
+		if lastHandshake.Valid {
+			peer.LastHandshake = &lastHandshake.Time
+		}
+		peers = append(peers, peer)
+	}
+
+	return peers, nil
+}
+
+func (r *PostgresPeerRepository) GetAllActive(ctx context.Context) ([]*domain.Peer, error) {
+	query := `
+		SELECT id, network_id, device_id, tenant_id, public_key, preshared_key,
+			   endpoint, allowed_ips, persistent_keepalive, last_handshake,
+			   rx_bytes, tx_bytes, active, created_at, updated_at, disabled_at
+		FROM peers
+		WHERE disabled_at IS NULL
+	`
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var peers []*domain.Peer
+	for rows.Next() {
+		peer := &domain.Peer{}
+		var allowedIPs pq.StringArray
+		var lastHandshake sql.NullTime
+
+		if err := rows.Scan(
+			&peer.ID,
+			&peer.NetworkID,
+			&peer.DeviceID,
+			&peer.TenantID,
+			&peer.PublicKey,
+			&peer.PresharedKey,
+			&peer.Endpoint,
+			&allowedIPs,
+			&peer.PersistentKeepalive,
+			&lastHandshake,
+			&peer.RxBytes,
+			&peer.TxBytes,
+			&peer.Active,
+			&peer.CreatedAt,
+			&peer.UpdatedAt,
+			&peer.DisabledAt,
+		); err != nil {
+			return nil, err
+		}
+
+		peer.AllowedIPs = allowedIPs
+		if lastHandshake.Valid {
+			peer.LastHandshake = &lastHandshake.Time
+		}
+		peers = append(peers, peer)
+	}
+
+	return peers, nil
 }
 
 func (r *PostgresPeerRepository) Update(ctx context.Context, peer *domain.Peer) error {
