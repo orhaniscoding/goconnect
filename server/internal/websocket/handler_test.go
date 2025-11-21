@@ -3,9 +3,11 @@ package websocket
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
 	"github.com/orhaniscoding/goconnect/server/internal/service"
@@ -16,9 +18,24 @@ import (
 // Helper to create a test handler
 func newTestHandler() *DefaultMessageHandler {
 	hub := NewHub(nil)
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+
+	// Seed user-1 for auth tests
+	if err := userRepo.Create(context.Background(), &domain.User{
+		ID:       "user-1",
+		TenantID: "tenant-1",
+		Email:    "user1@example.com",
+	}); err != nil {
+		panic(err)
+	}
+
+	authService := service.NewAuthService(userRepo, tenantRepo)
+
 	handler := &DefaultMessageHandler{
 		hub:         hub,
 		chatService: nil, // Will be set per test if needed
+		authService: authService,
 	}
 	return handler
 }
@@ -51,9 +68,21 @@ func TestHandler_UnknownMessageType(t *testing.T) {
 func TestHandleAuthRefresh_SendsAck(t *testing.T) {
 	handler := newTestHandler()
 	client := newTestClient("user-1")
+
+	// Generate valid refresh token
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"sub":     "user-1",
+		"user_id": "user-1",
+		"type":    "refresh",
+		"exp":     time.Now().Add(time.Hour).Unix(),
+	})
+	secret := []byte("dev-secret-change-in-production")
+	tokenString, _ := token.SignedString(secret)
+
 	msg := &InboundMessage{
 		Type: TypeAuthRefresh,
 		OpID: "op-123",
+		Data: json.RawMessage(fmt.Sprintf(`{"refresh_token":"%s"}`, tokenString)),
 	}
 
 	err := handler.HandleMessage(context.Background(), client, msg)
@@ -240,17 +269,28 @@ func TestHandler_ImplementsMessageHandlerInterface(t *testing.T) {
 
 // Test message type routing with table-driven tests
 func TestHandleMessage_RoutesCorrectly(t *testing.T) {
+	// Generate valid refresh token
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"sub":     "user-1",
+		"user_id": "user-1",
+		"type":    "refresh",
+		"exp":     time.Now().Add(time.Hour).Unix(),
+	})
+	secret := []byte("dev-secret-change-in-production")
+	tokenString, _ := token.SignedString(secret)
+	validRefreshData := []byte(fmt.Sprintf(`{"refresh_token":"%s"}`, tokenString))
+
 	tests := []struct {
 		name        string
 		messageType MessageType
-		data        []byte
+		data        json.RawMessage
 		expectError bool
 		errorText   string
 	}{
 		{
 			name:        "AuthRefresh routes correctly",
 			messageType: TypeAuthRefresh,
-			data:        []byte("{}"),
+			data:        validRefreshData,
 			expectError: false,
 		},
 		{

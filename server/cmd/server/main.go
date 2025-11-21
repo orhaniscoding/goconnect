@@ -289,6 +289,7 @@ func main() {
 		adminGroup.GET("/users", adminHandler.ListUsers)
 		adminGroup.POST("/users/:id/toggle-admin", adminHandler.ToggleUserAdmin)
 		adminGroup.GET("/tenants", adminHandler.ListTenants)
+		adminGroup.DELETE("/tenants/:id", adminHandler.DeleteTenant)
 		adminGroup.GET("/stats", adminHandler.GetSystemStats)
 	}
 

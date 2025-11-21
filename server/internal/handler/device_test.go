@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/orhaniscoding/goconnect/server/internal/config"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
 	"github.com/orhaniscoding/goconnect/server/internal/service"
@@ -24,6 +25,8 @@ func setupDeviceTest() (*gin.Engine, *DeviceHandler, *service.DeviceService, rep
 	deviceRepo := repository.NewInMemoryDeviceRepository()
 	userRepo := repository.NewInMemoryUserRepository()
 	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{}
 
 	// Create test user
 	testUser := &domain.User{
@@ -35,7 +38,7 @@ func setupDeviceTest() (*gin.Engine, *DeviceHandler, *service.DeviceService, rep
 	userRepo.Create(context.Background(), testUser)
 
 	// Setup service
-	deviceService := service.NewDeviceService(deviceRepo, userRepo, peerRepo)
+	deviceService := service.NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
 
 	// Setup handler
 	handler := NewDeviceHandler(deviceService)

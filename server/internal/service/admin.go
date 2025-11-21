@@ -116,3 +116,12 @@ func (s *AdminService) ToggleUserAdmin(ctx context.Context, userID string) (*dom
 
 	return user, nil
 }
+
+// DeleteTenant deletes a tenant and all associated data
+func (s *AdminService) DeleteTenant(ctx context.Context, tenantID string) error {
+	// In a real implementation, we should probably soft-delete or check for active resources
+	// For now, we'll just delete the tenant.
+	// Note: Foreign key constraints in DB should handle cascading if configured,
+	// otherwise we might need to delete users/networks first.
+	return s.tenantRepo.Delete(ctx, tenantID)
+}

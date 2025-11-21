@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/orhaniscoding/goconnect/server/internal/config"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
 	"github.com/orhaniscoding/goconnect/server/internal/service"
@@ -24,7 +25,15 @@ func setupIPRelease() (*gin.Engine, repository.MembershipRepository, string) {
 	ns := service.NewNetworkService(nrepo, irepo)
 	ms := service.NewMembershipService(nrepo, mrepo, jrepo, irepo)
 	ips := service.NewIPAMService(nrepo, mrepo, iprepo)
-	h := NewNetworkHandler(ns, ms).WithIPAM(ips)
+
+	// Setup for DeviceService
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+	peerRepo := repository.NewInMemoryPeerRepository()
+	wgConfig := config.WireGuardConfig{}
+	ds := service.NewDeviceService(deviceRepo, userRepo, peerRepo, nrepo, wgConfig)
+
+	h := NewNetworkHandler(ns, ms, ds, peerRepo, wgConfig).WithIPAM(ips)
 	r := gin.New()
 	authSvc := newMockAuthServiceWithTokens()
 	RegisterNetworkRoutes(r, h, authSvc, mrepo)

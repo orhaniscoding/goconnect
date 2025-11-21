@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/orhaniscoding/goconnect/server/internal/config"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
 	"github.com/orhaniscoding/goconnect/server/internal/service"
@@ -29,9 +30,16 @@ func setupMembershipsRouter() (*gin.Engine, *service.MembershipService, reposito
 	networkService := service.NewNetworkService(networkRepo, idempotencyRepo)
 	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idempotencyRepo)
 
+	// Setup for DeviceService
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+	peerRepo := repository.NewInMemoryPeerRepository()
+	wgConfig := config.WireGuardConfig{}
+	ds := service.NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
+
 	// handler
 	authSvc := newMockAuthServiceWithTokens()
-	h := NewNetworkHandler(networkService, membershipService)
+	h := NewNetworkHandler(networkService, membershipService, ds, peerRepo, wgConfig)
 	r := gin.New()
 	RegisterNetworkRoutes(r, h, authSvc, membershipRepo)
 

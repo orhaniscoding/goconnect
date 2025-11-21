@@ -3,13 +3,16 @@ package websocket
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDefaultMessageHandler_HandleMessage_UnknownType(t *testing.T) {
-	handler := NewDefaultMessageHandler(nil, nil)
+	handler := NewDefaultMessageHandler(nil, nil, nil, nil)
 
 	client := &Client{
 		userID: "user1",
@@ -28,17 +31,27 @@ func TestDefaultMessageHandler_HandleMessage_UnknownType(t *testing.T) {
 }
 
 func TestDefaultMessageHandler_HandleAuthRefresh(t *testing.T) {
-	handler := NewDefaultMessageHandler(nil, nil)
+	handler := newTestHandler()
 
 	client := &Client{
-		userID: "user1",
+		userID: "user-1",
 		send:   make(chan []byte, 10),
 	}
+
+	// Generate valid refresh token
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"sub":     "user-1",
+		"user_id": "user-1",
+		"type":    "refresh",
+		"exp":     time.Now().Add(time.Hour).Unix(),
+	})
+	secret := []byte("dev-secret-change-in-production")
+	tokenString, _ := token.SignedString(secret)
 
 	msg := &InboundMessage{
 		Type: TypeAuthRefresh,
 		OpID: "op-1",
-		Data: json.RawMessage(`{}`),
+		Data: json.RawMessage(fmt.Sprintf(`{"refresh_token":"%s"}`, tokenString)),
 	}
 
 	err := handler.HandleMessage(context.Background(), client, msg)

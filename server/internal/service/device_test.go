@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/orhaniscoding/goconnect/server/internal/config"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
 	"github.com/stretchr/testify/assert"
@@ -13,7 +14,10 @@ import (
 func TestDeviceService_RegisterDevice(t *testing.T) {
 	deviceRepo := repository.NewInMemoryDeviceRepository()
 	userRepo := repository.NewInMemoryUserRepository()
-	service := NewDeviceService(deviceRepo, userRepo)
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{}
+	service := NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
 
 	ctx := context.Background()
 
@@ -121,15 +125,18 @@ func TestDeviceService_RegisterDevice(t *testing.T) {
 func TestDeviceService_GetDevice(t *testing.T) {
 	deviceRepo := repository.NewInMemoryDeviceRepository()
 	userRepo := repository.NewInMemoryUserRepository()
-	service := NewDeviceService(deviceRepo, userRepo)
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{}
+	service := NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
 
 	ctx := context.Background()
 
 	// Create test user
 	user := &domain.User{
-		ID:       "user-123",
-		TenantID: "tenant-1",
-		Email:    "test@example.com",
+		ID:           "user-123",
+		TenantID:     "tenant-1",
+		Email:        "test@example.com",
 		PasswordHash: "dummy",
 	}
 	require.NoError(t, userRepo.Create(ctx, user))
@@ -179,21 +186,24 @@ func TestDeviceService_GetDevice(t *testing.T) {
 func TestDeviceService_ListDevices(t *testing.T) {
 	deviceRepo := repository.NewInMemoryDeviceRepository()
 	userRepo := repository.NewInMemoryUserRepository()
-	service := NewDeviceService(deviceRepo, userRepo)
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{}
+	service := NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
 
 	ctx := context.Background()
 
 	// Create users
 	user1 := &domain.User{
-		ID:       "user-1",
-		TenantID: "tenant-1",
-		Email:    "user1@example.com",
+		ID:           "user-1",
+		TenantID:     "tenant-1",
+		Email:        "user1@example.com",
 		PasswordHash: "dummy",
 	}
 	user2 := &domain.User{
-		ID:       "user-2",
-		TenantID: "tenant-1",
-		Email:    "user2@example.com",
+		ID:           "user-2",
+		TenantID:     "tenant-1",
+		Email:        "user2@example.com",
 		PasswordHash: "dummy",
 	}
 	require.NoError(t, userRepo.Create(ctx, user1))
@@ -242,14 +252,17 @@ func TestDeviceService_ListDevices(t *testing.T) {
 func TestDeviceService_UpdateDevice(t *testing.T) {
 	deviceRepo := repository.NewInMemoryDeviceRepository()
 	userRepo := repository.NewInMemoryUserRepository()
-	service := NewDeviceService(deviceRepo, userRepo)
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{}
+	service := NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
 
 	ctx := context.Background()
 
 	user := &domain.User{
-		ID:       "user-123",
-		TenantID: "tenant-1",
-		Email:    "test@example.com",
+		ID:           "user-123",
+		TenantID:     "tenant-1",
+		Email:        "test@example.com",
 		PasswordHash: "dummy",
 	}
 	require.NoError(t, userRepo.Create(ctx, user))
@@ -318,14 +331,17 @@ func TestDeviceService_UpdateDevice(t *testing.T) {
 func TestDeviceService_DeleteDevice(t *testing.T) {
 	deviceRepo := repository.NewInMemoryDeviceRepository()
 	userRepo := repository.NewInMemoryUserRepository()
-	service := NewDeviceService(deviceRepo, userRepo)
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{}
+	service := NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
 
 	ctx := context.Background()
 
 	user := &domain.User{
-		ID:       "user-123",
-		TenantID: "tenant-1",
-		Email:    "test@example.com",
+		ID:           "user-123",
+		TenantID:     "tenant-1",
+		Email:        "test@example.com",
 		PasswordHash: "dummy",
 	}
 	require.NoError(t, userRepo.Create(ctx, user))
@@ -371,14 +387,17 @@ func TestDeviceService_DeleteDevice(t *testing.T) {
 func TestDeviceService_Heartbeat(t *testing.T) {
 	deviceRepo := repository.NewInMemoryDeviceRepository()
 	userRepo := repository.NewInMemoryUserRepository()
-	service := NewDeviceService(deviceRepo, userRepo)
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{}
+	service := NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
 
 	ctx := context.Background()
 
 	user := &domain.User{
-		ID:       "user-123",
-		TenantID: "tenant-1",
-		Email:    "test@example.com",
+		ID:           "user-123",
+		TenantID:     "tenant-1",
+		Email:        "test@example.com",
 		PasswordHash: "dummy",
 	}
 	require.NoError(t, userRepo.Create(ctx, user))
@@ -434,14 +453,17 @@ func TestDeviceService_Heartbeat(t *testing.T) {
 func TestDeviceService_DisableEnable(t *testing.T) {
 	deviceRepo := repository.NewInMemoryDeviceRepository()
 	userRepo := repository.NewInMemoryUserRepository()
-	service := NewDeviceService(deviceRepo, userRepo)
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{}
+	service := NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
 
 	ctx := context.Background()
 
 	user := &domain.User{
-		ID:       "user-123",
-		TenantID: "tenant-1",
-		Email:    "test@example.com",
+		ID:           "user-123",
+		TenantID:     "tenant-1",
+		Email:        "test@example.com",
 		PasswordHash: "dummy",
 	}
 	require.NoError(t, userRepo.Create(ctx, user))

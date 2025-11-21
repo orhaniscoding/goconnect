@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/orhaniscoding/goconnect/server/internal/config"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
 	"github.com/orhaniscoding/goconnect/server/internal/service"
@@ -20,7 +21,9 @@ func TestMultiTenancyIsolation(t *testing.T) {
 	ipamRepo := repository.NewInMemoryIPAM()
 
 	networkService := service.NewNetworkService(networkRepo, idempotencyRepo)
-	deviceService := service.NewDeviceService(deviceRepo, userRepo)
+	peerRepo := repository.NewInMemoryPeerRepository()
+	wgConfig := config.WireGuardConfig{}
+	deviceService := service.NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
 	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idempotencyRepo)
 	ipamService := service.NewIPAMService(networkRepo, membershipRepo, ipamRepo)
 

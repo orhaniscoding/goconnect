@@ -893,4 +893,11 @@ export async function toggleUserAdmin(userId: string, accessToken: string): Prom
   })
 }
 
+export async function deleteTenant(tenantId: string, accessToken: string): Promise<void> {
+  return api(`/v1/admin/tenants/${tenantId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` }
+  })
+}
+
 

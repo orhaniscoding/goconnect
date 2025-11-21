@@ -8,6 +8,7 @@ import {
   listTenants,
   listAuditLogs,
   toggleUserAdmin,
+  deleteTenant,
   SystemStats,
   AdminUser,
   Tenant,
@@ -102,6 +103,26 @@ export default function AdminPage() {
     } catch (err: any) {
       console.error('Failed to toggle admin status:', err)
       alert('Failed to update user: ' + (err.message || 'Unknown error'))
+    }
+  }
+
+  const handleDeleteTenant = async (tenantId: string) => {
+    if (!confirm('Are you sure you want to delete this tenant? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      const token = getAccessToken()
+      if (!token) return
+
+      await deleteTenant(tenantId, token)
+
+      // Refresh tenant list
+      const tenantsRes = await listTenants(50, 0, token)
+      setTenants(tenantsRes.data)
+    } catch (err: any) {
+      console.error('Failed to delete tenant:', err)
+      alert('Failed to delete tenant: ' + (err.message || 'Unknown error'))
     }
   }
 
@@ -478,19 +499,18 @@ export default function AdminPage() {
                           </div>
                         </div>
                         <button
-                          disabled
+                          onClick={() => handleDeleteTenant(tenant.id)}
                           style={{
                             padding: '6px 12px',
-                            backgroundColor: '#6c757d',
+                            backgroundColor: '#dc3545',
                             color: 'white',
                             border: 'none',
                             borderRadius: 6,
                             fontSize: 13,
-                            cursor: 'not-allowed',
-                            opacity: 0.6
+                            cursor: 'pointer'
                           }}
                         >
-                          Manage
+                          Delete
                         </button>
                       </div>
 

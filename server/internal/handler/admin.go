@@ -100,3 +100,23 @@ func (h *AdminHandler) ToggleUserAdmin(c *gin.Context) {
 		"data": user,
 	})
 }
+
+func (h *AdminHandler) DeleteTenant(c *gin.Context) {
+	tenantID := c.Param("id")
+	if tenantID == "" {
+		errorResponse(c, &domain.Error{
+			Code:    domain.ErrInvalidRequest,
+			Message: "Tenant ID is required",
+		})
+		return
+	}
+
+	if err := h.adminService.DeleteTenant(c.Request.Context(), tenantID); err != nil {
+		h.handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Tenant deleted successfully",
+	})
+}
