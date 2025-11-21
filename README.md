@@ -24,7 +24,6 @@
 ### 🏢 Multi-Tenancy & Access Control
 - **Complete Tenant Isolation**: Security-first architecture with enforced boundaries
 - **Role-Based Access Control (RBAC)**: Owner, Admin, Moderator, and Member roles
-- **Admin Dashboard**: System-wide overview with real-time statistics, user management, and audit logs
 - **Network Membership**: Flexible join policies (Open, Approval Required, Invite-Only)
 - **Join Request Workflow**: Approve/deny membership requests with audit trail
 
