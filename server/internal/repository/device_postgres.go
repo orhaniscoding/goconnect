@@ -182,6 +182,7 @@ func (r *PostgresDeviceRepository) List(ctx context.Context, filter domain.Devic
 		argPos++
 	}
 
+	// Only apply tenant filter if provided (allows admin to list all)
 	if filter.TenantID != "" {
 		query += ` AND tenant_id = $` + intToString(argPos)
 		args = append(args, filter.TenantID)

@@ -139,3 +139,12 @@ func (s *AdminService) ListNetworks(ctx context.Context, limit int, cursor strin
 		Cursor:   cursor,
 	})
 }
+
+// ListDevices retrieves a paginated list of all devices (system-wide)
+func (s *AdminService) ListDevices(ctx context.Context, limit int, cursor string) ([]*domain.Device, string, error) {
+	return s.deviceRepo.List(ctx, domain.DeviceFilter{
+		TenantID: "", // Empty means all tenants
+		Limit:    limit,
+		Cursor:   cursor,
+	})
+}

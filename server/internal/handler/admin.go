@@ -160,3 +160,23 @@ func (h *AdminHandler) ListNetworks(c *gin.Context) {
 		},
 	})
 }
+
+func (h *AdminHandler) ListDevices(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	cursor := c.DefaultQuery("cursor", "")
+
+	devices, nextCursor, err := h.adminService.ListDevices(c.Request.Context(), limit, cursor)
+	if err != nil {
+		h.handleError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": devices,
+		"meta": gin.H{
+			"limit":       limit,
+			"next_cursor": nextCursor,
+			"has_more":    nextCursor != "",
+		},
+	})
+}
