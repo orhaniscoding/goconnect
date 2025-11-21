@@ -36,9 +36,8 @@
 - **Comprehensive Audit Logging**: Immutable SQLite-backed audit log with hash chain integrity
 - **Metrics Export**: Prometheus-compatible metrics for monitoring
 - **Health Checks**: Readiness and liveness probes for container orchestration
-- **Real-time Connection Status**: Dashboard shows live VPN state, handshake times, and data transfer
 - **Rate Limiting**: Per-IP token bucket rate limiting (configurable)
-- **2FA Support**: TOTP-based two-factor authentication
+- **2FA Support**: TOTP-based two-factor authentication (planned)
 - **SSO Integration**: OAuth2/OIDC support (planned)
 
 ### 🌐 Modern Tech Stack
