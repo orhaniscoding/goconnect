@@ -6,6 +6,7 @@
 ### Features
 
 * implement network management in admin dashboard ([8ceb912](https://github.com/orhaniscoding/goconnect/commit/8ceb9123182b70921ea5d657720c55b722087ea7))
+* implement device management in admin dashboard ([263e3b5](https://github.com/orhaniscoding/goconnect/commit/263e3b5))
 
 ## [2.2.0](https://github.com/orhaniscoding/goconnect/compare/v2.1.0...v2.2.0) (2025-11-21)
 
