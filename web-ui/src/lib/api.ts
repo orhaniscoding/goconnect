@@ -107,6 +107,22 @@ export async function disable2FA(accessToken: string, code: string): Promise<voi
   })
 }
 
+/**
+ * Change user password
+ * @param accessToken - JWT access token
+ * @param oldPassword - Current password
+ * @param newPassword - New password
+ */
+export async function changePassword(accessToken: string, oldPassword: string, newPassword: string): Promise<void> {
+  await api('/v1/auth/password', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+  })
+}
+
 // Network Management API
 export interface Network {
   id: string
@@ -740,4 +756,28 @@ export async function listChatMessages(
       Authorization: `Bearer ${accessToken}`,
     },
   })
+}
+
+export async function uploadFile(
+  file: File,
+  accessToken: string
+): Promise<{ url: string; filename: string; size: number }> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080'
+  const res = await fetch(`${base}/v1/uploads`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: formData,
+  })
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ message: 'Upload failed' }))
+    throw new Error(error.message || `HTTP ${res.status}`)
+  }
+
+  return res.json()
 }

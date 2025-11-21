@@ -6,11 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/orhaniscoding/goconnect/server/internal/domain"
 )
 
 // UploadHandler handles file uploads

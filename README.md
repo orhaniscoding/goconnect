@@ -31,7 +31,7 @@
 - **Built-in Chat**: Network-scoped and global chat with WebSocket support
 - **Message Moderation**: Redact, edit, and delete messages with full audit trail
 - **Edit History Tracking**: Complete message history with timestamps
-- **File Attachments**: Share files within chat (planned)
+- **File Attachments**: Share files within chat (supported formats: images, docs, zip)
 
 ### 🔍 Observability & Security
 - **Comprehensive Audit Logging**: Immutable SQLite-backed audit log with hash chain integrity

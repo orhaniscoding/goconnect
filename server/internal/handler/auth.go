@@ -201,6 +201,38 @@ func (h *AuthHandler) Disable2FA(c *gin.Context) {
 	})
 }
 
+// ChangePassword handles POST /v1/auth/password
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		errorResponse(c, domain.NewError(domain.ErrUnauthorized, "Unauthorized", nil))
+		return
+	}
+
+	var req struct {
+		OldPassword string `json:"old_password" binding:"required"`
+		NewPassword string `json:"new_password" binding:"required,min=8"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Invalid request: "+err.Error(), nil))
+		return
+	}
+
+	if err := h.authService.ChangePassword(c.Request.Context(), userID, req.OldPassword, req.NewPassword); err != nil {
+		if domainErr, ok := err.(*domain.Error); ok {
+			errorResponse(c, domainErr)
+		} else {
+			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to change password", nil))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Password changed successfully",
+	})
+}
+
 // RegisterAuthRoutes registers all auth-related routes
 func RegisterAuthRoutes(r *gin.Engine, handler *AuthHandler, authMiddleware gin.HandlerFunc) {
 	v1 := r.Group("/v1")
@@ -218,6 +250,7 @@ func RegisterAuthRoutes(r *gin.Engine, handler *AuthHandler, authMiddleware gin.
 	authProtected := v1.Group("/auth")
 	authProtected.Use(authMiddleware)
 	{
+		authProtected.POST("/password", handler.ChangePassword)
 		authProtected.POST("/2fa/generate", handler.Generate2FA)
 		authProtected.POST("/2fa/enable", handler.Enable2FA)
 		authProtected.POST("/2fa/disable", handler.Disable2FA)

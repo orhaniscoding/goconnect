@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getUser, getAccessToken } from '../../../../lib/auth'
-import { generate2FA, enable2FA, disable2FA } from '../../../../lib/api'
+import { generate2FA, enable2FA, disable2FA, changePassword } from '../../../../lib/api'
 import { useNotification } from '../../../../contexts/NotificationContext'
 import AuthGuard from '../../../../components/AuthGuard'
 import Footer from '../../../../components/Footer'
@@ -65,19 +65,31 @@ export default function ProfilePage() {
             return
         }
 
-        // TODO: Backend integration - change password API call
-        // For now, just show success message
-        console.log('Password change requested')
-        setPasswordSuccess(true)
-        notification.success('Success', 'Password changed successfully')
-        setCurrentPassword('')
-        setNewPassword('')
-        setConfirmPassword('')
+        try {
+            const token = getAccessToken()
+            if (!token) {
+                notification.error('Error', 'Not authenticated')
+                return
+            }
 
-        setTimeout(() => {
-            setChangePasswordMode(false)
-            setPasswordSuccess(false)
-        }, 2000)
+            await changePassword(token, currentPassword, newPassword)
+
+            setPasswordSuccess(true)
+            notification.success('Success', 'Password changed successfully')
+            setCurrentPassword('')
+            setNewPassword('')
+            setConfirmPassword('')
+
+            setTimeout(() => {
+                setChangePasswordMode(false)
+                setPasswordSuccess(false)
+            }, 2000)
+        } catch (err: any) {
+            console.error('Password change error:', err)
+            const msg = err.message || 'Failed to change password'
+            setPasswordError(msg)
+            notification.error('Error', msg)
+        }
     }
 
     const handleToggle2FA = async () => {

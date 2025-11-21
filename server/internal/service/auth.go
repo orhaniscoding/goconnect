@@ -435,3 +435,31 @@ func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
 	// TODO: Implement token blacklist with Redis
 	return nil
 }
+
+// ChangePassword changes the user's password
+func (s *AuthService) ChangePassword(ctx context.Context, userID, oldPassword, newPassword string) error {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	// Verify old password
+	valid, err := s.VerifyPassword(oldPassword, user.PasswordHash)
+	if err != nil {
+		return fmt.Errorf("failed to verify password: %w", err)
+	}
+	if !valid {
+		return domain.NewError(domain.ErrInvalidCredentials, "Invalid current password", nil)
+	}
+
+	// Hash new password
+	newHash, err := s.HashPassword(newPassword)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	user.PasswordHash = newHash
+	user.UpdatedAt = time.Now().UTC()
+
+	return s.userRepo.Update(ctx, user)
+}

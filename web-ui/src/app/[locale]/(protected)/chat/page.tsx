@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { getAccessToken, getUser } from '../../../../lib/auth'
-import { listNetworks, Network, listChatMessages, ChatMessage } from '../../../../lib/api'
+import { listNetworks, Network, listChatMessages, ChatMessage, uploadFile } from '../../../../lib/api'
 import AuthGuard from '../../../../components/AuthGuard'
 import Footer from '../../../../components/Footer'
 
@@ -33,6 +33,11 @@ export default function ChatPage() {
     const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
     const [editText, setEditText] = useState('')
     const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null)
+
+    // File Upload state
+    const fileInputRef = useRef<HTMLInputElement>(null)
+    const [uploading, setUploading] = useState(false)
+    const [attachments, setAttachments] = useState<string[]>([])
 
     // User permissions
     const [isModerator, setIsModerator] = useState(false)
@@ -228,7 +233,7 @@ export default function ChatPage() {
     const handleSendMessage = (e: React.FormEvent) => {
         e.preventDefault()
 
-        if (!messageText.trim()) {
+        if (!messageText.trim() && attachments.length === 0) {
             return
         }
 
@@ -244,17 +249,48 @@ export default function ChatPage() {
             data: {
                 scope,
                 body: messageText.trim(),
+                attachments: attachments
             },
         }
 
         try {
             ws.send(JSON.stringify(message))
             setMessageText('')
+            setAttachments([])
             setError(null)
         } catch (err) {
             setError('Failed to send message')
             console.error(err)
         }
+    }
+
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return
+
+        const file = e.target.files[0]
+        setUploading(true)
+        setError(null)
+
+        try {
+            const token = getAccessToken()
+            if (!token) throw new Error('Not authenticated')
+
+            const result = await uploadFile(file, token)
+            setAttachments(prev => [...prev, result.url])
+        } catch (err: any) {
+            console.error('Upload failed:', err)
+            setError(err.message || 'Upload failed')
+        } finally {
+            setUploading(false)
+            // Reset input
+            if (fileInputRef.current) {
+                fileInputRef.current.value = ''
+            }
+        }
+    }
+
+    const removeAttachment = (index: number) => {
+        setAttachments(prev => prev.filter((_, i) => i !== index))
     }
 
     const formatTime = (timestamp: string) => {
@@ -520,6 +556,28 @@ export default function ChatPage() {
                                 }}>
                                     {msg.body}
                                 </div>
+                                {msg.attachments && msg.attachments.length > 0 && (
+                                    <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                        {msg.attachments.map((url, i) => (
+                                            <a
+                                                key={i}
+                                                href={url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                style={{
+                                                    fontSize: 13,
+                                                    color: isOwnMessage ? 'white' : '#007bff',
+                                                    textDecoration: 'underline',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 4
+                                                }}
+                                            >
+                                                📎 Attachment {i + 1}
+                                            </a>
+                                        ))}
+                                    </div>
+                                )}
                                 {msg.updated_at && msg.updated_at !== msg.created_at && (
                                     <div style={{
                                         fontSize: 11,
@@ -629,7 +687,52 @@ export default function ChatPage() {
                     backgroundColor: 'white',
                     borderTop: '1px solid #dee2e6'
                 }}>
+                    {attachments.length > 0 && (
+                        <div style={{ marginBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            {attachments.map((url, i) => (
+                                <div key={i} style={{
+                                    padding: '4px 8px',
+                                    backgroundColor: '#e9ecef',
+                                    borderRadius: 4,
+                                    fontSize: 12,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 6
+                                }}>
+                                    <span>📎 Attachment {i + 1}</span>
+                                    <button
+                                        onClick={() => removeAttachment(i)}
+                                        style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, color: '#dc3545' }}
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: 12 }}>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileSelect}
+                            style={{ display: 'none' }}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={!connected || uploading}
+                            style={{
+                                padding: '12px',
+                                backgroundColor: '#f8f9fa',
+                                border: '1px solid #dee2e6',
+                                borderRadius: 8,
+                                cursor: connected && !uploading ? 'pointer' : 'not-allowed',
+                                fontSize: 20
+                            }}
+                            title="Attach file"
+                        >
+                            {uploading ? '⏳' : '📎'}
+                        </button>
                         <input
                             type="text"
                             value={messageText}
@@ -654,16 +757,16 @@ export default function ChatPage() {
                         />
                         <button
                             type="submit"
-                            disabled={!connected || !messageText.trim()}
+                            disabled={!connected || (!messageText.trim() && attachments.length === 0)}
                             style={{
                                 padding: '12px 32px',
-                                backgroundColor: connected && messageText.trim() ? '#007bff' : '#6c757d',
+                                backgroundColor: connected && (messageText.trim() || attachments.length > 0) ? '#007bff' : '#6c757d',
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: 8,
                                 fontSize: 15,
                                 fontWeight: 600,
-                                cursor: connected && messageText.trim() ? 'pointer' : 'not-allowed',
+                                cursor: connected && (messageText.trim() || attachments.length > 0) ? 'pointer' : 'not-allowed',
                                 transition: 'background-color 0.2s'
                             }}
                         >
