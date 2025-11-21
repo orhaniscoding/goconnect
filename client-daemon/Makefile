@@ -73,9 +73,8 @@ install-systemd:
 ## install-launchd: Install launchd service (macOS)
 install-launchd:
 	@echo "Installing launchd service..."
-	cp service/macos/com.goconnect.daemon.plist ~/Library/LaunchAgents/
-	launchctl load ~/Library/LaunchAgents/com.goconnect.daemon.plist
-	@echo "✅ Launchd service installed and loaded"
+	@chmod +x service/macos/install.sh
+	@sudo ./service/macos/install.sh
 
 ## install-windows: Install Windows service (requires admin PowerShell)
 install-windows:
