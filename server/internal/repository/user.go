@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"strings"
 	"sync"
 
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
@@ -14,7 +15,7 @@ type UserRepository interface {
 	GetByEmail(ctx context.Context, email string) (*domain.User, error)
 	Update(ctx context.Context, user *domain.User) error
 	Delete(ctx context.Context, id string) error
-	ListAll(ctx context.Context, limit, offset int) ([]*domain.User, int, error)
+	ListAll(ctx context.Context, limit, offset int, query string) ([]*domain.User, int, error)
 	Count(ctx context.Context) (int, error)
 }
 
@@ -110,13 +111,15 @@ func (r *InMemoryUserRepository) Delete(ctx context.Context, id string) error {
 }
 
 // ListAll retrieves a list of users with pagination
-func (r *InMemoryUserRepository) ListAll(ctx context.Context, limit, offset int) ([]*domain.User, int, error) {
+func (r *InMemoryUserRepository) ListAll(ctx context.Context, limit, offset int, query string) ([]*domain.User, int, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	users := make([]*domain.User, 0, len(r.users))
+	var users []*domain.User
 	for _, user := range r.users {
-		users = append(users, user)
+		if query == "" || strings.Contains(strings.ToLower(user.Email), strings.ToLower(query)) {
+			users = append(users, user)
+		}
 	}
 
 	total := len(users)

@@ -31,8 +31,9 @@ func (h *AdminHandler) handleError(c *gin.Context, err error) {
 func (h *AdminHandler) ListUsers(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	query := c.DefaultQuery("q", "")
 
-	users, total, err := h.adminService.ListUsers(c.Request.Context(), limit, offset)
+	users, total, err := h.adminService.ListUsers(c.Request.Context(), limit, offset, query)
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -51,8 +52,9 @@ func (h *AdminHandler) ListUsers(c *gin.Context) {
 func (h *AdminHandler) ListTenants(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	query := c.Query("q")
 
-	tenants, total, err := h.adminService.ListTenants(c.Request.Context(), limit, offset)
+	tenants, total, err := h.adminService.ListTenants(c.Request.Context(), limit, offset, query)
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -144,8 +146,9 @@ func (h *AdminHandler) DeleteTenant(c *gin.Context) {
 func (h *AdminHandler) ListNetworks(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	cursor := c.DefaultQuery("cursor", "")
+	query := c.Query("q")
 
-	networks, nextCursor, err := h.adminService.ListNetworks(c.Request.Context(), limit, cursor)
+	networks, nextCursor, err := h.adminService.ListNetworks(c.Request.Context(), limit, cursor, query)
 	if err != nil {
 		h.handleError(c, err)
 		return
@@ -164,8 +167,9 @@ func (h *AdminHandler) ListNetworks(c *gin.Context) {
 func (h *AdminHandler) ListDevices(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	cursor := c.DefaultQuery("cursor", "")
+	query := c.Query("q")
 
-	devices, nextCursor, err := h.adminService.ListDevices(c.Request.Context(), limit, cursor)
+	devices, nextCursor, err := h.adminService.ListDevices(c.Request.Context(), limit, cursor, query)
 	if err != nil {
 		h.handleError(c, err)
 		return

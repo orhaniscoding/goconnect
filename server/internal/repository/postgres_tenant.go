@@ -135,21 +135,38 @@ func (r *PostgresTenantRepository) List(ctx context.Context) ([]*domain.Tenant, 
 	return tenants, nil
 }
 
-func (r *PostgresTenantRepository) ListAll(ctx context.Context, limit, offset int) ([]*domain.Tenant, int, error) {
+func (r *PostgresTenantRepository) ListAll(ctx context.Context, limit, offset int, query string) ([]*domain.Tenant, int, error) {
+	// Build query
+	whereClause := ""
+	args := []interface{}{}
+	argIdx := 1
+
+	if query != "" {
+		whereClause = fmt.Sprintf("WHERE name ILIKE $%d", argIdx)
+		args = append(args, "%"+query+"%")
+		argIdx++
+	}
+
 	// Get total count
+	countQuery := "SELECT COUNT(*) FROM tenants " + whereClause
 	var total int
-	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM tenants").Scan(&total)
+	err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count tenants: %w", err)
 	}
 
-	query := `
+	// Get data
+	listQuery := fmt.Sprintf(`
 		SELECT id, name, created_at, updated_at
 		FROM tenants
+		%s
 		ORDER BY created_at DESC
-		LIMIT $1 OFFSET $2
-	`
-	rows, err := r.db.QueryContext(ctx, query, limit, offset)
+		LIMIT $%d OFFSET $%d
+	`, whereClause, argIdx, argIdx+1)
+
+	args = append(args, limit, offset)
+
+	rows, err := r.db.QueryContext(ctx, listQuery, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list tenants: %w", err)
 	}

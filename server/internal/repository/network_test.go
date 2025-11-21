@@ -295,3 +295,33 @@ func TestInMemoryNetworkRepository_CIDROverlap_TenantIsolation(t *testing.T) {
 		t.Fatalf("expected NO overlap in different tenant")
 	}
 }
+
+func TestInMemoryNetworkRepository_List_Search(t *testing.T) {
+	r := NewInMemoryNetworkRepository()
+	ctx := context.Background()
+	// Create networks
+	if err := r.Create(ctx, mkNet("n1", "Alpha Net", "10.0.0.0/24", "u1", domain.NetworkVisibilityPublic)); err != nil {
+		t.Fatalf("create n1: %v", err)
+	}
+	if err := r.Create(ctx, mkNet("n2", "Beta Net", "10.0.1.0/24", "u2", domain.NetworkVisibilityPublic)); err != nil {
+		t.Fatalf("create n2: %v", err)
+	}
+
+	// Search "alpha"
+	got, _, err := r.List(ctx, NetworkFilter{Search: "alpha", TenantID: "default", Limit: 10})
+	if err != nil {
+		t.Fatalf("list search: %v", err)
+	}
+	if len(got) != 1 || got[0].Name != "Alpha Net" {
+		t.Fatalf("unexpected search result: %+v", got)
+	}
+
+	// Search "NET" (case insensitive)
+	got, _, err = r.List(ctx, NetworkFilter{Search: "NET", TenantID: "default", Limit: 10})
+	if err != nil {
+		t.Fatalf("list search case insensitive: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(got))
+	}
+}

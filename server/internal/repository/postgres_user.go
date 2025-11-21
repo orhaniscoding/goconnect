@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
@@ -179,21 +180,35 @@ func (r *PostgresUserRepository) List(ctx context.Context, tenantID string) ([]*
 	return users, nil
 }
 
-func (r *PostgresUserRepository) ListAll(ctx context.Context, limit, offset int) ([]*domain.User, int, error) {
+func (r *PostgresUserRepository) ListAll(ctx context.Context, limit, offset int, queryStr string) ([]*domain.User, int, error) {
+	whereClause := ""
+	args := []interface{}{}
+	argIdx := 1
+
+	if queryStr != "" {
+		whereClause = "WHERE email ILIKE $" + strconv.Itoa(argIdx)
+		args = append(args, "%"+queryStr+"%")
+		argIdx++
+	}
+
 	// Get total count
 	var total int
-	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM users").Scan(&total)
+	countQuery := "SELECT COUNT(*) FROM users " + whereClause
+	err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count users: %w", err)
 	}
 
-	query := `
+	listQuery := `
 		SELECT id, tenant_id, email, password_hash, locale, is_admin, created_at, updated_at
 		FROM users
+		` + whereClause + `
 		ORDER BY created_at DESC
-		LIMIT $1 OFFSET $2
-	`
-	rows, err := r.db.QueryContext(ctx, query, limit, offset)
+		LIMIT $` + strconv.Itoa(argIdx) + ` OFFSET $` + strconv.Itoa(argIdx+1)
+
+	args = append(args, limit, offset)
+
+	rows, err := r.db.QueryContext(ctx, listQuery, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to list users: %w", err)
 	}

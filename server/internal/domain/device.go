@@ -84,6 +84,7 @@ type DeviceFilter struct {
 	Active   *bool  // Filter by active status
 	Limit    int    // Max results (default 50, max 100)
 	Cursor   string // Pagination cursor
+	Search   string // Search by name or hostname
 }
 
 // Validate validates the device

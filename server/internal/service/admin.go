@@ -37,13 +37,13 @@ func NewAdminService(
 }
 
 // ListUsers retrieves a paginated list of users
-func (s *AdminService) ListUsers(ctx context.Context, limit, offset int) ([]*domain.User, int, error) {
-	return s.userRepo.ListAll(ctx, limit, offset)
+func (s *AdminService) ListUsers(ctx context.Context, limit, offset int, query string) ([]*domain.User, int, error) {
+	return s.userRepo.ListAll(ctx, limit, offset, query)
 }
 
 // ListTenants retrieves a paginated list of tenants
-func (s *AdminService) ListTenants(ctx context.Context, limit, offset int) ([]*domain.Tenant, int, error) {
-	return s.tenantRepo.ListAll(ctx, limit, offset)
+func (s *AdminService) ListTenants(ctx context.Context, limit, offset int, query string) ([]*domain.Tenant, int, error) {
+	return s.tenantRepo.ListAll(ctx, limit, offset, query)
 }
 
 // SystemStats represents system-wide statistics
@@ -131,20 +131,22 @@ func (s *AdminService) DeleteTenant(ctx context.Context, tenantID string) error 
 }
 
 // ListNetworks retrieves a paginated list of all networks (system-wide)
-func (s *AdminService) ListNetworks(ctx context.Context, limit int, cursor string) ([]*domain.Network, string, error) {
+func (s *AdminService) ListNetworks(ctx context.Context, limit int, cursor, query string) ([]*domain.Network, string, error) {
 	return s.networkRepo.List(ctx, repository.NetworkFilter{
 		TenantID: "", // Empty means all tenants
 		IsAdmin:  true,
 		Limit:    limit,
 		Cursor:   cursor,
+		Search:   query,
 	})
 }
 
 // ListDevices retrieves a paginated list of all devices (system-wide)
-func (s *AdminService) ListDevices(ctx context.Context, limit int, cursor string) ([]*domain.Device, string, error) {
+func (s *AdminService) ListDevices(ctx context.Context, limit int, cursor, query string) ([]*domain.Device, string, error) {
 	return s.deviceRepo.List(ctx, domain.DeviceFilter{
 		TenantID: "", // Empty means all tenants
 		Limit:    limit,
 		Cursor:   cursor,
+		Search:   query,
 	})
 }

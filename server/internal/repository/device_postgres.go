@@ -201,6 +201,12 @@ func (r *PostgresDeviceRepository) List(ctx context.Context, filter domain.Devic
 		argPos++
 	}
 
+	if filter.Search != "" {
+		query += ` AND (name ILIKE $` + intToString(argPos) + ` OR hostname ILIKE $` + intToString(argPos) + `)`
+		args = append(args, "%"+filter.Search+"%")
+		argPos++
+	}
+
 	// Cursor pagination
 	if filter.Cursor != "" {
 		query += ` AND created_at < (SELECT created_at FROM devices WHERE id = $` + intToString(argPos) + `)`

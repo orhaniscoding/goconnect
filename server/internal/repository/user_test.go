@@ -415,3 +415,36 @@ func TestUserRepository_CreatedAtUpdatedAtPreserved(t *testing.T) {
 	assert.Equal(t, createdAt.Unix(), retrieved.CreatedAt.Unix())
 	assert.Equal(t, updatedAt.Unix(), retrieved.UpdatedAt.Unix())
 }
+
+func TestUserRepository_ListAll_Search(t *testing.T) {
+	repo := NewInMemoryUserRepository()
+	users := []*domain.User{
+		mkUser("user-1", "alice@example.com", false, false),
+		mkUser("user-2", "bob@example.com", false, false),
+		mkUser("user-3", "charlie@example.com", false, false),
+	}
+
+	for _, user := range users {
+		repo.Create(context.Background(), user)
+	}
+
+	// Test search
+	results, total, err := repo.ListAll(context.Background(), 10, 0, "bob")
+	require.NoError(t, err)
+	assert.Equal(t, 1, total)
+	assert.Len(t, results, 1)
+	assert.Equal(t, "bob@example.com", results[0].Email)
+
+	// Test case insensitive
+	results, total, err = repo.ListAll(context.Background(), 10, 0, "ALICE")
+	require.NoError(t, err)
+	assert.Equal(t, 1, total)
+	assert.Len(t, results, 1)
+	assert.Equal(t, "alice@example.com", results[0].Email)
+
+	// Test empty search
+	results, total, err = repo.ListAll(context.Background(), 10, 0, "")
+	require.NoError(t, err)
+	assert.Equal(t, 3, total)
+	assert.Len(t, results, 3)
+}

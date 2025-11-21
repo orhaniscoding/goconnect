@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"strings"
 	"sync"
 
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
@@ -13,7 +14,7 @@ type TenantRepository interface {
 	GetByID(ctx context.Context, id string) (*domain.Tenant, error)
 	Update(ctx context.Context, tenant *domain.Tenant) error
 	Delete(ctx context.Context, id string) error
-	ListAll(ctx context.Context, limit, offset int) ([]*domain.Tenant, int, error)
+	ListAll(ctx context.Context, limit, offset int, query string) ([]*domain.Tenant, int, error)
 	Count(ctx context.Context) (int, error)
 }
 
@@ -79,13 +80,15 @@ func (r *InMemoryTenantRepository) Delete(ctx context.Context, id string) error 
 }
 
 // ListAll retrieves a list of tenants with pagination
-func (r *InMemoryTenantRepository) ListAll(ctx context.Context, limit, offset int) ([]*domain.Tenant, int, error) {
+func (r *InMemoryTenantRepository) ListAll(ctx context.Context, limit, offset int, query string) ([]*domain.Tenant, int, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	tenants := make([]*domain.Tenant, 0, len(r.tenants))
+	var tenants []*domain.Tenant
 	for _, tenant := range r.tenants {
-		tenants = append(tenants, tenant)
+		if query == "" || strings.Contains(strings.ToLower(tenant.Name), strings.ToLower(query)) {
+			tenants = append(tenants, tenant)
+		}
 	}
 
 	total := len(tenants)

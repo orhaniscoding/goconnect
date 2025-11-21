@@ -199,3 +199,36 @@ func TestTenantRepository_TimestampsPreserved(t *testing.T) {
 	assert.Equal(t, createdAt.Unix(), retrieved.CreatedAt.Unix())
 	assert.Equal(t, updatedAt.Unix(), retrieved.UpdatedAt.Unix())
 }
+
+func TestTenantRepository_ListAll_Search(t *testing.T) {
+	repo := NewInMemoryTenantRepository()
+	tenants := []*domain.Tenant{
+		mkTenant("tenant-1", "Acme Corp", "owner-1"),
+		mkTenant("tenant-2", "Beta Inc", "owner-2"),
+		mkTenant("tenant-3", "Charlie Ltd", "owner-3"),
+	}
+
+	for _, tenant := range tenants {
+		repo.Create(context.Background(), tenant)
+	}
+
+	// Test search
+	results, total, err := repo.ListAll(context.Background(), 10, 0, "beta")
+	require.NoError(t, err)
+	assert.Equal(t, 1, total)
+	assert.Len(t, results, 1)
+	assert.Equal(t, "Beta Inc", results[0].Name)
+
+	// Test case insensitive
+	results, total, err = repo.ListAll(context.Background(), 10, 0, "ACME")
+	require.NoError(t, err)
+	assert.Equal(t, 1, total)
+	assert.Len(t, results, 1)
+	assert.Equal(t, "Acme Corp", results[0].Name)
+
+	// Test empty search
+	results, total, err = repo.ListAll(context.Background(), 10, 0, "")
+	require.NoError(t, err)
+	assert.Equal(t, 3, total)
+	assert.Len(t, results, 3)
+}

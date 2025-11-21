@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -129,17 +131,22 @@ func (r *InMemoryDeviceRepository) List(ctx context.Context, filter domain.Devic
 			continue
 		}
 
+		// Search filter
+		if filter.Search != "" {
+			searchLower := strings.ToLower(filter.Search)
+			if !strings.Contains(strings.ToLower(device.Name), searchLower) &&
+				!strings.Contains(strings.ToLower(device.HostName), searchLower) {
+				continue
+			}
+		}
+
 		matches = append(matches, device)
 	}
 
 	// Sort by CreatedAt DESC (newest first)
-	for i := 0; i < len(matches)-1; i++ {
-		for j := i + 1; j < len(matches); j++ {
-			if matches[i].CreatedAt.Before(matches[j].CreatedAt) {
-				matches[i], matches[j] = matches[j], matches[i]
-			}
-		}
-	}
+	sort.Slice(matches, func(i, j int) bool {
+		return matches[i].CreatedAt.After(matches[j].CreatedAt)
+	})
 
 	// Apply pagination
 	limit := filter.Limit

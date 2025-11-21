@@ -488,3 +488,30 @@ func TestDeviceRepository_HeartbeatCycle(t *testing.T) {
 	assert.True(t, d.Active)
 	assert.Equal(t, "192.168.1.101", d.IPAddress)
 }
+
+func TestDeviceRepository_List_Search(t *testing.T) {
+	repo := NewInMemoryDeviceRepository()
+	ctx := context.Background()
+	devices := []*domain.Device{
+		mkDevice("d1", "u1", "Alpha Device", "k1", "linux"),
+		mkDevice("d2", "u1", "Beta Device", "k2", "windows"),
+	}
+	// Set hostname for d2
+	devices[1].HostName = "beta-host"
+
+	for _, d := range devices {
+		repo.Create(ctx, d)
+	}
+
+	// Search by name "alpha"
+	got, _, err := repo.List(ctx, domain.DeviceFilter{Search: "alpha", Limit: 10})
+	require.NoError(t, err)
+	assert.Len(t, got, 1)
+	assert.Equal(t, "Alpha Device", got[0].Name)
+
+	// Search by hostname "host"
+	got, _, err = repo.List(ctx, domain.DeviceFilter{Search: "host", Limit: 10})
+	require.NoError(t, err)
+	assert.Len(t, got, 1)
+	assert.Equal(t, "Beta Device", got[0].Name)
+}
