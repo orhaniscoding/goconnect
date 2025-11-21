@@ -95,7 +95,7 @@ export default function AdminPage() {
       if (!token) return
 
       await toggleUserAdmin(userId, token)
-      
+
       // Refresh user list
       const usersRes = await listUsers(50, 0, token)
       setUsers(usersRes.data)
