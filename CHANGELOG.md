@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.0](https://github.com/orhaniscoding/goconnect/compare/v2.1.0...v2.2.0) (2025-11-21)
+
+
+### Features
+
+* implement delete user functionality ([0e95607](https://github.com/orhaniscoding/goconnect/commit/0e95607b295fd1a8de53b5ee9b55b0d2f73d4aa5))
+
 ## [2.1.0](https://github.com/orhaniscoding/goconnect/compare/v2.0.0...v2.1.0) (2025-11-21)
 
 
