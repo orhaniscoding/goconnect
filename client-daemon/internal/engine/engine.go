@@ -23,6 +23,7 @@ type Engine struct {
 	hostsMgr  *system.HostsManager
 	stopChan  chan struct{}
 	version   string
+	paused    bool
 }
 
 // New creates a new engine
@@ -70,17 +71,47 @@ func (e *Engine) Stop() {
 	close(e.stopChan)
 }
 
+// Connect enables the VPN connection
+func (e *Engine) Connect() {
+	e.paused = false
+	go e.syncConfig()
+}
+
+// Disconnect disables the VPN connection
+func (e *Engine) Disconnect() {
+	e.paused = true
+	// Clear WireGuard config (remove all peers)
+	if e.wgMgr != nil {
+		// Create empty config to clear peers
+		emptyConfig := &api.DeviceConfig{
+			Peers: []api.PeerConfig{},
+			Interface: api.InterfaceConfig{
+				// Keep current listen port or default
+				ListenPort: 51820,
+			},
+		}
+		id := e.idMgr.Get()
+		if err := e.wgMgr.ApplyConfig(emptyConfig, id.PrivateKey); err != nil {
+			log.Printf("Failed to clear WireGuard config: %v", err)
+		}
+	}
+}
+
 func (e *Engine) configLoop() {
 	ticker := time.NewTicker(60 * time.Second)
 	defer ticker.Stop()
 
 	// Initial sync
-	e.syncConfig()
+	if !e.paused {
+		e.syncConfig()
+	}
 
 	for {
 		select {
 		case <-ticker.C:
-			e.syncConfig()
+			if !e.paused {
+				e.syncConfig()
+			}
 		case <-e.stopChan:
 			return
 		}
@@ -172,6 +203,7 @@ func (e *Engine) GetStatus() map[string]interface{} {
 	status := map[string]interface{}{
 		"running": true,
 		"version": e.version,
+		"paused":  e.paused,
 	}
 
 	if e.wgMgr != nil {

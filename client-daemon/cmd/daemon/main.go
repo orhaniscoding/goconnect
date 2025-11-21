@@ -154,4 +154,24 @@ func setupHandlers(idMgr *identity.Manager, apiClient *api.Client, eng *engine.E
 			"device_id": resp.ID,
 		})
 	}))
+
+	http.HandleFunc("/connect", cors(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		eng.Connect()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "connected"})
+	}))
+
+	http.HandleFunc("/disconnect", cors(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "POST" {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		eng.Disconnect()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "disconnected"})
+	}))
 }

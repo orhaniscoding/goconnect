@@ -11,15 +11,34 @@ import Footer from '../../../../components/Footer'
 export default function Dashboard() {
     const router = useRouter()
     const notification = useNotification()
-    const { status, error: err, refresh } = useDaemon()
+    const { status, error: err, refresh, connect, disconnect } = useDaemon()
     const [user, setUser] = useState<any>(null)
     const [registering, setRegistering] = useState(false)
+    const [toggling, setToggling] = useState(false)
 
     useEffect(() => {
         // Get user info
         const userData = getUser()
         setUser(userData)
     }, [])
+
+    const handleToggleConnection = async () => {
+        if (!status) return
+        setToggling(true)
+        try {
+            if (status.paused) {
+                await connect()
+                notification.success('VPN Connected', 'Connection established successfully.')
+            } else {
+                await disconnect()
+                notification.info('VPN Disconnected', 'Connection terminated.')
+            }
+        } catch (e) {
+            notification.error('Connection Error', String(e))
+        } finally {
+            setToggling(false)
+        }
+    }
 
     const handleRegister = async () => {
         setRegistering(true)
@@ -92,27 +111,38 @@ export default function Dashboard() {
                 {/* Device Status Card */}
                 <div style={{
                     padding: 16,
-                    backgroundColor: status?.device?.registered ? '#d4edda' : '#fff3cd',
+                    backgroundColor: status?.device?.registered ? (status.paused ? '#fff3cd' : '#d4edda') : '#f8d7da',
                     borderRadius: 8,
                     marginBottom: 24,
-                    border: `1px solid ${status?.device?.registered ? '#c3e6cb' : '#ffeeba'}`,
+                    border: `1px solid ${status?.device?.registered ? (status.paused ? '#ffeeba' : '#c3e6cb') : '#f5c6cb'}`,
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center'
                 }}>
                     <div>
-                        <h3 style={{ marginTop: 0, color: status?.device?.registered ? '#155724' : '#856404' }}>
-                            {status?.device?.registered ? 'Device Active' : 'Device Setup Required'}
-                        </h3>
-                        <p style={{ margin: '4px 0', color: status?.device?.registered ? '#155724' : '#856404' }}>
+                        <h3 style={{ marginTop: 0, color: status?.device?.registered ? (status.paused ? '#856404' : '#155724') : '#721c24' }}>
                             {status?.device?.registered 
-                                ? `This device is registered and ready to connect. ID: ${status.device.device_id.substring(0, 8)}...`
+                                ? (status.paused ? 'VPN Disconnected' : 'VPN Connected') 
+                                : 'Device Setup Required'}
+                        </h3>
+                        <p style={{ margin: '4px 0', color: status?.device?.registered ? (status.paused ? '#856404' : '#155724') : '#721c24' }}>
+                            {status?.device?.registered
+                                ? (status.paused 
+                                    ? 'Your device is registered but disconnected. Click Connect to start VPN.' 
+                                    : `Connected securely. ID: ${status.device.device_id.substring(0, 8)}...`)
                                 : 'This device is not registered with GoConnect yet.'}
                         </p>
+                        {status?.wg?.active && !status.paused && (
+                            <div style={{ fontSize: 12, marginTop: 8, display: 'flex', gap: 16 }}>
+                                <span>Peers: <strong>{status.wg.peers || 0}</strong></span>
+                                <span>Rx: <strong>{Math.round((status.wg.total_rx || 0) / 1024)} KB</strong></span>
+                                <span>Tx: <strong>{Math.round((status.wg.total_tx || 0) / 1024)} KB</strong></span>
+                            </div>
+                        )}
                         {!status && !err && <p>Checking daemon status...</p>}
-                        {err && <p style={{color: 'red'}}>Error: {err}</p>}
+                        {err && <p style={{ color: 'red' }}>Error: {err}</p>}
                     </div>
-                    
+
                     {status && !status.device.registered && (
                         <button
                             onClick={handleRegister}
@@ -128,6 +158,25 @@ export default function Dashboard() {
                             }}
                         >
                             {registering ? 'Registering...' : 'Register Device'}
+                        </button>
+                    )}
+
+                    {status && status.device.registered && (
+                        <button
+                            onClick={handleToggleConnection}
+                            disabled={toggling}
+                            style={{
+                                padding: '8px 16px',
+                                backgroundColor: status.paused ? '#007bff' : '#dc3545',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: 4,
+                                cursor: toggling ? 'not-allowed' : 'pointer',
+                                opacity: toggling ? 0.7 : 1,
+                                minWidth: 100
+                            }}
+                        >
+                            {toggling ? 'Working...' : (status.paused ? 'Connect' : 'Disconnect')}
                         </button>
                     )}
                 </div>

@@ -5,6 +5,7 @@ import { bridge } from '../lib/bridge'
 interface DaemonStatus {
     running: boolean
     version: string
+    paused?: boolean
     wg: {
         active: boolean
         error?: string
@@ -22,6 +23,8 @@ interface DaemonContextType {
     error: string | null
     isLoading: boolean
     refresh: () => Promise<void>
+    connect: () => Promise<void>
+    disconnect: () => Promise<void>
 }
 
 const DaemonContext = createContext<DaemonContextType | undefined>(undefined)
@@ -45,6 +48,16 @@ export function DaemonProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
+    const connect = async () => {
+        await bridge('/connect', { method: 'POST' })
+        await fetchStatus()
+    }
+
+    const disconnect = async () => {
+        await bridge('/disconnect', { method: 'POST' })
+        await fetchStatus()
+    }
+
     useEffect(() => {
         fetchStatus()
         const interval = setInterval(fetchStatus, 5000)
@@ -52,7 +65,7 @@ export function DaemonProvider({ children }: { children: React.ReactNode }) {
     }, [])
 
     return (
-        <DaemonContext.Provider value={{ status, error, isLoading, refresh: fetchStatus }}>
+        <DaemonContext.Provider value={{ status, error, isLoading, refresh: fetchStatus, connect, disconnect }}>
             {children}
         </DaemonContext.Provider>
     )

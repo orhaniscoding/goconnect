@@ -49,8 +49,31 @@ Registers the local device with the GoConnect Server using a user access token.
   }
   ```
 
+### 3. Connect VPN
+Enables the VPN connection and starts syncing configuration.
+
+- **URL:** `POST http://127.0.0.1:12345/connect`
+- **Response:**
+  ```json
+  {
+    "status": "connected"
+  }
+  ```
+
+### 4. Disconnect VPN
+Disables the VPN connection and clears the WireGuard interface.
+
+- **URL:** `POST http://127.0.0.1:12345/disconnect`
+- **Response:**
+  ```json
+  {
+    "status": "disconnected"
+  }
+  ```
+
 ## Security
 
 - The bridge only listens on the loopback interface (`127.0.0.1`).
 - Sensitive operations (like registration) require a valid user token from the Web UI.
+
 
