@@ -1,35 +1,22 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { bridge } from '../../../../lib/bridge'
 import { getUser, clearAuth } from '../../../../lib/auth'
 import { useNotification } from '../../../../contexts/NotificationContext'
+import { useDaemon } from '../../../../contexts/DaemonContext'
 import AuthGuard from '../../../../components/AuthGuard'
 import Footer from '../../../../components/Footer'
 
 export default function Dashboard() {
     const router = useRouter()
     const notification = useNotification()
-    const [status, setStatus] = useState<any>(null)
-    const [err, setErr] = useState<string | null>(null)
+    const { status, error: err } = useDaemon()
     const [user, setUser] = useState<any>(null)
 
     useEffect(() => {
         // Get user info
         const userData = getUser()
         setUser(userData)
-
-        // Fetch bridge status
-        bridge('/status', undefined)
-            .then(setStatus)
-            .catch((e) => {
-                const msg = String(e)
-                setErr(msg)
-                // Only show notification if it's not just "Failed to fetch" (common when daemon is off)
-                if (!msg.includes('Failed to fetch')) {
-                    notification.error('Bridge Connection', msg)
-                }
-            })
     }, [])
 
     const handleLogout = () => {

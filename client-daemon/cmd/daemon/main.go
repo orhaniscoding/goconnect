@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/rand"
-	"encoding/binary"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -54,13 +52,8 @@ func main() {
 	eng.Start()
 	defer eng.Stop()
 
-	// Choose a pseudo-random port in a small range using crypto/rand
-	var b [2]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		log.Fatalf("failed to read random: %v", err)
-	}
-	n := binary.BigEndian.Uint16(b[:]) % 1000
-	port := int(12000 + n)
+	// Use a fixed port for now to simplify frontend discovery
+	port := 12345
 
 	// Setup Handlers
 	setupHandlers(idMgr, apiClient, eng)

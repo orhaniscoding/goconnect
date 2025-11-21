@@ -540,6 +540,31 @@ export async function adminReleaseIP(
   })
 }
 
+/**
+ * Download WireGuard configuration for a network
+ * @param networkId - Network ID
+ * @param accessToken - JWT access token
+ */
+export async function downloadConfig(
+  networkId: string,
+  accessToken: string
+): Promise<Blob> {
+  const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080'
+  const response = await fetch(`${base}/v1/networks/${networkId}/config`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.message || 'Failed to download config')
+  }
+
+  return response.blob()
+}
+
 // Device Management API
 
 export interface Device {

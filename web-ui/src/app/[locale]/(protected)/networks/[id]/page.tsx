@@ -12,6 +12,7 @@ import {
   listJoinRequests,
   listIPAllocations,
   adminReleaseIP,
+  downloadConfig,
   updateNetwork,
   Network,
   Membership,
@@ -65,6 +66,25 @@ export default function NetworkDetailPage() {
       }
     }
   }, [activeTab, isAdmin, joinStatus])
+
+  const handleDownloadConfig = async () => {
+    try {
+      const token = getAccessToken()
+      if (!token) return
+
+      const blob = await downloadConfig(networkId, token)
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${network?.name || 'network'}.conf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to download config')
+    }
+  }
 
   const loadNetworkData = async () => {
     setLoading(true)
@@ -310,16 +330,33 @@ export default function NetworkDetailPage() {
             )}
 
             {joinStatus === 'member' && (
-              <span style={{
-                padding: '10px 20px',
-                backgroundColor: '#d4edda',
-                color: '#155724',
-                borderRadius: 4,
-                fontSize: 14,
-                fontWeight: 500
-              }}>
-                ✓ Member
-              </span>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <button
+                  onClick={handleDownloadConfig}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#17a2b8',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    fontSize: 14,
+                    fontWeight: 500
+                  }}
+                >
+                  Download Config
+                </button>
+                <span style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#d4edda',
+                  color: '#155724',
+                  borderRadius: 4,
+                  fontSize: 14,
+                  fontWeight: 500
+                }}>
+                  ✓ Member
+                </span>
+              </div>
             )}
 
             {joinStatus === 'pending' && (

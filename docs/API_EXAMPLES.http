@@ -114,6 +114,13 @@ Idempotency-Key: {{$guid}}
 
 ###
 
+### Download WireGuard Config
+# Generates and downloads a WireGuard configuration file for the network
+POST http://localhost:8080/v1/networks/{network_id}/config
+Authorization: Bearer {access_token}
+
+###
+
 # ========================================
 # Membership API Examples
 # ========================================
@@ -442,5 +449,21 @@ Authorization: Bearer {access_token}
 
 ### Prometheus Metrics
 GET http://localhost:8080/metrics
+
+###
+
+# ========================================
+# Audit Log API Examples
+# ========================================
+
+### List Audit Logs (Admin Only)
+GET http://localhost:8080/v1/audit-logs?limit=20
+Authorization: Bearer {access_token}
+
+###
+
+### Filter Audit Logs
+GET http://localhost:8080/v1/audit-logs?action=NETWORK_CREATED&actor_id={user_id}
+Authorization: Bearer {access_token}
 
 ###

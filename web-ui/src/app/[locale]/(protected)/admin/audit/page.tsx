@@ -70,9 +70,9 @@ export default function AuditLogsPage() {
                                     <tr key={log.seq} style={{ borderBottom: '1px solid #eee' }}>
                                         <td style={{ padding: 12, fontSize: 13 }}>{new Date(log.timestamp).toLocaleString()}</td>
                                         <td style={{ padding: 12, fontSize: 13 }}>
-                                            <span style={{ 
-                                                padding: '2px 6px', 
-                                                borderRadius: 4, 
+                                            <span style={{
+                                                padding: '2px 6px',
+                                                borderRadius: 4,
                                                 backgroundColor: '#e9ecef',
                                                 fontSize: 12,
                                                 fontWeight: 500
@@ -93,16 +93,16 @@ export default function AuditLogsPage() {
                 </div>
 
                 <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center', gap: 8 }}>
-                    <button 
-                        disabled={page === 1} 
+                    <button
+                        disabled={page === 1}
                         onClick={() => setPage(p => p - 1)}
                         style={{ padding: '6px 12px', cursor: page === 1 ? 'not-allowed' : 'pointer' }}
                     >
                         Previous
                     </button>
                     <span style={{ padding: '6px 12px' }}>Page {page}</span>
-                    <button 
-                        disabled={page * limit >= total} 
+                    <button
+                        disabled={page * limit >= total}
                         onClick={() => setPage(p => p + 1)}
                         style={{ padding: '6px 12px', cursor: page * limit >= total ? 'not-allowed' : 'pointer' }}
                     >
