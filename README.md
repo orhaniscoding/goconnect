@@ -5,7 +5,7 @@
 [![Built with Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org/)
 [![Latest Release](https://img.shields.io/badge/version-v0.0.0-blue)](https://github.com/orhaniscoding/goconnect/releases)
 
-> **Latest Release:** v0.0.0 · 2025-11-20  
+> **Latest Release:** v0.0.0 · 2025-11-21  
 > **Author:** [@orhaniscoding](https://github.com/orhaniscoding)  
 > **License:** MIT
 
@@ -19,7 +19,6 @@
 - **IPAM (IP Address Management)**: Automatic IP allocation from CIDR ranges with conflict detection
 - **Device Management**: Register and track devices across platforms (Linux, Windows, macOS, iOS, Android)
 - **Peer-to-Peer Mesh**: Full mesh networking with automatic peer discovery
-- **MagicDNS Lite**: Automatic `/etc/hosts` management for resolving devices by name
 
 ### 🏢 Multi-Tenancy & Access Control
 - **Complete Tenant Isolation**: Security-first architecture with enforced boundaries
@@ -297,7 +296,7 @@ go test ./internal/integration -v
 
 ### Code Coverage
 
-Current coverage (as of 2025-11-20):
+Current coverage (as of 2025-11-21):
 - **audit**: 79.7%
 - **config**: 87.7%
 - **handler**: 53.8%
@@ -468,4 +467,4 @@ SOFTWARE.
 
 ---
 
-**Built with ❤️ by orhaniscoding** | Latest Release: v0.0.0 (2025-11-20)
+**Built with ❤️ by orhaniscoding** | Latest Release: v0.0.0 (2025-11-21)
