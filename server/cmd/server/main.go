@@ -206,6 +206,7 @@ func main() {
 	authHandler := handler.NewAuthHandler(authService)
 	deviceHandler := handler.NewDeviceHandler(deviceService)
 	chatHandler := handler.NewChatHandler(chatService)
+	uploadHandler := handler.NewUploadHandler("./uploads", "/uploads")
 
 	// Initialize WebSocket components
 	// Circular dependency resolution: Handler -> Hub -> Handler
@@ -240,6 +241,10 @@ func main() {
 
 	// Register chat routes
 	handler.RegisterChatRoutes(r, chatHandler, handler.AuthMiddleware(authService))
+
+	// Register upload routes
+	handler.RegisterUploadRoutes(r, uploadHandler, handler.AuthMiddleware(authService))
+	r.Static("/uploads", "./uploads")
 
 	// Register WebSocket route
 	r.GET("/ws", handler.AuthMiddleware(authService), webSocketHandler.HandleUpgrade)
