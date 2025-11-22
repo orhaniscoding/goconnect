@@ -3,9 +3,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://go.dev/)
 [![Built with Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org/)
-[![Latest Release](https://img.shields.io/badge/version-v2.4.0-blue)](https://github.com/orhaniscoding/goconnect/releases)
+[![Latest Release](https://img.shields.io/badge/version-v2.5.0-blue)](https://github.com/orhaniscoding/goconnect/releases)
 
-> **Latest Release:** v2.4.0 · 2025-11-22  
+> **Latest Release:** v2.5.0 · 2025-11-23  
 > **Author:** [@orhaniscoding](https://github.com/orhaniscoding)  
 > **License:** MIT
 

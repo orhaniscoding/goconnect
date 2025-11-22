@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [2.5.0] - 2025-11-23
 
 ### Features
 
@@ -12,6 +12,7 @@
 * **websocket:** implement message reactions (`chat.reaction`)
 * **websocket:** implement message threads (reply support)
 * **websocket:** implement typing indicators (`chat.typing`)
+* **websocket:** implement file upload progress signaling (`file.upload`)
 
 ## [2.4.0] (2025-11-22)
 
