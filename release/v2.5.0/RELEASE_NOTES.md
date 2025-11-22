@@ -25,16 +25,27 @@ This release introduces significant enhancements to the Real-Time Communication 
 
 ## 📦 Assets
 
-The following binaries are available for this release:
+The following archives are available for this release. Each archive contains the Server and Daemon binaries, along with the README and LICENSE.
 
-| Component  | Platform | Architecture | Filename                             |
-| :--------- | :------- | :----------- | :----------------------------------- |
-| **Server** | Windows  | amd64        | `goconnect-server-windows-amd64.exe` |
-| **Server** | Linux    | amd64        | `goconnect-server-linux-amd64`       |
-| **Server** | macOS    | amd64        | `goconnect-server-darwin-amd64`      |
-| **Daemon** | Windows  | amd64        | `goconnect-daemon-windows-amd64.exe` |
-| **Daemon** | Linux    | amd64        | `goconnect-daemon-linux-amd64`       |
-| **Daemon** | macOS    | amd64        | `goconnect-daemon-darwin-amd64`      |
+| Platform    | Architecture | Filename                              |
+| :---------- | :----------- | :------------------------------------ |
+| **Windows** | amd64        | `goconnect_2.5.0_windows_amd64.zip`   |
+| **Linux**   | amd64        | `goconnect_2.5.0_linux_amd64.tar.gz`  |
+| **macOS**   | amd64        | `goconnect_2.5.0_darwin_amd64.tar.gz` |
+
+## 🛠 Installation
+
+### Server
+
+1.  Extract the archive for your platform.
+2.  Ensure you have a `config.yaml` or environment variables set up (see `README.md`).
+3.  Run the binary: `./goconnect-server` (or `goconnect-server.exe` on Windows)
+
+### Client Daemon
+
+1.  Extract the archive for your platform.
+2.  Run with root/admin privileges to manage WireGuard interfaces.
+3.  Connect to a server: `./goconnect-daemon connect --server <url> --token <token>`
 
 ## 🛠 Installation
 
