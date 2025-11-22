@@ -184,14 +184,14 @@ ack                  - İstek onayı
 
 1. **Authentication**: JWT token zorunlu
 2. **Authorization**: Room access validation (TODO: implement)
-3. **Rate Limiting**: Message throttling (TODO: implement)
+3. **Rate Limiting**: Message throttling (10 msg/s, burst 20)
 4. **Message Size**: 512 KB limit
 5. **Connection Timeout**: 60s inactivity timeout
 
 ## 🚀 Next Steps
 
 ### High Priority
-- [ ] Rate limiting per client
+- [x] Rate limiting per client
 - [ ] Room access validation (network membership check)
 - [ ] Presence status broadcast (online/away/offline)
 - [ ] Device online/offline events integration

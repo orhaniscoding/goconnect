@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"golang.org/x/time/rate"
 )
 
 const (
@@ -25,6 +26,10 @@ const (
 
 	// Send buffer size
 	sendBufferSize = 256
+
+	// Rate limit: 10 messages per second, burst of 20
+	rateLimit = 10
+	rateBurst = 20
 )
 
 // Client represents a WebSocket client connection
@@ -38,6 +43,7 @@ type Client struct {
 	isModerator  bool            // Content moderator flag from JWT
 	rooms        map[string]bool // rooms this client is subscribed to
 	lastActivity time.Time       // Last activity timestamp for presence tracking
+	limiter      *rate.Limiter   // Rate limiter
 	mu           sync.RWMutex
 }
 
@@ -53,6 +59,7 @@ func NewClient(hub *Hub, conn *websocket.Conn, userID, tenantID string, isAdmin,
 		isModerator:  isModerator,
 		rooms:        make(map[string]bool),
 		lastActivity: time.Now(),
+		limiter:      rate.NewLimiter(rate.Limit(rateLimit), rateBurst),
 	}
 }
 
@@ -77,6 +84,12 @@ func (c *Client) readPump() {
 				fmt.Printf("WebSocket error: %v\n", err)
 			}
 			break
+		}
+
+		// Rate limit check
+		if !c.limiter.Allow() {
+			c.sendError("", "ERR_RATE_LIMIT", "Too many messages", nil)
+			continue
 		}
 
 		// Parse inbound message

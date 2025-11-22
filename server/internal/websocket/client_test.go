@@ -81,6 +81,7 @@ func TestNewClient(t *testing.T) {
 	assert.False(t, client.isModerator)
 	assert.Equal(t, sendBufferSize, cap(client.send))
 	assert.NotNil(t, client.rooms)
+	assert.NotNil(t, client.limiter)
 }
 
 func TestClient_JoinRoom(t *testing.T) {
