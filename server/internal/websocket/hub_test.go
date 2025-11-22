@@ -11,7 +11,7 @@ import (
 )
 
 func TestNewHub(t *testing.T) {
-	handler := NewDefaultMessageHandler(nil, nil, nil, nil)
+	handler := NewDefaultMessageHandler(nil, nil, nil, nil, nil)
 	hub := NewHub(handler)
 
 	assert.NotNil(t, hub)
@@ -25,7 +25,7 @@ func TestNewHub(t *testing.T) {
 }
 
 func TestNewDefaultMessageHandler(t *testing.T) {
-	handler := NewDefaultMessageHandler(nil, nil, nil, nil)
+	handler := NewDefaultMessageHandler(nil, nil, nil, nil, nil)
 
 	assert.NotNil(t, handler)
 	assert.Nil(t, handler.hub)
@@ -33,7 +33,7 @@ func TestNewDefaultMessageHandler(t *testing.T) {
 }
 
 func TestHub_RegisterUnregister(t *testing.T) {
-	handler := NewDefaultMessageHandler(nil, nil, nil, nil)
+	handler := NewDefaultMessageHandler(nil, nil, nil, nil, nil)
 	hub := NewHub(handler)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -66,7 +66,7 @@ func TestHub_RegisterUnregister(t *testing.T) {
 }
 
 func TestHub_JoinLeaveRoom(t *testing.T) {
-	handler := NewDefaultMessageHandler(nil, nil, nil, nil)
+	handler := NewDefaultMessageHandler(nil, nil, nil, nil, nil)
 	hub := NewHub(handler)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -103,7 +103,7 @@ func TestHub_JoinLeaveRoom(t *testing.T) {
 }
 
 func TestHub_Broadcast(t *testing.T) {
-	handler := NewDefaultMessageHandler(nil, nil, nil, nil)
+	handler := NewDefaultMessageHandler(nil, nil, nil, nil, nil)
 	hub := NewHub(handler)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -178,7 +178,7 @@ func TestHub_Broadcast(t *testing.T) {
 }
 
 func TestHub_BroadcastWithExclude(t *testing.T) {
-	handler := NewDefaultMessageHandler(nil, nil, nil, nil)
+	handler := NewDefaultMessageHandler(nil, nil, nil, nil, nil)
 	hub := NewHub(handler)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -250,7 +250,7 @@ func TestMessageHandler_ChatSend(t *testing.T) {
 	t.Skip("Skipping - requires mock chat service setup")
 
 	hub := NewHub(nil)
-	handler := NewDefaultMessageHandler(hub, nil, nil, nil)
+	handler := NewDefaultMessageHandler(hub, nil, nil, nil, nil)
 	hub.handler = handler
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -321,7 +321,7 @@ func TestMessageHandler_ChatSend(t *testing.T) {
 }
 
 func TestHub_BroadcastToAll(t *testing.T) {
-	handler := NewDefaultMessageHandler(nil, nil, nil, nil)
+	handler := NewDefaultMessageHandler(nil, nil, nil, nil, nil)
 	hub := NewHub(handler)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -374,7 +374,7 @@ func TestHub_BroadcastToAll(t *testing.T) {
 }
 
 func TestHub_GetRoomClients(t *testing.T) {
-	handler := NewDefaultMessageHandler(nil, nil, nil, nil)
+	handler := NewDefaultMessageHandler(nil, nil, nil, nil, nil)
 	hub := NewHub(handler)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -418,7 +418,7 @@ func TestHub_GetRoomClients(t *testing.T) {
 }
 
 func TestHub_ClientInMultipleRooms(t *testing.T) {
-	handler := NewDefaultMessageHandler(nil, nil, nil, nil)
+	handler := NewDefaultMessageHandler(nil, nil, nil, nil, nil)
 	hub := NewHub(handler)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -452,7 +452,7 @@ func TestHub_ClientInMultipleRooms(t *testing.T) {
 }
 
 func TestHub_RoomCleanupWhenEmpty(t *testing.T) {
-	handler := NewDefaultMessageHandler(nil, nil, nil, nil)
+	handler := NewDefaultMessageHandler(nil, nil, nil, nil, nil)
 	hub := NewHub(handler)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -484,7 +484,7 @@ func TestHub_RoomCleanupWhenEmpty(t *testing.T) {
 }
 
 func TestHub_UnregisterRemovesFromAllRooms(t *testing.T) {
-	handler := NewDefaultMessageHandler(nil, nil, nil, nil)
+	handler := NewDefaultMessageHandler(nil, nil, nil, nil, nil)
 	hub := NewHub(handler)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -518,7 +518,7 @@ func TestHub_UnregisterRemovesFromAllRooms(t *testing.T) {
 }
 
 func TestHub_GracefulShutdown(t *testing.T) {
-	handler := NewDefaultMessageHandler(nil, nil, nil, nil)
+	handler := NewDefaultMessageHandler(nil, nil, nil, nil, nil)
 	hub := NewHub(handler)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -549,7 +549,7 @@ func TestHub_GracefulShutdown(t *testing.T) {
 }
 
 func TestHub_ConcurrentOperations(t *testing.T) {
-	handler := NewDefaultMessageHandler(nil, nil, nil, nil)
+	handler := NewDefaultMessageHandler(nil, nil, nil, nil, nil)
 	hub := NewHub(handler)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -594,7 +594,7 @@ func TestHub_ConcurrentOperations(t *testing.T) {
 }
 
 func TestHub_BroadcastToNonexistentRoom(t *testing.T) {
-	handler := NewDefaultMessageHandler(nil, nil, nil, nil)
+	handler := NewDefaultMessageHandler(nil, nil, nil, nil, nil)
 	hub := NewHub(handler)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -618,7 +618,7 @@ func TestHub_BroadcastToNonexistentRoom(t *testing.T) {
 }
 
 func TestHub_MultipleClientsInDifferentRooms(t *testing.T) {
-	handler := NewDefaultMessageHandler(nil, nil, nil, nil)
+	handler := NewDefaultMessageHandler(nil, nil, nil, nil, nil)
 	hub := NewHub(handler)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -687,7 +687,7 @@ func TestHub_MultipleClientsInDifferentRooms(t *testing.T) {
 }
 
 func TestHub_SendBufferFull(t *testing.T) {
-	handler := NewDefaultMessageHandler(nil, nil, nil, nil)
+	handler := NewDefaultMessageHandler(nil, nil, nil, nil, nil)
 	hub := NewHub(handler)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -732,7 +732,7 @@ func TestHub_SendBufferFull(t *testing.T) {
 }
 
 func TestHub_MultipleRoomsWithSameClient(t *testing.T) {
-	handler := NewDefaultMessageHandler(nil, nil, nil, nil)
+	handler := NewDefaultMessageHandler(nil, nil, nil, nil, nil)
 	hub := NewHub(handler)
 
 	ctx, cancel := context.WithCancel(context.Background())

@@ -194,7 +194,7 @@ ack                  - İstek onayı
 - [x] Rate limiting per client
 - [x] Room access validation (network membership check)
 - [x] Presence status broadcast (online/away/offline)
-- [ ] Device online/offline events integration
+- [x] Device online/offline events integration
 - [x] Network join/leave events broadcast
 
 ### Medium Priority

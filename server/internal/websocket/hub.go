@@ -202,9 +202,20 @@ func (h *Hub) LeaveRoom(client *Client, room string) {
 		if len(clients) == 0 {
 			delete(h.rooms, room)
 		}
+		client.LeaveRoom(room)
+		fmt.Printf("Client %s left room %s\n", client.userID, room)
 	}
-	client.LeaveRoom(room)
-	fmt.Printf("Client %s left room %s\n", client.userID, room)
+}
+
+// BroadcastToUser sends a message to all connected clients of a specific user
+func (h *Hub) BroadcastToUser(userID string, msg *OutboundMessage) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for client := range h.clients {
+		if client.userID == userID {
+			client.sendMessage(msg)
+		}
+	}
 }
 
 // GetRoomClients returns all clients in a room

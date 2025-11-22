@@ -19,7 +19,19 @@ type DeviceService struct {
 	peerProvisioning *PeerProvisioningService
 	auditor          Auditor
 	wgConfig         config.WireGuardConfig
+	notifier         DeviceNotifier
 }
+
+// DeviceNotifier defines interface for device events
+type DeviceNotifier interface {
+	DeviceOnline(deviceID, userID string)
+	DeviceOffline(deviceID, userID string)
+}
+
+type noopDeviceNotifier struct{}
+
+func (n noopDeviceNotifier) DeviceOnline(deviceID, userID string)  {}
+func (n noopDeviceNotifier) DeviceOffline(deviceID, userID string) {}
 
 // NewDeviceService creates a new device service
 func NewDeviceService(
@@ -36,6 +48,14 @@ func NewDeviceService(
 		networkRepo: networkRepo,
 		auditor:     noopAuditor,
 		wgConfig:    wgConfig,
+		notifier:    noopDeviceNotifier{},
+	}
+}
+
+// SetNotifier sets the device notifier
+func (s *DeviceService) SetNotifier(n DeviceNotifier) {
+	if n != nil {
+		s.notifier = n
 	}
 }
 
@@ -272,9 +292,16 @@ func (s *DeviceService) Heartbeat(ctx context.Context, deviceID, userID, tenantI
 		return domain.NewError(domain.ErrForbidden, "Device is disabled", nil)
 	}
 
+	// Check if device was offline
+	wasOffline := device.LastSeen.IsZero() || time.Since(device.LastSeen) > 2*time.Minute
+
 	// Update heartbeat
 	if err := s.deviceRepo.UpdateHeartbeat(ctx, deviceID, req.IPAddress); err != nil {
 		return fmt.Errorf("failed to update heartbeat: %w", err)
+	}
+
+	if wasOffline {
+		s.notifier.DeviceOnline(deviceID, userID)
 	}
 
 	// Update daemon version and OS version if provided
@@ -288,6 +315,9 @@ func (s *DeviceService) Heartbeat(ctx context.Context, deviceID, userID, tenantI
 		}
 		s.deviceRepo.Update(ctx, device)
 	}
+
+	// Notify that device is online
+	s.notifier.DeviceOnline(deviceID, userID)
 
 	return nil
 }

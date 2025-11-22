@@ -16,19 +16,24 @@ type DefaultMessageHandler struct {
 	hub               *Hub
 	chatService       *service.ChatService
 	membershipService *service.MembershipService
+	deviceService     *service.DeviceService
 	authService       *service.AuthService
 }
 
 // NewDefaultMessageHandler creates a new default message handler
-func NewDefaultMessageHandler(hub *Hub, chatService *service.ChatService, membershipService *service.MembershipService, authService *service.AuthService) *DefaultMessageHandler {
+func NewDefaultMessageHandler(hub *Hub, chatService *service.ChatService, membershipService *service.MembershipService, deviceService *service.DeviceService, authService *service.AuthService) *DefaultMessageHandler {
 	h := &DefaultMessageHandler{
 		hub:               hub,
 		chatService:       chatService,
 		membershipService: membershipService,
+		deviceService:     deviceService,
 		authService:       authService,
 	}
 	if membershipService != nil {
 		membershipService.SetNotifier(h)
+	}
+	if deviceService != nil {
+		deviceService.SetNotifier(h)
 	}
 	return h
 }
@@ -469,4 +474,28 @@ func (h *DefaultMessageHandler) MemberLeft(networkID, userID string) {
 		},
 	}
 	h.hub.Broadcast(room, msg, nil)
+}
+
+// DeviceOnline implements DeviceNotifier
+func (h *DefaultMessageHandler) DeviceOnline(deviceID, userID string) {
+	msg := &OutboundMessage{
+		Type: TypeDeviceOnline,
+		Data: DeviceEventData{
+			DeviceID: deviceID,
+			UserID:   userID,
+		},
+	}
+	h.hub.BroadcastToUser(userID, msg)
+}
+
+// DeviceOffline implements DeviceNotifier
+func (h *DefaultMessageHandler) DeviceOffline(deviceID, userID string) {
+	msg := &OutboundMessage{
+		Type: TypeDeviceOffline,
+		Data: DeviceEventData{
+			DeviceID: deviceID,
+			UserID:   userID,
+		},
+	}
+	h.hub.BroadcastToUser(userID, msg)
 }

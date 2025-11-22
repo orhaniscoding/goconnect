@@ -12,7 +12,7 @@ import (
 )
 
 func TestDefaultMessageHandler_HandleMessage_UnknownType(t *testing.T) {
-	handler := NewDefaultMessageHandler(nil, nil, nil, nil)
+	handler := NewDefaultMessageHandler(nil, nil, nil, nil, nil)
 
 	client := &Client{
 		userID: "user1",

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/orhaniscoding/goconnect/server/internal/config"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
 	"github.com/orhaniscoding/goconnect/server/internal/service"
@@ -624,7 +625,7 @@ func setupAuthorizationTest() (*DefaultMessageHandler, *repository.InMemoryMembe
 	authService := service.NewAuthService(userRepo, tenantRepo)
 	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idemRepo)
 
-	handler := NewDefaultMessageHandler(hub, nil, membershipService, authService)
+	handler := NewDefaultMessageHandler(hub, nil, membershipService, nil, authService)
 
 	return handler, membershipRepo, userRepo
 }
@@ -787,7 +788,7 @@ func setupMembershipTest() (*DefaultMessageHandler, *service.MembershipService, 
 	authService := service.NewAuthService(userRepo, tenantRepo)
 	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idemRepo)
 
-	handler := NewDefaultMessageHandler(hub, nil, membershipService, authService)
+	handler := NewDefaultMessageHandler(hub, nil, membershipService, nil, authService)
 
 	// Start hub
 	go hub.Run(context.Background())
@@ -842,5 +843,72 @@ func TestMembershipEvents(t *testing.T) {
 		assert.Equal(t, targetUser.ID, data.UserID)
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("Expected member.joined broadcast")
+	}
+}
+
+func setupDeviceTest() (*DefaultMessageHandler, *service.DeviceService, *repository.InMemoryDeviceRepository, *repository.InMemoryUserRepository) {
+	hub := NewHub(nil)
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+
+	wgConfig := config.WireGuardConfig{}
+
+	authService := service.NewAuthService(userRepo, tenantRepo)
+	deviceService := service.NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
+
+	handler := NewDefaultMessageHandler(hub, nil, nil, deviceService, authService)
+
+	// Start hub
+	go hub.Run(context.Background())
+
+	return handler, deviceService, deviceRepo, userRepo
+}
+
+func TestDeviceEvents(t *testing.T) {
+	handler, deviceService, deviceRepo, userRepo := setupDeviceTest()
+
+	// Setup user
+	user := &domain.User{ID: "user-1", TenantID: "tenant-1", Email: "user@example.com", IsAdmin: false}
+	_ = userRepo.Create(context.Background(), user)
+
+	// Setup device
+	device := &domain.Device{
+		ID: "dev-1", UserID: user.ID, TenantID: "tenant-1", Name: "Test Device",
+		PubKey: "key1", Platform: "linux", LastSeen: time.Time{}, // Never seen
+	}
+	_ = deviceRepo.Create(context.Background(), device)
+
+	// Connect client (user)
+	client := newTestClient(user.ID)
+	handler.hub.Register(client)
+
+	// Wait for registration
+	time.Sleep(50 * time.Millisecond)
+
+	// Send heartbeat (should trigger online event because LastSeen is zero)
+	req := &domain.DeviceHeartbeatRequest{IPAddress: "1.2.3.4"}
+	err := deviceService.Heartbeat(context.Background(), device.ID, user.ID, "tenant-1", req)
+	require.NoError(t, err)
+
+	// Verify broadcast
+	select {
+	case msgBytes := <-client.send:
+		var outbound OutboundMessage
+		err := json.Unmarshal(msgBytes, &outbound)
+		require.NoError(t, err)
+		assert.Equal(t, TypeDeviceOnline, outbound.Type)
+
+		var data DeviceEventData
+		dataBytes, _ := json.Marshal(outbound.Data)
+		err = json.Unmarshal(dataBytes, &data)
+		require.NoError(t, err)
+
+		assert.Equal(t, device.ID, data.DeviceID)
+		assert.Equal(t, user.ID, data.UserID)
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Expected device.online broadcast")
 	}
 }
