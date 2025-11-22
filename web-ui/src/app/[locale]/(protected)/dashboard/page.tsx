@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { getUser, clearAuth, getAccessToken } from '../../../../lib/auth'
 import { bridge } from '../../../../lib/bridge'
 import { useNotification } from '../../../../contexts/NotificationContext'
@@ -10,6 +10,7 @@ import Footer from '../../../../components/Footer'
 
 export default function Dashboard() {
     const router = useRouter()
+    const params = useParams()
     const notification = useNotification()
     const { status, error: err, refresh, connect, disconnect } = useDaemon()
     const [user, setUser] = useState<any>(null)
@@ -73,21 +74,39 @@ export default function Dashboard() {
             <div style={{ padding: 24, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                     <h1 style={{ margin: 0 }}>Dashboard</h1>
-                    <button
-                        onClick={handleLogout}
-                        style={{
-                            padding: '8px 16px',
-                            backgroundColor: '#dc3545',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: 4,
-                            cursor: 'pointer',
-                            fontSize: 14,
-                            fontWeight: 500
-                        }}
-                    >
-                        Logout
-                    </button>
+                    <div>
+                        <button
+                            onClick={() => router.push(`/${params.locale}/settings`)}
+                            style={{
+                                padding: '8px 16px',
+                                backgroundColor: '#6c757d',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: 4,
+                                cursor: 'pointer',
+                                fontSize: 14,
+                                fontWeight: 500,
+                                marginRight: 8
+                            }}
+                        >
+                            Settings
+                        </button>
+                        <button
+                            onClick={handleLogout}
+                            style={{
+                                padding: '8px 16px',
+                                backgroundColor: '#dc3545',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: 4,
+                                cursor: 'pointer',
+                                fontSize: 14,
+                                fontWeight: 500
+                            }}
+                        >
+                            Logout
+                        </button>
+                    </div>
                 </div>
 
                 {user && (
