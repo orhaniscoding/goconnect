@@ -23,6 +23,7 @@ const (
 	TypeChatDelete   MessageType = "chat.delete"
 	TypeChatRedact   MessageType = "chat.redact"
 	TypeChatTyping   MessageType = "chat.typing"   // Typing indicator
+	TypeChatRead     MessageType = "chat.read"     // Mark message as read
 	TypeRoomJoin     MessageType = "room.join"     // Join a room
 	TypeRoomLeave    MessageType = "room.leave"    // Leave a room
 	TypePresencePing MessageType = "presence.ping" // Keep-alive ping
@@ -34,6 +35,7 @@ const (
 	TypeChatDeleted    MessageType = "chat.deleted"
 	TypeChatRedacted   MessageType = "chat.redacted"
 	TypeChatTypingUser MessageType = "chat.typing.user" // User typing indicator
+	TypeChatReadUpdate MessageType = "chat.read.update" // Read receipt update
 	TypeMemberJoined   MessageType = "member.joined"
 	TypeMemberLeft     MessageType = "member.left"
 	TypeJoinPending    MessageType = "request.join.pending"
@@ -185,4 +187,18 @@ type PresenceUpdateData struct {
 	UserID string `json:"user_id"`
 	Status string `json:"status"`
 	Since  string `json:"since,omitempty"`
+}
+
+// ChatReadData represents data for chat.read messages
+type ChatReadData struct {
+	MessageID string `json:"message_id"`
+	Room      string `json:"room"`
+}
+
+// ChatReadUpdateData represents data for chat.read.update events
+type ChatReadUpdateData struct {
+	MessageID string `json:"message_id"`
+	UserID    string `json:"user_id"`
+	ReadAt    string `json:"read_at"`
+	Room      string `json:"room"`
 }

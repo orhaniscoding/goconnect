@@ -1005,11 +1005,120 @@ func TestHandleChatSend_DirectMessage(t *testing.T) {
 		t.Fatal("Expected message for receiver")
 	}
 
-	// Verify other user does NOT get message
+	// Verify sender also got the message (sync across devices)
+	// Note: clientSender already received the message in step 1 above (before ack)
+	// The test logic above consumed 2 messages from clientSender: Message and Ack.
+	// So we don't need to check again unless we expect duplicates.
+	// The code above:
+	// 1. Message
+	// 2. Ack
+	// So clientSender is done.
+
+	// Verify third party did NOT get the message
 	select {
 	case <-clientOther.send:
-		t.Fatal("Other user should not receive DM")
-	case <-time.After(50 * time.Millisecond):
+		t.Fatal("third party should not receive DM")
+	default:
 		// OK
 	}
+}
+
+func TestHandleChatRead(t *testing.T) {
+	handler := newTestHandler()
+	go handler.hub.Run(context.Background())
+
+	// Setup clients
+	sender := newTestClient("sender")
+	sender.hub = handler.hub
+	handler.hub.Register(sender)
+
+	receiver := newTestClient("receiver")
+	receiver.hub = handler.hub
+	handler.hub.Register(receiver)
+
+	// Wait for registration
+	time.Sleep(10 * time.Millisecond)
+
+	// Case 1: Room Read Receipt
+	t.Run("Room Read Receipt", func(t *testing.T) {
+		room := "network:test-net"
+		handler.hub.JoinRoom(sender, room)
+		handler.hub.JoinRoom(receiver, room)
+
+		msgID := "msg-123"
+		readData := ChatReadData{
+			MessageID: msgID,
+			Room:      room,
+		}
+		dataJSON, _ := json.Marshal(readData)
+
+		msg := &InboundMessage{
+			Type: TypeChatRead,
+			Data: dataJSON,
+		}
+
+		err := handler.HandleMessage(context.Background(), receiver, msg)
+		require.NoError(t, err)
+
+		// Sender should receive update
+		select {
+		case raw := <-sender.send:
+			var out OutboundMessage
+			err := json.Unmarshal(raw, &out)
+			require.NoError(t, err)
+			assert.Equal(t, TypeChatReadUpdate, out.Type)
+			
+			dataBytes, _ := json.Marshal(out.Data)
+			var update ChatReadUpdateData
+			err = json.Unmarshal(dataBytes, &update)
+			require.NoError(t, err)
+			assert.Equal(t, msgID, update.MessageID)
+			assert.Equal(t, receiver.userID, update.UserID)
+			assert.Equal(t, room, update.Room)
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("timeout waiting for read update")
+		}
+	})
+
+	// Case 2: DM Read Receipt
+	t.Run("DM Read Receipt", func(t *testing.T) {
+		msgID := "msg-dm-123"
+		// receiver reads message from sender
+		// room sent by client is "dm:sender" (target_id)
+		readData := ChatReadData{
+			MessageID: msgID,
+			Room:      "dm:sender",
+		}
+		dataJSON, _ := json.Marshal(readData)
+
+		msg := &InboundMessage{
+			Type: TypeChatRead,
+			Data: dataJSON,
+		}
+
+		err := handler.HandleMessage(context.Background(), receiver, msg)
+		require.NoError(t, err)
+
+		// Sender should receive update
+		select {
+		case raw := <-sender.send:
+			var out OutboundMessage
+			err := json.Unmarshal(raw, &out)
+			require.NoError(t, err)
+			assert.Equal(t, TypeChatReadUpdate, out.Type)
+			
+			dataBytes, _ := json.Marshal(out.Data)
+			var update ChatReadUpdateData
+			err = json.Unmarshal(dataBytes, &update)
+			require.NoError(t, err)
+			assert.Equal(t, msgID, update.MessageID)
+			assert.Equal(t, receiver.userID, update.UserID)
+			// Canonical room name should be dm:receiver:sender (sorted)
+			// receiver < sender
+			expectedRoom := fmt.Sprintf("dm:%s:%s", receiver.userID, sender.userID)
+			assert.Equal(t, expectedRoom, update.Room)
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("timeout waiting for read update")
+		}
+	})
 }

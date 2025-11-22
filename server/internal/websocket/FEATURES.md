@@ -198,7 +198,7 @@ ack                  - İstek onayı
 - [x] Network join/leave events broadcast
 
 ### Medium Priority
-- [ ] Message read receipts
+- [x] Message read receipts
 - [x] User status (online, away, busy, offline)
 - [x] Direct messages (user-to-user)
 - [ ] Voice/Video call signaling

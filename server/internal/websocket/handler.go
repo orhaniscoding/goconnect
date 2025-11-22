@@ -66,6 +66,8 @@ func (h *DefaultMessageHandler) HandleMessage(ctx context.Context, client *Clien
 		return h.handlePresencePing(ctx, client, msg)
 	case TypePresenceSet:
 		return h.handlePresenceSet(ctx, client, msg)
+	case TypeChatRead:
+		return h.handleChatRead(ctx, client, msg)
 	default:
 		return fmt.Errorf("unknown message type: %s", msg.Type)
 	}
@@ -308,6 +310,86 @@ func (h *DefaultMessageHandler) handleChatTyping(ctx context.Context, client *Cl
 		},
 	}, client)
 
+	return nil
+}
+
+// handleChatRead handles chat.read messages
+func (h *DefaultMessageHandler) handleChatRead(ctx context.Context, client *Client, msg *InboundMessage) error {
+	var data ChatReadData
+	if err := json.Unmarshal(msg.Data, &data); err != nil {
+		return fmt.Errorf("invalid chat.read data: %w", err)
+	}
+
+	if data.MessageID == "" {
+		return fmt.Errorf("message_id is required")
+	}
+	if data.Room == "" {
+		return fmt.Errorf("room is required")
+	}
+
+	// Prepare the update message
+	update := ChatReadUpdateData{
+		MessageID: data.MessageID,
+		UserID:    client.userID,
+		ReadAt:    time.Now().Format(time.RFC3339),
+		Room:      data.Room,
+	}
+
+	if strings.HasPrefix(data.Room, "dm:") {
+		targetID := strings.TrimPrefix(data.Room, "dm:")
+		
+		// Handle canonical ID (dm:uid1:uid2)
+		if strings.Contains(targetID, ":") {
+			parts := strings.Split(targetID, ":")
+			if len(parts) == 2 {
+				var otherUser string
+				if parts[0] == client.userID {
+					otherUser = parts[1]
+				} else if parts[1] == client.userID {
+					otherUser = parts[0]
+				} else {
+					return fmt.Errorf("client not part of this DM")
+				}
+
+				outMsg := &OutboundMessage{
+					Type: TypeChatReadUpdate,
+					Data: update,
+				}
+
+				h.hub.BroadcastToUser(otherUser, outMsg)
+				h.hub.BroadcastToUser(client.userID, outMsg)
+				return nil
+			}
+		} else {
+			// Handle simple target ID (dm:target_id)
+			if client.userID < targetID {
+				update.Room = fmt.Sprintf("dm:%s:%s", client.userID, targetID)
+			} else {
+				update.Room = fmt.Sprintf("dm:%s:%s", targetID, client.userID)
+			}
+
+			outMsg := &OutboundMessage{
+				Type: TypeChatReadUpdate,
+				Data: update,
+			}
+
+			h.hub.BroadcastToUser(targetID, outMsg)
+			h.hub.BroadcastToUser(client.userID, outMsg)
+			return nil
+		}
+	}
+
+	// Normal room
+	if !client.IsInRoom(data.Room) {
+		return fmt.Errorf("client not subscribed to room: %s", data.Room)
+	}
+
+	outMsg := &OutboundMessage{
+		Type: TypeChatReadUpdate,
+		Data: update,
+	}
+
+	h.hub.Broadcast(data.Room, outMsg, nil)
 	return nil
 }
 
