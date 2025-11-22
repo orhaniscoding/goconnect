@@ -611,3 +611,96 @@ func TestHandleChatRedact_Success(t *testing.T) {
 		t.Fatal("Expected ack")
 	}
 }
+
+func setupAuthorizationTest() (*DefaultMessageHandler, *repository.InMemoryMembershipRepository, *repository.InMemoryUserRepository) {
+	hub := NewHub(nil)
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	membershipRepo := repository.NewInMemoryMembershipRepository()
+	joinRepo := repository.NewInMemoryJoinRequestRepository()
+	idemRepo := repository.NewInMemoryIdempotencyRepository()
+
+	authService := service.NewAuthService(userRepo, tenantRepo)
+	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idemRepo)
+
+	handler := NewDefaultMessageHandler(hub, nil, membershipService, authService)
+
+	return handler, membershipRepo, userRepo
+}
+
+func TestHandleRoomJoin_Authorization(t *testing.T) {
+	handler, membershipRepo, userRepo := setupAuthorizationTest()
+
+	// Setup users
+	adminUser := &domain.User{ID: "admin-1", TenantID: "tenant-1", Email: "admin@example.com", IsAdmin: true}
+	normalUser := &domain.User{ID: "user-1", TenantID: "tenant-1", Email: "user@example.com", IsAdmin: false}
+	otherUser := &domain.User{ID: "user-2", TenantID: "tenant-1", Email: "other@example.com", IsAdmin: false}
+
+	_ = userRepo.Create(context.Background(), adminUser)
+	_ = userRepo.Create(context.Background(), normalUser)
+	_ = userRepo.Create(context.Background(), otherUser)
+
+	// Setup membership
+	networkID := "net-1"
+	_, _ = membershipRepo.UpsertApproved(context.Background(), networkID, normalUser.ID, domain.RoleMember, time.Now())
+
+	tests := []struct {
+		name      string
+		userID    string
+		isAdmin   bool
+		room      string
+		wantError bool
+	}{
+		{
+			name:      "Member joining network room",
+			userID:    normalUser.ID,
+			isAdmin:   false,
+			room:      "network:" + networkID,
+			wantError: false,
+		},
+		{
+			name:      "Non-member joining network room",
+			userID:    otherUser.ID,
+			isAdmin:   false,
+			room:      "network:" + networkID,
+			wantError: true,
+		},
+		{
+			name:      "Admin joining host room",
+			userID:    adminUser.ID,
+			isAdmin:   true,
+			room:      "host",
+			wantError: false,
+		},
+		{
+			name:      "Non-admin joining host room",
+			userID:    normalUser.ID,
+			isAdmin:   false,
+			room:      "host",
+			wantError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := newTestClient(tt.userID)
+			client.isAdmin = tt.isAdmin
+
+			msg := &InboundMessage{
+				Type: TypeRoomJoin,
+				OpID: "op-1",
+				Data: json.RawMessage(fmt.Sprintf(`{"room":"%s"}`, tt.room)),
+			}
+
+			err := handler.HandleMessage(context.Background(), client, msg)
+
+			if tt.wantError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.True(t, client.rooms[tt.room])
+			}
+		})
+	}
+}

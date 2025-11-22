@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
@@ -283,15 +284,22 @@ func (h *DefaultMessageHandler) handleRoomJoin(ctx context.Context, client *Clie
 		return fmt.Errorf("room is required")
 	}
 
-	// Validate user has access to this room (check network membership)
-	isMember, err := h.membershipService.IsMember(ctx, data.Room, client.userID)
-	if err != nil {
-		// If error (e.g. not found), deny access
-		// We return error so the client knows something went wrong or access denied
-		return fmt.Errorf("failed to verify membership: %w", err)
-	}
-	if !isMember {
-		return fmt.Errorf("user is not a member of this network")
+	// Validate user has access to this room
+	if strings.HasPrefix(data.Room, "network:") {
+		networkID := strings.TrimPrefix(data.Room, "network:")
+		isMember, err := h.membershipService.IsMember(ctx, networkID, client.userID)
+		if err != nil {
+			return fmt.Errorf("failed to verify membership: %w", err)
+		}
+		if !isMember {
+			return fmt.Errorf("user is not a member of this network")
+		}
+	} else if data.Room == "host" {
+		if !client.isAdmin {
+			return fmt.Errorf("access denied to host room")
+		}
+	} else {
+		return fmt.Errorf("unknown room type or access denied: %s", data.Room)
 	}
 
 	// Join room

@@ -183,7 +183,7 @@ ack                  - İstek onayı
 ## 🔒 Security Considerations
 
 1. **Authentication**: JWT token zorunlu
-2. **Authorization**: Room access validation (TODO: implement)
+2. **Authorization**: Room access validation (network membership check)
 3. **Rate Limiting**: Message throttling (10 msg/s, burst 20)
 4. **Message Size**: 512 KB limit
 5. **Connection Timeout**: 60s inactivity timeout
@@ -192,7 +192,7 @@ ack                  - İstek onayı
 
 ### High Priority
 - [x] Rate limiting per client
-- [ ] Room access validation (network membership check)
+- [x] Room access validation (network membership check)
 - [ ] Presence status broadcast (online/away/offline)
 - [ ] Device online/offline events integration
 - [ ] Network join/leave events broadcast
