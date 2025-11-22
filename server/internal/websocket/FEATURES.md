@@ -205,9 +205,9 @@ ack                  - İstek onayı
 
 ### Low Priority
 - [x] Message reactions
-- [ ] Message threads
+- [x] Message threads
 - [ ] File upload progress
-- [ ] Screen sharing signaling
+- [x] Screen sharing signaling
 
 ## 🧪 Testing
 

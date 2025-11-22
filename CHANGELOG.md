@@ -6,6 +6,12 @@
 
 * **metrics:** add WireGuard interface metrics (peers, bytes, handshake) to Prometheus endpoint
 * **websocket:** implement rate limiting (10 msg/s, burst 20) per client
+* **websocket:** implement direct messages (DMs) with scope canonicalization
+* **websocket:** implement read receipts (`chat.read`)
+* **websocket:** implement call signaling for WebRTC (audio/video/screen)
+* **websocket:** implement message reactions (`chat.reaction`)
+* **websocket:** implement message threads (reply support)
+* **websocket:** implement typing indicators (`chat.typing`)
 
 ## [2.4.0] (2025-11-22)
 

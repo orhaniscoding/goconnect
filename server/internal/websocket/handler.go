@@ -145,7 +145,7 @@ func (h *DefaultMessageHandler) handleChatSend(ctx context.Context, client *Clie
 	}
 
 	// Create message via chat service
-	chatMsg, err := h.chatService.SendMessage(ctx, client.userID, client.tenantID, scope, data.Body, data.Attachments)
+	chatMsg, err := h.chatService.SendMessage(ctx, client.userID, client.tenantID, scope, data.Body, data.Attachments, data.ParentID)
 	if err != nil {
 		return err
 	}
@@ -160,6 +160,7 @@ func (h *DefaultMessageHandler) handleChatSend(ctx context.Context, client *Clie
 			Redacted:    chatMsg.Redacted,
 			Attachments: chatMsg.Attachments,
 			CreatedAt:   chatMsg.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			ParentID:    chatMsg.ParentID,
 		},
 	}
 
@@ -411,6 +412,7 @@ func (h *DefaultMessageHandler) handleCallSignal(ctx context.Context, client *Cl
 	// Prepare outbound message
 	outData := CallSignalData{
 		FromUser:  client.userID,
+		CallType:  data.CallType,
 		SDP:       data.SDP,
 		Candidate: data.Candidate,
 		Reason:    data.Reason,

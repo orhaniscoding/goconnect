@@ -33,7 +33,7 @@ func (s *ChatService) SetAuditor(auditor Auditor) {
 }
 
 // SendMessage creates a new chat message
-func (s *ChatService) SendMessage(ctx context.Context, userID, tenantID, scope, body string, attachments []string) (*domain.ChatMessage, error) {
+func (s *ChatService) SendMessage(ctx context.Context, userID, tenantID, scope, body string, attachments []string, parentID string) (*domain.ChatMessage, error) {
 	// Validate user exists
 	if _, err := s.userRepo.GetByID(ctx, userID); err != nil {
 		return nil, domain.NewError(domain.ErrUserNotFound, "User not found", map[string]string{
@@ -52,6 +52,7 @@ func (s *ChatService) SendMessage(ctx context.Context, userID, tenantID, scope, 
 		Redacted:    false,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
+		ParentID:    parentID,
 	}
 
 	// Validate

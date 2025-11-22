@@ -16,6 +16,7 @@ type ChatMessage struct {
 	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`
+	ParentID    string     `json:"parent_id,omitempty"` // For threads
 }
 
 // ChatMessageEdit represents an edit history entry

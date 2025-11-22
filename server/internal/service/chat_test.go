@@ -27,7 +27,7 @@ func TestChatService_SendMessage(t *testing.T) {
 	userRepo.Create(ctx, user)
 
 	t.Run("Success", func(t *testing.T) {
-		msg, err := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Hello world!", nil)
+		msg, err := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Hello world!", nil, "")
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, msg.ID)
@@ -40,7 +40,7 @@ func TestChatService_SendMessage(t *testing.T) {
 	})
 
 	t.Run("User not found", func(t *testing.T) {
-		_, err := service.SendMessage(ctx, "non-existent", "tenant-1", "host", "Test", nil)
+		_, err := service.SendMessage(ctx, "non-existent", "tenant-1", "host", "Hello", nil, "")
 
 		require.Error(t, err)
 		domainErr, ok := err.(*domain.Error)
@@ -49,7 +49,7 @@ func TestChatService_SendMessage(t *testing.T) {
 	})
 
 	t.Run("Validation - empty scope", func(t *testing.T) {
-		_, err := service.SendMessage(ctx, "user-123", "tenant-1", "", "Test", nil)
+		_, err := service.SendMessage(ctx, "user-123", "tenant-1", "", "Hello", nil, "")
 
 		require.Error(t, err)
 		domainErr, ok := err.(*domain.Error)
@@ -58,7 +58,7 @@ func TestChatService_SendMessage(t *testing.T) {
 	})
 
 	t.Run("Validation - empty body", func(t *testing.T) {
-		_, err := service.SendMessage(ctx, "user-123", "tenant-1", "host", "", nil)
+		_, err := service.SendMessage(ctx, "user-123", "tenant-1", "host", "", nil, "")
 
 		require.Error(t, err)
 		domainErr, ok := err.(*domain.Error)
@@ -68,12 +68,29 @@ func TestChatService_SendMessage(t *testing.T) {
 
 	t.Run("Validation - body too long", func(t *testing.T) {
 		longBody := string(make([]byte, 4097))
-		_, err := service.SendMessage(ctx, "user-123", "tenant-1", "host", longBody, nil)
+		_, err := service.SendMessage(ctx, "user-123", "tenant-1", "host", longBody, nil, "")
 
 		require.Error(t, err)
 		domainErr, ok := err.(*domain.Error)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrValidation, domainErr.Code)
+	})
+
+	t.Run("Success - reply to message (threading)", func(t *testing.T) {
+		// Create parent message
+		parent, err := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Parent message", nil, "")
+		require.NoError(t, err)
+
+		// Create reply
+		reply, err := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Reply message", nil, parent.ID)
+		require.NoError(t, err)
+
+		assert.Equal(t, parent.ID, reply.ParentID)
+
+		// Verify retrieval
+		retrieved, err := service.GetMessage(ctx, reply.ID, "tenant-1")
+		require.NoError(t, err)
+		assert.Equal(t, parent.ID, retrieved.ParentID)
 	})
 }
 
@@ -89,10 +106,10 @@ func TestChatService_GetMessage(t *testing.T) {
 	userRepo.Create(ctx, user)
 
 	// Send a message
-	service.SendMessage(ctx, "user-123", "tenant-1", "host", "Test message", nil)
+	service.SendMessage(ctx, "user-123", "tenant-1", "host", "Initial message", nil, "")
 
 	t.Run("Success - get message", func(t *testing.T) {
-		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Test", nil)
+		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Message to get", nil, "")
 
 		retrieved, err := service.GetMessage(ctx, msg.ID, "tenant-1")
 
@@ -122,7 +139,7 @@ func TestChatService_EditMessage(t *testing.T) {
 	userRepo.Create(ctx, user)
 
 	t.Run("Success - owner edits", func(t *testing.T) {
-		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Original text", nil)
+		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Original text", nil, "")
 
 		edited, err := service.EditMessage(ctx, msg.ID, "user-123", "tenant-1", "Edited text", false)
 
@@ -137,7 +154,7 @@ func TestChatService_EditMessage(t *testing.T) {
 	})
 
 	t.Run("Success - admin edits", func(t *testing.T) {
-		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Original text", nil)
+		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Original text", nil, "")
 
 		edited, err := service.EditMessage(ctx, msg.ID, "admin-456", "tenant-1", "Admin edit", true)
 
@@ -146,7 +163,7 @@ func TestChatService_EditMessage(t *testing.T) {
 	})
 
 	t.Run("Forbidden - not owner", func(t *testing.T) {
-		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Original text", nil)
+		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Original text", nil, "")
 
 		_, err := service.EditMessage(ctx, msg.ID, "other-user", "tenant-1", "Hack", false)
 
@@ -157,7 +174,7 @@ func TestChatService_EditMessage(t *testing.T) {
 	})
 
 	t.Run("Validation - empty body", func(t *testing.T) {
-		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Original text", nil)
+		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Original text", nil, "")
 
 		_, err := service.EditMessage(ctx, msg.ID, "user-123", "tenant-1", "", false)
 
@@ -168,7 +185,7 @@ func TestChatService_EditMessage(t *testing.T) {
 	})
 
 	t.Run("Validation - deleted message", func(t *testing.T) {
-		oldMsg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Old", nil)
+		oldMsg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Original text", nil, "")
 		service.DeleteMessage(ctx, oldMsg.ID, "user-123", "tenant-1", "soft", false, false)
 
 		_, err := service.EditMessage(ctx, oldMsg.ID, "user-123", "tenant-1", "Too late", false)
@@ -189,7 +206,7 @@ func TestChatService_DeleteMessage(t *testing.T) {
 	userRepo.Create(ctx, user)
 
 	t.Run("Success - soft delete by owner", func(t *testing.T) {
-		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Test", nil)
+		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Message to delete", nil, "")
 
 		err := service.DeleteMessage(ctx, msg.ID, "user-123", "tenant-1", "soft", false, false)
 
@@ -201,7 +218,7 @@ func TestChatService_DeleteMessage(t *testing.T) {
 	})
 
 	t.Run("Success - hard delete by owner", func(t *testing.T) {
-		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Test", nil)
+		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Message to delete", nil, "")
 
 		err := service.DeleteMessage(ctx, msg.ID, "user-123", "tenant-1", "hard", false, false)
 
@@ -213,7 +230,7 @@ func TestChatService_DeleteMessage(t *testing.T) {
 	})
 
 	t.Run("Success - admin deletes", func(t *testing.T) {
-		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Test", nil)
+		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Message to delete", nil, "")
 
 		err := service.DeleteMessage(ctx, msg.ID, "admin-456", "tenant-1", "soft", true, false)
 
@@ -221,7 +238,7 @@ func TestChatService_DeleteMessage(t *testing.T) {
 	})
 
 	t.Run("Success - moderator deletes", func(t *testing.T) {
-		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Test", nil)
+		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Message to delete", nil, "")
 
 		err := service.DeleteMessage(ctx, msg.ID, "mod-789", "tenant-1", "soft", false, true)
 
@@ -229,7 +246,7 @@ func TestChatService_DeleteMessage(t *testing.T) {
 	})
 
 	t.Run("Forbidden - not owner", func(t *testing.T) {
-		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Test", nil)
+		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Message to delete", nil, "")
 
 		err := service.DeleteMessage(ctx, msg.ID, "other-user", "tenant-1", "soft", false, false)
 
@@ -240,7 +257,7 @@ func TestChatService_DeleteMessage(t *testing.T) {
 	})
 
 	t.Run("Validation - invalid mode", func(t *testing.T) {
-		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Test", nil)
+		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Message to delete", nil, "")
 
 		err := service.DeleteMessage(ctx, msg.ID, "user-123", "tenant-1", "invalid", false, false)
 
@@ -263,7 +280,7 @@ func TestChatService_RedactMessage(t *testing.T) {
 	userRepo.Create(ctx, user)
 
 	t.Run("Success - admin redacts", func(t *testing.T) {
-		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Inappropriate content", nil)
+		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Message to redact", nil, "")
 
 		redacted, err := service.RedactMessage(ctx, msg.ID, "admin-456", "tenant-1", true, false, "Violates policy")
 
@@ -273,7 +290,7 @@ func TestChatService_RedactMessage(t *testing.T) {
 	})
 
 	t.Run("Success - moderator redacts", func(t *testing.T) {
-		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Bad content", nil)
+		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Message to redact", nil, "")
 
 		redacted, err := service.RedactMessage(ctx, msg.ID, "mod-789", "tenant-1", false, true, "Spam")
 
@@ -283,7 +300,7 @@ func TestChatService_RedactMessage(t *testing.T) {
 	})
 
 	t.Run("Forbidden - regular user", func(t *testing.T) {
-		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Test", nil)
+		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Message to redact", nil, "")
 
 		_, err := service.RedactMessage(ctx, msg.ID, "other-user", "tenant-1", false, false, "No reason")
 
@@ -306,11 +323,11 @@ func TestChatService_ListMessages(t *testing.T) {
 	userRepo.Create(ctx, user)
 
 	// Create test messages
-	service.SendMessage(ctx, "user-123", "tenant-1", "host", "Message 1", nil)
+	service.SendMessage(ctx, "user-123", "tenant-1", "host", "Message 1", nil, "")
 	time.Sleep(10 * time.Millisecond)
-	service.SendMessage(ctx, "user-123", "tenant-1", "host", "Message 2", nil)
+	service.SendMessage(ctx, "user-123", "tenant-1", "host", "Message 2", nil, "")
 	time.Sleep(10 * time.Millisecond)
-	service.SendMessage(ctx, "user-123", "tenant-1", "network:123", "Network message", nil)
+	service.SendMessage(ctx, "user-123", "tenant-1", "network:123", "Message 3", nil, "")
 
 	t.Run("Filter by scope", func(t *testing.T) {
 		filter := domain.ChatMessageFilter{
@@ -353,7 +370,7 @@ func TestChatService_ListMessages(t *testing.T) {
 	})
 
 	t.Run("Exclude deleted by default", func(t *testing.T) {
-		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "To be deleted", nil)
+		msg, _ := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Deleted message", nil, "")
 		service.DeleteMessage(ctx, msg.ID, "user-123", "tenant-1", "soft", false, false)
 
 		filter := domain.ChatMessageFilter{

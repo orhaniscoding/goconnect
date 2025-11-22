@@ -27,9 +27,9 @@ func setupChatTest() (*gin.Engine, *ChatHandler, *service.ChatService, repositor
 
 	// Create test user
 	testUser := &domain.User{
-		ID:       "user-123",
-		TenantID: "tenant-1",
-		Email:    "test@example.com",
+		ID:           "user-123",
+		TenantID:     "tenant-1",
+		Email:        "test@example.com",
 		PasswordHash: "dummy",
 	}
 	userRepo.Create(context.Background(), testUser)
@@ -166,7 +166,7 @@ func TestChatHandler_GetMessage(t *testing.T) {
 
 	// Create test message
 	msg, _ := chatService.SendMessage(context.TODO(),
-		"user-123", "tenant-1", "host", "Test message", nil)
+		"user-123", "tenant-1", "host", "Test message", nil, "")
 
 	r.GET("/v1/chat/:id", func(c *gin.Context) {
 		c.Set("tenant_id", "tenant-1")
@@ -203,11 +203,11 @@ func TestChatHandler_ListMessages(t *testing.T) {
 
 	// Create test messages
 	ctx := context.TODO()
-	chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Message 1", nil)
+	chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Message 1", nil, "")
 	time.Sleep(10 * time.Millisecond)
-	chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Message 2", nil)
+	chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Message 2", nil, "")
 	time.Sleep(10 * time.Millisecond)
-	chatService.SendMessage(ctx, "user-123", "tenant-1", "network:123", "Network message", nil)
+	chatService.SendMessage(ctx, "user-123", "tenant-1", "network:123", "Message 3", nil, "")
 
 	r.GET("/v1/chat", func(c *gin.Context) {
 		c.Set("user_id", "user-123")
@@ -290,7 +290,7 @@ func TestChatHandler_EditMessage(t *testing.T) {
 
 	// Create test message
 	ctx := context.TODO()
-	msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Original text", nil)
+	msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Original text", nil, "")
 
 	r.PATCH("/v1/chat/:id", func(c *gin.Context) {
 		c.Set("user_id", "user-123")
@@ -386,7 +386,7 @@ func TestChatHandler_DeleteMessage(t *testing.T) {
 
 	t.Run("Success - soft delete by owner", func(t *testing.T) {
 		ctx := context.TODO()
-		msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "To delete", nil)
+		msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Message to delete", nil, "")
 
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/v1/chat/%s?mode=soft", msg.ID), nil)
 		w := httptest.NewRecorder()
@@ -404,7 +404,7 @@ func TestChatHandler_DeleteMessage(t *testing.T) {
 
 	t.Run("Success - hard delete by owner", func(t *testing.T) {
 		ctx := context.TODO()
-		msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "To delete", nil)
+		msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Message to delete", nil, "")
 
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/v1/chat/%s?mode=hard", msg.ID), nil)
 		w := httptest.NewRecorder()
@@ -425,7 +425,7 @@ func TestChatHandler_DeleteMessage(t *testing.T) {
 		})
 
 		ctx := context.TODO()
-		msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Test", nil)
+		msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Message to delete", nil, "")
 
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/v1/chat/%s?mode=soft", msg.ID), nil)
 		w := httptest.NewRecorder()
@@ -458,7 +458,7 @@ func TestChatHandler_RedactMessage(t *testing.T) {
 
 	t.Run("Success - moderator redacts message", func(t *testing.T) {
 		ctx := context.TODO()
-		msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Inappropriate", nil)
+		msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Message to redact", nil, "")
 
 		body := map[string]interface{}{
 			"reason": "Violates policy",
@@ -491,7 +491,7 @@ func TestChatHandler_RedactMessage(t *testing.T) {
 		})
 
 		ctx := context.TODO()
-		msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Test", nil)
+		msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Message to redact", nil, "")
 
 		body := map[string]interface{}{
 			"reason": "No reason",
@@ -509,7 +509,7 @@ func TestChatHandler_RedactMessage(t *testing.T) {
 
 	t.Run("Validation - missing reason", func(t *testing.T) {
 		ctx := context.TODO()
-		msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Test", nil)
+		msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Message to redact", nil, "")
 
 		body := map[string]interface{}{} // Missing reason
 		jsonBody, _ := json.Marshal(body)
@@ -529,7 +529,7 @@ func TestChatHandler_GetEditHistory(t *testing.T) {
 
 	// Create and edit message
 	ctx := context.TODO()
-	msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Original", nil)
+	msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Original", nil, "")
 	chatService.EditMessage(ctx, msg.ID, "user-123", "tenant-1", "Edited v1", false)
 	chatService.EditMessage(ctx, msg.ID, "user-123", "tenant-1", "Edited v2", false)
 

@@ -92,6 +92,7 @@ type ChatSendData struct {
 	Scope       string   `json:"scope"` // "host" or "network:<id>"
 	Body        string   `json:"body"`
 	Attachments []string `json:"attachments,omitempty"`
+	ParentID    string   `json:"parent_id,omitempty"` // For threads
 }
 
 // ChatEditData represents data for chat.edit messages
@@ -122,6 +123,7 @@ type ChatMessageData struct {
 	DeletedAt   *string  `json:"deleted_at,omitempty"`
 	Attachments []string `json:"attachments,omitempty"`
 	CreatedAt   string   `json:"created_at"`
+	ParentID    string   `json:"parent_id,omitempty"` // For threads
 }
 
 // MemberEventData represents data for member.joined/left events
@@ -213,6 +215,7 @@ type ChatReadUpdateData struct {
 type CallSignalData struct {
 	TargetID  string      `json:"target_id,omitempty"` // For inbound
 	FromUser  string      `json:"from_user,omitempty"` // For outbound
+	CallType  string      `json:"call_type,omitempty"` // "audio", "video", "screen"
 	SDP       interface{} `json:"sdp,omitempty"`       // For offer/answer (JSON object or string)
 	Candidate interface{} `json:"candidate,omitempty"` // For ICE (JSON object)
 	Reason    string      `json:"reason,omitempty"`    // For end

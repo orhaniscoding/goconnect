@@ -144,7 +144,7 @@ func (h *ChatHandler) SendMessage(c *gin.Context) {
 		return
 	}
 
-	message, err := h.chatService.SendMessage(c.Request.Context(), userID, tenantID, req.Scope, req.Body, req.Attachments)
+	message, err := h.chatService.SendMessage(c.Request.Context(), userID, tenantID, req.Scope, req.Body, req.Attachments, "")
 	if err != nil {
 		if domainErr, ok := err.(*domain.Error); ok {
 			c.JSON(http.StatusBadRequest, domainErr)

@@ -29,6 +29,10 @@
 
 ### 💬 Real-Time Communication
 - **Built-in Chat**: Network-scoped and global chat with WebSocket support
+- **Direct Messages**: Private user-to-user messaging
+- **Message Threads**: Reply to messages to create threads
+- **Rich Interactions**: Message reactions, read receipts, and typing indicators
+- **Voice/Video Signaling**: WebRTC signaling support for P2P calls and screen sharing
 - **Message Moderation**: Redact, edit, and delete messages with full audit trail
 - **Edit History Tracking**: Complete message history with timestamps
 - **File Attachments**: Share files within chat (supported formats: images, docs, zip)

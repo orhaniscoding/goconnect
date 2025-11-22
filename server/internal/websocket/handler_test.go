@@ -463,7 +463,7 @@ func TestHandleChatEdit_Success(t *testing.T) {
 	chatService, _ := setupChatTestService()
 
 	// First create a message
-	msg, _ := chatService.SendMessage(context.Background(), "user-1", "tenant-1", "network:net-1", "Original message", nil)
+	msg, _ := chatService.SendMessage(context.Background(), "user-1", "tenant-1", "host", "Original message", nil, "")
 
 	hub := NewHub(nil)
 	handler := &DefaultMessageHandler{
@@ -501,7 +501,7 @@ func TestHandleChatDelete_SuccessSoftMode(t *testing.T) {
 	chatService, _ := setupChatTestService()
 
 	// Create a message
-	msg, _ := chatService.SendMessage(context.Background(), "user-1", "tenant-1", "network:net-1", "Message to delete", nil)
+	msg, _ := chatService.SendMessage(context.Background(), "user-1", "tenant-1", "host", "Message to delete", nil, "")
 
 	hub := NewHub(nil)
 	handler := &DefaultMessageHandler{
@@ -539,7 +539,7 @@ func TestHandleChatDelete_SuccessHardMode(t *testing.T) {
 	chatService, _ := setupChatTestService()
 
 	// Create a message
-	msg, _ := chatService.SendMessage(context.Background(), "user-1", "tenant-1", "network:net-1", "Message to hard delete", nil)
+	msg, _ := chatService.SendMessage(context.Background(), "user-1", "tenant-1", "host", "Message to delete", nil, "")
 
 	hub := NewHub(nil)
 	handler := &DefaultMessageHandler{
@@ -578,7 +578,7 @@ func TestHandleChatRedact_Success(t *testing.T) {
 	chatService, _ := setupChatTestService()
 
 	// Create a message
-	msg, _ := chatService.SendMessage(context.Background(), "user-1", "tenant-1", "network:net-1", "Message with inappropriate content", nil)
+	msg, _ := chatService.SendMessage(context.Background(), "user-1", "tenant-1", "host", "Message to redact", nil, "")
 
 	hub := NewHub(nil)
 	handler := &DefaultMessageHandler{
@@ -1172,6 +1172,44 @@ func TestHandleCallSignal(t *testing.T) {
 			t.Fatal("timeout waiting for offer")
 		}
 	})
+
+	// Test Screen Share Offer
+	t.Run("Screen Share Offer", func(t *testing.T) {
+		offerData := CallSignalData{
+			TargetID: "callee",
+			CallType: "screen",
+			SDP:      map[string]interface{}{"type": "offer", "sdp": "screen-sdp"},
+		}
+		dataJSON, _ := json.Marshal(offerData)
+		msg := &InboundMessage{
+			Type: TypeCallOffer,
+			Data: dataJSON,
+		}
+
+		err := handler.HandleMessage(context.Background(), caller, msg)
+		require.NoError(t, err)
+
+		select {
+		case raw := <-callee.send:
+			var out OutboundMessage
+			err := json.Unmarshal(raw, &out)
+			require.NoError(t, err)
+			assert.Equal(t, TypeCallOffer, out.Type)
+
+			dataBytes, _ := json.Marshal(out.Data)
+			var signal CallSignalData
+			err = json.Unmarshal(dataBytes, &signal)
+			require.NoError(t, err)
+			assert.Equal(t, "caller", signal.FromUser)
+			assert.Equal(t, "screen", signal.CallType)
+			// Verify SDP structure
+			sdpMap, ok := signal.SDP.(map[string]interface{})
+			assert.True(t, ok)
+			assert.Equal(t, "screen-sdp", sdpMap["sdp"])
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("timeout waiting for screen share offer")
+		}
+	})
 }
 
 func TestHandleChatReaction(t *testing.T) {
@@ -1230,4 +1268,56 @@ func TestHandleChatReaction(t *testing.T) {
 			t.Fatal("timeout waiting for reaction update")
 		}
 	})
+}
+
+func TestHandleChatTyping(t *testing.T) {
+	handler := newTestHandler()
+	go handler.hub.Run(context.Background())
+
+	sender := newTestClient("sender")
+	sender.hub = handler.hub
+	handler.hub.Register(sender)
+
+	receiver := newTestClient("receiver")
+	receiver.hub = handler.hub
+	handler.hub.Register(receiver)
+
+	time.Sleep(10 * time.Millisecond)
+
+	room := "network:test-net"
+	handler.hub.JoinRoom(sender, room)
+	handler.hub.JoinRoom(receiver, room)
+
+	typingData := TypingData{
+		Scope:  room,
+		Typing: true,
+	}
+	dataJSON, _ := json.Marshal(typingData)
+
+	msg := &InboundMessage{
+		Type: TypeChatTyping,
+		Data: dataJSON,
+	}
+
+	err := handler.HandleMessage(context.Background(), sender, msg)
+	require.NoError(t, err)
+
+	// Receiver should get update
+	select {
+	case raw := <-receiver.send:
+		var out OutboundMessage
+		err := json.Unmarshal(raw, &out)
+		require.NoError(t, err)
+		assert.Equal(t, TypeChatTypingUser, out.Type)
+
+		dataBytes, _ := json.Marshal(out.Data)
+		var update TypingUserData
+		err = json.Unmarshal(dataBytes, &update)
+		require.NoError(t, err)
+		assert.Equal(t, room, update.Scope)
+		assert.Equal(t, sender.userID, update.UserID)
+		assert.True(t, update.Typing)
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("timeout waiting for typing update")
+	}
 }
