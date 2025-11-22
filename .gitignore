@@ -79,3 +79,12 @@ pnpm-debug.log*
 # Misc
 #############################
 README.md.bak
+
+#############################
+# Release artifacts
+#############################
+release/**/*.exe
+release/**/*.zip
+release/**/*.tar.gz
+release/**/goconnect-server-*
+release/**/goconnect-daemon-*

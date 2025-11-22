@@ -10,14 +10,14 @@ The release process for v2.5.0 has been successfully completed. This release foc
 
 ## 🏗 Build Summary
 
-| Component | Platform | Arch | Status | Artifact |
-| :--- | :--- | :--- | :--- | :--- |
-| Server | Windows | amd64 | ✅ Success | `goconnect-server-windows-amd64.exe` |
-| Server | Linux | amd64 | ✅ Success | `goconnect-server-linux-amd64` |
-| Server | macOS | amd64 | ✅ Success | `goconnect-server-darwin-amd64` |
-| Daemon | Windows | amd64 | ✅ Success | `goconnect-daemon-windows-amd64.exe` |
-| Daemon | Linux | amd64 | ✅ Success | `goconnect-daemon-linux-amd64` |
-| Daemon | macOS | amd64 | ✅ Success | `goconnect-daemon-darwin-amd64` |
+| Component | Platform | Arch  | Status    | Artifact                             |
+| :-------- | :------- | :---- | :-------- | :----------------------------------- |
+| Server    | Windows  | amd64 | ✅ Success | `goconnect-server-windows-amd64.exe` |
+| Server    | Linux    | amd64 | ✅ Success | `goconnect-server-linux-amd64`       |
+| Server    | macOS    | amd64 | ✅ Success | `goconnect-server-darwin-amd64`      |
+| Daemon    | Windows  | amd64 | ✅ Success | `goconnect-daemon-windows-amd64.exe` |
+| Daemon    | Linux    | amd64 | ✅ Success | `goconnect-daemon-linux-amd64`       |
+| Daemon    | macOS    | amd64 | ✅ Success | `goconnect-daemon-darwin-amd64`      |
 
 ## 📦 Packaging
 
