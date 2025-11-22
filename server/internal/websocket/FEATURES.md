@@ -250,5 +250,5 @@ r.GET("/v1/ws", func(c *gin.Context) {
 ---
 
 **Status**: ✅ Production Ready (with PostgreSQL integration)
-**Version**: 1.2.0
-**Last Updated**: November 20, 2025
+**Version**: 2.5.0
+**Last Updated**: November 2025
