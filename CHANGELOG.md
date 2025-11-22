@@ -5,6 +5,7 @@
 ### Features
 
 * **metrics:** add WireGuard interface metrics (peers, bytes, handshake) to Prometheus endpoint
+* **websocket:** implement rate limiting (10 msg/s, burst 20) per client
 
 ## [2.4.0] (2025-11-22)
 
