@@ -272,11 +272,20 @@ func (h *AuthHandler) CallbackOIDC(c *gin.Context) {
 		return
 	}
 
-	// Login or Register user via AuthService (need to implement LoginOrRegisterOIDC in AuthService)
-	// For now, let's just return the user info as proof of concept
+	// Login or Register user via AuthService
+	authResponse, err := h.authService.LoginOrRegisterOIDC(c.Request.Context(), userInfo.Email, userInfo.Sub, "oidc")
+	if err != nil {
+		if domainErr, ok := err.(*domain.Error); ok {
+			errorResponse(c, domainErr)
+		} else {
+			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
+		}
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"message": "OIDC Login Successful",
-		"user":    userInfo,
+		"ok":   true,
+		"data": authResponse,
 	})
 }
 

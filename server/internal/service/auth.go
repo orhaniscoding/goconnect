@@ -463,3 +463,82 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID, oldPassword, n
 
 	return s.userRepo.Update(ctx, user)
 }
+
+// LoginOrRegisterOIDC handles OIDC login/registration
+func (s *AuthService) LoginOrRegisterOIDC(ctx context.Context, email, externalID, provider string) (*domain.AuthResponse, error) {
+	// 1. Check if user exists
+	user, err := s.userRepo.GetByEmail(ctx, email)
+	if err != nil {
+		// Check if it's a "not found" error
+		if e, ok := err.(*domain.Error); ok && e.Code == domain.ErrUserNotFound {
+			// User not found, proceed to register
+			user = nil
+		} else {
+			// Real error
+			return nil, err
+		}
+	}
+
+	if user == nil {
+		// 2. Register new user
+		// Create default tenant for the user
+		tenantID := uuid.New().String()
+		tenant := &domain.Tenant{
+			ID:        tenantID,
+			Name:      "Personal", // Default tenant name
+			CreatedAt: time.Now().UTC(),
+			UpdatedAt: time.Now().UTC(),
+		}
+
+		if err := s.tenantRepo.Create(ctx, tenant); err != nil {
+			return nil, err
+		}
+
+		// Create user
+		userID := uuid.New().String()
+		user = &domain.User{
+			ID:           userID,
+			TenantID:     tenantID,
+			Email:        email,
+			AuthProvider: provider,
+			ExternalID:   externalID,
+			Locale:       "en", // Default
+			TwoFAEnabled: false,
+			CreatedAt:    time.Now().UTC(),
+			UpdatedAt:    time.Now().UTC(),
+		}
+
+		if err := s.userRepo.Create(ctx, user); err != nil {
+			return nil, err
+		}
+	} else {
+		// 3. Update existing user if needed (link account)
+		if user.AuthProvider == "" {
+			user.AuthProvider = provider
+			user.ExternalID = externalID
+			user.UpdatedAt = time.Now().UTC()
+			if err := s.userRepo.Update(ctx, user); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// 4. Generate Tokens
+	accessToken, err := s.generateJWT(user.ID, user.TenantID, user.Email, user.IsAdmin, user.IsModerator, "access", 15*time.Minute)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrInternalServer, "Failed to generate access token", nil)
+	}
+
+	refreshToken, err := s.generateJWT(user.ID, user.TenantID, user.Email, user.IsAdmin, user.IsModerator, "refresh", 7*24*time.Hour)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrInternalServer, "Failed to generate refresh token", nil)
+	}
+
+	return &domain.AuthResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ExpiresIn:    900,
+		TokenType:    "Bearer",
+		User:         user,
+	}, nil
+}

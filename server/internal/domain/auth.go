@@ -13,6 +13,8 @@ type User struct {
 	IsModerator  bool      `json:"is_moderator"` // Can moderate chat/content
 	TwoFAKey     string    `json:"-"`            // TOTP secret (future)
 	TwoFAEnabled bool      `json:"two_fa_enabled"`
+	AuthProvider string    `json:"auth_provider"` // "local", "google", "github", "oidc"
+	ExternalID   string    `json:"external_id"`   // ID from the provider
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
