@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Features
+
+* **auth:** implement OIDC (SSO) backend with JIT user provisioning
+* **auth:** implement OIDC login flow in frontend
+* **ui:** add settings page with 2FA management (enable/disable)
+* **ui:** add "Login with SSO" button
+
 ## [2.5.0] - 2025-11-23
 
 ### Features
