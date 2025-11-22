@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
@@ -275,17 +277,39 @@ func (h *AuthHandler) CallbackOIDC(c *gin.Context) {
 	// Login or Register user via AuthService
 	authResponse, err := h.authService.LoginOrRegisterOIDC(c.Request.Context(), userInfo.Email, userInfo.Sub, "oidc")
 	if err != nil {
-		if domainErr, ok := err.(*domain.Error); ok {
-			errorResponse(c, domainErr)
-		} else {
-			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
+		frontendURL := os.Getenv("FRONTEND_URL")
+		if frontendURL == "" {
+			frontendURL = "http://localhost:3000"
 		}
+		c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/login?error=oidc_failed", frontendURL))
+		return
+	}
+
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:3000"
+	}
+
+	c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/callback?access_token=%s&refresh_token=%s",
+		frontendURL, authResponse.AccessToken, authResponse.RefreshToken))
+}
+
+// Me returns the current authenticated user
+func (h *AuthHandler) Me(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		errorResponse(c, domain.NewError(domain.ErrUnauthorized, "Unauthorized", nil))
+		return
+	}
+
+	user, err := h.authService.GetUserByID(c.Request.Context(), userID)
+	if err != nil {
+		errorResponse(c, domain.NewError(domain.ErrUserNotFound, "User not found", nil))
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"ok":   true,
-		"data": authResponse,
+		"data": user,
 	})
 }
 
@@ -305,8 +329,10 @@ func RegisterAuthRoutes(r *gin.Engine, handler *AuthHandler, authMiddleware gin.
 	authProtected.Use(authMiddleware)
 	{
 		authProtected.POST("/password", handler.ChangePassword)
+		authProtected.GET("/me", handler.Me)
 		authProtected.POST("/2fa/generate", handler.Generate2FA)
 		authProtected.POST("/2fa/enable", handler.Enable2FA)
 		authProtected.POST("/2fa/disable", handler.Disable2FA)
+		authProtected.GET("/me", handler.Me)
 	}
 }

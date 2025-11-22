@@ -542,3 +542,8 @@ func (s *AuthService) LoginOrRegisterOIDC(ctx context.Context, email, externalID
 		User:         user,
 	}, nil
 }
+
+// GetUserByID retrieves a user by ID
+func (s *AuthService) GetUserByID(ctx context.Context, id string) (*domain.User, error) {
+	return s.userRepo.GetByID(ctx, id)
+}

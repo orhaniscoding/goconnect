@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, FormEvent, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Footer from '../../../../components/Footer'
 import { login } from '../../../../lib/api'
 import { setTokens, setUser } from '../../../../lib/auth'
@@ -13,6 +13,7 @@ interface LoginPageProps {
 
 export default function Login({ params }: LoginPageProps) {
     const router = useRouter()
+    const searchParams = useSearchParams()
     const notification = useNotification()
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
@@ -20,6 +21,14 @@ export default function Login({ params }: LoginPageProps) {
     const [show2FA, setShow2FA] = useState(false)
     const [error, setError] = useState('')
     const [isLoading, setIsLoading] = useState(false)
+
+    useEffect(() => {
+        const errorParam = searchParams.get('error')
+        if (errorParam === 'oidc_failed') {
+            setError('SSO Login Failed')
+            notification.error('Login Failed', 'SSO Login Failed')
+        }
+    }, [searchParams, notification])
 
     // TODO: Use i18n translations from getDictionary
     const t = {
@@ -223,6 +232,29 @@ export default function Login({ params }: LoginPageProps) {
                     >
                         {isLoading ? t.submitting : t.submit}
                     </button>
+
+                    <div style={{ marginTop: 16 }}>
+                        <button
+                            type="button"
+                            onClick={() => window.location.href = 'http://localhost:8080/v1/auth/oidc/login'}
+                            style={{
+                                width: '100%',
+                                padding: '12px',
+                                backgroundColor: '#4285F4',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: 4,
+                                fontSize: 16,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 8
+                            }}
+                        >
+                            Login with SSO
+                        </button>
+                    </div>
                 </form>
 
                 <div style={{
