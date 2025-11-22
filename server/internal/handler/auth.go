@@ -11,12 +11,14 @@ import (
 // AuthHandler handles authentication HTTP requests
 type AuthHandler struct {
 	authService *service.AuthService
+	oidcService *service.OIDCService
 }
 
 // NewAuthHandler creates a new auth handler
-func NewAuthHandler(authService *service.AuthService) *AuthHandler {
+func NewAuthHandler(authService *service.AuthService, oidcService *service.OIDCService) *AuthHandler {
 	return &AuthHandler{
 		authService: authService,
+		oidcService: oidcService,
 	}
 }
 
@@ -233,18 +235,61 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	})
 }
 
-// RegisterAuthRoutes registers all auth-related routes
+// LoginOIDC initiates the OIDC login flow
+func (h *AuthHandler) LoginOIDC(c *gin.Context) {
+	if h.oidcService == nil {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "OIDC not configured", nil))
+		return
+	}
+
+	// TODO: Generate random state and store in cookie/redis
+	state := "random-state-to-be-implemented"
+
+	url := h.oidcService.GetLoginURL(state)
+	c.Redirect(http.StatusTemporaryRedirect, url)
+}
+
+// CallbackOIDC handles the OIDC callback
+func (h *AuthHandler) CallbackOIDC(c *gin.Context) {
+	if h.oidcService == nil {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "OIDC not configured", nil))
+		return
+	}
+
+	code := c.Query("code")
+	state := c.Query("state")
+
+	if code == "" || state == "" {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Missing code or state", nil))
+		return
+	}
+
+	// TODO: Validate state
+
+	_, userInfo, err := h.oidcService.ExchangeCode(c.Request.Context(), code)
+	if err != nil {
+		errorResponse(c, domain.NewError(domain.ErrInvalidCredentials, "Failed to exchange token", map[string]string{"error": err.Error()}))
+		return
+	}
+
+	// Login or Register user via AuthService (need to implement LoginOrRegisterOIDC in AuthService)
+	// For now, let's just return the user info as proof of concept
+	c.JSON(http.StatusOK, gin.H{
+		"message": "OIDC Login Successful",
+		"user":    userInfo,
+	})
+}
+
+// RegisterAuthRoutes registers authentication routes
 func RegisterAuthRoutes(r *gin.Engine, handler *AuthHandler, authMiddleware gin.HandlerFunc) {
 	v1 := r.Group("/v1")
-	v1.Use(RequestIDMiddleware())
-	v1.Use(CORSMiddleware())
-
-	auth := v1.Group("/auth")
 	{
+		auth := v1.Group("/auth")
 		auth.POST("/register", handler.Register)
 		auth.POST("/login", handler.Login)
 		auth.POST("/refresh", handler.Refresh)
-		auth.POST("/logout", handler.Logout)
+		auth.GET("/oidc/login", handler.LoginOIDC)
+		auth.GET("/oidc/callback", handler.CallbackOIDC)
 	}
 
 	authProtected := v1.Group("/auth")

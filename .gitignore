@@ -10,6 +10,7 @@ client-daemon/coverage.out
 web-ui/.next/
 web-ui/node_modules/
 web-ui/coverage/
+
 #############################
 # Root / Shared
 #############################
@@ -31,10 +32,12 @@ bin/
 dist/
 coverage*
 cover.*
+handler_cov/
 
 #############################
 # Modules / Workspaces
 #############################
+go.work
 go.work.sum
 
 #############################
@@ -83,8 +86,4 @@ README.md.bak
 #############################
 # Release artifacts
 #############################
-release/**/*.exe
-release/**/*.zip
-release/**/*.tar.gz
-release/**/goconnect-server-*
-release/**/goconnect-daemon-*
+release/

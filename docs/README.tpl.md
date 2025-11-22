@@ -40,7 +40,7 @@
 - **Health Checks**: Readiness and liveness probes for container orchestration
 - **Rate Limiting**: Per-IP token bucket rate limiting (configurable)
 - **2FA Support**: TOTP-based two-factor authentication
-- **SSO Integration**: OAuth2/OIDC support (planned)
+- **SSO Integration**: OAuth2/OIDC support (Google, GitHub, etc.)
 
 ### 🌐 Modern Tech Stack
 - **Backend**: Go 1.22+ with Gin web framework

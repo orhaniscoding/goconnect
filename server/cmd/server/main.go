@@ -245,16 +245,22 @@ func main() {
 	deviceService.SetAuditor(aud)
 	chatService.SetAuditor(aud)
 
+	// Initialize OIDC Service
+	oidcService, err := service.NewOIDCService(context.Background())
+	if err != nil {
+		log.Printf("Warning: Failed to initialize OIDC service: %v", err)
+	}
+
 	// Initialize handlers
 	networkHandler := handler.NewNetworkHandler(networkService, membershipService, deviceService, peerRepo, cfg.WireGuard).WithIPAM(ipamService)
-	authHandler := handler.NewAuthHandler(authService)
+	authHandler := handler.NewAuthHandler(authService, oidcService)
 	deviceHandler := handler.NewDeviceHandler(deviceService)
 	chatHandler := handler.NewChatHandler(chatService)
 	uploadHandler := handler.NewUploadHandler("./uploads", "/uploads")
 
 	// Initialize WebSocket components
 	// Circular dependency resolution: Handler -> Hub -> Handler
-	wsMsgHandler := ws.NewDefaultMessageHandler(nil, chatService, membershipService, authService)
+	wsMsgHandler := ws.NewDefaultMessageHandler(nil, chatService, membershipService, deviceService, authService)
 	hub := ws.NewHub(wsMsgHandler)
 	wsMsgHandler.SetHub(hub)
 
