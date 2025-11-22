@@ -72,9 +72,39 @@ func (h *DefaultMessageHandler) HandleMessage(ctx context.Context, client *Clien
 		return h.handleCallSignal(ctx, client, msg)
 	case TypeChatReaction:
 		return h.handleChatReaction(ctx, client, msg)
+	case TypeFileUpload:
+		return h.handleFileUpload(ctx, client, msg)
 	default:
 		return fmt.Errorf("unknown message type: %s", msg.Type)
 	}
+}
+
+// handleFileUpload handles file.upload messages
+func (h *DefaultMessageHandler) handleFileUpload(ctx context.Context, client *Client, msg *InboundMessage) error {
+	var data FileUploadData
+	if err := json.Unmarshal(msg.Data, &data); err != nil {
+		return fmt.Errorf("invalid file.upload data: %w", err)
+	}
+
+	if data.Scope == "" {
+		return fmt.Errorf("scope is required")
+	}
+
+	// Broadcast to room
+	h.hub.Broadcast(data.Scope, &OutboundMessage{
+		Type: TypeFileUploadEvent,
+		Data: map[string]interface{}{
+			"scope":       data.Scope,
+			"user_id":     client.userID,
+			"fileId":      data.FileID,
+			"fileName":    data.FileName,
+			"progress":    data.Progress,
+			"isComplete":  data.IsComplete,
+			"downloadUrl": data.DownloadURL,
+		},
+	}, client) // Exclude sender
+
+	return nil
 }
 
 // handleAuthRefresh handles auth.refresh messages
@@ -411,11 +441,9 @@ func (h *DefaultMessageHandler) handleCallSignal(ctx context.Context, client *Cl
 
 	// Prepare outbound message
 	outData := CallSignalData{
-		FromUser:  client.userID,
-		CallType:  data.CallType,
-		SDP:       data.SDP,
-		Candidate: data.Candidate,
-		Reason:    data.Reason,
+		FromUser: client.userID,
+		CallType: data.CallType,
+		Signal:   data.Signal,
 	}
 
 	outMsg := &OutboundMessage{

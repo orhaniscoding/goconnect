@@ -12,6 +12,7 @@
 | `chat.read`     | Mark message as read         | `{ "message_id": "...", "room": "..." }`                                      |
 | `chat.reaction` | Add/remove reaction          | `{ "message_id": "...", "reaction": "...", "action": "add                     | remove", "scope": "..." }` |
 | `chat.typing`   | Typing indicator             | `{ "scope": "...", "typing": true                                             | false }`                   |
+| `file.upload`   | File upload progress         | `{ "scope": "...", "fileId": "...", "progress": 0-100, "isComplete": bool }`  |
 | `call.offer`    | WebRTC Offer                 | `{ "target_id": "...", "call_type": "audio                                    | video                      | screen", "sdp": ... }` |
 | `call.answer`   | WebRTC Answer                | `{ "target_id": "...", "sdp": ... }`                                          |
 | `call.ice`      | WebRTC ICE Candidate         | `{ "target_id": "...", "candidate": ... }`                                    |
@@ -32,6 +33,7 @@
 | `chat.read.update`     | Read receipt update    | `{ "message_id": "...", "user_id": "...", "room": "..." }`                      |
 | `chat.reaction.update` | Reaction update        | `{ "message_id": "...", "user_id": "...", "reaction": "...", "action": "..." }` |
 | `chat.typing.user`     | User typing status     | `{ "scope": "...", "user_id": "...", "typing": true                             | false }` |
+| `file.upload.event`    | File upload progress   | `{ "scope": "...", "user_id": "...", "fileId": "...", "progress": ... }`        |
 | `call.offer`           | Incoming call offer    | `{ "from_user": "...", "call_type": "...", "sdp": ... }`                        |
 | `call.answer`          | Incoming call answer   | `{ "from_user": "...", "sdp": ... }`                                            |
 | `call.ice`             | Incoming ICE candidate | `{ "from_user": "...", "candidate": ... }`                                      |

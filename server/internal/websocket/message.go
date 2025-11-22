@@ -42,6 +42,10 @@ const (
 	TypeCallAnswer         MessageType = "call.answer"          // WebRTC Answer
 	TypeCallICE            MessageType = "call.ice"             // WebRTC ICE Candidate
 	TypeCallEnd            MessageType = "call.end"             // End call
+	TypeCallSignal         MessageType = "call.signal"          // Generic signaling (offer/answer/ice)
+	TypeCallSignalEvent    MessageType = "call.signal.event"    // Generic signaling event
+	TypeFileUpload         MessageType = "file.upload"          // File upload progress
+	TypeFileUploadEvent    MessageType = "file.upload.event"    // File upload progress event
 	TypeMemberJoined       MessageType = "member.joined"
 	TypeMemberLeft         MessageType = "member.left"
 	TypeJoinPending        MessageType = "request.join.pending"
@@ -211,29 +215,46 @@ type ChatReadUpdateData struct {
 	Room      string `json:"room"`
 }
 
-// CallSignalData represents data for call.* messages
-type CallSignalData struct {
-	TargetID  string      `json:"target_id,omitempty"` // For inbound
-	FromUser  string      `json:"from_user,omitempty"` // For outbound
-	CallType  string      `json:"call_type,omitempty"` // "audio", "video", "screen"
-	SDP       interface{} `json:"sdp,omitempty"`       // For offer/answer (JSON object or string)
-	Candidate interface{} `json:"candidate,omitempty"` // For ICE (JSON object)
-	Reason    string      `json:"reason,omitempty"`    // For end
-}
-
 // ChatReactionData represents data for chat.reaction messages
 type ChatReactionData struct {
+	Scope     string `json:"scope"` // "host" or "network:<id>"
 	MessageID string `json:"message_id"`
-	Reaction  string `json:"reaction"` // Emoji or code
+	Reaction  string `json:"reaction"` // e.g. "👍"
 	Action    string `json:"action"`   // "add" or "remove"
-	Scope     string `json:"scope"`    // Room/Scope
 }
 
 // ChatReactionUpdateData represents data for chat.reaction.update events
 type ChatReactionUpdateData struct {
+	Scope     string `json:"scope"`
 	MessageID string `json:"message_id"`
 	UserID    string `json:"user_id"`
 	Reaction  string `json:"reaction"`
 	Action    string `json:"action"`
-	Scope     string `json:"scope"`
+}
+
+// CallSignalData represents data for call.* messages
+type CallSignalData struct {
+	TargetID string          `json:"targetId,omitempty"` // For inbound
+	FromUser string          `json:"fromUser,omitempty"` // For outbound
+	Signal   json.RawMessage `json:"signal"`
+	CallType string          `json:"callType,omitempty"` // "audio", "video", "screen"
+}
+
+// FileUploadData represents file upload progress
+type FileUploadData struct {
+	Scope       string  `json:"scope"` // "host" or "network:<id>"
+	FileID      string  `json:"fileId"`
+	FileName    string  `json:"fileName"`
+	Progress    float64 `json:"progress"` // 0-100
+	IsComplete  bool    `json:"isComplete"`
+	DownloadURL string  `json:"downloadUrl,omitempty"`
+}
+
+// Message represents the WebSocket message structure
+type Message struct {
+	Type      MessageType     `json:"type"`
+	OpID      string          `json:"op_id,omitempty"`
+	Data      json.RawMessage `json:"data,omitempty"`
+	Error     *ErrorData      `json:"error,omitempty"`
+	Signature string          `json:"signature,omitempty"`
 }

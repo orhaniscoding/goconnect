@@ -1139,9 +1139,11 @@ func TestHandleCallSignal(t *testing.T) {
 
 	// Test Offer
 	t.Run("Call Offer", func(t *testing.T) {
+		sdp := map[string]interface{}{"type": "offer", "sdp": "mock-sdp"}
+		sdpBytes, _ := json.Marshal(sdp)
 		offerData := CallSignalData{
 			TargetID: "callee",
-			SDP:      map[string]interface{}{"type": "offer", "sdp": "mock-sdp"},
+			Signal:   sdpBytes,
 		}
 		dataJSON, _ := json.Marshal(offerData)
 		msg := &InboundMessage{
@@ -1164,10 +1166,12 @@ func TestHandleCallSignal(t *testing.T) {
 			err = json.Unmarshal(dataBytes, &signal)
 			require.NoError(t, err)
 			assert.Equal(t, "caller", signal.FromUser)
-			// Verify SDP structure
-			sdpMap, ok := signal.SDP.(map[string]interface{})
-			assert.True(t, ok)
-			assert.Equal(t, "offer", sdpMap["type"])
+
+			// Verify Signal content
+			var signalMap map[string]interface{}
+			err = json.Unmarshal(signal.Signal, &signalMap)
+			require.NoError(t, err)
+			assert.Equal(t, "offer", signalMap["type"])
 		case <-time.After(100 * time.Millisecond):
 			t.Fatal("timeout waiting for offer")
 		}
@@ -1175,10 +1179,12 @@ func TestHandleCallSignal(t *testing.T) {
 
 	// Test Screen Share Offer
 	t.Run("Screen Share Offer", func(t *testing.T) {
+		sdp := map[string]interface{}{"type": "offer", "sdp": "screen-sdp"}
+		sdpBytes, _ := json.Marshal(sdp)
 		offerData := CallSignalData{
 			TargetID: "callee",
 			CallType: "screen",
-			SDP:      map[string]interface{}{"type": "offer", "sdp": "screen-sdp"},
+			Signal:   sdpBytes,
 		}
 		dataJSON, _ := json.Marshal(offerData)
 		msg := &InboundMessage{
@@ -1202,10 +1208,12 @@ func TestHandleCallSignal(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, "caller", signal.FromUser)
 			assert.Equal(t, "screen", signal.CallType)
-			// Verify SDP structure
-			sdpMap, ok := signal.SDP.(map[string]interface{})
-			assert.True(t, ok)
-			assert.Equal(t, "screen-sdp", sdpMap["sdp"])
+
+			// Verify Signal content
+			var signalMap map[string]interface{}
+			err = json.Unmarshal(signal.Signal, &signalMap)
+			require.NoError(t, err)
+			assert.Equal(t, "screen-sdp", signalMap["sdp"])
 		case <-time.After(100 * time.Millisecond):
 			t.Fatal("timeout waiting for screen share offer")
 		}
@@ -1319,5 +1327,62 @@ func TestHandleChatTyping(t *testing.T) {
 		assert.True(t, update.Typing)
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("timeout waiting for typing update")
+	}
+}
+
+func TestHandleFileUpload(t *testing.T) {
+	handler := newTestHandler()
+	go handler.hub.Run(context.Background())
+
+	sender := newTestClient("sender")
+	sender.hub = handler.hub
+	handler.hub.Register(sender)
+
+	receiver := newTestClient("receiver")
+	receiver.hub = handler.hub
+	handler.hub.Register(receiver)
+
+	time.Sleep(10 * time.Millisecond)
+
+	room := "network:test-net"
+	handler.hub.JoinRoom(sender, room)
+	handler.hub.JoinRoom(receiver, room)
+
+	uploadData := FileUploadData{
+		Scope:       room,
+		FileID:      "file-123",
+		FileName:    "test.pdf",
+		Progress:    45.5,
+		IsComplete:  false,
+		DownloadURL: "",
+	}
+	dataJSON, _ := json.Marshal(uploadData)
+
+	msg := &InboundMessage{
+		Type: TypeFileUpload,
+		Data: dataJSON,
+	}
+
+	err := handler.HandleMessage(context.Background(), sender, msg)
+	require.NoError(t, err)
+
+	// Receiver should get update
+	select {
+	case raw := <-receiver.send:
+		var out OutboundMessage
+		err := json.Unmarshal(raw, &out)
+		require.NoError(t, err)
+		assert.Equal(t, TypeFileUploadEvent, out.Type)
+
+		dataMap, ok := out.Data.(map[string]interface{})
+		assert.True(t, ok)
+		assert.Equal(t, room, dataMap["scope"])
+		assert.Equal(t, sender.userID, dataMap["user_id"])
+		assert.Equal(t, "file-123", dataMap["fileId"])
+		assert.Equal(t, 45.5, dataMap["progress"])
+		assert.Equal(t, false, dataMap["isComplete"])
+
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("timeout waiting for file upload update")
 	}
 }
