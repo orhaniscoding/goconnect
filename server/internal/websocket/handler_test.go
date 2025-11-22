@@ -1067,7 +1067,7 @@ func TestHandleChatRead(t *testing.T) {
 			err := json.Unmarshal(raw, &out)
 			require.NoError(t, err)
 			assert.Equal(t, TypeChatReadUpdate, out.Type)
-			
+
 			dataBytes, _ := json.Marshal(out.Data)
 			var update ChatReadUpdateData
 			err = json.Unmarshal(dataBytes, &update)
@@ -1106,7 +1106,7 @@ func TestHandleChatRead(t *testing.T) {
 			err := json.Unmarshal(raw, &out)
 			require.NoError(t, err)
 			assert.Equal(t, TypeChatReadUpdate, out.Type)
-			
+
 			dataBytes, _ := json.Marshal(out.Data)
 			var update ChatReadUpdateData
 			err = json.Unmarshal(dataBytes, &update)
@@ -1158,7 +1158,7 @@ func TestHandleCallSignal(t *testing.T) {
 			err := json.Unmarshal(raw, &out)
 			require.NoError(t, err)
 			assert.Equal(t, TypeCallOffer, out.Type)
-			
+
 			dataBytes, _ := json.Marshal(out.Data)
 			var signal CallSignalData
 			err = json.Unmarshal(dataBytes, &signal)
@@ -1170,6 +1170,64 @@ func TestHandleCallSignal(t *testing.T) {
 			assert.Equal(t, "offer", sdpMap["type"])
 		case <-time.After(100 * time.Millisecond):
 			t.Fatal("timeout waiting for offer")
+		}
+	})
+}
+
+func TestHandleChatReaction(t *testing.T) {
+	handler := newTestHandler()
+	go handler.hub.Run(context.Background())
+
+	sender := newTestClient("sender")
+	sender.hub = handler.hub
+	handler.hub.Register(sender)
+
+	receiver := newTestClient("receiver")
+	receiver.hub = handler.hub
+	handler.hub.Register(receiver)
+
+	time.Sleep(10 * time.Millisecond)
+
+	t.Run("Room Reaction", func(t *testing.T) {
+		room := "network:test-net"
+		handler.hub.JoinRoom(sender, room)
+		handler.hub.JoinRoom(receiver, room)
+
+		msgID := "msg-123"
+		reactionData := ChatReactionData{
+			MessageID: msgID,
+			Reaction:  "👍",
+			Action:    "add",
+			Scope:     room,
+		}
+		dataJSON, _ := json.Marshal(reactionData)
+
+		msg := &InboundMessage{
+			Type: TypeChatReaction,
+			Data: dataJSON,
+		}
+
+		err := handler.HandleMessage(context.Background(), sender, msg)
+		require.NoError(t, err)
+
+		// Receiver should get update
+		select {
+		case raw := <-receiver.send:
+			var out OutboundMessage
+			err := json.Unmarshal(raw, &out)
+			require.NoError(t, err)
+			assert.Equal(t, TypeChatReactionUpdate, out.Type)
+
+			dataBytes, _ := json.Marshal(out.Data)
+			var update ChatReactionUpdateData
+			err = json.Unmarshal(dataBytes, &update)
+			require.NoError(t, err)
+			assert.Equal(t, msgID, update.MessageID)
+			assert.Equal(t, sender.userID, update.UserID)
+			assert.Equal(t, "👍", update.Reaction)
+			assert.Equal(t, "add", update.Action)
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("timeout waiting for reaction update")
 		}
 	})
 }

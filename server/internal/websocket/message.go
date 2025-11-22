@@ -24,34 +24,36 @@ const (
 	TypeChatRedact   MessageType = "chat.redact"
 	TypeChatTyping   MessageType = "chat.typing"   // Typing indicator
 	TypeChatRead     MessageType = "chat.read"     // Mark message as read
+	TypeChatReaction MessageType = "chat.reaction" // Add/remove reaction
 	TypeRoomJoin     MessageType = "room.join"     // Join a room
 	TypeRoomLeave    MessageType = "room.leave"    // Leave a room
 	TypePresencePing MessageType = "presence.ping" // Keep-alive ping
 	TypePresenceSet  MessageType = "presence.set"  // Set presence status
 
 	// Outbound message types (server -> client)
-	TypeChatMessage    MessageType = "chat.message"
-	TypeChatEdited     MessageType = "chat.edited"
-	TypeChatDeleted    MessageType = "chat.deleted"
-	TypeChatRedacted   MessageType = "chat.redacted"
-	TypeChatTypingUser MessageType = "chat.typing.user" // User typing indicator
-	TypeChatReadUpdate MessageType = "chat.read.update" // Read receipt update
-	TypeCallOffer      MessageType = "call.offer"       // WebRTC Offer
-	TypeCallAnswer     MessageType = "call.answer"      // WebRTC Answer
-	TypeCallICE        MessageType = "call.ice"         // WebRTC ICE Candidate
-	TypeCallEnd        MessageType = "call.end"         // End call
-	TypeMemberJoined   MessageType = "member.joined"
-	TypeMemberLeft     MessageType = "member.left"
-	TypeJoinPending    MessageType = "request.join.pending"
-	TypeJoinApproved   MessageType = "request.join.approved"
-	TypeJoinDenied     MessageType = "request.join.denied"
-	TypeAdminKick      MessageType = "admin.kick"
-	TypeAdminBan       MessageType = "admin.ban"
-	TypeNetUpdated     MessageType = "net.updated"
-	TypeDeviceOnline   MessageType = "device.online"
-	TypeDeviceOffline  MessageType = "device.offline"
-	TypePresencePong   MessageType = "presence.pong"   // Response to ping
-	TypePresenceUpdate MessageType = "presence.update" // Presence status change
+	TypeChatMessage        MessageType = "chat.message"
+	TypeChatEdited         MessageType = "chat.edited"
+	TypeChatDeleted        MessageType = "chat.deleted"
+	TypeChatRedacted       MessageType = "chat.redacted"
+	TypeChatTypingUser     MessageType = "chat.typing.user"     // User typing indicator
+	TypeChatReadUpdate     MessageType = "chat.read.update"     // Read receipt update
+	TypeChatReactionUpdate MessageType = "chat.reaction.update" // Reaction update
+	TypeCallOffer          MessageType = "call.offer"           // WebRTC Offer
+	TypeCallAnswer         MessageType = "call.answer"          // WebRTC Answer
+	TypeCallICE            MessageType = "call.ice"             // WebRTC ICE Candidate
+	TypeCallEnd            MessageType = "call.end"             // End call
+	TypeMemberJoined       MessageType = "member.joined"
+	TypeMemberLeft         MessageType = "member.left"
+	TypeJoinPending        MessageType = "request.join.pending"
+	TypeJoinApproved       MessageType = "request.join.approved"
+	TypeJoinDenied         MessageType = "request.join.denied"
+	TypeAdminKick          MessageType = "admin.kick"
+	TypeAdminBan           MessageType = "admin.ban"
+	TypeNetUpdated         MessageType = "net.updated"
+	TypeDeviceOnline       MessageType = "device.online"
+	TypeDeviceOffline      MessageType = "device.offline"
+	TypePresencePong       MessageType = "presence.pong"   // Response to ping
+	TypePresenceUpdate     MessageType = "presence.update" // Presence status change
 
 	// Control messages
 	TypeError MessageType = "error"
@@ -214,4 +216,21 @@ type CallSignalData struct {
 	SDP       interface{} `json:"sdp,omitempty"`       // For offer/answer (JSON object or string)
 	Candidate interface{} `json:"candidate,omitempty"` // For ICE (JSON object)
 	Reason    string      `json:"reason,omitempty"`    // For end
+}
+
+// ChatReactionData represents data for chat.reaction messages
+type ChatReactionData struct {
+	MessageID string `json:"message_id"`
+	Reaction  string `json:"reaction"` // Emoji or code
+	Action    string `json:"action"`   // "add" or "remove"
+	Scope     string `json:"scope"`    // Room/Scope
+}
+
+// ChatReactionUpdateData represents data for chat.reaction.update events
+type ChatReactionUpdateData struct {
+	MessageID string `json:"message_id"`
+	UserID    string `json:"user_id"`
+	Reaction  string `json:"reaction"`
+	Action    string `json:"action"`
+	Scope     string `json:"scope"`
 }

@@ -70,6 +70,8 @@ func (h *DefaultMessageHandler) HandleMessage(ctx context.Context, client *Clien
 		return h.handleChatRead(ctx, client, msg)
 	case TypeCallOffer, TypeCallAnswer, TypeCallICE, TypeCallEnd:
 		return h.handleCallSignal(ctx, client, msg)
+	case TypeChatReaction:
+		return h.handleChatReaction(ctx, client, msg)
 	default:
 		return fmt.Errorf("unknown message type: %s", msg.Type)
 	}
@@ -339,7 +341,7 @@ func (h *DefaultMessageHandler) handleChatRead(ctx context.Context, client *Clie
 
 	if strings.HasPrefix(data.Room, "dm:") {
 		targetID := strings.TrimPrefix(data.Room, "dm:")
-		
+
 		// Handle canonical ID (dm:uid1:uid2)
 		if strings.Contains(targetID, ":") {
 			parts := strings.Split(targetID, ":")
@@ -420,6 +422,92 @@ func (h *DefaultMessageHandler) handleCallSignal(ctx context.Context, client *Cl
 	}
 
 	h.hub.BroadcastToUser(data.TargetID, outMsg)
+	return nil
+}
+
+// handleChatReaction handles chat.reaction messages
+func (h *DefaultMessageHandler) handleChatReaction(ctx context.Context, client *Client, msg *InboundMessage) error {
+	var data ChatReactionData
+	if err := json.Unmarshal(msg.Data, &data); err != nil {
+		return fmt.Errorf("invalid chat.reaction data: %w", err)
+	}
+
+	if data.MessageID == "" {
+		return fmt.Errorf("message_id is required")
+	}
+	if data.Reaction == "" {
+		return fmt.Errorf("reaction is required")
+	}
+	if data.Action != "add" && data.Action != "remove" {
+		return fmt.Errorf("invalid action: %s", data.Action)
+	}
+	if data.Scope == "" {
+		return fmt.Errorf("scope is required")
+	}
+
+	// Prepare update
+	update := ChatReactionUpdateData{
+		MessageID: data.MessageID,
+		UserID:    client.userID,
+		Reaction:  data.Reaction,
+		Action:    data.Action,
+		Scope:     data.Scope,
+	}
+
+	// Handle DM scope
+	if strings.HasPrefix(data.Scope, "dm:") {
+		targetID := strings.TrimPrefix(data.Scope, "dm:")
+
+		if strings.Contains(targetID, ":") {
+			parts := strings.Split(targetID, ":")
+			if len(parts) == 2 {
+				var otherUser string
+				if parts[0] == client.userID {
+					otherUser = parts[1]
+				} else if parts[1] == client.userID {
+					otherUser = parts[0]
+				} else {
+					return fmt.Errorf("client not part of this DM")
+				}
+
+				outMsg := &OutboundMessage{
+					Type: TypeChatReactionUpdate,
+					Data: update,
+				}
+
+				h.hub.BroadcastToUser(otherUser, outMsg)
+				h.hub.BroadcastToUser(client.userID, outMsg)
+				return nil
+			}
+		} else {
+			if client.userID < targetID {
+				update.Scope = fmt.Sprintf("dm:%s:%s", client.userID, targetID)
+			} else {
+				update.Scope = fmt.Sprintf("dm:%s:%s", targetID, client.userID)
+			}
+
+			outMsg := &OutboundMessage{
+				Type: TypeChatReactionUpdate,
+				Data: update,
+			}
+
+			h.hub.BroadcastToUser(targetID, outMsg)
+			h.hub.BroadcastToUser(client.userID, outMsg)
+			return nil
+		}
+	}
+
+	// Normal room
+	if !client.IsInRoom(data.Scope) {
+		return fmt.Errorf("client not subscribed to room: %s", data.Scope)
+	}
+
+	outMsg := &OutboundMessage{
+		Type: TypeChatReactionUpdate,
+		Data: update,
+	}
+
+	h.hub.Broadcast(data.Scope, outMsg, nil)
 	return nil
 }
 

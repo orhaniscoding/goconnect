@@ -204,7 +204,7 @@ ack                  - İstek onayı
 - [x] Voice/Video call signaling
 
 ### Low Priority
-- [ ] Message reactions
+- [x] Message reactions
 - [ ] Message threads
 - [ ] File upload progress
 - [ ] Screen sharing signaling
