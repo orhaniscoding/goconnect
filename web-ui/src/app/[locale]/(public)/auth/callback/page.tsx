@@ -21,23 +21,23 @@ export default function Callback({ params }: CallbackPageProps) {
 
         if (accessToken && refreshToken) {
             setTokens(accessToken, refreshToken)
-            
+
             // Fetch user info
             api('/v1/auth/me', {
                 headers: {
                     'Authorization': `Bearer ${accessToken}`
                 }
             })
-            .then(response => {
-                setUser(response.data)
-                notification.success('Login Successful', 'Welcome back!')
-                router.push(`/${params.locale}/dashboard`)
-            })
-            .catch(err => {
-                console.error('Failed to fetch user:', err)
-                notification.error('Login Failed', 'Failed to retrieve user info')
-                router.push(`/${params.locale}/login`)
-            })
+                .then(response => {
+                    setUser(response.data)
+                    notification.success('Login Successful', 'Welcome back!')
+                    router.push(`/${params.locale}/dashboard`)
+                })
+                .catch(err => {
+                    console.error('Failed to fetch user:', err)
+                    notification.error('Login Failed', 'Failed to retrieve user info')
+                    router.push(`/${params.locale}/login`)
+                })
 
         } else {
             notification.error('Login Failed', 'Missing tokens')

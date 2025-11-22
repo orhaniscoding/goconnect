@@ -52,12 +52,12 @@ export default function Settings() {
             if (!token) return
 
             await enable2FA(token, secret, code)
-            
+
             // Update local user state
             const updatedUser = { ...user, two_fa_enabled: true }
             setUser(updatedUser)
             setUserState(updatedUser)
-            
+
             notification.success('Success', 'Two-factor authentication enabled!')
             setStep('initial')
             setCode('')
@@ -76,12 +76,12 @@ export default function Settings() {
             if (!token) return
 
             await disable2FA(token, code)
-            
+
             // Update local user state
             const updatedUser = { ...user, two_fa_enabled: false }
             setUser(updatedUser)
             setUserState(updatedUser)
-            
+
             notification.success('Success', 'Two-factor authentication disabled.')
             setStep('initial')
             setCode('')
@@ -97,7 +97,7 @@ export default function Settings() {
             <div style={{ padding: 24, maxWidth: 800, margin: '0 auto' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
                     <h1 style={{ fontSize: 24, fontWeight: 'bold' }}>Settings</h1>
-                    <button 
+                    <button
                         onClick={() => router.back()}
                         style={{ padding: '8px 16px', cursor: 'pointer' }}
                     >
@@ -115,17 +115,17 @@ export default function Settings() {
 
                 <div style={{ marginTop: 24, backgroundColor: 'white', padding: 24, borderRadius: 8, boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                     <h2 style={{ fontSize: 20, marginBottom: 16 }}>Security</h2>
-                    
+
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div>
                             <strong>Two-Factor Authentication (2FA)</strong>
                             <p style={{ color: '#666', marginTop: 4 }}>
-                                {user.two_fa_enabled 
-                                    ? 'Your account is secured with 2FA.' 
+                                {user.two_fa_enabled
+                                    ? 'Your account is secured with 2FA.'
                                     : 'Add an extra layer of security to your account.'}
                             </p>
                         </div>
-                        
+
                         {!user.two_fa_enabled && step === 'initial' && (
                             <button
                                 onClick={handleStart2FA}
@@ -141,7 +141,7 @@ export default function Settings() {
                                 Enable 2FA
                             </button>
                         )}
-                        
+
                         {user.two_fa_enabled && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                                 <span style={{ color: 'green', fontWeight: 'bold' }}>Enabled</span>
@@ -167,7 +167,7 @@ export default function Settings() {
                         <div style={{ marginTop: 24, borderTop: '1px solid #eee', paddingTop: 24 }}>
                             <h3>Disable Two-Factor Authentication</h3>
                             <p>Please enter the code from your authenticator app to confirm.</p>
-                            
+
                             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
                                 <input
                                     type="text"
@@ -218,13 +218,13 @@ export default function Settings() {
                         <div style={{ marginTop: 24, borderTop: '1px solid #eee', paddingTop: 24 }}>
                             <h3>1. Scan QR Code</h3>
                             <p>Open your authenticator app (Google Authenticator, Authy, etc.) and scan this code:</p>
-                            
+
                             {qrCodeUrl && (
                                 <div style={{ margin: '16px 0' }}>
                                     <img src={qrCodeUrl} alt="2FA QR Code" style={{ width: 200, height: 200 }} />
                                 </div>
                             )}
-                            
+
                             <p style={{ fontSize: 14, color: '#666' }}>
                                 Or enter this secret manually: <strong>{secret}</strong>
                             </p>

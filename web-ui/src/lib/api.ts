@@ -927,6 +927,7 @@ export interface AdminUser {
   locale: string
   is_admin: boolean
   is_moderator: boolean
+  auth_provider?: string
   created_at: string
   updated_at: string
 }
