@@ -774,3 +774,73 @@ func TestHandlePresenceSet(t *testing.T) {
 		t.Fatal("Expected presence update broadcast")
 	}
 }
+
+func setupMembershipTest() (*DefaultMessageHandler, *service.MembershipService, *repository.InMemoryMembershipRepository, *repository.InMemoryJoinRequestRepository, *repository.InMemoryNetworkRepository, *repository.InMemoryUserRepository) {
+	hub := NewHub(nil)
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	membershipRepo := repository.NewInMemoryMembershipRepository()
+	joinRepo := repository.NewInMemoryJoinRequestRepository()
+	idemRepo := repository.NewInMemoryIdempotencyRepository()
+
+	authService := service.NewAuthService(userRepo, tenantRepo)
+	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idemRepo)
+
+	handler := NewDefaultMessageHandler(hub, nil, membershipService, authService)
+
+	// Start hub
+	go hub.Run(context.Background())
+
+	return handler, membershipService, membershipRepo, joinRepo, networkRepo, userRepo
+}
+
+func TestMembershipEvents(t *testing.T) {
+	handler, membershipService, membershipRepo, joinRepo, networkRepo, userRepo := setupMembershipTest()
+
+	// Setup data
+	adminUser := &domain.User{ID: "admin-1", TenantID: "tenant-1", Email: "admin@example.com", IsAdmin: true}
+	targetUser := &domain.User{ID: "user-1", TenantID: "tenant-1", Email: "user@example.com", IsAdmin: false}
+	_ = userRepo.Create(context.Background(), adminUser)
+	_ = userRepo.Create(context.Background(), targetUser)
+
+	network := &domain.Network{ID: "net-1", TenantID: "tenant-1", Name: "Test Net", JoinPolicy: domain.JoinPolicyApproval}
+	_ = networkRepo.Create(context.Background(), network)
+
+	// Admin must be member/owner to approve
+	_, _ = membershipRepo.UpsertApproved(context.Background(), network.ID, adminUser.ID, domain.RoleOwner, time.Now())
+
+	// Create pending join request
+	_, _ = joinRepo.CreatePending(context.Background(), network.ID, targetUser.ID)
+
+	// Connect a client to the network room to receive broadcast
+	client := newTestClient("observer-1")
+	handler.hub.Register(client)
+	handler.hub.JoinRoom(client, "network:"+network.ID)
+
+	// Wait for join
+	time.Sleep(50 * time.Millisecond)
+
+	// Approve join request
+	_, err := membershipService.Approve(context.Background(), network.ID, targetUser.ID, adminUser.ID, "tenant-1")
+	require.NoError(t, err)
+
+	// Verify broadcast
+	select {
+	case msgBytes := <-client.send:
+		var outbound OutboundMessage
+		err := json.Unmarshal(msgBytes, &outbound)
+		require.NoError(t, err)
+		assert.Equal(t, TypeMemberJoined, outbound.Type)
+
+		var data MemberEventData
+		dataBytes, _ := json.Marshal(outbound.Data)
+		err = json.Unmarshal(dataBytes, &data)
+		require.NoError(t, err)
+
+		assert.Equal(t, network.ID, data.NetworkID)
+		assert.Equal(t, targetUser.ID, data.UserID)
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Expected member.joined broadcast")
+	}
+}

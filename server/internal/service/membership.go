@@ -17,7 +17,19 @@ type MembershipService struct {
 	idempotency      repository.IdempotencyRepository
 	peerProvisioning *PeerProvisioningService
 	aud              Auditor
+	notifier         MembershipNotifier
 }
+
+// MembershipNotifier defines interface for membership events
+type MembershipNotifier interface {
+	MemberJoined(networkID, userID string)
+	MemberLeft(networkID, userID string)
+}
+
+type noopNotifier struct{}
+
+func (n noopNotifier) MemberJoined(networkID, userID string) {}
+func (n noopNotifier) MemberLeft(networkID, userID string)   {}
 
 // Auditor is a minimal interface to decouple from concrete audit package
 type Auditor interface {
@@ -33,7 +45,14 @@ func (f auditorFunc) Event(ctx context.Context, tenantID, action, actor, object 
 var noopAuditor = auditorFunc(func(ctx context.Context, tenantID, action, actor, object string, details map[string]any) {})
 
 func NewMembershipService(n repository.NetworkRepository, m repository.MembershipRepository, j repository.JoinRequestRepository, idem repository.IdempotencyRepository) *MembershipService {
-	return &MembershipService{networks: n, members: m, joins: j, idempotency: idem, aud: noopAuditor}
+	return &MembershipService{networks: n, members: m, joins: j, idempotency: idem, aud: noopAuditor, notifier: noopNotifier{}}
+}
+
+// SetNotifier sets the membership notifier
+func (s *MembershipService) SetNotifier(n MembershipNotifier) {
+	if n != nil {
+		s.notifier = n
+	}
 }
 
 // SetPeerProvisioning sets the peer provisioning service
@@ -91,6 +110,7 @@ func (s *MembershipService) JoinNetwork(ctx context.Context, networkID, userID, 
 			return nil, nil, err
 		}
 		s.audit(ctx, tenantID, audit.ActionNetworkJoin, userID, networkID, map[string]any{"policy": "open"})
+		s.notifier.MemberJoined(networkID, userID)
 
 		// Automatically provision peers for user's devices
 		if s.peerProvisioning != nil {
@@ -157,6 +177,9 @@ func (s *MembershipService) Approve(ctx context.Context, networkID, targetUserID
 		}
 	}
 
+	// Notify external systems about the new member
+	s.notifier.MemberJoined(networkID, targetUserID)
+
 	return m, nil
 }
 
@@ -210,6 +233,10 @@ func (s *MembershipService) Kick(ctx context.Context, networkID, targetUserID, a
 	}
 
 	s.audit(ctx, tenantID, audit.ActionNetworkMemberKick, actorID, networkID, map[string]any{"user": targetUserID})
+
+	// Notify external systems about the member removal
+	s.notifier.MemberLeft(networkID, targetUserID)
+
 	return nil
 }
 

@@ -21,12 +21,16 @@ type DefaultMessageHandler struct {
 
 // NewDefaultMessageHandler creates a new default message handler
 func NewDefaultMessageHandler(hub *Hub, chatService *service.ChatService, membershipService *service.MembershipService, authService *service.AuthService) *DefaultMessageHandler {
-	return &DefaultMessageHandler{
+	h := &DefaultMessageHandler{
 		hub:               hub,
 		chatService:       chatService,
 		membershipService: membershipService,
 		authService:       authService,
 	}
+	if membershipService != nil {
+		membershipService.SetNotifier(h)
+	}
+	return h
 }
 
 // SetHub sets the hub for the message handler
@@ -439,4 +443,30 @@ func (h *DefaultMessageHandler) handlePresenceSet(ctx context.Context, client *C
 	client.sendAck(msg.OpID, nil)
 
 	return nil
+}
+
+// MemberJoined implements MembershipNotifier
+func (h *DefaultMessageHandler) MemberJoined(networkID, userID string) {
+	room := "network:" + networkID
+	msg := &OutboundMessage{
+		Type: TypeMemberJoined,
+		Data: MemberEventData{
+			NetworkID: networkID,
+			UserID:    userID,
+		},
+	}
+	h.hub.Broadcast(room, msg, nil)
+}
+
+// MemberLeft implements MembershipNotifier
+func (h *DefaultMessageHandler) MemberLeft(networkID, userID string) {
+	room := "network:" + networkID
+	msg := &OutboundMessage{
+		Type: TypeMemberLeft,
+		Data: MemberEventData{
+			NetworkID: networkID,
+			UserID:    userID,
+		},
+	}
+	h.hub.Broadcast(room, msg, nil)
 }

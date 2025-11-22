@@ -195,7 +195,7 @@ ack                  - İstek onayı
 - [x] Room access validation (network membership check)
 - [x] Presence status broadcast (online/away/offline)
 - [ ] Device online/offline events integration
-- [ ] Network join/leave events broadcast
+- [x] Network join/leave events broadcast
 
 ### Medium Priority
 - [ ] Message read receipts
