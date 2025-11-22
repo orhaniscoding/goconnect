@@ -55,6 +55,8 @@ func (h *DefaultMessageHandler) HandleMessage(ctx context.Context, client *Clien
 		return h.handleRoomLeave(ctx, client, msg)
 	case TypePresencePing:
 		return h.handlePresencePing(ctx, client, msg)
+	case TypePresenceSet:
+		return h.handlePresenceSet(ctx, client, msg)
 	default:
 		return fmt.Errorf("unknown message type: %s", msg.Type)
 	}
@@ -387,6 +389,54 @@ func (h *DefaultMessageHandler) handlePresencePing(ctx context.Context, client *
 			"timestamp": client.lastActivity.Format("2006-01-02T15:04:05Z07:00"),
 		},
 	})
+
+	return nil
+}
+
+// handlePresenceSet handles presence.set messages
+func (h *DefaultMessageHandler) handlePresenceSet(ctx context.Context, client *Client, msg *InboundMessage) error {
+	var data PresenceSetData
+	if err := json.Unmarshal(msg.Data, &data); err != nil {
+		return fmt.Errorf("invalid presence.set data: %w", err)
+	}
+
+	// Validate status
+	status := PresenceStatus(data.Status)
+	switch status {
+	case StatusOnline, StatusAway, StatusBusy, StatusOffline:
+		// valid
+	default:
+		return fmt.Errorf("invalid status: %s", status)
+	}
+
+	// Update client status
+	client.mu.Lock()
+	client.status = status
+	client.mu.Unlock()
+
+	// Broadcast update to all rooms the client is in
+	updateMsg := &OutboundMessage{
+		Type: TypePresenceUpdate,
+		Data: PresenceUpdateData{
+			UserID: client.userID,
+			Status: string(status),
+			Since:  time.Now().Format(time.RFC3339),
+		},
+	}
+
+	client.mu.RLock()
+	rooms := make([]string, 0, len(client.rooms))
+	for room := range client.rooms {
+		rooms = append(rooms, room)
+	}
+	client.mu.RUnlock()
+
+	for _, room := range rooms {
+		h.hub.Broadcast(room, updateMsg, client)
+	}
+
+	// Send ack
+	client.sendAck(msg.OpID, nil)
 
 	return nil
 }

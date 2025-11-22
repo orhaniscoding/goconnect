@@ -5,6 +5,16 @@ import "encoding/json"
 // MessageType represents the type of WebSocket message
 type MessageType string
 
+// PresenceStatus defines user presence status
+type PresenceStatus string
+
+const (
+	StatusOnline  PresenceStatus = "online"
+	StatusAway    PresenceStatus = "away"
+	StatusBusy    PresenceStatus = "busy"
+	StatusOffline PresenceStatus = "offline"
+)
+
 const (
 	// Inbound message types (client -> server)
 	TypeAuthRefresh  MessageType = "auth.refresh"
@@ -16,6 +26,7 @@ const (
 	TypeRoomJoin     MessageType = "room.join"     // Join a room
 	TypeRoomLeave    MessageType = "room.leave"    // Leave a room
 	TypePresencePing MessageType = "presence.ping" // Keep-alive ping
+	TypePresenceSet  MessageType = "presence.set"  // Set presence status
 
 	// Outbound message types (server -> client)
 	TypeChatMessage    MessageType = "chat.message"
@@ -165,9 +176,13 @@ type DeviceEventData struct {
 	Platform  string `json:"platform,omitempty"`
 }
 
-// PresenceUpdateData represents data for presence.update events
+// PresenceSetData represents data for presence.set messages
+type PresenceSetData struct {
+	Status string `json:"status"` // online, away, busy, offline
+}
+
 type PresenceUpdateData struct {
 	UserID string `json:"user_id"`
-	Status string `json:"status"` // "online", "away", "offline"
-	Since  string `json:"since"`  // ISO 8601 timestamp
+	Status string `json:"status"`
+	Since  string `json:"since,omitempty"`
 }

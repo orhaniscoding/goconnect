@@ -43,6 +43,7 @@ type Client struct {
 	isModerator  bool            // Content moderator flag from JWT
 	rooms        map[string]bool // rooms this client is subscribed to
 	lastActivity time.Time       // Last activity timestamp for presence tracking
+	status       PresenceStatus  // Current presence status
 	limiter      *rate.Limiter   // Rate limiter
 	mu           sync.RWMutex
 }
@@ -59,6 +60,7 @@ func NewClient(hub *Hub, conn *websocket.Conn, userID, tenantID string, isAdmin,
 		isModerator:  isModerator,
 		rooms:        make(map[string]bool),
 		lastActivity: time.Now(),
+		status:       StatusOnline,
 		limiter:      rate.NewLimiter(rate.Limit(rateLimit), rateBurst),
 	}
 }

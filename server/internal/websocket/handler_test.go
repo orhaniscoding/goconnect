@@ -704,3 +704,73 @@ func TestHandleRoomJoin_Authorization(t *testing.T) {
 		})
 	}
 }
+
+func TestHandlePresenceSet(t *testing.T) {
+	handler := newTestHandler()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go handler.hub.Run(ctx)
+
+	client := newTestClient("user-1")
+	// Register client to hub
+	handler.hub.Register(client)
+
+	// Join a room to verify broadcast
+	room := "network:net-1"
+	handler.hub.JoinRoom(client, room)
+
+	// Another client in the same room
+	otherClient := newTestClient("user-2")
+	handler.hub.Register(otherClient)
+	handler.hub.JoinRoom(otherClient, room)
+
+	// Wait for registration and join to process
+	time.Sleep(50 * time.Millisecond)
+
+	// Set presence
+	msg := &InboundMessage{
+		Type: TypePresenceSet,
+		OpID: "op-1",
+		Data: json.RawMessage(`{"status":"away"}`),
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.NoError(t, err)
+
+	// Verify client status updated
+	client.mu.RLock()
+	assert.Equal(t, StatusAway, client.status)
+	client.mu.RUnlock()
+
+	// Verify ack
+	select {
+	case ackMsg := <-client.send:
+		var outbound OutboundMessage
+		err := json.Unmarshal(ackMsg, &outbound)
+		require.NoError(t, err)
+		assert.Equal(t, TypeAck, outbound.Type)
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Expected ack message")
+	}
+
+	// Verify broadcast to other client
+	select {
+	case msgBytes := <-otherClient.send:
+		var outbound OutboundMessage
+		err := json.Unmarshal(msgBytes, &outbound)
+		require.NoError(t, err)
+		assert.Equal(t, TypePresenceUpdate, outbound.Type)
+
+		var data PresenceUpdateData
+		// Re-marshal data to parse into struct
+		dataBytes, _ := json.Marshal(outbound.Data)
+		err = json.Unmarshal(dataBytes, &data)
+		require.NoError(t, err)
+
+		assert.Equal(t, "user-1", data.UserID)
+		assert.Equal(t, "away", data.Status)
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Expected presence update broadcast")
+	}
+}
