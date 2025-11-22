@@ -1122,3 +1122,54 @@ func TestHandleChatRead(t *testing.T) {
 		}
 	})
 }
+
+func TestHandleCallSignal(t *testing.T) {
+	handler := newTestHandler()
+	go handler.hub.Run(context.Background())
+
+	caller := newTestClient("caller")
+	caller.hub = handler.hub
+	handler.hub.Register(caller)
+
+	callee := newTestClient("callee")
+	callee.hub = handler.hub
+	handler.hub.Register(callee)
+
+	time.Sleep(10 * time.Millisecond)
+
+	// Test Offer
+	t.Run("Call Offer", func(t *testing.T) {
+		offerData := CallSignalData{
+			TargetID: "callee",
+			SDP:      map[string]interface{}{"type": "offer", "sdp": "mock-sdp"},
+		}
+		dataJSON, _ := json.Marshal(offerData)
+		msg := &InboundMessage{
+			Type: TypeCallOffer,
+			Data: dataJSON,
+		}
+
+		err := handler.HandleMessage(context.Background(), caller, msg)
+		require.NoError(t, err)
+
+		select {
+		case raw := <-callee.send:
+			var out OutboundMessage
+			err := json.Unmarshal(raw, &out)
+			require.NoError(t, err)
+			assert.Equal(t, TypeCallOffer, out.Type)
+			
+			dataBytes, _ := json.Marshal(out.Data)
+			var signal CallSignalData
+			err = json.Unmarshal(dataBytes, &signal)
+			require.NoError(t, err)
+			assert.Equal(t, "caller", signal.FromUser)
+			// Verify SDP structure
+			sdpMap, ok := signal.SDP.(map[string]interface{})
+			assert.True(t, ok)
+			assert.Equal(t, "offer", sdpMap["type"])
+		case <-time.After(100 * time.Millisecond):
+			t.Fatal("timeout waiting for offer")
+		}
+	})
+}

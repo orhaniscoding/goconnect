@@ -36,6 +36,10 @@ const (
 	TypeChatRedacted   MessageType = "chat.redacted"
 	TypeChatTypingUser MessageType = "chat.typing.user" // User typing indicator
 	TypeChatReadUpdate MessageType = "chat.read.update" // Read receipt update
+	TypeCallOffer      MessageType = "call.offer"       // WebRTC Offer
+	TypeCallAnswer     MessageType = "call.answer"      // WebRTC Answer
+	TypeCallICE        MessageType = "call.ice"         // WebRTC ICE Candidate
+	TypeCallEnd        MessageType = "call.end"         // End call
 	TypeMemberJoined   MessageType = "member.joined"
 	TypeMemberLeft     MessageType = "member.left"
 	TypeJoinPending    MessageType = "request.join.pending"
@@ -201,4 +205,13 @@ type ChatReadUpdateData struct {
 	UserID    string `json:"user_id"`
 	ReadAt    string `json:"read_at"`
 	Room      string `json:"room"`
+}
+
+// CallSignalData represents data for call.* messages
+type CallSignalData struct {
+	TargetID  string      `json:"target_id,omitempty"` // For inbound
+	FromUser  string      `json:"from_user,omitempty"` // For outbound
+	SDP       interface{} `json:"sdp,omitempty"`       // For offer/answer (JSON object or string)
+	Candidate interface{} `json:"candidate,omitempty"` // For ICE (JSON object)
+	Reason    string      `json:"reason,omitempty"`    // For end
 }

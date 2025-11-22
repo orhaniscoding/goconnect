@@ -201,7 +201,7 @@ ack                  - İstek onayı
 - [x] Message read receipts
 - [x] User status (online, away, busy, offline)
 - [x] Direct messages (user-to-user)
-- [ ] Voice/Video call signaling
+- [x] Voice/Video call signaling
 
 ### Low Priority
 - [ ] Message reactions

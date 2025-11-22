@@ -68,6 +68,8 @@ func (h *DefaultMessageHandler) HandleMessage(ctx context.Context, client *Clien
 		return h.handlePresenceSet(ctx, client, msg)
 	case TypeChatRead:
 		return h.handleChatRead(ctx, client, msg)
+	case TypeCallOffer, TypeCallAnswer, TypeCallICE, TypeCallEnd:
+		return h.handleCallSignal(ctx, client, msg)
 	default:
 		return fmt.Errorf("unknown message type: %s", msg.Type)
 	}
@@ -390,6 +392,34 @@ func (h *DefaultMessageHandler) handleChatRead(ctx context.Context, client *Clie
 	}
 
 	h.hub.Broadcast(data.Room, outMsg, nil)
+	return nil
+}
+
+// handleCallSignal handles WebRTC signaling messages
+func (h *DefaultMessageHandler) handleCallSignal(ctx context.Context, client *Client, msg *InboundMessage) error {
+	var data CallSignalData
+	if err := json.Unmarshal(msg.Data, &data); err != nil {
+		return fmt.Errorf("invalid call signal data: %w", err)
+	}
+
+	if data.TargetID == "" {
+		return fmt.Errorf("target_id is required")
+	}
+
+	// Prepare outbound message
+	outData := CallSignalData{
+		FromUser:  client.userID,
+		SDP:       data.SDP,
+		Candidate: data.Candidate,
+		Reason:    data.Reason,
+	}
+
+	outMsg := &OutboundMessage{
+		Type: msg.Type,
+		Data: outData,
+	}
+
+	h.hub.BroadcastToUser(data.TargetID, outMsg)
 	return nil
 }
 
