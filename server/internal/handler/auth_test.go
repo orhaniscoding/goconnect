@@ -20,7 +20,7 @@ func setupAuthTest() (*gin.Engine, *AuthHandler, *service.AuthService) {
 	userRepo := repository.NewInMemoryUserRepository()
 	tenantRepo := repository.NewInMemoryTenantRepository()
 	authService := service.NewAuthService(userRepo, tenantRepo)
-	handler := NewAuthHandler(authService)
+	handler := NewAuthHandler(authService, nil)
 	r := gin.New()
 	return r, handler, authService
 }
