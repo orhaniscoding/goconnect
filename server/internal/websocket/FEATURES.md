@@ -200,7 +200,7 @@ ack                  - İstek onayı
 ### Medium Priority
 - [ ] Message read receipts
 - [x] User status (online, away, busy, offline)
-- [ ] Direct messages (user-to-user)
+- [x] Direct messages (user-to-user)
 - [ ] Voice/Video call signaling
 
 ### Low Priority

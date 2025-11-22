@@ -912,3 +912,104 @@ func TestDeviceEvents(t *testing.T) {
 		t.Fatal("Expected device.online broadcast")
 	}
 }
+
+func setupChatTest() (*DefaultMessageHandler, *service.ChatService, *repository.InMemoryUserRepository) {
+	hub := NewHub(nil)
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	chatRepo := repository.NewInMemoryChatRepository()
+
+	authService := service.NewAuthService(userRepo, tenantRepo)
+	chatService := service.NewChatService(chatRepo, userRepo)
+
+	handler := NewDefaultMessageHandler(hub, chatService, nil, nil, authService)
+
+	go hub.Run(context.Background())
+
+	return handler, chatService, userRepo
+}
+
+func TestHandleChatSend_DirectMessage(t *testing.T) {
+	handler, _, userRepo := setupChatTest()
+
+	// Setup users
+	sender := &domain.User{ID: "user-1", TenantID: "tenant-1", Email: "sender@example.com"}
+	receiver := &domain.User{ID: "user-2", TenantID: "tenant-1", Email: "receiver@example.com"}
+	other := &domain.User{ID: "user-3", TenantID: "tenant-1", Email: "other@example.com"}
+
+	_ = userRepo.Create(context.Background(), sender)
+	_ = userRepo.Create(context.Background(), receiver)
+	_ = userRepo.Create(context.Background(), other)
+
+	// Connect clients
+	clientSender := newTestClient(sender.ID)
+	clientReceiver := newTestClient(receiver.ID)
+	clientOther := newTestClient(other.ID)
+
+	handler.hub.Register(clientSender)
+	handler.hub.Register(clientReceiver)
+	handler.hub.Register(clientOther)
+
+	time.Sleep(50 * time.Millisecond)
+
+	// Send DM from sender to receiver
+	msg := &InboundMessage{
+		Type: TypeChatSend,
+		OpID: "op-dm",
+		Data: json.RawMessage(fmt.Sprintf(`{"scope":"dm:%s", "body":"Hello DM"}`, receiver.ID)),
+	}
+
+	err := handler.HandleMessage(context.Background(), clientSender, msg)
+	require.NoError(t, err)
+
+	// Verify sender gets message then ack
+	// 1. Message
+	select {
+	case msgBytes := <-clientSender.send:
+		var outbound OutboundMessage
+		err := json.Unmarshal(msgBytes, &outbound)
+		require.NoError(t, err)
+		assert.Equal(t, TypeChatMessage, outbound.Type)
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Expected message for sender")
+	}
+	// 2. Ack
+	select {
+	case msgBytes := <-clientSender.send:
+		var outbound OutboundMessage
+		err := json.Unmarshal(msgBytes, &outbound)
+		require.NoError(t, err)
+		assert.Equal(t, TypeAck, outbound.Type)
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Expected ack for sender")
+	}
+
+	// Verify receiver gets message
+	select {
+	case msgBytes := <-clientReceiver.send:
+		var outbound OutboundMessage
+		err := json.Unmarshal(msgBytes, &outbound)
+		require.NoError(t, err)
+		assert.Equal(t, TypeChatMessage, outbound.Type)
+
+		var data ChatMessageData
+		dataBytes, _ := json.Marshal(outbound.Data)
+		err = json.Unmarshal(dataBytes, &data)
+		require.NoError(t, err)
+
+		assert.Equal(t, "Hello DM", data.Body)
+		assert.Equal(t, sender.ID, data.UserID)
+		// Verify canonical scope
+		assert.Equal(t, "dm:user-1:user-2", data.Scope)
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Expected message for receiver")
+	}
+
+	// Verify other user does NOT get message
+	select {
+	case <-clientOther.send:
+		t.Fatal("Other user should not receive DM")
+	case <-time.After(50 * time.Millisecond):
+		// OK
+	}
+}

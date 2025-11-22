@@ -120,14 +120,31 @@ func (h *DefaultMessageHandler) handleChatSend(ctx context.Context, client *Clie
 		return fmt.Errorf("body is required")
 	}
 
+	// Handle DM scope canonicalization
+	scope := data.Scope
+	isDM := strings.HasPrefix(scope, "dm:")
+	var targetUserID string
+
+	if isDM {
+		targetUserID = strings.TrimPrefix(scope, "dm:")
+		if targetUserID == "" {
+			return fmt.Errorf("invalid dm scope")
+		}
+		// Canonicalize scope: dm:{min_uid}:{max_uid}
+		u1, u2 := client.userID, targetUserID
+		if u1 > u2 {
+			u1, u2 = u2, u1
+		}
+		scope = fmt.Sprintf("dm:%s:%s", u1, u2)
+	}
+
 	// Create message via chat service
-	chatMsg, err := h.chatService.SendMessage(ctx, client.userID, client.tenantID, data.Scope, data.Body, data.Attachments)
+	chatMsg, err := h.chatService.SendMessage(ctx, client.userID, client.tenantID, scope, data.Body, data.Attachments)
 	if err != nil {
 		return err
 	}
 
-	// Broadcast to scope
-	h.hub.Broadcast(data.Scope, &OutboundMessage{
+	outbound := &OutboundMessage{
 		Type: TypeChatMessage,
 		Data: &ChatMessageData{
 			ID:          chatMsg.ID,
@@ -138,7 +155,18 @@ func (h *DefaultMessageHandler) handleChatSend(ctx context.Context, client *Clie
 			Attachments: chatMsg.Attachments,
 			CreatedAt:   chatMsg.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		},
-	}, nil)
+	}
+
+	if isDM {
+		// For DMs, send to specific users instead of broadcasting to a room
+		h.hub.BroadcastToUser(client.userID, outbound)
+		if client.userID != targetUserID {
+			h.hub.BroadcastToUser(targetUserID, outbound)
+		}
+	} else {
+		// Broadcast to scope (room)
+		h.hub.Broadcast(scope, outbound, nil)
+	}
 
 	// Acknowledge to sender
 	client.sendAck(msg.OpID, map[string]string{
