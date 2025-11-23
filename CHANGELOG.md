@@ -8,6 +8,7 @@
 * **auth:** implement OIDC login flow in frontend
 * **ui:** add settings page with 2FA management (enable/disable)
 * **ui:** add "Login with SSO" button
+* **ui:** display auth provider in admin user list
 
 ## [2.5.0] - 2025-11-23
 
