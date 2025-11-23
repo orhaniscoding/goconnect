@@ -668,6 +668,9 @@ export default function AdminPage() {
                           Role
                         </th>
                         <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>
+                          Provider
+                        </th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>
                           Tenant ID
                         </th>
                         <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>
@@ -694,6 +697,18 @@ export default function AdminPage() {
                               fontWeight: 500
                             }}>
                               {user.is_admin ? '👑 Admin' : user.is_moderator ? '🛡️ Moderator' : '👤 User'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px' }}>
+                            <span style={{
+                              padding: '4px 8px',
+                              backgroundColor: user.auth_provider === 'oidc' ? '#e2e3e5' : '#fff3cd',
+                              color: user.auth_provider === 'oidc' ? '#383d41' : '#856404',
+                              borderRadius: 4,
+                              fontSize: 12,
+                              fontWeight: 500
+                            }}>
+                              {user.auth_provider === 'oidc' ? 'SSO' : 'Local'}
                             </span>
                           </td>
                           <td style={{ padding: '12px', fontSize: 13, fontFamily: 'monospace', color: '#6c757d' }}>
