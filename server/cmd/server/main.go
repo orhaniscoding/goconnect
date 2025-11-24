@@ -23,6 +23,7 @@ import (
 	"github.com/orhaniscoding/goconnect/server/internal/service"
 	ws "github.com/orhaniscoding/goconnect/server/internal/websocket"
 	"github.com/orhaniscoding/goconnect/server/internal/wireguard"
+	"github.com/redis/go-redis/v9"
 )
 
 var (
@@ -123,11 +124,23 @@ func main() {
 		fmt.Println("Using in-memory repositories (no data persistence)")
 	}
 
+	// Initialize Redis
+	var redisClient *redis.Client
+	if cfg.Redis.Host != "" {
+		var err error
+		redisClient, err = database.NewRedisClient(cfg.Redis)
+		if err != nil {
+			log.Printf("Warning: Failed to connect to Redis: %v. Token blacklist will be disabled.", err)
+		} else {
+			fmt.Println("Connected to Redis")
+		}
+	}
+
 	// Initialize services
 	networkService := service.NewNetworkService(networkRepo, idempotencyRepo)
 	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idempotencyRepo)
 	ipamService := service.NewIPAMService(networkRepo, membershipRepo, ipamRepo)
-	authService := service.NewAuthService(userRepo, tenantRepo)
+	authService := service.NewAuthService(userRepo, tenantRepo, redisClient)
 
 	peerProvisioningService := service.NewPeerProvisioningService(peerRepo, deviceRepo, networkRepo, membershipRepo, ipamRepo)
 	deviceService := service.NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, cfg.WireGuard)

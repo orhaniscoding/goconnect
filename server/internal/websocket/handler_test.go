@@ -31,7 +31,7 @@ func newTestHandler() *DefaultMessageHandler {
 		panic(err)
 	}
 
-	authService := service.NewAuthService(userRepo, tenantRepo)
+	authService := service.NewAuthService(userRepo, tenantRepo, nil)
 
 	handler := &DefaultMessageHandler{
 		hub:         hub,
@@ -622,7 +622,7 @@ func setupAuthorizationTest() (*DefaultMessageHandler, *repository.InMemoryMembe
 	joinRepo := repository.NewInMemoryJoinRequestRepository()
 	idemRepo := repository.NewInMemoryIdempotencyRepository()
 
-	authService := service.NewAuthService(userRepo, tenantRepo)
+	authService := service.NewAuthService(userRepo, tenantRepo, nil)
 	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idemRepo)
 
 	handler := NewDefaultMessageHandler(hub, nil, membershipService, nil, authService)
@@ -785,7 +785,7 @@ func setupMembershipTest() (*DefaultMessageHandler, *service.MembershipService, 
 	joinRepo := repository.NewInMemoryJoinRequestRepository()
 	idemRepo := repository.NewInMemoryIdempotencyRepository()
 
-	authService := service.NewAuthService(userRepo, tenantRepo)
+	authService := service.NewAuthService(userRepo, tenantRepo, nil)
 	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idemRepo)
 
 	handler := NewDefaultMessageHandler(hub, nil, membershipService, nil, authService)
@@ -856,7 +856,7 @@ func setupDeviceTest() (*DefaultMessageHandler, *service.DeviceService, *reposit
 
 	wgConfig := config.WireGuardConfig{}
 
-	authService := service.NewAuthService(userRepo, tenantRepo)
+	authService := service.NewAuthService(userRepo, tenantRepo, nil)
 	deviceService := service.NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
 
 	handler := NewDefaultMessageHandler(hub, nil, nil, deviceService, authService)
@@ -919,7 +919,7 @@ func setupChatTest() (*DefaultMessageHandler, *service.ChatService, *repository.
 	tenantRepo := repository.NewInMemoryTenantRepository()
 	chatRepo := repository.NewInMemoryChatRepository()
 
-	authService := service.NewAuthService(userRepo, tenantRepo)
+	authService := service.NewAuthService(userRepo, tenantRepo, nil)
 	chatService := service.NewChatService(chatRepo, userRepo)
 
 	handler := NewDefaultMessageHandler(hub, chatService, nil, nil, authService)

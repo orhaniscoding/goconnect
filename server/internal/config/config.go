@@ -16,6 +16,7 @@ type Config struct {
 	WireGuard WireGuardConfig
 	Audit     AuditConfig
 	CORS      CORSConfig
+	Redis     RedisConfig
 }
 
 // ServerConfig holds HTTP server configuration
@@ -47,6 +48,14 @@ type JWTConfig struct {
 	AccessTokenTTL   time.Duration
 	RefreshTokenTTL  time.Duration
 	RefreshSecretKey string // Optional separate key for refresh tokens
+}
+
+// RedisConfig holds Redis configuration
+type RedisConfig struct {
+	Host     string
+	Port     string
+	Password string
+	DB       int
 }
 
 // WireGuardConfig holds WireGuard server configuration
@@ -87,6 +96,7 @@ func Load() (*Config, error) {
 		WireGuard: loadWireGuardConfig(),
 		Audit:     loadAuditConfig(),
 		CORS:      loadCORSConfig(),
+		Redis:     loadRedisConfig(),
 	}
 
 	// Validate critical fields
@@ -206,6 +216,15 @@ func loadCORSConfig() CORSConfig {
 		AllowedOrigins:   origins,
 		AllowCredentials: getBoolEnv("CORS_ALLOW_CREDENTIALS", true),
 		MaxAge:           getDurationEnv("CORS_MAX_AGE", 12*time.Hour),
+	}
+}
+
+func loadRedisConfig() RedisConfig {
+	return RedisConfig{
+		Host:     getEnv("REDIS_HOST", "localhost"),
+		Port:     getEnv("REDIS_PORT", "6379"),
+		Password: getEnv("REDIS_PASSWORD", ""),
+		DB:       getIntEnv("REDIS_DB", 0),
 	}
 }
 

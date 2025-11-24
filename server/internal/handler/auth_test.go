@@ -19,7 +19,7 @@ func setupAuthTest() (*gin.Engine, *AuthHandler, *service.AuthService) {
 	gin.SetMode(gin.TestMode)
 	userRepo := repository.NewInMemoryUserRepository()
 	tenantRepo := repository.NewInMemoryTenantRepository()
-	authService := service.NewAuthService(userRepo, tenantRepo)
+	authService := service.NewAuthService(userRepo, tenantRepo, nil)
 	handler := NewAuthHandler(authService, nil)
 	r := gin.New()
 	return r, handler, authService
@@ -156,35 +156,35 @@ func TestAuthHandler_Refresh(t *testing.T) {
 		resp, _ := authService.Register(context.Background(), &domain.RegisterRequest{Email: "user@example.com", Password: "password123"})
 
 		body := map[string]interface{}{"refresh_token": resp.RefreshToken}
-			jsonBody, _ := json.Marshal(body)
+		jsonBody, _ := json.Marshal(body)
 
-			req := httptest.NewRequest("POST", "/refresh", bytes.NewBuffer(jsonBody))
-			req.Header.Set("Content-Type", "application/json")
-			w := httptest.NewRecorder()
-			r.ServeHTTP(w, req)
+		req := httptest.NewRequest("POST", "/refresh", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
 
-			assert.Equal(t, http.StatusOK, w.Code)
-			var response map[string]interface{}
-			json.Unmarshal(w.Body.Bytes(), &response)
-			data := response["data"].(map[string]interface{})
-			assert.NotEmpty(t, data["access_token"])
-		})
+		assert.Equal(t, http.StatusOK, w.Code)
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+		data := response["data"].(map[string]interface{})
+		assert.NotEmpty(t, data["access_token"])
+	})
 
-		t.Run("Invalid token", func(t *testing.T) {
-			r, handler, _ := setupAuthTest()
-			r.POST("/refresh", handler.Refresh)
+	t.Run("Invalid token", func(t *testing.T) {
+		r, handler, _ := setupAuthTest()
+		r.POST("/refresh", handler.Refresh)
 
-			body := map[string]interface{}{"refresh_token": "invalid-token"}
-			jsonBody, _ := json.Marshal(body)
+		body := map[string]interface{}{"refresh_token": "invalid-token"}
+		jsonBody, _ := json.Marshal(body)
 
-			req := httptest.NewRequest("POST", "/refresh", bytes.NewBuffer(jsonBody))
-			req.Header.Set("Content-Type", "application/json")
-			w := httptest.NewRecorder()
-			r.ServeHTTP(w, req)
+		req := httptest.NewRequest("POST", "/refresh", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
 
-			// Invalid token format causes parsing error, returns 500
-			assert.True(t, w.Code == http.StatusUnauthorized || w.Code == http.StatusInternalServerError)
-		})
+		// Invalid token format causes parsing error, returns 500
+		assert.True(t, w.Code == http.StatusUnauthorized || w.Code == http.StatusInternalServerError)
+	})
 }
 
 func TestAuthHandler_Logout(t *testing.T) {

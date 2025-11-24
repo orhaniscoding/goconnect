@@ -12,7 +12,7 @@ import (
 func TestAuthService_Register(t *testing.T) {
 	userRepo := repository.NewInMemoryUserRepository()
 	tenantRepo := repository.NewInMemoryTenantRepository()
-	authService := NewAuthService(userRepo, tenantRepo)
+	authService := NewAuthService(userRepo, tenantRepo, nil)
 
 	tests := []struct {
 		name    string
@@ -99,7 +99,7 @@ func TestAuthService_Register(t *testing.T) {
 func TestAuthService_Login(t *testing.T) {
 	userRepo := repository.NewInMemoryUserRepository()
 	tenantRepo := repository.NewInMemoryTenantRepository()
-	authService := NewAuthService(userRepo, tenantRepo)
+	authService := NewAuthService(userRepo, tenantRepo, nil)
 
 	// Register a user first
 	regReq := &domain.RegisterRequest{
@@ -188,7 +188,7 @@ func TestAuthService_Login(t *testing.T) {
 func TestAuthService_PasswordHashing(t *testing.T) {
 	userRepo := repository.NewInMemoryUserRepository()
 	tenantRepo := repository.NewInMemoryTenantRepository()
-	authService := NewAuthService(userRepo, tenantRepo)
+	authService := NewAuthService(userRepo, tenantRepo, nil)
 
 	password := "mySecurePassword123"
 
@@ -246,7 +246,7 @@ func TestAuthService_PasswordHashing(t *testing.T) {
 func TestAuthService_Refresh(t *testing.T) {
 	userRepo := repository.NewInMemoryUserRepository()
 	tenantRepo := repository.NewInMemoryTenantRepository()
-	authService := NewAuthService(userRepo, tenantRepo)
+	authService := NewAuthService(userRepo, tenantRepo, nil)
 
 	// Register and login first
 	regReq := &domain.RegisterRequest{

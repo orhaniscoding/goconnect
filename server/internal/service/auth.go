@@ -14,25 +14,28 @@ import (
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
 	"github.com/pquerna/otp/totp"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/argon2"
 )
 
 // AuthService handles authentication operations
 type AuthService struct {
-	userRepo   repository.UserRepository
-	tenantRepo repository.TenantRepository
-	jwtSecret  []byte // Secret key for JWT signing
+	userRepo    repository.UserRepository
+	tenantRepo  repository.TenantRepository
+	redisClient *redis.Client
+	jwtSecret   []byte // Secret key for JWT signing
 }
 
 // NewAuthService creates a new authentication service
-func NewAuthService(userRepo repository.UserRepository, tenantRepo repository.TenantRepository) *AuthService {
+func NewAuthService(userRepo repository.UserRepository, tenantRepo repository.TenantRepository, redisClient *redis.Client) *AuthService {
 	// Get JWT secret from environment or use default (NOT for production!)
 	jwtSecret := []byte(getEnvOrDefault("JWT_SECRET", "dev-secret-change-in-production"))
 
 	return &AuthService{
-		userRepo:   userRepo,
-		tenantRepo: tenantRepo,
-		jwtSecret:  jwtSecret,
+		userRepo:    userRepo,
+		tenantRepo:  tenantRepo,
+		redisClient: redisClient,
+		jwtSecret:   jwtSecret,
 	}
 }
 
@@ -371,6 +374,11 @@ func (s *AuthService) ValidateToken(ctx context.Context, tokenString string) (*d
 
 // Refresh generates new tokens using a refresh token
 func (s *AuthService) Refresh(ctx context.Context, req *domain.RefreshRequest) (*domain.AuthResponse, error) {
+	// Check blacklist
+	if err := s.checkBlacklist(ctx, req.RefreshToken); err != nil {
+		return nil, err
+	}
+
 	// Parse and validate refresh token
 	token, err := jwt.Parse(req.RefreshToken, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -430,10 +438,7 @@ func (s *AuthService) Refresh(ctx context.Context, req *domain.RefreshRequest) (
 
 // Logout invalidates a refresh token
 func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
-	// With JWT, we can't truly invalidate tokens without a blacklist (Redis)
-	// For now, we just return success. In production, add token to Redis blacklist
-	// TODO: Implement token blacklist with Redis
-	return nil
+	return s.addToBlacklist(ctx, refreshToken)
 }
 
 // ChangePassword changes the user's password
@@ -546,4 +551,52 @@ func (s *AuthService) LoginOrRegisterOIDC(ctx context.Context, email, externalID
 // GetUserByID retrieves a user by ID
 func (s *AuthService) GetUserByID(ctx context.Context, id string) (*domain.User, error) {
 	return s.userRepo.GetByID(ctx, id)
+}
+
+// addToBlacklist adds a token to the blacklist
+func (s *AuthService) addToBlacklist(ctx context.Context, tokenString string) error {
+	if s.redisClient == nil {
+		return nil
+	}
+
+	// Parse token to get expiration
+	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
+	if err != nil {
+		return err
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return fmt.Errorf("invalid claims")
+	}
+
+	exp, ok := claims["exp"].(float64)
+	if !ok {
+		return fmt.Errorf("invalid expiration")
+	}
+
+	expiration := time.Until(time.Unix(int64(exp), 0))
+	if expiration < 0 {
+		return nil // Already expired
+	}
+
+	return s.redisClient.Set(ctx, "blacklist:"+tokenString, "revoked", expiration).Err()
+}
+
+// checkBlacklist checks if a token is blacklisted
+func (s *AuthService) checkBlacklist(ctx context.Context, tokenString string) error {
+	if s.redisClient == nil {
+		return nil
+	}
+
+	exists, err := s.redisClient.Exists(ctx, "blacklist:"+tokenString).Result()
+	if err != nil {
+		return err
+	}
+
+	if exists > 0 {
+		return domain.NewError(domain.ErrInvalidToken, "Token is revoked", nil)
+	}
+
+	return nil
 }

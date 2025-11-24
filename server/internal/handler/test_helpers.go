@@ -13,7 +13,7 @@ import (
 func newMockAuthService() *service.AuthService {
 	userRepo := repository.NewInMemoryUserRepository()
 	tenantRepo := repository.NewInMemoryTenantRepository()
-	return service.NewAuthService(userRepo, tenantRepo)
+	return service.NewAuthService(userRepo, tenantRepo, nil)
 }
 
 // mockAuthServiceWithValidToken creates a mock auth service that accepts "dev" and "admin" tokens
