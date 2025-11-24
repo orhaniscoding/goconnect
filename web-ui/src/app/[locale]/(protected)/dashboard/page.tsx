@@ -5,6 +5,7 @@ import { getUser, clearAuth, getAccessToken } from '../../../../lib/auth'
 import { bridge } from '../../../../lib/bridge'
 import { useNotification } from '../../../../contexts/NotificationContext'
 import { useDaemon } from '../../../../contexts/DaemonContext'
+import { useT } from '../../../../lib/i18n-context'
 import AuthGuard from '../../../../components/AuthGuard'
 import Footer from '../../../../components/Footer'
 
@@ -12,6 +13,7 @@ export default function Dashboard() {
     const router = useRouter()
     const params = useParams()
     const notification = useNotification()
+    const t = useT()
     const { status, error: err, refresh, connect, disconnect } = useDaemon()
     const [user, setUser] = useState<any>(null)
     const [registering, setRegistering] = useState(false)
@@ -29,13 +31,13 @@ export default function Dashboard() {
         try {
             if (status.paused) {
                 await connect()
-                notification.success('VPN Connected', 'Connection established successfully.')
+                notification.success(t('dashboard.vpn.connected'), t('dashboard.vpn.connectedMsg'))
             } else {
                 await disconnect()
-                notification.info('VPN Disconnected', 'Connection terminated.')
+                notification.info(t('dashboard.vpn.disconnected'), t('dashboard.vpn.disconnectedMsg'))
             }
         } catch (e) {
-            notification.error('Connection Error', String(e))
+            notification.error(t('dashboard.vpn.error'), String(e))
         } finally {
             setToggling(false)
         }
@@ -46,7 +48,7 @@ export default function Dashboard() {
         try {
             const token = getAccessToken()
             if (!token) {
-                notification.error('Registration Failed', 'No access token found')
+                notification.error(t('dashboard.register.failed'), t('dashboard.register.noToken'))
                 return
             }
 
@@ -55,10 +57,10 @@ export default function Dashboard() {
                 body: JSON.stringify({ token })
             })
 
-            notification.success('Device Registered', 'Your device has been successfully registered.')
+            notification.success(t('dashboard.register.success'), t('dashboard.register.successMsg'))
             await refresh()
         } catch (e) {
-            notification.error('Registration Failed', String(e))
+            notification.error(t('dashboard.register.failed'), String(e))
         } finally {
             setRegistering(false)
         }
@@ -73,7 +75,7 @@ export default function Dashboard() {
         <AuthGuard>
             <div style={{ padding: 24, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-                    <h1 style={{ margin: 0 }}>Dashboard</h1>
+                    <h1 style={{ margin: 0 }}>{t('dashboard.title')}</h1>
                     <div>
                         <button
                             onClick={() => router.push(`/${params.locale}/settings`)}
@@ -89,7 +91,7 @@ export default function Dashboard() {
                                 marginRight: 8
                             }}
                         >
-                            Settings
+                            {t('dashboard.settings')}
                         </button>
                         <button
                             onClick={handleLogout}
@@ -104,7 +106,7 @@ export default function Dashboard() {
                                 fontWeight: 500
                             }}
                         >
-                            Logout
+                            {t('dashboard.logout')}
                         </button>
                     </div>
                 </div>
@@ -117,12 +119,12 @@ export default function Dashboard() {
                         marginBottom: 24,
                         border: '1px solid #dee2e6'
                     }}>
-                        <h3 style={{ marginTop: 0 }}>Welcome, {user.name}!</h3>
+                        <h3 style={{ marginTop: 0 }}>{t('dashboard.welcome')}, {user.name}!</h3>
                         <p style={{ margin: '4px 0', color: '#666' }}>
-                            <strong>Email:</strong> {user.email}
+                            <strong>{t('dashboard.email')}:</strong> {user.email}
                         </p>
                         <p style={{ margin: '4px 0', color: '#666' }}>
-                            <strong>Role:</strong> {user.is_admin ? 'Admin' : user.is_moderator ? 'Moderator' : 'User'}
+                            <strong>{t('dashboard.role')}:</strong> {user.is_admin ? t('role.admin') : user.is_moderator ? t('role.moderator') : t('role.user')}
                         </p>
                     </div>
                 )}
@@ -141,25 +143,25 @@ export default function Dashboard() {
                     <div>
                         <h3 style={{ marginTop: 0, color: status?.device?.registered ? (status.paused ? '#856404' : '#155724') : '#721c24' }}>
                             {status?.device?.registered
-                                ? (status.paused ? 'VPN Disconnected' : 'VPN Connected')
-                                : 'Device Setup Required'}
+                                ? (status.paused ? t('dashboard.vpn.disconnected') : t('dashboard.vpn.connected'))
+                                : t('dashboard.device.setupRequired')}
                         </h3>
                         <p style={{ margin: '4px 0', color: status?.device?.registered ? (status.paused ? '#856404' : '#155724') : '#721c24' }}>
                             {status?.device?.registered
                                 ? (status.paused
-                                    ? 'Your device is registered but disconnected. Click Connect to start VPN.'
-                                    : `Connected securely. ID: ${status.device.device_id.substring(0, 8)}...`)
-                                : 'This device is not registered with GoConnect yet.'}
+                                    ? t('dashboard.vpn.disconnectedMsg')
+                                    : t('dashboard.vpn.connectedMsg', { id: status.device.device_id.substring(0, 8) }))
+                                : t('dashboard.device.notRegistered')}
                         </p>
                         {status?.wg?.active && !status.paused && (
                             <div style={{ fontSize: 12, marginTop: 8, display: 'flex', gap: 16 }}>
-                                <span>Peers: <strong>{status.wg.peers || 0}</strong></span>
-                                <span>Rx: <strong>{Math.round((status.wg.total_rx || 0) / 1024)} KB</strong></span>
-                                <span>Tx: <strong>{Math.round((status.wg.total_tx || 0) / 1024)} KB</strong></span>
+                                <span>{t('dashboard.stats.peers')}: <strong>{status.wg.peers || 0}</strong></span>
+                                <span>{t('dashboard.stats.rx')}: <strong>{Math.round((status.wg.total_rx || 0) / 1024)} KB</strong></span>
+                                <span>{t('dashboard.stats.tx')}: <strong>{Math.round((status.wg.total_tx || 0) / 1024)} KB</strong></span>
                             </div>
                         )}
-                        {!status && !err && <p>Checking daemon status...</p>}
-                        {err && <p style={{ color: 'red' }}>Error: {err}</p>}
+                        {!status && !err && <p>{t('dashboard.status.checking')}</p>}
+                        {err && <p style={{ color: 'red' }}>{t('dashboard.status.error')}: {err}</p>}
                     </div>
 
                     {status && !status.device.registered && (
@@ -176,7 +178,7 @@ export default function Dashboard() {
                                 opacity: registering ? 0.7 : 1
                             }}
                         >
-                            {registering ? 'Registering...' : 'Register Device'}
+                            {registering ? t('dashboard.register.button.registering') : t('dashboard.register.button.register')}
                         </button>
                     )}
 
@@ -195,7 +197,7 @@ export default function Dashboard() {
                                 minWidth: 100
                             }}
                         >
-                            {toggling ? 'Working...' : (status.paused ? 'Connect' : 'Disconnect')}
+                            {toggling ? t('dashboard.vpn.button.working') : (status.paused ? t('dashboard.vpn.button.connect') : t('dashboard.vpn.button.disconnect'))}
                         </button>
                     )}
                 </div>
@@ -226,9 +228,9 @@ export default function Dashboard() {
                             e.currentTarget.style.boxShadow = 'none'
                         }}
                     >
-                        <h3 style={{ margin: '0 0 8px 0', color: '#007bff' }}>🌐 Networks</h3>
+                        <h3 style={{ margin: '0 0 8px 0', color: '#007bff' }}>🌐 {t('dashboard.actions.networks.title')}</h3>
                         <p style={{ margin: 0, color: '#666', fontSize: 14 }}>
-                            Manage your VPN networks
+                            {t('dashboard.actions.networks.desc')}
                         </p>
                     </div>
 
@@ -251,9 +253,9 @@ export default function Dashboard() {
                             e.currentTarget.style.boxShadow = 'none'
                         }}
                     >
-                        <h3 style={{ margin: '0 0 8px 0', color: '#10b981' }}>💻 Devices</h3>
+                        <h3 style={{ margin: '0 0 8px 0', color: '#10b981' }}>💻 {t('dashboard.actions.devices.title')}</h3>
                         <p style={{ margin: 0, color: '#666', fontSize: 14 }}>
-                            Manage your registered devices
+                            {t('dashboard.actions.devices.desc')}
                         </p>
                     </div>
 
@@ -276,9 +278,9 @@ export default function Dashboard() {
                             e.currentTarget.style.transform = 'translateY(0)'
                         }}
                     >
-                        <h3 style={{ margin: '0 0 8px 0', color: '#8b5cf6' }}>💬 Chat</h3>
+                        <h3 style={{ margin: '0 0 8px 0', color: '#8b5cf6' }}>💬 {t('dashboard.actions.chat.title')}</h3>
                         <p style={{ margin: 0, color: '#666', fontSize: 14 }}>
-                            Real-time messaging
+                            {t('dashboard.actions.chat.desc')}
                         </p>
                     </div>
 
@@ -301,9 +303,9 @@ export default function Dashboard() {
                             e.currentTarget.style.transform = 'translateY(0)'
                         }}
                     >
-                        <h3 style={{ margin: '0 0 8px 0', color: '#ffc107' }}>👤 Profile</h3>
+                        <h3 style={{ margin: '0 0 8px 0', color: '#ffc107' }}>👤 {t('dashboard.actions.profile.title')}</h3>
                         <p style={{ margin: 0, color: '#666', fontSize: 14 }}>
-                            Account settings
+                            {t('dashboard.actions.profile.desc')}
                         </p>
                     </div>
 
@@ -327,9 +329,9 @@ export default function Dashboard() {
                                 e.currentTarget.style.transform = 'translateY(0)'
                             }}
                         >
-                            <h3 style={{ margin: '0 0 8px 0', color: '#dc3545' }}>👑 Admin Panel</h3>
+                            <h3 style={{ margin: '0 0 8px 0', color: '#dc3545' }}>👑 {t('dashboard.actions.admin.title')}</h3>
                             <p style={{ margin: 0, color: '#666', fontSize: 14 }}>
-                                System administration
+                                {t('dashboard.actions.admin.desc')}
                             </p>
                         </div>
                     )}
@@ -343,56 +345,56 @@ export default function Dashboard() {
                     border: '1px solid #dee2e6',
                     marginBottom: 24
                 }}>
-                    <h3 style={{ marginTop: 0, marginBottom: 16 }}>Connection Status</h3>
+                    <h3 style={{ marginTop: 0, marginBottom: 16 }}>{t('dashboard.connection.title')}</h3>
                     {err ? (
                         <div style={{ color: '#dc3545', display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span>🔴</span>
-                            <span>Daemon not reachable ({err})</span>
+                            <span>{t('dashboard.connection.daemonError')} ({err})</span>
                         </div>
                     ) : status ? (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 20 }}>
                             <div>
-                                <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>VPN State</div>
+                                <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{t('dashboard.connection.vpnState')}</div>
                                 <div style={{ fontSize: 18, fontWeight: 600, color: status.wg?.active ? '#10b981' : '#6b7280' }}>
-                                    {status.wg?.active ? '● Connected' : '○ Disconnected'}
+                                    {status.wg?.active ? `● ${t('dashboard.connection.connected')}` : `○ ${t('dashboard.connection.disconnected')}`}
                                 </div>
                             </div>
 
                             {status.wg?.active && (
                                 <>
                                     <div>
-                                        <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>Peers</div>
+                                        <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{t('dashboard.connection.peers')}</div>
                                         <div style={{ fontSize: 18, fontWeight: 600 }}>
-                                            {status.wg?.peers || 0} devices
+                                            {status.wg?.peers || 0} {t('dashboard.connection.devices')}
                                         </div>
                                     </div>
                                     <div>
-                                        <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>Data Transfer</div>
+                                        <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{t('dashboard.connection.dataTransfer')}</div>
                                         <div style={{ fontSize: 14 }}>
                                             ⬇️ {formatBytes(status.wg?.total_rx || 0)}<br />
                                             ⬆️ {formatBytes(status.wg?.total_tx || 0)}
                                         </div>
                                     </div>
                                     <div>
-                                        <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>Last Handshake</div>
+                                        <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{t('dashboard.connection.lastHandshake')}</div>
                                         <div style={{ fontSize: 14 }}>
                                             {status.wg?.last_handshake && new Date(status.wg.last_handshake).getFullYear() > 1970
                                                 ? new Date(status.wg.last_handshake).toLocaleTimeString()
-                                                : 'Never'}
+                                                : t('dashboard.connection.never')}
                                         </div>
                                     </div>
                                 </>
                             )}
 
                             <div>
-                                <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>Daemon Version</div>
+                                <div style={{ fontSize: 13, color: '#666', marginBottom: 4 }}>{t('dashboard.connection.daemonVersion')}</div>
                                 <div style={{ fontSize: 14, fontFamily: 'monospace' }}>
-                                    {status.version || 'Unknown'}
+                                    {status.version || t('dashboard.connection.unknown')}
                                 </div>
                             </div>
                         </div>
                     ) : (
-                        <p style={{ color: '#666' }}>Loading status...</p>
+                        <p style={{ color: '#666' }}>{t('dashboard.connection.loading')}</p>
                     )}
                 </div>
 
