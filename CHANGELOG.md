@@ -4,6 +4,10 @@
 
 ### Features
 
+## [2.7.0] - 2025-11-25
+
+### Features
+
 * **auth:** implement token blacklist with Redis
 * **daemon:** improve OS detection and Linux DNS configuration
 * **ui:** refactor login and register pages to use i18n
