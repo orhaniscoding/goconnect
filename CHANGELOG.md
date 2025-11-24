@@ -4,6 +4,13 @@
 
 ### Features
 
+* **auth:** implement token blacklist with Redis
+* **ui:** refactor login and register pages to use i18n
+
+## [2.6.0] - 2025-11-25
+
+### Features
+
 * **auth:** implement OIDC (SSO) backend with JIT user provisioning
 * **auth:** implement OIDC login flow in frontend
 * **ui:** add settings page with 2FA management (enable/disable)
