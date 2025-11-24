@@ -13,6 +13,7 @@ import (
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/api"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/engine"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/identity"
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/system"
 )
 
 var (
@@ -130,7 +131,7 @@ func setupHandlers(idMgr *identity.Manager, apiClient *api.Client, eng *engine.E
 			Platform:  runtime.GOOS,
 			PubKey:    idMgr.Get().PublicKey,
 			HostName:  hostname,
-			OSVersion: runtime.GOOS, // TODO: Get real OS version
+			OSVersion: system.GetOSVersion(),
 			DaemonVer: version,
 		}
 

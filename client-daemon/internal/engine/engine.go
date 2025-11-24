@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"os"
-	"runtime"
 	"strings"
 	"time"
 
@@ -249,7 +248,7 @@ func (e *Engine) sendHeartbeat() {
 
 	req := api.HeartbeatRequest{
 		DaemonVer: e.version,
-		OSVersion: runtime.GOOS, // TODO: Get real OS version
+		OSVersion: system.GetOSVersion(),
 	}
 
 	if err := e.apiClient.SendHeartbeat(ctx, id.DeviceID, id.Token, req); err != nil {

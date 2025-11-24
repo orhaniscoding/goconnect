@@ -50,8 +50,28 @@ func (c *linuxConfigurator) ConfigureInterface(name string, addresses []string, 
 		}
 	}
 
-	// 5. Configure DNS (requires resolvconf or systemd-resolved interaction, skipping for simple exec)
-	// TODO: Implement DNS configuration
+	// 5. Configure DNS
+	if len(dns) > 0 {
+		// Try using resolvconf if available
+		if _, err := exec.LookPath("resolvconf"); err == nil {
+			cmd := exec.Command("resolvconf", "-a", name)
+			stdin, err := cmd.StdinPipe()
+			if err == nil {
+				go func() {
+					defer stdin.Close()
+					for _, d := range dns {
+						fmt.Fprintf(stdin, "nameserver %s\n", d)
+					}
+				}()
+				if err := cmd.Run(); err != nil {
+					fmt.Printf("Warning: resolvconf failed: %v\n", err)
+				}
+			}
+		} else {
+			// Fallback: maybe just log that we can't configure DNS automatically without resolvconf
+			fmt.Println("Warning: resolvconf not found, DNS configuration skipped")
+		}
+	}
 
 	return nil
 }
