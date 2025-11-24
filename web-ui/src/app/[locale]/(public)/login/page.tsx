@@ -6,6 +6,7 @@ import Footer from '../../../../components/Footer'
 import { login } from '../../../../lib/api'
 import { setTokens, setUser } from '../../../../lib/auth'
 import { useNotification } from '../../../../contexts/NotificationContext'
+import { useT } from '../../../../lib/i18n-context'
 
 interface LoginPageProps {
     params: { locale: string }
@@ -15,6 +16,7 @@ export default function Login({ params }: LoginPageProps) {
     const router = useRouter()
     const searchParams = useSearchParams()
     const notification = useNotification()
+    const t = useT()
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [code, setCode] = useState('')
@@ -30,35 +32,20 @@ export default function Login({ params }: LoginPageProps) {
         }
     }, [searchParams, notification])
 
-    // TODO: Use i18n translations from getDictionary
-    const t = {
-        title: 'Sign in to GoConnect',
-        email: 'Email',
-        password: 'Password',
-        submit: 'Sign In',
-        submitting: 'Signing in...',
-        noAccount: "Don't have an account?",
-        signUp: 'Sign up',
-        errorInvalid: 'Invalid email or password',
-        errorNetwork: 'Network error. Please try again.',
-        errorRequired: 'This field is required',
-        errorEmailFormat: 'Please enter a valid email address',
-    }
-
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
         setError('')
 
         // Basic validation
         if (!email || !password) {
-            const msg = t.errorRequired
+            const msg = t('login.error.required')
             setError(msg)
             notification.warning('Validation Error', msg)
             return
         }
 
         if (!email.includes('@')) {
-            const msg = t.errorEmailFormat
+            const msg = t('login.error.emailFormat')
             setError(msg)
             notification.warning('Validation Error', msg)
             return
@@ -84,7 +71,7 @@ export default function Login({ params }: LoginPageProps) {
                 setError('')
                 notification.info('2FA Required', 'Please enter your authentication code')
             } else {
-                const msg = err.message || t.errorNetwork
+                const msg = err.message || t('login.error.network')
                 setError(msg)
                 notification.error('Login Failed', msg)
             }
@@ -118,7 +105,7 @@ export default function Login({ params }: LoginPageProps) {
                     textAlign: 'center',
                     color: '#111827'
                 }}>
-                    {t.title}
+                    {t('login.title')}
                 </h1>
 
                 <form onSubmit={handleSubmit}>
@@ -126,7 +113,7 @@ export default function Login({ params }: LoginPageProps) {
                         <>
                             <div style={{ marginBottom: 16 }}>
                                 <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
-                                    {t.email}
+                                    {t('login.email')}
                                 </label>
                                 <input
                                     type="email"
@@ -145,7 +132,7 @@ export default function Login({ params }: LoginPageProps) {
 
                             <div style={{ marginBottom: 24 }}>
                                 <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
-                                    {t.password}
+                                    {t('login.password')}
                                 </label>
                                 <input
                                     type="password"
@@ -230,7 +217,7 @@ export default function Login({ params }: LoginPageProps) {
                             cursor: isLoading ? 'not-allowed' : 'pointer'
                         }}
                     >
-                        {isLoading ? t.submitting : t.submit}
+                        {isLoading ? t('login.submitting') : t('login.submit')}
                     </button>
 
                     <div style={{ marginTop: 16 }}>
@@ -263,12 +250,12 @@ export default function Login({ params }: LoginPageProps) {
                     fontSize: 14,
                     color: '#666'
                 }}>
-                    {t.noAccount}{' '}
+                    {t('login.noAccount')}{' '}
                     <a
                         href={`/${params.locale}/register`}
                         style={{ color: '#007bff', textDecoration: 'none' }}
                     >
-                        {t.signUp}
+                        {t('login.signUp')}
                     </a>
                 </div>
             </div>

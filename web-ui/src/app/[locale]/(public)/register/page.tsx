@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Footer from '../../../../components/Footer'
 import { register } from '../../../../lib/api'
 import { setTokens, setUser } from '../../../../lib/auth'
+import { useT } from '../../../../lib/i18n-context'
 
 interface RegisterPageProps {
     params: { locale: string }
@@ -12,6 +13,7 @@ interface RegisterPageProps {
 
 export default function Register({ params }: RegisterPageProps) {
     const router = useRouter()
+    const t = useT()
     const [name, setName] = useState('')
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
@@ -19,25 +21,6 @@ export default function Register({ params }: RegisterPageProps) {
     const [error, setError] = useState('')
     const [success, setSuccess] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
-
-    // TODO: Use i18n translations from getDictionary
-    const t = {
-        title: 'Create your GoConnect account',
-        name: 'Full Name',
-        email: 'Email',
-        password: 'Password',
-        confirmPassword: 'Confirm Password',
-        submit: 'Create Account',
-        submitting: 'Creating account...',
-        haveAccount: 'Already have an account?',
-        signIn: 'Sign in',
-        errorRequired: 'This field is required',
-        errorEmailFormat: 'Please enter a valid email address',
-        errorPasswordTooShort: 'Password must be at least 8 characters',
-        errorPasswordMismatch: 'Passwords do not match',
-        errorNetwork: 'Network error. Please try again.',
-        success: 'Account created successfully! Redirecting...',
-    }
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
@@ -56,12 +39,12 @@ export default function Register({ params }: RegisterPageProps) {
         }
 
         if (password.length < 8) {
-            setError(t.errorPasswordTooShort)
+            setError(t('register.error.passwordTooShort'))
             return
         }
 
         if (password !== confirmPassword) {
-            setError(t.errorPasswordMismatch)
+            setError(t('register.error.passwordMismatch'))
             return
         }
 
@@ -83,7 +66,7 @@ export default function Register({ params }: RegisterPageProps) {
             }, 1000)
         } catch (err: any) {
             console.error('Registration error:', err)
-            setError(err.message || t.errorNetwork)
+            setError(err.message || t('register.error.network'))
         } finally {
             setIsLoading(false)
         }
@@ -113,7 +96,7 @@ export default function Register({ params }: RegisterPageProps) {
                     marginBottom: 24,
                     textAlign: 'center'
                 }}>
-                    {t.title}
+                    {t('register.title')}
                 </h1>
 
                 {error && (
@@ -138,7 +121,7 @@ export default function Register({ params }: RegisterPageProps) {
                         marginBottom: 16,
                         fontSize: 14
                     }}>
-                        {t.success}
+                        {t('register.success')}
                     </div>
                 )}
 
@@ -150,7 +133,7 @@ export default function Register({ params }: RegisterPageProps) {
                             fontSize: 14,
                             fontWeight: 500
                         }}>
-                            {t.name}
+                            {t('register.name')}
                         </label>
                         <input
                             type="text"
@@ -176,7 +159,7 @@ export default function Register({ params }: RegisterPageProps) {
                             fontSize: 14,
                             fontWeight: 500
                         }}>
-                            {t.email}
+                            {t('register.email')}
                         </label>
                         <input
                             type="email"
@@ -201,7 +184,7 @@ export default function Register({ params }: RegisterPageProps) {
                             fontSize: 14,
                             fontWeight: 500
                         }}>
-                            {t.password}
+                            {t('register.password')}
                         </label>
                         <input
                             type="password"
@@ -226,7 +209,7 @@ export default function Register({ params }: RegisterPageProps) {
                             fontSize: 14,
                             fontWeight: 500
                         }}>
-                            {t.confirmPassword}
+                            {t('register.confirmPassword')}
                         </label>
                         <input
                             type="password"
@@ -259,7 +242,7 @@ export default function Register({ params }: RegisterPageProps) {
                             cursor: isLoading || success ? 'not-allowed' : 'pointer'
                         }}
                     >
-                        {isLoading ? t.submitting : t.submit}
+                        {isLoading ? t('register.submitting') : t('register.submit')}
                     </button>
                 </form>
 
@@ -269,12 +252,12 @@ export default function Register({ params }: RegisterPageProps) {
                     fontSize: 14,
                     color: '#666'
                 }}>
-                    {t.haveAccount}{' '}
+                    {t('register.haveAccount')}{' '}
                     <a
                         href={`/${params.locale}/login`}
                         style={{ color: '#007bff', textDecoration: 'none' }}
                     >
-                        {t.signIn}
+                        {t('register.signIn')}
                     </a>
                 </div>
             </div>
