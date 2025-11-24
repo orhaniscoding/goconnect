@@ -406,6 +406,45 @@ func (r *PostgresDeviceRepository) Count(ctx context.Context) (int, error) {
 	return count, nil
 }
 
+// GetStaleDevices returns devices that haven't been seen since the threshold
+func (r *PostgresDeviceRepository) GetStaleDevices(ctx context.Context, threshold time.Duration) ([]*domain.Device, error) {
+	cutoff := time.Now().Add(-threshold)
+
+	query := `
+		SELECT 
+			id, user_id, tenant_id, name, platform, pubkey,
+			last_seen, active, ip_address, daemon_ver, os_version,
+			hostname, created_at, updated_at, disabled_at
+		FROM devices
+		WHERE active = TRUE AND last_seen < $1 AND disabled_at IS NULL
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, cutoff)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var devices []*domain.Device
+	for rows.Next() {
+		var d domain.Device
+		if err := rows.Scan(
+			&d.ID, &d.UserID, &d.TenantID, &d.Name, &d.Platform, &d.PubKey,
+			&d.LastSeen, &d.Active, &d.IPAddress, &d.DaemonVer, &d.OSVersion,
+			&d.HostName, &d.CreatedAt, &d.UpdatedAt, &d.DisabledAt,
+		); err != nil {
+			return nil, err
+		}
+		devices = append(devices, &d)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return devices, nil
+}
+
 // Helper function to convert int to string for query building
 func intToString(i int) string {
 	return strconv.Itoa(i)

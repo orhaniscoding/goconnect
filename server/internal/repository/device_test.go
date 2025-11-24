@@ -539,3 +539,41 @@ func TestDeviceRepository_List_Search(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, results, 3)
 }
+
+func TestDeviceRepository_GetStaleDevices(t *testing.T) {
+	repo := NewInMemoryDeviceRepository()
+	ctx := context.Background()
+	now := time.Now()
+
+	// Device 1: Active and recent (Online)
+	d1 := mkDevice("d1", "u1", "D1", "pk1", "linux")
+	d1.Active = true
+	d1.LastSeen = now
+	repo.Create(ctx, d1)
+
+	// Device 2: Active but old (Stale -> Offline)
+	d2 := mkDevice("d2", "u1", "D2", "pk2", "linux")
+	d2.Active = true
+	d2.LastSeen = now.Add(-10 * time.Minute)
+	repo.Create(ctx, d2)
+
+	// Device 3: Inactive (Already Offline)
+	d3 := mkDevice("d3", "u1", "D3", "pk3", "linux")
+	d3.Active = false
+	d3.LastSeen = now.Add(-10 * time.Minute)
+	repo.Create(ctx, d3)
+
+	// Device 4: Disabled
+	d4 := mkDevice("d4", "u1", "D4", "pk4", "linux")
+	d4.Active = true
+	d4.LastSeen = now.Add(-10 * time.Minute)
+	disabledAt := now
+	d4.DisabledAt = &disabledAt
+	repo.Create(ctx, d4)
+
+	// Check for stale devices (threshold 5 mins)
+	stale, err := repo.GetStaleDevices(ctx, 5*time.Minute)
+	require.NoError(t, err)
+	assert.Len(t, stale, 1)
+	assert.Equal(t, "d2", stale[0].ID)
+}

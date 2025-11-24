@@ -7,7 +7,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/orhaniscoding/goconnect/server/internal/audit"
-	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/metrics"
 )
 
@@ -26,12 +25,11 @@ func AuditListHandler(aud audit.Auditor) gin.HandlerFunc {
 		}
 
 		// Get tenant from context (set by auth middleware)
-		claims, exists := c.Get("claims")
-		if !exists {
+		tenantID := c.GetString("tenant_id")
+		if tenantID == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 			return
 		}
-		userClaims := claims.(*domain.TokenClaims)
 
 		// Pagination
 		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -44,7 +42,7 @@ func AuditListHandler(aud audit.Auditor) gin.HandlerFunc {
 		}
 		offset := (page - 1) * limit
 
-		logs, total, err := sa.QueryLogs(c.Request.Context(), userClaims.TenantID, limit, offset)
+		logs, total, err := sa.QueryLogs(c.Request.Context(), tenantID, limit, offset)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to query logs"})
 			return

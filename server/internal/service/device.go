@@ -467,6 +467,40 @@ func (s *DeviceService) GetDeviceConfig(ctx context.Context, deviceID, userID st
 	return config, nil
 }
 
+// StartOfflineDetection starts a background worker to detect offline devices
+func (s *DeviceService) StartOfflineDetection(ctx context.Context, checkInterval, offlineThreshold time.Duration) {
+	ticker := time.NewTicker(checkInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			s.detectOfflineDevices(ctx, offlineThreshold)
+		}
+	}
+}
+
+func (s *DeviceService) detectOfflineDevices(ctx context.Context, threshold time.Duration) {
+	devices, err := s.deviceRepo.GetStaleDevices(ctx, threshold)
+	if err != nil {
+		fmt.Printf("Error detecting offline devices: %v\n", err)
+		return
+	}
+
+	for _, device := range devices {
+		// Mark as inactive
+		if err := s.deviceRepo.MarkInactive(ctx, device.ID); err != nil {
+			fmt.Printf("Error marking device %s as inactive: %v\n", device.ID, err)
+			continue
+		}
+
+		// Notify
+		s.notifier.DeviceOffline(device.ID, device.UserID)
+	}
+}
+
 // Helper function to track which fields were updated
 func getUpdatedFields(req *domain.UpdateDeviceRequest) []string {
 	fields := []string{}

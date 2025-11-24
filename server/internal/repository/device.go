@@ -23,6 +23,7 @@ type DeviceRepository interface {
 	UpdateHeartbeat(ctx context.Context, id string, ipAddress string) error
 	MarkInactive(ctx context.Context, id string) error
 	Count(ctx context.Context) (int, error)
+	GetStaleDevices(ctx context.Context, threshold time.Duration) ([]*domain.Device, error)
 }
 
 // InMemoryDeviceRepository implements DeviceRepository with in-memory storage
@@ -270,4 +271,23 @@ func (r *InMemoryDeviceRepository) Count(ctx context.Context) (int, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return len(r.devices), nil
+}
+
+// GetStaleDevices returns devices that haven't been seen since the threshold
+func (r *InMemoryDeviceRepository) GetStaleDevices(ctx context.Context, threshold time.Duration) ([]*domain.Device, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var staleDevices []*domain.Device
+	cutoff := time.Now().Add(-threshold)
+
+	for _, device := range r.devices {
+		// Only check devices that are currently considered "online" (e.g. not explicitly disabled)
+		// and have a LastSeen timestamp before the cutoff
+		if device.Active && !device.IsDisabled() && !device.LastSeen.IsZero() && device.LastSeen.Before(cutoff) {
+			staleDevices = append(staleDevices, device)
+		}
+	}
+
+	return staleDevices, nil
 }

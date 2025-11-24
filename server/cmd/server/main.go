@@ -145,6 +145,8 @@ func main() {
 	peerProvisioningService := service.NewPeerProvisioningService(peerRepo, deviceRepo, networkRepo, membershipRepo, ipamRepo)
 	deviceService := service.NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, cfg.WireGuard)
 	deviceService.SetPeerProvisioning(peerProvisioningService)
+	// Start offline detection (check every 30s, mark offline if unseen for 2m)
+	go deviceService.StartOfflineDetection(context.Background(), 30*time.Second, 2*time.Minute)
 
 	chatService := service.NewChatService(chatRepo, userRepo)
 
