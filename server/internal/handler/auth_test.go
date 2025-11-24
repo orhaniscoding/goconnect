@@ -149,15 +149,13 @@ func TestAuthHandler_Login(t *testing.T) {
 }
 
 func TestAuthHandler_Refresh(t *testing.T) {
-	t.Skip("TODO: Refresh token functionality needs to be reimplemented after auth refactoring")
-	/*
-		t.Run("Success", func(t *testing.T) {
-			r, handler, authService := setupAuthTest()
-			r.POST("/refresh", handler.Refresh)
+	t.Run("Success", func(t *testing.T) {
+		r, handler, authService := setupAuthTest()
+		r.POST("/refresh", handler.Refresh)
 
-			resp, _ := authService.Register(context.Background(), &domain.RegisterRequest{Email: "user@example.com", Password: "password123"})
+		resp, _ := authService.Register(context.Background(), &domain.RegisterRequest{Email: "user@example.com", Password: "password123"})
 
-			body := map[string]interface{}{"refresh_token": resp.RefreshToken}
+		body := map[string]interface{}{"refresh_token": resp.RefreshToken}
 			jsonBody, _ := json.Marshal(body)
 
 			req := httptest.NewRequest("POST", "/refresh", bytes.NewBuffer(jsonBody))
@@ -187,7 +185,6 @@ func TestAuthHandler_Refresh(t *testing.T) {
 			// Invalid token format causes parsing error, returns 500
 			assert.True(t, w.Code == http.StatusUnauthorized || w.Code == http.StatusInternalServerError)
 		})
-	*/
 }
 
 func TestAuthHandler_Logout(t *testing.T) {
