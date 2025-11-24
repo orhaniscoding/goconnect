@@ -3,9 +3,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](https://go.dev/)
 [![Built with Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org/)
-[![Latest Release](https://img.shields.io/badge/version-v2.5.0-blue)](https://github.com/orhaniscoding/goconnect/releases)
+[![Latest Release](https://img.shields.io/badge/version-v0.0.0-blue)](https://github.com/orhaniscoding/goconnect/releases)
 
-> **Latest Release:** v2.5.0 · 2025-11-23  
+> **Latest Release:** v0.0.0 · 2025-11-24  
 > **Author:** [@orhaniscoding](https://github.com/orhaniscoding)  
 > **License:** MIT
 
@@ -29,10 +29,6 @@
 
 ### 💬 Real-Time Communication
 - **Built-in Chat**: Network-scoped and global chat with WebSocket support
-- **Direct Messages**: Private user-to-user messaging
-- **Message Threads**: Reply to messages to create threads
-- **Rich Interactions**: Message reactions, read receipts, and typing indicators
-- **Voice/Video Signaling**: WebRTC signaling support for P2P calls and screen sharing
 - **Message Moderation**: Redact, edit, and delete messages with full audit trail
 - **Edit History Tracking**: Complete message history with timestamps
 - **File Attachments**: Share files within chat (supported formats: images, docs, zip)
@@ -44,7 +40,7 @@
 - **Health Checks**: Readiness and liveness probes for container orchestration
 - **Rate Limiting**: Per-IP token bucket rate limiting (configurable)
 - **2FA Support**: TOTP-based two-factor authentication
-- **SSO Integration**: OAuth2/OIDC support (planned)
+- **SSO Integration**: OAuth2/OIDC support (Google, GitHub, etc.)
 
 ### 🌐 Modern Tech Stack
 - **Backend**: Go 1.22+ with Gin web framework
@@ -302,7 +298,7 @@ go test ./internal/integration -v
 
 ### Code Coverage
 
-Current coverage (as of 2025-11-21):
+Current coverage (as of 2025-11-24):
 - **audit**: 79.7%
 - **config**: 87.7%
 - **handler**: 53.8%
@@ -473,4 +469,4 @@ SOFTWARE.
 
 ---
 
-**Built with ❤️ by orhaniscoding** | Latest Release: v0.0.0 (2025-11-21)
+**Built with ❤️ by orhaniscoding** | Latest Release: v0.0.0 (2025-11-24)
