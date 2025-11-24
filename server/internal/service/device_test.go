@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/orhaniscoding/goconnect/server/internal/config"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
@@ -497,4 +498,70 @@ func TestDeviceService_DisableEnable(t *testing.T) {
 		err = service.EnableDevice(ctx, device.ID, "other-user", "tenant-1", false)
 		require.Error(t, err)
 	})
+}
+
+// MockNotifier for testing
+type MockNotifier struct {
+	onlineCalls  []string
+	offlineCalls []string
+}
+
+func (m *MockNotifier) DeviceOnline(deviceID, userID string) {
+	m.onlineCalls = append(m.onlineCalls, deviceID)
+}
+
+func (m *MockNotifier) DeviceOffline(deviceID, userID string) {
+	m.offlineCalls = append(m.offlineCalls, deviceID)
+}
+
+func TestDeviceService_OfflineDetection(t *testing.T) {
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{}
+	service := NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
+
+	mockNotifier := &MockNotifier{}
+	service.SetNotifier(mockNotifier)
+
+	ctx := context.Background()
+
+	// Create user
+	user := &domain.User{ID: "u1", TenantID: "t1"}
+	require.NoError(t, userRepo.Create(ctx, user))
+
+	// Create devices
+	// D1: Online and recent
+	d1, err := service.RegisterDevice(ctx, "u1", "t1", &domain.RegisterDeviceRequest{
+		Name: "D1", Platform: "linux", PubKey: "cOvbNjH7xqkK7xKJGVz8M3bKhq8tZ6vS4r9pW3nA2aZ=",
+	})
+	require.NoError(t, err)
+	d1.Active = true
+	d1.LastSeen = time.Now()
+	deviceRepo.Update(ctx, d1)
+
+	// D2: Online but stale (should be detected)
+	d2, err := service.RegisterDevice(ctx, "u1", "t1", &domain.RegisterDeviceRequest{
+		Name: "D2", Platform: "linux", PubKey: "dOvbNjH7xqkK7xKJGVz8M3bKhq8tZ6vS4r9pW3nA2aZ=",
+	})
+	require.NoError(t, err)
+	d2.Active = true
+	d2.LastSeen = time.Now().Add(-10 * time.Minute)
+	deviceRepo.Update(ctx, d2)
+
+	// Run detection
+	service.detectOfflineDevices(ctx, 5*time.Minute)
+
+	// Verify D2 is now inactive
+	updatedD2, _ := deviceRepo.GetByID(ctx, d2.ID)
+	assert.False(t, updatedD2.Active)
+
+	// Verify D1 is still active
+	updatedD1, _ := deviceRepo.GetByID(ctx, d1.ID)
+	assert.True(t, updatedD1.Active)
+
+	// Verify notification
+	assert.Contains(t, mockNotifier.offlineCalls, d2.ID)
+	assert.NotContains(t, mockNotifier.offlineCalls, d1.ID)
 }
