@@ -20,7 +20,7 @@ export default function Settings() {
     const [code, setCode] = useState('')
     const [isEnabling, setIsEnabling] = useState(false)
     const [step, setStep] = useState<'initial' | 'scan' | 'verify' | 'disable'>('initial')
-    
+
     // Recovery Codes state
     const [recoveryCodesCount, setRecoveryCodesCount] = useState<number | null>(null)
     const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
@@ -38,7 +38,7 @@ export default function Settings() {
         const loadRecoveryCodesCount = async () => {
             const token = getAccessToken()
             if (!token || !user?.two_fa_enabled) return
-            
+
             try {
                 const data = await getRecoveryCodeCount(token)
                 setRecoveryCodesCount(data.remaining_codes)
@@ -46,7 +46,7 @@ export default function Settings() {
                 console.error('Failed to load recovery codes count:', err)
             }
         }
-        
+
         loadRecoveryCodesCount()
     }, [user?.two_fa_enabled])
 
@@ -101,7 +101,7 @@ export default function Settings() {
             notification.error(t('settings.notifications.error'), t('settings.recovery.enterCode'))
             return
         }
-        
+
         setIsGeneratingRecoveryCodes(true)
         try {
             const token = getAccessToken()
