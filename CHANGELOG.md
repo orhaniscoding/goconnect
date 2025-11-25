@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.8.3](https://github.com/orhaniscoding/goconnect/compare/v2.8.2...v2.8.3) (2025-11-25)
+
+
+### Bug Fixes
+
+* **release:** use external script files for nfpm package scripts ([589e7d9](https://github.com/orhaniscoding/goconnect/commit/589e7d95bc45144cbb768b34b0c71e51a5d80c06))
+
 ## [2.8.2](https://github.com/orhaniscoding/goconnect/compare/v2.8.1...v2.8.2) (2025-11-25)
 
 
