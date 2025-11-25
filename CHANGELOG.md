@@ -4,6 +4,10 @@
 
 ### Features
 
+## [2.8.0] - 2025-11-25
+
+### Features
+
 * **server:** add signal-aware graceful shutdown for HTTP server, background workers, and audit pipelines
 * **server:** populate DNS servers from network config in WireGuard profile JSON response
 
