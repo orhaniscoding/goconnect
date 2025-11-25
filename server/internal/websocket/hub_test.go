@@ -3,6 +3,7 @@ package websocket
 import (
 	"context"
 	"encoding/json"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -812,10 +813,10 @@ func TestHub_MultipleRoomsWithSameClient(t *testing.T) {
 }
 
 func TestHub_HandleInboundMessage(t *testing.T) {
-	callCount := 0
+	var callCount int64
 	mockHandler := &mockMessageHandler{
 		handleFunc: func(ctx context.Context, client *Client, msg *InboundMessage) error {
-			callCount++
+			atomic.AddInt64(&callCount, 1)
 			assert.Equal(t, "user1", client.userID)
 			assert.Equal(t, TypeAuthRefresh, msg.Type)
 			return nil
@@ -854,7 +855,7 @@ func TestHub_HandleInboundMessage(t *testing.T) {
 
 	time.Sleep(20 * time.Millisecond)
 
-	assert.Equal(t, 1, callCount)
+	assert.Equal(t, int64(1), atomic.LoadInt64(&callCount))
 }
 
 func TestHub_HandleInboundMessage_Error(t *testing.T) {

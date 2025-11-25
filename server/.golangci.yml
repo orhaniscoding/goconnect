@@ -21,7 +21,7 @@ issues:
         - errcheck
         - unused
         - ineffassign
-    
+
     # Exclude errcheck for deferred rollback calls - common pattern
     - text: "Error return value of `.*\\.Rollback\\(\\)` is not checked"
       linters:
@@ -44,7 +44,7 @@ issues:
     - text: "Error return value of `.*\\.(SetReadDeadline|SetWriteDeadline|WriteMessage|Write)\\("
       linters:
         - errcheck
-    
+
     # Exclude errcheck for Send calls - fire and forget pattern
     - text: "Error return value of `.*\\.Send\\("
       linters:
@@ -54,23 +54,23 @@ issues:
     - path: test_helpers\.go
       linters:
         - unused
-    
+
     # Exclude errcheck for device repo update in background goroutine
     - path: internal/service/device\.go
       text: "Error return value of `s.deviceRepo.Update`"
       linters:
         - errcheck
-    
+
     # Exclude gocritic exitAfterDefer - intentional fatal on startup failure
     - text: "exitAfterDefer"
       linters:
         - gocritic
-    
+
     # Exclude gocritic ifElseChain - stylistic choice
     - text: "ifElseChain"
       linters:
         - gocritic
-    
+
     # Exclude gocritic elseif - stylistic choice
     - text: "elseif"
       linters:
@@ -93,7 +93,7 @@ linters-settings:
       - (*database/sql.Tx).Rollback
       - (*net.Conn).SetReadDeadline
       - (*net.Conn).SetWriteDeadline
-  
+
   gocritic:
     disabled-checks:
       - exitAfterDefer
