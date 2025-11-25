@@ -1007,6 +1007,10 @@ Every AI response MUST:
 | RecoveryCodeRepository | ✅ | ✅ | ✅ | ✅ |
 | InviteTokenRepository | ✅ | ✅ | ✅ | ✅ (21 tests) |
 | IPRuleRepository | ✅ | ✅ | ✅ | ✅ (24 tests) |
+| TenantMemberRepository | ✅ | ✅ | ✅ | ✅ (30 tests) |
+| TenantInviteRepository | ✅ | ✅ | ✅ | ✅ (26 tests) |
+| TenantAnnouncementRepository | ✅ | ✅ | ✅ | ✅ (21 tests) |
+| TenantChatRepository | ✅ | ✅ | ✅ | ✅ (24 tests) |
 | DeviceRepository | ✅ | ⏳ | ✅ | ⏳ |
 | PeerRepository | ✅ | ⏳ | ✅ | ⏳ |
 | MembershipRepository | ✅ | ⏳ | ✅ | ⏳ |
@@ -1024,6 +1028,9 @@ Legend: ✅ = Complete, ⏳ = Needs implementation/tests
 | `/[locale]/dashboard` | `(protected)/dashboard/page.tsx` | Yes | Network list |
 | `/[locale]/networks/[id]` | `(protected)/networks/[id]/page.tsx` | Yes | Network details |
 | `/[locale]/settings` | `(protected)/settings/page.tsx` | Yes | User settings (2FA, Recovery) |
+| `/[locale]/tenants` | `(protected)/tenants/page.tsx` | Yes | Tenant discovery |
+| `/[locale]/tenants/[id]` | `(protected)/tenants/[id]/page.tsx` | Yes | Tenant details |
+| `/[locale]/tenants/[id]/chat` | `(protected)/tenants/[id]/chat/page.tsx` | Yes | Tenant chat |
 
 ---
 
@@ -1052,10 +1059,15 @@ Legend: ✅ = Complete, ⏳ = Needs implementation/tests
 |---------|-------|----------|
 | `repository/invite_token_test.go` | 21 | High |
 | `repository/ip_rule_test.go` | 24 | High |
+| `repository/tenant_member_test.go` | 30 | High |
+| `repository/tenant_invite_test.go` | 26 | High |
+| `repository/tenant_announcement_test.go` | 21 | High |
+| `repository/tenant_chat_test.go` | 24 | High |
 | `service/ip_rule_test.go` | 22 | High |
+| `service/tenant_membership_test.go` | 30 | High |
 | `service/auth_test.go` | ~15 | Medium |
 | `service/recovery_test.go` | ~10 | Medium |
 
 ---
 
-**Last Updated:** 2025-01-XX | **Version:** v2.8.8+ (pending v2.9.0)
+**Last Updated:** 2025-11-25 | **Version:** v2.9.0+

@@ -51,32 +51,32 @@
 
 ### Inbound Messages (Client -> Server)
 
-| Type                      | Description                    | Data Payload                                                                           |
-| ------------------------- | ------------------------------ | -------------------------------------------------------------------------------------- |
-| `tenant.chat.send`        | Send message to tenant chat    | `{ "tenant_id": "...", "content": "..." }`                                             |
-| `tenant.chat.edit`        | Edit tenant chat message       | `{ "tenant_id": "...", "message_id": "...", "content": "..." }`                        |
-| `tenant.chat.delete`      | Delete tenant chat message     | `{ "tenant_id": "...", "message_id": "..." }`                                          |
-| `tenant.chat.typing`      | Typing indicator in tenant     | `{ "tenant_id": "...", "typing": true \| false }`                                      |
-| `tenant.join`             | Join tenant room for updates   | `{ "tenant_id": "..." }`                                                               |
-| `tenant.leave`            | Leave tenant room              | `{ "tenant_id": "..." }`                                                               |
+| Type                 | Description                  | Data Payload                                                    |
+| -------------------- | ---------------------------- | --------------------------------------------------------------- |
+| `tenant.chat.send`   | Send message to tenant chat  | `{ "tenant_id": "...", "content": "..." }`                      |
+| `tenant.chat.edit`   | Edit tenant chat message     | `{ "tenant_id": "...", "message_id": "...", "content": "..." }` |
+| `tenant.chat.delete` | Delete tenant chat message   | `{ "tenant_id": "...", "message_id": "..." }`                   |
+| `tenant.chat.typing` | Typing indicator in tenant   | `{ "tenant_id": "...", "typing": true \| false }`               |
+| `tenant.join`        | Join tenant room for updates | `{ "tenant_id": "..." }`                                        |
+| `tenant.leave`       | Leave tenant room            | `{ "tenant_id": "..." }`                                        |
 
 ### Outbound Messages (Server -> Client)
 
-| Type                       | Description                    | Data Payload                                                                          |
-| -------------------------- | ------------------------------ | ------------------------------------------------------------------------------------- |
-| `tenant.chat.message`      | New tenant chat message        | `TenantChatMessage` object                                                            |
-| `tenant.chat.edited`       | Tenant chat message edited     | `TenantChatMessage` object                                                            |
-| `tenant.chat.deleted`      | Tenant chat message deleted    | `{ "tenant_id": "...", "message_id": "...", "deleted_at": "..." }`                    |
-| `tenant.chat.typing.user`  | User typing in tenant chat     | `{ "tenant_id": "...", "user_id": "...", "typing": true \| false }`                   |
-| `tenant.announcement`      | New/updated announcement       | `TenantAnnouncement` object                                                           |
-| `tenant.announcement.deleted` | Announcement deleted        | `{ "tenant_id": "...", "announcement_id": "..." }`                                    |
-| `tenant.member.joined`     | User joined tenant             | `{ "tenant_id": "...", "user_id": "...", "role": "member" }`                          |
-| `tenant.member.left`       | User left tenant               | `{ "tenant_id": "...", "user_id": "..." }`                                            |
-| `tenant.member.kicked`     | User was kicked                | `{ "tenant_id": "...", "user_id": "...", "kicked_by": "...", "reason": "..." }`       |
-| `tenant.member.banned`     | User was banned                | `{ "tenant_id": "...", "user_id": "...", "banned_by": "...", "reason": "..." }`       |
-| `tenant.member.role_changed` | Member role updated          | `{ "tenant_id": "...", "user_id": "...", "old_role": "...", "new_role": "..." }`      |
-| `tenant.owner.transferred` | Ownership transferred          | `{ "tenant_id": "...", "old_owner": "...", "new_owner": "..." }`                      |
-| `tenant.settings.updated`  | Tenant settings changed        | `{ "tenant_id": "...", "changes": {...} }`                                            |
+| Type                          | Description                 | Data Payload                                                                     |
+| ----------------------------- | --------------------------- | -------------------------------------------------------------------------------- |
+| `tenant.chat.message`         | New tenant chat message     | `TenantChatMessage` object                                                       |
+| `tenant.chat.edited`          | Tenant chat message edited  | `TenantChatMessage` object                                                       |
+| `tenant.chat.deleted`         | Tenant chat message deleted | `{ "tenant_id": "...", "message_id": "...", "deleted_at": "..." }`               |
+| `tenant.chat.typing.user`     | User typing in tenant chat  | `{ "tenant_id": "...", "user_id": "...", "typing": true \| false }`              |
+| `tenant.announcement`         | New/updated announcement    | `TenantAnnouncement` object                                                      |
+| `tenant.announcement.deleted` | Announcement deleted        | `{ "tenant_id": "...", "announcement_id": "..." }`                               |
+| `tenant.member.joined`        | User joined tenant          | `{ "tenant_id": "...", "user_id": "...", "role": "member" }`                     |
+| `tenant.member.left`          | User left tenant            | `{ "tenant_id": "...", "user_id": "..." }`                                       |
+| `tenant.member.kicked`        | User was kicked             | `{ "tenant_id": "...", "user_id": "...", "kicked_by": "...", "reason": "..." }`  |
+| `tenant.member.banned`        | User was banned             | `{ "tenant_id": "...", "user_id": "...", "banned_by": "...", "reason": "..." }`  |
+| `tenant.member.role_changed`  | Member role updated         | `{ "tenant_id": "...", "user_id": "...", "old_role": "...", "new_role": "..." }` |
+| `tenant.owner.transferred`    | Ownership transferred       | `{ "tenant_id": "...", "old_owner": "...", "new_owner": "..." }`                 |
+| `tenant.settings.updated`     | Tenant settings changed     | `{ "tenant_id": "...", "changes": {...} }`                                       |
 
 ---
 
@@ -155,10 +155,10 @@ ws.onmessage = (event) => {
 
 ## Tenant Role Permissions
 
-| Role       | Level | Can Kick | Can Ban | Can Manage Roles | Can Delete Messages | Can Create Announcements |
-| ---------- | ----- | -------- | ------- | ---------------- | ------------------- | ------------------------ |
-| `owner`    | 5     | ✅       | ✅      | ✅ (all)         | ✅                  | ✅                       |
-| `admin`    | 4     | ✅       | ✅      | ✅ (below admin) | ✅                  | ✅                       |
-| `moderator`| 3     | ✅       | ❌      | ❌               | ✅                  | ✅                       |
-| `vip`      | 2     | ❌       | ❌      | ❌               | ❌ (own only)       | ❌                       |
-| `member`   | 1     | ❌       | ❌      | ❌               | ❌ (own only)       | ❌                       |
+| Role        | Level | Can Kick | Can Ban | Can Manage Roles | Can Delete Messages | Can Create Announcements |
+| ----------- | ----- | -------- | ------- | ---------------- | ------------------- | ------------------------ |
+| `owner`     | 5     | ✅        | ✅       | ✅ (all)          | ✅                   | ✅                        |
+| `admin`     | 4     | ✅        | ✅       | ✅ (below admin)  | ✅                   | ✅                        |
+| `moderator` | 3     | ✅        | ❌       | ❌                | ✅                   | ✅                        |
+| `vip`       | 2     | ❌        | ❌       | ❌                | ❌ (own only)        | ❌                        |
+| `member`    | 1     | ❌        | ❌       | ❌                | ❌ (own only)        | ❌                        |
