@@ -55,6 +55,9 @@ builds:
     goarch:
       - amd64
       - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64 # Match server build for archive consistency
 
 # =============================================================================
 # ARCHIVES - Portable versions with installers
