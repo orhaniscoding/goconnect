@@ -62,12 +62,14 @@ builds:
 archives:
   # Server Archive (portable)
   - id: server-archive
-    builds:
+    ids:
       - server
-    format: tar.gz
+    formats:
+      - tar.gz
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
     name_template: "goconnect-server_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - README.md
@@ -77,12 +79,14 @@ archives:
 
   # Daemon Archive with install scripts (portable + easy install)
   - id: daemon-archive
-    builds:
+    ids:
       - daemon
-    format: tar.gz
+    formats:
+      - tar.gz
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
     name_template: "goconnect-daemon_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - README.md
@@ -99,13 +103,15 @@ archives:
 
   # Full Bundle (Server + Daemon)
   - id: full-bundle
-    builds:
+    ids:
       - server
       - daemon
-    format: tar.gz
+    formats:
+      - tar.gz
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
     name_template: "goconnect-bundle_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - README.md
@@ -129,7 +135,7 @@ nfpms:
   # Server Package
   - id: server-pkg
     package_name: goconnect-server
-    builds:
+    ids:
       - server
     vendor: orhaniscoding
     homepage: https://github.com/orhaniscoding/goconnect
@@ -159,7 +165,7 @@ nfpms:
   # Daemon Package
   - id: daemon-pkg
     package_name: goconnect-daemon
-    builds:
+    ids:
       - daemon
     vendor: orhaniscoding
     homepage: https://github.com/orhaniscoding/goconnect
