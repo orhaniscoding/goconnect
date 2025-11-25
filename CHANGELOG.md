@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.8.6](https://github.com/orhaniscoding/goconnect/compare/v2.8.5...v2.8.6) (2025-11-25)
+
+
+### Bug Fixes
+
+* data race in TestHub_HandleInboundMessage ([e1b61e6](https://github.com/orhaniscoding/goconnect/commit/e1b61e68ace45b618134cf892f9caf90eac85742))
+* golangci-lint errors and code formatting ([a422112](https://github.com/orhaniscoding/goconnect/commit/a422112848de0090e6feb0057edefde93c83ec32))
+* TypeScript errors in i18n and API calls, upgrade golangci-lint to v1.64.8 ([cdf3362](https://github.com/orhaniscoding/goconnect/commit/cdf3362f500fc576bb4f796d4f73ebd297b4468f))
+
 ## [2.8.5](https://github.com/orhaniscoding/goconnect/compare/v2.8.4...v2.8.5) (2025-11-25)
 
 
