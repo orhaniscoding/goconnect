@@ -108,6 +108,50 @@ export async function disable2FA(accessToken: string, code: string): Promise<voi
 }
 
 /**
+ * Generate recovery codes (requires 2FA to be enabled)
+ * @param accessToken - JWT access token
+ * @param code - Current TOTP code to verify
+ * @returns Array of 8 one-time recovery codes
+ */
+export async function generateRecoveryCodes(accessToken: string, code: string): Promise<{ codes: string[] }> {
+  const res = await api('/v1/auth/2fa/recovery-codes', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ code }),
+  })
+  return res.data
+}
+
+/**
+ * Get remaining recovery code count
+ * @param accessToken - JWT access token
+ */
+export async function getRecoveryCodeCount(accessToken: string): Promise<{ remaining_codes: number }> {
+  const res = await api('/v1/auth/2fa/recovery-codes/count', {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+  return res.data
+}
+
+/**
+ * Login using a recovery code (when 2FA device is lost)
+ * @param email - User email
+ * @param password - User password
+ * @param recoveryCode - One-time recovery code (format: XXXXX-XXXXX)
+ */
+export async function loginWithRecoveryCode(email: string, password: string, recoveryCode: string): Promise<AuthResponse> {
+  return api('/v1/auth/2fa/recovery', {
+    method: 'POST',
+    body: JSON.stringify({ email, password, recovery_code: recoveryCode }),
+  })
+}
+
+/**
  * Change user password
  * @param accessToken - JWT access token
  * @param oldPassword - Current password

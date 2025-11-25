@@ -4,19 +4,20 @@ import "time"
 
 // User represents a user in the system
 type User struct {
-	ID           string    `json:"id"`
-	TenantID     string    `json:"tenant_id"`
-	Email        string    `json:"email"`
-	PasswordHash string    `json:"-"`            // Never expose in JSON
-	Locale       string    `json:"locale"`       // "tr" or "en"
-	IsAdmin      bool      `json:"is_admin"`     // Global admin flag
-	IsModerator  bool      `json:"is_moderator"` // Can moderate chat/content
-	TwoFAKey     string    `json:"-"`            // TOTP secret (future)
-	TwoFAEnabled bool      `json:"two_fa_enabled"`
-	AuthProvider string    `json:"auth_provider"` // "local", "google", "github", "oidc"
-	ExternalID   string    `json:"external_id"`   // ID from the provider
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID            string    `json:"id"`
+	TenantID      string    `json:"tenant_id"`
+	Email         string    `json:"email"`
+	PasswordHash  string    `json:"-"`            // Never expose in JSON
+	Locale        string    `json:"locale"`       // "tr" or "en"
+	IsAdmin       bool      `json:"is_admin"`     // Global admin flag
+	IsModerator   bool      `json:"is_moderator"` // Can moderate chat/content
+	TwoFAKey      string    `json:"-"`            // TOTP secret
+	TwoFAEnabled  bool      `json:"two_fa_enabled"`
+	RecoveryCodes []string  `json:"-"`             // Hashed recovery codes (8 codes, one-time use)
+	AuthProvider  string    `json:"auth_provider"` // "local", "google", "github", "oidc"
+	ExternalID    string    `json:"external_id"`   // ID from the provider
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 // Tenant represents a tenant (organization) in the system
@@ -91,4 +92,21 @@ type Enable2FARequest struct {
 // Disable2FARequest is the request body for disabling 2FA
 type Disable2FARequest struct {
 	Code string `json:"code" binding:"required,len=6"`
+}
+
+// RecoveryCodeResponse is the response when generating recovery codes
+type RecoveryCodeResponse struct {
+	Codes []string `json:"codes"` // 8 plaintext codes shown once to user
+}
+
+// UseRecoveryCodeRequest is the request body for using a recovery code to login
+type UseRecoveryCodeRequest struct {
+	Email        string `json:"email" binding:"required,email"`
+	Password     string `json:"password" binding:"required"`
+	RecoveryCode string `json:"recovery_code" binding:"required,len=10"`
+}
+
+// RegenerateRecoveryCodesRequest is the request body for regenerating recovery codes
+type RegenerateRecoveryCodesRequest struct {
+	Code string `json:"code" binding:"required,len=6"` // Current TOTP code to verify
 }

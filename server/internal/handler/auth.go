@@ -205,6 +205,87 @@ func (h *AuthHandler) Disable2FA(c *gin.Context) {
 	})
 }
 
+// GenerateRecoveryCodes handles POST /v1/auth/2fa/recovery-codes
+func (h *AuthHandler) GenerateRecoveryCodes(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		errorResponse(c, domain.NewError(domain.ErrUnauthorized, "Unauthorized", nil))
+		return
+	}
+
+	var req domain.RegenerateRecoveryCodesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Invalid request: TOTP code required", nil))
+		return
+	}
+
+	codes, err := h.authService.GenerateRecoveryCodes(c.Request.Context(), userID, req.Code)
+	if err != nil {
+		if domainErr, ok := err.(*domain.Error); ok {
+			errorResponse(c, domainErr)
+		} else {
+			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to generate recovery codes", nil))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": domain.RecoveryCodeResponse{
+			Codes: codes,
+		},
+		"message": "Recovery codes generated. Store these safely - they will only be shown once!",
+	})
+}
+
+// UseRecoveryCode handles POST /v1/auth/2fa/recovery
+func (h *AuthHandler) UseRecoveryCode(c *gin.Context) {
+	var req domain.UseRecoveryCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Invalid request body: "+err.Error(), nil))
+		return
+	}
+
+	authResp, err := h.authService.UseRecoveryCode(c.Request.Context(), &req)
+	if err != nil {
+		if domainErr, ok := err.(*domain.Error); ok {
+			errorResponse(c, domainErr)
+		} else {
+			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":    authResp,
+		"message": "Login successful. Consider generating new recovery codes.",
+	})
+}
+
+// GetRecoveryCodeCount handles GET /v1/auth/2fa/recovery-codes/count
+func (h *AuthHandler) GetRecoveryCodeCount(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		errorResponse(c, domain.NewError(domain.ErrUnauthorized, "Unauthorized", nil))
+		return
+	}
+
+	count, err := h.authService.GetRecoveryCodeCount(c.Request.Context(), userID)
+	if err != nil {
+		if domainErr, ok := err.(*domain.Error); ok {
+			errorResponse(c, domainErr)
+		} else {
+			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to get recovery code count", nil))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": gin.H{
+			"remaining_codes": count,
+		},
+	})
+}
+
 // ChangePassword handles POST /v1/auth/password
 func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	userID := c.GetString("user_id")
@@ -321,8 +402,11 @@ func RegisterAuthRoutes(r *gin.Engine, handler *AuthHandler, authMiddleware gin.
 		auth.POST("/register", handler.Register)
 		auth.POST("/login", handler.Login)
 		auth.POST("/refresh", handler.Refresh)
+		auth.POST("/logout", handler.Logout)
 		auth.GET("/oidc/login", handler.LoginOIDC)
 		auth.GET("/oidc/callback", handler.CallbackOIDC)
+		// Recovery code login (no auth required)
+		auth.POST("/2fa/recovery", handler.UseRecoveryCode)
 	}
 
 	authProtected := v1.Group("/auth")
@@ -333,6 +417,8 @@ func RegisterAuthRoutes(r *gin.Engine, handler *AuthHandler, authMiddleware gin.
 		authProtected.POST("/2fa/generate", handler.Generate2FA)
 		authProtected.POST("/2fa/enable", handler.Enable2FA)
 		authProtected.POST("/2fa/disable", handler.Disable2FA)
-		authProtected.GET("/me", handler.Me)
+		// Recovery codes (auth required)
+		authProtected.POST("/2fa/recovery-codes", handler.GenerateRecoveryCodes)
+		authProtected.GET("/2fa/recovery-codes/count", handler.GetRecoveryCodeCount)
 	}
 }

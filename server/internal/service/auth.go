@@ -298,6 +298,155 @@ func (s *AuthService) Enable2FA(ctx context.Context, userID, secret, code string
 	return s.userRepo.Update(ctx, user)
 }
 
+// GenerateRecoveryCodes generates 8 one-time recovery codes for the user
+// Returns the plaintext codes (to show once to the user) and stores hashed versions
+func (s *AuthService) GenerateRecoveryCodes(ctx context.Context, userID, code string) ([]string, error) {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Verify 2FA is enabled
+	if !user.TwoFAEnabled {
+		return nil, domain.NewError(domain.ErrInvalidRequest, "2FA must be enabled first", nil)
+	}
+
+	// Verify current TOTP code
+	if !totp.Validate(code, user.TwoFAKey) {
+		return nil, domain.NewError(domain.ErrInvalidCredentials, "Invalid 2FA code", nil)
+	}
+
+	// Generate 8 recovery codes (format: XXXXX-XXXXX, 10 chars total)
+	const codeCount = 8
+	plaintextCodes := make([]string, codeCount)
+	hashedCodes := make([]string, codeCount)
+
+	for i := 0; i < codeCount; i++ {
+		code := generateRecoveryCode()
+		plaintextCodes[i] = code
+		hashed, err := s.HashPassword(code)
+		if err != nil {
+			return nil, fmt.Errorf("failed to hash recovery code: %w", err)
+		}
+		hashedCodes[i] = hashed
+	}
+
+	user.RecoveryCodes = hashedCodes
+	user.UpdatedAt = time.Now().UTC()
+
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return nil, err
+	}
+
+	return plaintextCodes, nil
+}
+
+// generateRecoveryCode generates a random recovery code in format XXXXX-XXXXX
+func generateRecoveryCode() string {
+	const charset = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" // No O, 0, I, 1 for clarity
+	code := make([]byte, 10)
+	b := make([]byte, 10)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	for i := range code {
+		code[i] = charset[b[i]%byte(len(charset))]
+	}
+	// Insert dash: XXXXX-XXXXX
+	return string(code[:5]) + "-" + string(code[5:])
+}
+
+// UseRecoveryCode validates and uses a recovery code for login (one-time use)
+func (s *AuthService) UseRecoveryCode(ctx context.Context, req *domain.UseRecoveryCodeRequest) (*domain.AuthResponse, error) {
+	// Get user by email
+	user, err := s.userRepo.GetByEmail(ctx, req.Email)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrInvalidCredentials, "Invalid email or password", nil)
+	}
+
+	// Verify password
+	valid, err := s.VerifyPassword(req.Password, user.PasswordHash)
+	if err != nil || !valid {
+		return nil, domain.NewError(domain.ErrInvalidCredentials, "Invalid email or password", nil)
+	}
+
+	// Verify 2FA is enabled and recovery codes exist
+	if !user.TwoFAEnabled {
+		return nil, domain.NewError(domain.ErrInvalidRequest, "2FA is not enabled", nil)
+	}
+	if len(user.RecoveryCodes) == 0 {
+		return nil, domain.NewError(domain.ErrInvalidRequest, "No recovery codes available", nil)
+	}
+
+	// Normalize recovery code (remove dashes, uppercase)
+	normalizedCode := normalizeRecoveryCode(req.RecoveryCode)
+
+	// Check against all hashed recovery codes
+	matchedIndex := -1
+	for i, hashedCode := range user.RecoveryCodes {
+		valid, _ := s.VerifyPassword(normalizedCode, hashedCode)
+		if valid {
+			matchedIndex = i
+			break
+		}
+	}
+
+	if matchedIndex == -1 {
+		return nil, domain.NewError(domain.ErrInvalidCredentials, "Invalid recovery code", nil)
+	}
+
+	// Remove used code (one-time use)
+	user.RecoveryCodes = append(user.RecoveryCodes[:matchedIndex], user.RecoveryCodes[matchedIndex+1:]...)
+	user.UpdatedAt = time.Now().UTC()
+
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return nil, err
+	}
+
+	// Generate JWT tokens
+	accessToken, err := s.generateJWT(user.ID, user.TenantID, user.Email, user.IsAdmin, user.IsModerator, "access", 15*time.Minute)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrInternalServer, "Failed to generate access token", nil)
+	}
+
+	refreshToken, err := s.generateJWT(user.ID, user.TenantID, user.Email, user.IsAdmin, user.IsModerator, "refresh", 7*24*time.Hour)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrInternalServer, "Failed to generate refresh token", nil)
+	}
+
+	return &domain.AuthResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ExpiresIn:    900,
+		TokenType:    "Bearer",
+		User:         user,
+	}, nil
+}
+
+// normalizeRecoveryCode normalizes a recovery code for comparison
+func normalizeRecoveryCode(code string) string {
+	// Remove dashes and spaces, uppercase
+	var result []byte
+	for _, c := range []byte(code) {
+		if c >= 'a' && c <= 'z' {
+			result = append(result, c-32) // to uppercase
+		} else if (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') {
+			result = append(result, c)
+		}
+		// Skip dashes, spaces, other chars
+	}
+	return string(result)
+}
+
+// GetRecoveryCodeCount returns the number of remaining recovery codes for a user
+func (s *AuthService) GetRecoveryCodeCount(ctx context.Context, userID string) (int, error) {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+	return len(user.RecoveryCodes), nil
+}
+
 // Disable2FA verifies the code and disables 2FA for the user
 func (s *AuthService) Disable2FA(ctx context.Context, userID, code string) error {
 	user, err := s.userRepo.GetByID(ctx, userID)

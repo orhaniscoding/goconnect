@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/lib/pq"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 )
 
@@ -22,8 +24,9 @@ func NewPostgresUserRepository(db *sql.DB) *PostgresUserRepository {
 
 func (r *PostgresUserRepository) Create(ctx context.Context, user *domain.User) error {
 	query := `
-		INSERT INTO users (id, tenant_id, email, password_hash, locale, is_admin, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO users (id, tenant_id, email, password_hash, locale, is_admin, is_moderator, 
+			two_fa_key, two_fa_enabled, recovery_codes, auth_provider, external_id, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 	`
 	_, err := r.db.ExecContext(ctx, query,
 		user.ID,
@@ -32,10 +35,19 @@ func (r *PostgresUserRepository) Create(ctx context.Context, user *domain.User) 
 		user.PasswordHash,
 		user.Locale,
 		user.IsAdmin,
+		user.IsModerator,
+		sql.NullString{String: user.TwoFAKey, Valid: user.TwoFAKey != ""},
+		user.TwoFAEnabled,
+		pq.Array(user.RecoveryCodes),
+		sql.NullString{String: user.AuthProvider, Valid: user.AuthProvider != ""},
+		sql.NullString{String: user.ExternalID, Valid: user.ExternalID != ""},
 		user.CreatedAt,
 		user.UpdatedAt,
 	)
 	if err != nil {
+		if strings.Contains(err.Error(), "unique") || strings.Contains(err.Error(), "duplicate") {
+			return domain.NewError(domain.ErrEmailAlreadyExists, "Email already registered", map[string]string{"email": user.Email})
+		}
 		return fmt.Errorf("failed to create user: %w", err)
 	}
 	return nil
@@ -43,11 +55,13 @@ func (r *PostgresUserRepository) Create(ctx context.Context, user *domain.User) 
 
 func (r *PostgresUserRepository) GetByID(ctx context.Context, id string) (*domain.User, error) {
 	query := `
-		SELECT id, tenant_id, email, password_hash, locale, is_admin, created_at, updated_at
+		SELECT id, tenant_id, email, password_hash, locale, is_admin, is_moderator,
+			two_fa_key, two_fa_enabled, recovery_codes, auth_provider, external_id, created_at, updated_at
 		FROM users
 		WHERE id = $1
 	`
 	user := &domain.User{}
+	var twoFAKey, authProvider, externalID sql.NullString
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&user.ID,
 		&user.TenantID,
@@ -55,27 +69,38 @@ func (r *PostgresUserRepository) GetByID(ctx context.Context, id string) (*domai
 		&user.PasswordHash,
 		&user.Locale,
 		&user.IsAdmin,
+		&user.IsModerator,
+		&twoFAKey,
+		&user.TwoFAEnabled,
+		pq.Array(&user.RecoveryCodes),
+		&authProvider,
+		&externalID,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("%s: user not found", domain.ErrNotFound)
+		return nil, domain.NewError(domain.ErrUserNotFound, "User not found", map[string]string{"user_id": id})
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user by ID: %w", err)
 	}
+	user.TwoFAKey = twoFAKey.String
+	user.AuthProvider = authProvider.String
+	user.ExternalID = externalID.String
 	return user, nil
 }
 
 func (r *PostgresUserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	query := `
-		SELECT id, tenant_id, email, password_hash, locale, is_admin, created_at, updated_at
+		SELECT id, tenant_id, email, password_hash, locale, is_admin, is_moderator,
+			two_fa_key, two_fa_enabled, recovery_codes, auth_provider, external_id, created_at, updated_at
 		FROM users
 		WHERE email = $1
 		ORDER BY created_at DESC
 		LIMIT 1
 	`
 	user := &domain.User{}
+	var twoFAKey, authProvider, externalID sql.NullString
 	err := r.db.QueryRowContext(ctx, query, email).Scan(
 		&user.ID,
 		&user.TenantID,
@@ -83,6 +108,12 @@ func (r *PostgresUserRepository) GetByEmail(ctx context.Context, email string) (
 		&user.PasswordHash,
 		&user.Locale,
 		&user.IsAdmin,
+		&user.IsModerator,
+		&twoFAKey,
+		&user.TwoFAEnabled,
+		pq.Array(&user.RecoveryCodes),
+		&authProvider,
+		&externalID,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -92,14 +123,19 @@ func (r *PostgresUserRepository) GetByEmail(ctx context.Context, email string) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user by email: %w", err)
 	}
+	user.TwoFAKey = twoFAKey.String
+	user.AuthProvider = authProvider.String
+	user.ExternalID = externalID.String
 	return user, nil
 }
 
 func (r *PostgresUserRepository) Update(ctx context.Context, user *domain.User) error {
 	query := `
 		UPDATE users
-		SET email = $1, password_hash = $2, locale = $3, is_admin = $4, updated_at = $5
-		WHERE id = $6
+		SET email = $1, password_hash = $2, locale = $3, is_admin = $4, is_moderator = $5,
+			two_fa_key = $6, two_fa_enabled = $7, recovery_codes = $8, 
+			auth_provider = $9, external_id = $10, updated_at = $11
+		WHERE id = $12
 	`
 	user.UpdatedAt = time.Now()
 	result, err := r.db.ExecContext(ctx, query,
@@ -107,6 +143,12 @@ func (r *PostgresUserRepository) Update(ctx context.Context, user *domain.User) 
 		user.PasswordHash,
 		user.Locale,
 		user.IsAdmin,
+		user.IsModerator,
+		sql.NullString{String: user.TwoFAKey, Valid: user.TwoFAKey != ""},
+		user.TwoFAEnabled,
+		pq.Array(user.RecoveryCodes),
+		sql.NullString{String: user.AuthProvider, Valid: user.AuthProvider != ""},
+		sql.NullString{String: user.ExternalID, Valid: user.ExternalID != ""},
 		user.UpdatedAt,
 		user.ID,
 	)
@@ -119,7 +161,7 @@ func (r *PostgresUserRepository) Update(ctx context.Context, user *domain.User) 
 		return fmt.Errorf("failed to get rows affected: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("%s: user not found", domain.ErrNotFound)
+		return domain.NewError(domain.ErrUserNotFound, "User not found", map[string]string{"user_id": user.ID})
 	}
 	return nil
 }
