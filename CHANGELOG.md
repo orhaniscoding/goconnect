@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.11.0](https://github.com/orhaniscoding/goconnect/compare/v2.10.0...v2.11.0) (2025-11-25)
+
+
+### Features
+
+* implement real-time WebSocket tenant chat with typing indicators ([3b01f76](https://github.com/orhaniscoding/goconnect/commit/3b01f763dbc9a407acd62b173442a54aef9932fa))
+
 ## [2.10.0](https://github.com/orhaniscoding/goconnect/compare/v2.9.1...v2.10.0) (2025-11-25)
 
 
