@@ -98,6 +98,11 @@ func main() {
 	var userRepo repository.UserRepository
 	var tenantRepo repository.TenantRepository
 	var deviceRepo repository.DeviceRepository
+	// Tenant multi-membership repositories
+	var tenantMemberRepo repository.TenantMemberRepository
+	var tenantInviteRepo repository.TenantInviteRepository
+	var tenantAnnouncementRepo repository.TenantAnnouncementRepository
+	var tenantChatRepo repository.TenantChatRepository
 	var peerRepo repository.PeerRepository
 	var chatRepo repository.ChatRepository
 	var inviteRepo repository.InviteTokenRepository
@@ -115,6 +120,11 @@ func main() {
 		peerRepo = repository.NewPostgresPeerRepository(db)
 		chatRepo = repository.NewPostgresChatRepository(db)
 		inviteRepo = repository.NewInMemoryInviteTokenRepository() // TODO: Postgres implementation
+		// Tenant multi-membership repositories (PostgreSQL)
+		tenantMemberRepo = repository.NewPostgresTenantMemberRepository(db)
+		tenantInviteRepo = repository.NewPostgresTenantInviteRepository(db)
+		tenantAnnouncementRepo = repository.NewPostgresTenantAnnouncementRepository(db)
+		tenantChatRepo = repository.NewPostgresTenantChatRepository(db)
 		fmt.Println("Using PostgreSQL repositories")
 	} else {
 		// In-memory repositories (fallback)
@@ -129,6 +139,11 @@ func main() {
 		peerRepo = repository.NewInMemoryPeerRepository()
 		chatRepo = repository.NewInMemoryChatRepository()
 		inviteRepo = repository.NewInMemoryInviteTokenRepository()
+		// Tenant multi-membership repositories (In-Memory)
+		tenantMemberRepo = repository.NewInMemoryTenantMemberRepository()
+		tenantInviteRepo = repository.NewInMemoryTenantInviteRepository()
+		tenantAnnouncementRepo = repository.NewInMemoryTenantAnnouncementRepository()
+		tenantChatRepo = repository.NewInMemoryTenantChatRepository()
 		fmt.Println("Using in-memory repositories (no data persistence)")
 	}
 
@@ -150,6 +165,16 @@ func main() {
 	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idempotencyRepo)
 	ipamService := service.NewIPAMService(networkRepo, membershipRepo, ipamRepo)
 	authService := service.NewAuthService(userRepo, tenantRepo, redisClient)
+
+	// Initialize Tenant Membership Service (multi-tenant system)
+	tenantMembershipService := service.NewTenantMembershipService(
+		tenantMemberRepo,
+		tenantInviteRepo,
+		tenantAnnouncementRepo,
+		tenantChatRepo,
+		tenantRepo,
+		userRepo,
+	)
 
 	peerProvisioningService := service.NewPeerProvisioningService(peerRepo, deviceRepo, networkRepo, membershipRepo, ipamRepo)
 	deviceService := service.NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, cfg.WireGuard)
@@ -311,6 +336,7 @@ func main() {
 	gdprHandler := handler.NewGDPRHandler(gdprService, aud)
 	inviteHandler := handler.NewInviteHandler(inviteService)
 	ipRuleHandler := handler.NewIPRuleHandler(ipRuleService)
+	tenantHandler := handler.NewTenantHandler(tenantMembershipService)
 
 	// Initialize WebSocket components
 	// Circular dependency resolution: Handler -> Hub -> Handler
@@ -366,6 +392,44 @@ func main() {
 
 	// Register network routes (auth + role middleware applied within)
 	handler.RegisterNetworkRoutes(r, networkHandler, authService, membershipRepo)
+
+	// Register tenant routes (multi-tenant membership system)
+	tenantGroup := r.Group("/v1/tenants")
+	tenantGroup.Use(handler.AuthMiddleware(authService))
+	{
+		// Tenant CRUD
+		tenantGroup.POST("", tenantHandler.CreateTenant)
+		tenantGroup.GET("/:tenantId", tenantHandler.GetTenant)
+
+		// Membership operations
+		tenantGroup.POST("/:tenantId/join", tenantHandler.JoinTenant)
+		tenantGroup.DELETE("/:tenantId/leave", tenantHandler.LeaveTenant)
+		tenantGroup.GET("/:tenantId/members", tenantHandler.GetTenantMembers)
+		tenantGroup.PATCH("/:tenantId/members/:memberId", tenantHandler.UpdateMemberRole)
+		tenantGroup.DELETE("/:tenantId/members/:memberId", tenantHandler.RemoveMember)
+
+		// Invites
+		tenantGroup.POST("/:tenantId/invites", tenantHandler.CreateInvite)
+		tenantGroup.GET("/:tenantId/invites", tenantHandler.ListInvites)
+		tenantGroup.DELETE("/:tenantId/invites/:inviteId", tenantHandler.RevokeInvite)
+
+		// Announcements
+		tenantGroup.POST("/:tenantId/announcements", tenantHandler.CreateAnnouncement)
+		tenantGroup.GET("/:tenantId/announcements", tenantHandler.ListAnnouncements)
+		tenantGroup.PATCH("/:tenantId/announcements/:announcementId", tenantHandler.UpdateAnnouncement)
+		tenantGroup.DELETE("/:tenantId/announcements/:announcementId", tenantHandler.DeleteAnnouncement)
+
+		// Tenant chat
+		tenantGroup.POST("/:tenantId/chat/messages", tenantHandler.SendChatMessage)
+		tenantGroup.GET("/:tenantId/chat/messages", tenantHandler.GetChatHistory)
+		tenantGroup.DELETE("/:tenantId/chat/messages/:messageId", tenantHandler.DeleteChatMessage)
+	}
+
+	// Join by invite code (doesn't require knowing tenant ID)
+	r.POST("/v1/tenants/join-by-code", handler.AuthMiddleware(authService), tenantHandler.JoinByCode)
+
+	// User's tenant memberships
+	r.GET("/v1/users/me/tenants", handler.AuthMiddleware(authService), tenantHandler.GetUserTenants)
 
 	// Register device routes
 	handler.RegisterDeviceRoutes(r, deviceHandler, handler.AuthMiddleware(authService))
