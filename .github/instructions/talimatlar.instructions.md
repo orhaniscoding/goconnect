@@ -15,6 +15,456 @@ GoConnect is a **WireGuard-based VPN management system** with:
 
 ---
 
+# 🎯 SYSTEM ARCHITECTURE OVERVIEW
+
+## Core Concepts (Hiyerarşi):
+
+```
+TENANT (Server/Organization)
+├── Visibility: public / private
+├── Access: open / password / invite_only
+├── Settings: network_creation rules, default_network, etc.
+├── Announcements (Admin only yazabilir)
+├── General Chat (Tüm üyeler)
+├── Members (owner > admin > moderator > vip > member)
+│
+└── NETWORKS (VPN Ağları)
+    ├── Visibility: public / private
+    ├── JoinPolicy: open / invite / approval
+    ├── RequiredRole: member / vip / admin / owner
+    ├── Network Chat
+    │
+    └── MEMBERSHIPS
+        └── User → Network connection with role
+```
+
+## Entity Relationships:
+
+```
+┌─────────────┐     1:N      ┌─────────────────┐
+│   TENANT    │─────────────►│ TENANT_MEMBERS  │
+│             │              │ (user_id, role) │
+└──────┬──────┘              └────────┬────────┘
+       │                              │
+       │ 1:N                          │ N:1
+       ▼                              ▼
+┌─────────────┐              ┌─────────────┐
+│   NETWORK   │              │    USER     │
+│             │              │             │
+└──────┬──────┘              └──────┬──────┘
+       │                            │
+       │ 1:N                        │ 1:N
+       ▼                            ▼
+┌─────────────┐              ┌─────────────┐
+│ MEMBERSHIP  │◄─────────────│   DEVICE    │
+│ (network)   │              │             │
+└─────────────┘              └──────┬──────┘
+                                    │
+                                    │ 1:N (per network)
+                                    ▼
+                             ┌─────────────┐
+                             │    PEER     │
+                             │ (WireGuard) │
+                             └─────────────┘
+```
+
+## Key Design Decisions:
+1. **User can join multiple Tenants** (N:N via tenant_members)
+2. **User has a "default" tenant_id** for backwards compatibility
+3. **Network inherits Tenant's tenant_id**
+4. **Network access can be restricted by role** (required_role field)
+5. **Invite codes work for both Tenant and Network level**
+
+---
+
+# ✅ IMPLEMENTED FEATURES (v2.8.8+)
+
+## Authentication & Security (COMPLETE)
+- **JWT Authentication**: Access tokens (15min) + Refresh tokens (7d)
+- **TOTP 2FA**: Time-based One-Time Password with QR code setup
+- **Recovery Codes**: 10 single-use codes for account recovery
+- **SSO/OIDC**: External identity provider support
+- **Password Hashing**: Argon2id algorithm
+- **Rate Limiting**: All endpoints protected
+
+## Network Management (COMPLETE)
+- **Network CRUD**: Create, read, update, delete networks
+- **Peer Management**: Device peers with WireGuard keys
+- **Invite Tokens**: Time-limited, usage-limited tokens (PostgreSQL repo)
+- **IP Rules**: Allow/block CIDR ranges per tenant (PostgreSQL repo)
+
+## Multi-Tenancy Base (COMPLETE)
+- **Tenant Model**: ID, Name, CreatedAt, UpdatedAt
+- **User belongs to Tenant**: user.TenantID (single tenant - legacy)
+- **Network belongs to Tenant**: network.TenantID
+- **Role-Based Access Control**: via `server/internal/rbac/`
+
+## Web UI (COMPLETE)
+- **Next.js 14 App Router** with i18n (tr/en)
+- **Dashboard**: Network list, status
+- **Settings Page**: Profile, 2FA setup, Recovery Codes management
+- **Login/Register**: Public pages
+
+## Infrastructure (COMPLETE)
+- **PostgreSQL Repositories**: User, Tenant, Network, Session, RecoveryCode, InviteToken, IPRule
+- **Redis**: Session caching, rate limiting
+- **Prometheus Metrics**: `/metrics` endpoint
+- **WebSocket**: Real-time peer updates
+- **Client Daemon**: Windows/Linux/macOS service files
+
+---
+
+# 📋 CURRENT DOMAIN MODELS (server/internal/domain/)
+
+```go
+// User - system user
+type User struct {
+    ID             string     `json:"id"`
+    Email          string     `json:"email"`
+    PasswordHash   string     `json:"-"`
+    DisplayName    string     `json:"display_name"`
+    Role           string     `json:"role"`          // system_admin, user
+    TenantID       string     `json:"tenant_id"`     // default tenant (legacy)
+    TOTPSecret     string     `json:"-"`             // 2FA secret
+    TOTPEnabled    bool       `json:"totp_enabled"`
+    RecoveryUsed   int        `json:"recovery_used"` // count of used recovery codes
+    LastLoginAt    *time.Time `json:"last_login_at"`
+    CreatedAt      time.Time  `json:"created_at"`
+    UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+// Tenant - organization/server container
+type Tenant struct {
+    ID        string    `json:"id"`
+    Name      string    `json:"name"`
+    CreatedAt time.Time `json:"created_at"`
+    UpdatedAt time.Time `json:"updated_at"`
+}
+
+// Network - VPN network within a tenant
+type Network struct {
+    ID          string    `json:"id"`
+    TenantID    string    `json:"tenant_id"`
+    Name        string    `json:"name"`
+    Subnet      string    `json:"subnet"`      // e.g., "10.0.0.0/24"
+    ListenPort  int       `json:"listen_port"`
+    CreatedAt   time.Time `json:"created_at"`
+    UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// Device - user's device (computer/phone)
+type Device struct {
+    ID        string    `json:"id"`
+    UserID    string    `json:"user_id"`
+    Name      string    `json:"name"`
+    OS        string    `json:"os"`           // windows, linux, macos, ios, android
+    CreatedAt time.Time `json:"created_at"`
+}
+
+// Peer - WireGuard peer in a network
+type Peer struct {
+    ID           string    `json:"id"`
+    NetworkID    string    `json:"network_id"`
+    DeviceID     string    `json:"device_id"`
+    UserID       string    `json:"user_id"`
+    PublicKey    string    `json:"public_key"`
+    AllowedIPs   string    `json:"allowed_ips"` // assigned IP in network
+    LastSeen     time.Time `json:"last_seen"`
+    CreatedAt    time.Time `json:"created_at"`
+}
+
+// InviteToken - network invitation (PostgreSQL repo ready)
+type InviteToken struct {
+    ID          string     `json:"id"`
+    NetworkID   string     `json:"network_id"`
+    Token       string     `json:"token"`
+    MaxUses     int        `json:"max_uses"`
+    UseCount    int        `json:"use_count"`
+    ExpiresAt   *time.Time `json:"expires_at"`
+    CreatedBy   string     `json:"created_by"`
+    CreatedAt   time.Time  `json:"created_at"`
+    RevokedAt   *time.Time `json:"revoked_at"`
+}
+
+// IPRule - IP allow/block rules (PostgreSQL repo ready)
+type IPRule struct {
+    ID          string     `json:"id"`
+    TenantID    string     `json:"tenant_id"`
+    CIDR        string     `json:"cidr"`          // e.g., "192.168.1.0/24"
+    Action      string     `json:"action"`        // "allow" or "block"
+    Description string     `json:"description"`
+    CreatedBy   string     `json:"created_by"`
+    ExpiresAt   *time.Time `json:"expires_at"`
+    CreatedAt   time.Time  `json:"created_at"`
+}
+
+// RecoveryCode - 2FA backup codes
+type RecoveryCode struct {
+    ID        string     `json:"id"`
+    UserID    string     `json:"user_id"`
+    CodeHash  string     `json:"-"`             // bcrypt hashed
+    UsedAt    *time.Time `json:"used_at"`
+    CreatedAt time.Time  `json:"created_at"`
+}
+
+// Session - user login session
+type Session struct {
+    ID           string    `json:"id"`
+    UserID       string    `json:"user_id"`
+    RefreshToken string    `json:"-"`
+    UserAgent    string    `json:"user_agent"`
+    IPAddress    string    `json:"ip_address"`
+    ExpiresAt    time.Time `json:"expires_at"`
+    CreatedAt    time.Time `json:"created_at"`
+}
+
+// Membership - user's membership in a network (current)
+type Membership struct {
+    ID         string    `json:"id"`
+    UserID     string    `json:"user_id"`
+    NetworkID  string    `json:"network_id"`
+    Role       string    `json:"role"`          // owner, admin, member
+    JoinedAt   time.Time `json:"joined_at"`
+}
+```
+
+---
+
+# 🔮 PLANNED: TENANT MULTI-MEMBERSHIP SYSTEM
+
+## Overview
+Transform single-tenant users to multi-tenant members (Discord-like model).
+
+## New Domain Models (TO BE ADDED)
+
+```go
+// TenantRole - user's role within a tenant
+type TenantRole string
+const (
+    TenantRoleOwner     TenantRole = "owner"     // Full control
+    TenantRoleAdmin     TenantRole = "admin"     // Manage users, networks
+    TenantRoleModerator TenantRole = "moderator" // Manage chat, announcements
+    TenantRoleVIP       TenantRole = "vip"       // Premium access
+    TenantRoleMember    TenantRole = "member"    // Basic access
+)
+
+// TenantVisibility - who can see/find the tenant
+type TenantVisibility string
+const (
+    TenantVisibilityPublic  TenantVisibility = "public"  // Discoverable
+    TenantVisibilityPrivate TenantVisibility = "private" // Invite only
+)
+
+// TenantAccessType - how users join
+type TenantAccessType string
+const (
+    TenantAccessOpen       TenantAccessType = "open"        // Anyone can join
+    TenantAccessPassword   TenantAccessType = "password"    // Requires password
+    TenantAccessInviteOnly TenantAccessType = "invite_only" // Requires invite
+)
+
+// ENHANCED Tenant - with new fields
+type Tenant struct {
+    ID           string           `json:"id"`
+    Name         string           `json:"name"`
+    Description  string           `json:"description"`
+    IconURL      string           `json:"icon_url"`
+    Visibility   TenantVisibility `json:"visibility"`    // public/private
+    AccessType   TenantAccessType `json:"access_type"`   // open/password/invite_only
+    PasswordHash string           `json:"-"`             // for password access
+    MaxMembers   int              `json:"max_members"`   // 0 = unlimited
+    MemberCount  int              `json:"member_count"`  // computed
+    OwnerID      string           `json:"owner_id"`
+    CreatedAt    time.Time        `json:"created_at"`
+    UpdatedAt    time.Time        `json:"updated_at"`
+}
+
+// NEW: TenantMember - user's membership in a tenant (N:N)
+type TenantMember struct {
+    ID        string     `json:"id"`
+    TenantID  string     `json:"tenant_id"`
+    UserID    string     `json:"user_id"`
+    Role      TenantRole `json:"role"`
+    Nickname  string     `json:"nickname"`    // tenant-specific display name
+    JoinedAt  time.Time  `json:"joined_at"`
+    UpdatedAt time.Time  `json:"updated_at"`
+}
+
+// NEW: TenantInvite - tenant-level invitation (like Steam friend codes)
+type TenantInvite struct {
+    ID        string     `json:"id"`
+    TenantID  string     `json:"tenant_id"`
+    Code      string     `json:"code"`        // short code like "ABC123"
+    MaxUses   int        `json:"max_uses"`
+    UseCount  int        `json:"use_count"`
+    ExpiresAt *time.Time `json:"expires_at"`
+    CreatedBy string     `json:"created_by"`
+    CreatedAt time.Time  `json:"created_at"`
+}
+
+// ENHANCED Network - with role restrictions
+type Network struct {
+    ID           string     `json:"id"`
+    TenantID     string     `json:"tenant_id"`
+    Name         string     `json:"name"`
+    Description  string     `json:"description"`
+    Subnet       string     `json:"subnet"`
+    ListenPort   int        `json:"listen_port"`
+    RequiredRole TenantRole `json:"required_role"` // minimum role to access
+    IsHidden     bool       `json:"is_hidden"`     // hidden from list
+    CreatedAt    time.Time  `json:"created_at"`
+    UpdatedAt    time.Time  `json:"updated_at"`
+}
+
+// NEW: TenantAnnouncement - admin announcements
+type TenantAnnouncement struct {
+    ID        string    `json:"id"`
+    TenantID  string    `json:"tenant_id"`
+    Title     string    `json:"title"`
+    Content   string    `json:"content"`
+    AuthorID  string    `json:"author_id"`
+    IsPinned  bool      `json:"is_pinned"`
+    CreatedAt time.Time `json:"created_at"`
+    UpdatedAt time.Time `json:"updated_at"`
+}
+
+// NEW: TenantChatMessage - tenant general chat
+type TenantChatMessage struct {
+    ID        string    `json:"id"`
+    TenantID  string    `json:"tenant_id"`
+    UserID    string    `json:"user_id"`
+    Content   string    `json:"content"`
+    CreatedAt time.Time `json:"created_at"`
+    EditedAt  *time.Time `json:"edited_at"`
+}
+```
+
+## New Database Tables (Migration File)
+
+```sql
+-- 000007_tenant_multi_membership.sql
+
+-- Enhance tenants table
+ALTER TABLE tenants
+ADD COLUMN description TEXT DEFAULT '',
+ADD COLUMN icon_url TEXT DEFAULT '',
+ADD COLUMN visibility VARCHAR(20) DEFAULT 'private',
+ADD COLUMN access_type VARCHAR(20) DEFAULT 'invite_only',
+ADD COLUMN password_hash TEXT,
+ADD COLUMN max_members INTEGER DEFAULT 0,
+ADD COLUMN owner_id UUID NOT NULL REFERENCES users(id);
+
+-- Tenant members (N:N relationship)
+CREATE TABLE tenant_members (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role VARCHAR(20) NOT NULL DEFAULT 'member',
+    nickname VARCHAR(100),
+    joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(tenant_id, user_id)
+);
+
+-- Tenant invites (Steam-like codes)
+CREATE TABLE tenant_invites (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    code VARCHAR(20) UNIQUE NOT NULL,
+    max_uses INTEGER DEFAULT 1,
+    use_count INTEGER DEFAULT 0,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    created_by UUID NOT NULL REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Tenant announcements
+CREATE TABLE tenant_announcements (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    title VARCHAR(200) NOT NULL,
+    content TEXT NOT NULL,
+    author_id UUID NOT NULL REFERENCES users(id),
+    is_pinned BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Tenant chat messages
+CREATE TABLE tenant_chat_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id),
+    content TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    edited_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Enhance networks table
+ALTER TABLE networks
+ADD COLUMN description TEXT DEFAULT '',
+ADD COLUMN required_role VARCHAR(20) DEFAULT 'member',
+ADD COLUMN is_hidden BOOLEAN DEFAULT FALSE;
+
+-- Indexes
+CREATE INDEX idx_tenant_members_user ON tenant_members(user_id);
+CREATE INDEX idx_tenant_members_tenant ON tenant_members(tenant_id);
+CREATE INDEX idx_tenant_invites_code ON tenant_invites(code);
+CREATE INDEX idx_tenant_announcements_tenant ON tenant_announcements(tenant_id);
+CREATE INDEX idx_tenant_chat_tenant ON tenant_chat_messages(tenant_id, created_at);
+CREATE INDEX idx_tenants_visibility ON tenants(visibility);
+```
+
+## Planned API Endpoints (~30 new)
+
+```
+# Tenant Discovery
+GET  /api/tenants/public             # List public tenants (paginated)
+GET  /api/tenants/search?q=          # Search public tenants
+
+# Tenant Membership
+POST /api/tenants/{id}/join          # Join open tenant
+POST /api/tenants/join-by-code       # Join via invite code
+POST /api/tenants/{id}/leave         # Leave tenant
+GET  /api/users/me/tenants           # List my tenants
+
+# Tenant Management (owner/admin)
+PATCH /api/tenants/{id}              # Update tenant settings
+DELETE /api/tenants/{id}             # Delete tenant
+
+# Member Management
+GET  /api/tenants/{id}/members       # List members
+PATCH /api/tenants/{id}/members/{uid}  # Update member role
+DELETE /api/tenants/{id}/members/{uid} # Remove member
+POST /api/tenants/{id}/members/{uid}/ban # Ban member
+
+# Tenant Invites
+POST /api/tenants/{id}/invites       # Create invite
+GET  /api/tenants/{id}/invites       # List invites
+DELETE /api/tenants/{id}/invites/{iid} # Revoke invite
+
+# Announcements
+POST /api/tenants/{id}/announcements # Create announcement
+GET  /api/tenants/{id}/announcements # List announcements
+PATCH /api/tenants/{id}/announcements/{aid} # Update
+DELETE /api/tenants/{id}/announcements/{aid} # Delete
+
+# General Chat (WebSocket primarily, REST for history)
+GET  /api/tenants/{id}/chat/messages # Get chat history
+POST /api/tenants/{id}/chat/messages # Post message (REST fallback)
+DELETE /api/tenants/{id}/chat/messages/{mid} # Delete message
+
+# WebSocket Messages (new types)
+tenant:chat:message   # Real-time chat
+tenant:chat:delete    # Message deleted
+tenant:announcement   # New announcement
+tenant:member:join    # Member joined
+tenant:member:leave   # Member left
+tenant:member:update  # Role changed
+```
+
+---
+
 # 1) CORE ENGINEERING PRINCIPLES
 
 * The AI must always choose **the most logical, necessary, and correct** development step based on the current state of the project.
@@ -524,6 +974,9 @@ Every AI response MUST:
 | Need To... | Edit This File |
 |------------|----------------|
 | Add API endpoint | `server/internal/handler/*.go` |
+| Add domain model | `server/internal/domain/*.go` |
+| Add repository | `server/internal/repository/*.go` |
+| Add service | `server/internal/service/*.go` |
 | Add WebSocket message | `server/internal/websocket/handler.go` |
 | Add translation | `web-ui/src/locales/*/common.json` |
 | Add config option | `server/internal/config/config.go` + `docs/CONFIG_FLAGS.md` |
@@ -536,7 +989,73 @@ Every AI response MUST:
 | Modify macOS service | `client-daemon/service/macos/com.goconnect.daemon.plist` |
 | Change Docker deployment | `server/docker-compose.yaml` |
 | Add daemon functionality | `client-daemon/cmd/daemon/main.go` |
+| Add database migration | `server/migrations/000XXX_*.sql` |
+| Add UI component | `web-ui/src/components/*.tsx` |
+| Add protected page | `web-ui/src/app/[locale]/(protected)/*` |
+| Add public page | `web-ui/src/app/[locale]/(public)/*` |
 
 ---
 
-**Last Updated:** 2025-11-25 | **Version:** v2.8.8+
+# 21) 📦 EXISTING REPOSITORY IMPLEMENTATIONS
+
+| Repository | Interface | PostgreSQL | In-Memory | Tests |
+|------------|-----------|------------|-----------|-------|
+| UserRepository | ✅ | ✅ | ✅ | ✅ |
+| TenantRepository | ✅ | ✅ | ✅ | ✅ |
+| NetworkRepository | ✅ | ✅ | ✅ | ✅ |
+| SessionRepository | ✅ | ✅ | ✅ | ✅ |
+| RecoveryCodeRepository | ✅ | ✅ | ✅ | ✅ |
+| InviteTokenRepository | ✅ | ✅ | ✅ | ✅ (21 tests) |
+| IPRuleRepository | ✅ | ✅ | ✅ | ✅ (24 tests) |
+| DeviceRepository | ✅ | ⏳ | ✅ | ⏳ |
+| PeerRepository | ✅ | ⏳ | ✅ | ⏳ |
+| MembershipRepository | ✅ | ⏳ | ✅ | ⏳ |
+
+Legend: ✅ = Complete, ⏳ = Needs implementation/tests
+
+---
+
+# 22) 🌐 WEB UI PAGES
+
+| Route | File | Auth | Description |
+|-------|------|------|-------------|
+| `/[locale]/login` | `(public)/login/page.tsx` | No | Login page |
+| `/[locale]/register` | `(public)/register/page.tsx` | No | Registration |
+| `/[locale]/dashboard` | `(protected)/dashboard/page.tsx` | Yes | Network list |
+| `/[locale]/networks/[id]` | `(protected)/networks/[id]/page.tsx` | Yes | Network details |
+| `/[locale]/settings` | `(protected)/settings/page.tsx` | Yes | User settings (2FA, Recovery) |
+
+---
+
+# 23) 🔑 AUTHENTICATION FLOW
+
+```
+1. Login: POST /api/auth/login
+   ├─ Email/Password → returns JWT + refresh token
+   ├─ If 2FA enabled → returns { requires_2fa: true, temp_token }
+   └─ Then: POST /api/auth/verify-2fa with TOTP code
+
+2. Token Refresh: POST /api/auth/refresh
+   └─ Refresh token → new JWT
+
+3. Recovery Flow:
+   POST /api/auth/recovery
+   ├─ temp_token + recovery_code
+   └─ Returns new JWT (2FA bypassed)
+```
+
+---
+
+# 24) 📊 TEST COVERAGE
+
+| Package | Tests | Coverage |
+|---------|-------|----------|
+| `repository/invite_token_test.go` | 21 | High |
+| `repository/ip_rule_test.go` | 24 | High |
+| `service/ip_rule_test.go` | 22 | High |
+| `service/auth_test.go` | ~15 | Medium |
+| `service/recovery_test.go` | ~10 | Medium |
+
+---
+
+**Last Updated:** 2025-01-XX | **Version:** v2.8.8+ (pending v2.9.0)
