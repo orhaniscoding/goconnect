@@ -101,7 +101,7 @@ func setupHandlers(idMgr *identity.Manager, apiClient *api.Client, eng *engine.E
 			"device_id":  id.DeviceID,
 		}
 
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 
 	http.HandleFunc("/register", cors(func(w http.ResponseWriter, r *http.Request) {
@@ -150,7 +150,7 @@ func setupHandlers(idMgr *identity.Manager, apiClient *api.Client, eng *engine.E
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"status":    "success",
 			"device_id": resp.ID,
 		})
@@ -163,7 +163,7 @@ func setupHandlers(idMgr *identity.Manager, apiClient *api.Client, eng *engine.E
 		}
 		eng.Connect()
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"status": "connected"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "connected"})
 	}))
 
 	http.HandleFunc("/disconnect", cors(func(w http.ResponseWriter, r *http.Request) {
@@ -173,6 +173,6 @@ func setupHandlers(idMgr *identity.Manager, apiClient *api.Client, eng *engine.E
 		}
 		eng.Disconnect()
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"status": "disconnected"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"status": "disconnected"})
 	}))
 }

@@ -18,7 +18,6 @@ type Identity struct {
 	PublicKey  string `json:"public_key"`
 	DeviceID   string `json:"device_id,omitempty"`
 	Token      string `json:"token,omitempty"` // Token to authenticate with server
-	mu         sync.RWMutex
 }
 
 // Manager handles identity storage and generation

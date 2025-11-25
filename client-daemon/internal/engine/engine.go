@@ -253,7 +253,5 @@ func (e *Engine) sendHeartbeat() {
 
 	if err := e.apiClient.SendHeartbeat(ctx, id.DeviceID, id.Token, req); err != nil {
 		log.Printf("Heartbeat failed: %v", err)
-	} else {
-		// log.Println("Heartbeat sent successfully") // Verbose
 	}
 }

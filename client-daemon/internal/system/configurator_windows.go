@@ -12,16 +12,17 @@ func newConfigurator() Configurator {
 	return &windowsConfigurator{}
 }
 
-func (c *windowsConfigurator) EnsureInterface(name string) error {
+func (c *windowsConfigurator) EnsureInterface(_ string) error {
 	// On Windows, creating the interface usually requires the WireGuard driver/service.
 	// For now, we assume it exists or is managed by the user/installer.
 	// We could check existence via Get-NetAdapter.
 	return nil
 }
 
-func (c *windowsConfigurator) ConfigureInterface(name string, addresses []string, dns []string, mtu int) error {
+func (c *windowsConfigurator) ConfigureInterface(name string, addresses []string, dns []string, _ int) error {
 	// Windows requires the interface to exist.
 	// Using netsh for compatibility.
+	// Note: MTU parameter is ignored on Windows as it's typically auto-configured
 
 	// 1. Set Addresses
 	// Note: Windows handles CIDR in "addr/mask" format differently in netsh, usually requires mask.
