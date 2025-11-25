@@ -344,6 +344,380 @@ components:
             next_cursor:
               type: [string, "null"]
 
+    Tenant:
+      type: object
+      required:
+        - id
+        - name
+        - visibility
+        - access_type
+        - owner_id
+        - member_count
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          example: tnt_1234567890_123456
+          description: Unique tenant identifier
+        name:
+          type: string
+          minLength: 3
+          maxLength: 64
+          example: Core Infrastructure
+        description:
+          type: [string, "null"]
+          maxLength: 500
+          example: Primary infrastructure and SRE tenant
+        icon_url:
+          type: [string, "null"]
+          format: uri
+          example: https://cdn.example.com/icons/sre.png
+        visibility:
+          type: string
+          enum: [public, unlisted, private]
+          example: public
+        access_type:
+          type: string
+          enum: [open, password, invite_only]
+          example: open
+        max_members:
+          type: integer
+          minimum: 0
+          example: 250
+        member_count:
+          type: integer
+          example: 42
+        owner_id:
+          type: string
+          example: user_dev
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    TenantMember:
+      type: object
+      required:
+        - id
+        - tenant_id
+        - user_id
+        - role
+        - joined_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          example: tm_a1b2c3d4
+        tenant_id:
+          type: string
+          example: tnt_1234567890_123456
+        user_id:
+          type: string
+          example: user_dev
+        role:
+          type: string
+          enum: [owner, admin, moderator, vip, member]
+          example: member
+        nickname:
+          type: [string, "null"]
+          example: DevOps Team
+        joined_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        user:
+          $ref: "#/components/schemas/User"
+
+    TenantInvite:
+      type: object
+      required:
+        - id
+        - tenant_id
+        - code
+        - max_uses
+        - use_count
+        - created_by
+        - created_at
+      properties:
+        id:
+          type: string
+          example: ti_a1b2c3d4
+        tenant_id:
+          type: string
+          example: tnt_1234567890_123456
+        code:
+          type: string
+          minLength: 6
+          maxLength: 12
+          example: ABCD1234
+        max_uses:
+          type: integer
+          example: 5
+        use_count:
+          type: integer
+          example: 1
+        expires_at:
+          type: [string, "null"]
+          format: date-time
+        created_by:
+          type: string
+          example: user_dev
+        created_at:
+          type: string
+          format: date-time
+        revoked_at:
+          type: [string, "null"]
+          format: date-time
+
+    TenantAnnouncement:
+      type: object
+      required:
+        - id
+        - tenant_id
+        - title
+        - content
+        - author_id
+        - is_pinned
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          example: ann_a1b2c3d4
+        tenant_id:
+          type: string
+        title:
+          type: string
+          minLength: 3
+          maxLength: 200
+          example: Maintenance Window
+        content:
+          type: string
+          example: Scheduled maintenance on Friday 22:00 UTC
+        author_id:
+          type: string
+          example: user_admin
+        is_pinned:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    TenantChatMessage:
+      type: object
+      required:
+        - id
+        - tenant_id
+        - user_id
+        - content
+        - created_at
+      properties:
+        id:
+          type: string
+          example: msg_a1b2c3d4
+        tenant_id:
+          type: string
+        user_id:
+          type: string
+        content:
+          type: string
+          maxLength: 2000
+          example: Welcome to the tenant!
+        created_at:
+          type: string
+          format: date-time
+        edited_at:
+          type: [string, "null"]
+          format: date-time
+        deleted_at:
+          type: [string, "null"]
+          format: date-time
+
+    TenantResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/Tenant"
+
+    TenantListResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tenant"
+        next_cursor:
+          type: [string, "null"]
+
+    TenantMemberResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/TenantMember"
+
+    TenantMembersResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenantMember"
+        next_cursor:
+          type: [string, "null"]
+
+    TenantInvitesResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenantInvite"
+
+    TenantAnnouncementsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenantAnnouncement"
+        next_cursor:
+          type: [string, "null"]
+
+    TenantChatMessagesResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/TenantChatMessage"
+
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
+    CreateTenantRequest:
+      type: object
+      required: [name, visibility, access_type]
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 64
+          example: Core Infrastructure
+        description:
+          type: [string, "null"]
+          maxLength: 500
+        visibility:
+          type: string
+          enum: [public, unlisted, private]
+        access_type:
+          type: string
+          enum: [open, password, invite_only]
+        password:
+          type: [string, "null"]
+          minLength: 4
+          maxLength: 64
+        max_members:
+          type: integer
+          minimum: 0
+          maximum: 10000
+
+    JoinTenantRequest:
+      type: object
+      properties:
+        password:
+          type: string
+          description: Required when tenant access type is password
+
+    JoinByCodeRequest:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+          minLength: 6
+          maxLength: 12
+          example: ABCD1234
+
+    UpdateMemberRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [admin, moderator, vip, member]
+
+    CreateTenantInviteRequest:
+      type: object
+      properties:
+        max_uses:
+          type: integer
+          minimum: 0
+          maximum: 1000
+          description: "0 means unlimited uses"
+        expires_in:
+          type: integer
+          minimum: 3600
+          maximum: 2592000
+          description: Expiration in seconds (1 hour - 30 days)
+
+    CreateAnnouncementRequest:
+      type: object
+      required: [title, content]
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 200
+        content:
+          type: string
+          minLength: 1
+          maxLength: 5000
+        is_pinned:
+          type: boolean
+
+    UpdateAnnouncementRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 200
+        content:
+          type: string
+          minLength: 1
+          maxLength: 5000
+        is_pinned:
+          type: boolean
+
+    SendChatMessageRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 2000
+
     # GDPR/DSR Schemas
     GDPRExportData:
       type: object
@@ -1828,6 +2202,843 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MembersListResponse"
+
+  /v1/tenants/public:
+    get:
+      summary: List public tenants
+      description: Returns a paginated list of discoverable tenants without authentication
+      tags: [Tenants]
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of tenants to return (default 20)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: cursor
+          in: query
+          description: Cursor returned by the previous response for pagination
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Public tenants retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantListResponse"
+
+  /v1/tenants/search:
+    get:
+      summary: Search public tenants
+      description: Search public tenants by name fragment without authentication
+      tags: [Tenants]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Case-insensitive search term applied to tenant names
+          schema:
+            type: string
+            minLength: 2
+        - name: limit
+          in: query
+          description: Maximum number of tenants to return (default 20)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: cursor
+          in: query
+          description: Cursor returned by the previous response for pagination
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Search results retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantListResponse"
+
+  /v1/tenants:
+    post:
+      summary: Create tenant
+      description: Create a new tenant with the authenticated user as the owner
+      tags: [Tenants]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTenantRequest"
+      responses:
+        "201":
+          description: Tenant created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/tenants/{tenantId}:
+    get:
+      summary: Get tenant
+      description: Retrieve tenant details along with member counts
+      tags: [Tenants]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Tenant retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Tenant not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/users/me/tenants:
+    get:
+      summary: List my tenants
+      description: Returns tenant memberships for the authenticated user
+      tags: [Tenants]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Memberships retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantMembersResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/tenants/{tenantId}/join:
+    post:
+      summary: Join tenant
+      description: Join an open or password-protected tenant
+      tags: [Tenants]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinTenantRequest"
+      responses:
+        "200":
+          description: Joined tenant
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/TenantMember"
+                  message:
+                    type: string
+        "400":
+          description: Validation or password error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Not allowed to join
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/tenants/join-by-code:
+    post:
+      summary: Join tenant via invite code
+      tags: [Tenants]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/JoinByCodeRequest"
+      responses:
+        "200":
+          description: Joined tenant by invite code
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: "#/components/schemas/TenantMember"
+                  message:
+                    type: string
+        "400":
+          description: Invalid invite code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Invite not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/tenants/{tenantId}/leave:
+    post:
+      summary: Leave tenant
+      tags: [Tenants]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Left tenant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden (owner cannot leave)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/tenants/{tenantId}/members:
+    get:
+      summary: List tenant members
+      tags: [Tenant Members]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [owner, admin, moderator, vip, member]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Members listed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantMembersResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Tenant not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/tenants/{tenantId}/members/{memberId}:
+    patch:
+      summary: Update member role
+      tags: [Tenant Members]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMemberRoleRequest"
+      responses:
+        "200":
+          description: Role updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Member not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    delete:
+      summary: Remove member
+      tags: [Tenant Members]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Member removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Member not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/tenants/{tenantId}/invites:
+    post:
+      summary: Create tenant invite
+      tags: [Tenant Invites]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTenantInviteRequest"
+      responses:
+        "201":
+          description: Invite created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantInvite"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    get:
+      summary: List tenant invites
+      tags: [Tenant Invites]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invites listed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantInvitesResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/tenants/{tenantId}/invites/{inviteId}:
+    delete:
+      summary: Revoke tenant invite
+      tags: [Tenant Invites]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: inviteId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invite revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Invite not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/tenants/{tenantId}/announcements:
+    post:
+      summary: Create announcement
+      tags: [Tenant Announcements]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAnnouncementRequest"
+      responses:
+        "201":
+          description: Announcement created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantAnnouncement"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    get:
+      summary: List announcements
+      tags: [Tenant Announcements]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: pinned
+          in: query
+          schema:
+            type: boolean
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Announcements listed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantAnnouncementsResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/tenants/{tenantId}/announcements/{announcementId}:
+    patch:
+      summary: Update announcement
+      tags: [Tenant Announcements]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: announcementId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAnnouncementRequest"
+      responses:
+        "200":
+          description: Announcement updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Announcement not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    delete:
+      summary: Delete announcement
+      tags: [Tenant Announcements]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: announcementId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Announcement deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Announcement not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/tenants/{tenantId}/chat/messages:
+    post:
+      summary: Send chat message
+      tags: [Tenant Chat]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendChatMessageRequest"
+      responses:
+        "201":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantChatMessage"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    get:
+      summary: Get chat history
+      tags: [Tenant Chat]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: before
+          in: query
+          schema:
+            type: string
+          description: Return messages before the given message ID
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Chat history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantChatMessagesResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/tenants/{tenantId}/chat/messages/{messageId}:
+    delete:
+      summary: Delete chat message
+      tags: [Tenant Chat]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Message deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Message not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
   /v1/admin/stats:
     get:

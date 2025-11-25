@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
@@ -58,6 +59,74 @@ func (h *TenantHandler) GetTenant(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"data": tenant,
 	})
+}
+
+// ==================== DISCOVERY ROUTES ====================
+
+// ListPublicTenants handles GET /v1/tenants/public
+func (h *TenantHandler) ListPublicTenants(c *gin.Context) {
+	var req domain.ListTenantsRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest,
+			"Invalid query parameters: "+err.Error(), nil))
+		return
+	}
+
+	if req.Limit == 0 || req.Limit > 100 {
+		req.Limit = 20
+	}
+
+	results, nextCursor, err := h.tenantService.ListPublicTenants(c.Request.Context(), &req)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	response := gin.H{
+		"data": results,
+	}
+	if nextCursor != "" {
+		response["next_cursor"] = nextCursor
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
+// SearchTenants handles GET /v1/tenants/search
+func (h *TenantHandler) SearchTenants(c *gin.Context) {
+	var req domain.ListTenantsRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest,
+			"Invalid query parameters: "+err.Error(), nil))
+		return
+	}
+
+	query := strings.TrimSpace(c.DefaultQuery("q", req.Search))
+	if query == "" {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest,
+			"Missing search query", map[string]string{"field": "q"}))
+		return
+	}
+	req.Search = query
+
+	if req.Limit == 0 || req.Limit > 100 {
+		req.Limit = 20
+	}
+
+	results, nextCursor, err := h.tenantService.ListPublicTenants(c.Request.Context(), &req)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	response := gin.H{
+		"data": results,
+	}
+	if nextCursor != "" {
+		response["next_cursor"] = nextCursor
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // ==================== MEMBERSHIP ROUTES ====================
@@ -451,6 +520,13 @@ func handleServiceError(c *gin.Context, err error) {
 
 // RegisterTenantRoutes registers all tenant-related routes
 func (h *TenantHandler) RegisterRoutes(rg *gin.RouterGroup, authMiddleware gin.HandlerFunc) {
+	// Public tenant discovery routes (no authentication required)
+	publicTenants := rg.Group("/tenants")
+	{
+		publicTenants.GET("/public", h.ListPublicTenants)
+		publicTenants.GET("/search", h.SearchTenants)
+	}
+
 	// Tenant routes (authenticated)
 	tenants := rg.Group("/tenants")
 	tenants.Use(authMiddleware)

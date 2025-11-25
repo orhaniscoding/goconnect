@@ -74,6 +74,19 @@ func (h *DefaultMessageHandler) HandleMessage(ctx context.Context, client *Clien
 		return h.handleChatReaction(ctx, client, msg)
 	case TypeFileUpload:
 		return h.handleFileUpload(ctx, client, msg)
+	// Tenant chat messages
+	case TypeTenantChatSend:
+		return h.handleTenantChatSend(ctx, client, msg)
+	case TypeTenantChatEdit:
+		return h.handleTenantChatEdit(ctx, client, msg)
+	case TypeTenantChatDelete:
+		return h.handleTenantChatDelete(ctx, client, msg)
+	case TypeTenantChatTyping:
+		return h.handleTenantChatTyping(ctx, client, msg)
+	case TypeTenantJoin:
+		return h.handleTenantJoin(ctx, client, msg)
+	case TypeTenantLeave:
+		return h.handleTenantLeave(ctx, client, msg)
 	default:
 		return fmt.Errorf("unknown message type: %s", msg.Type)
 	}
@@ -756,4 +769,246 @@ func (h *DefaultMessageHandler) DeviceOffline(deviceID, userID string) {
 		},
 	}
 	h.hub.BroadcastToUser(userID, msg)
+}
+
+// ==================== TENANT CHAT HANDLERS ====================
+
+// handleTenantChatSend handles tenant.chat.send messages
+func (h *DefaultMessageHandler) handleTenantChatSend(ctx context.Context, client *Client, msg *InboundMessage) error {
+	var data TenantChatSendData
+	if err := json.Unmarshal(msg.Data, &data); err != nil {
+		return fmt.Errorf("invalid tenant.chat.send data: %w", err)
+	}
+
+	if data.TenantID == "" {
+		return fmt.Errorf("tenant_id is required")
+	}
+	if data.Content == "" {
+		return fmt.Errorf("content is required")
+	}
+
+	// Use the existing chat service with tenant scope
+	scope := "tenant:" + data.TenantID
+	chatMsg, err := h.chatService.SendMessage(ctx, client.userID, client.tenantID, scope, data.Content, nil, "")
+	if err != nil {
+		return err
+	}
+
+	// Broadcast to tenant room
+	outbound := &OutboundMessage{
+		Type: TypeTenantChatMessage,
+		Data: &TenantChatMessageData{
+			ID:        chatMsg.ID,
+			TenantID:  data.TenantID,
+			UserID:    client.userID,
+			Content:   chatMsg.Body,
+			CreatedAt: chatMsg.CreatedAt.Format(time.RFC3339),
+		},
+	}
+
+	h.hub.Broadcast(scope, outbound, nil)
+
+	// Acknowledge
+	client.sendAck(msg.OpID, map[string]string{
+		"message_id": chatMsg.ID,
+		"status":     "sent",
+	})
+
+	return nil
+}
+
+// handleTenantChatEdit handles tenant.chat.edit messages
+func (h *DefaultMessageHandler) handleTenantChatEdit(ctx context.Context, client *Client, msg *InboundMessage) error {
+	var data TenantChatEditData
+	if err := json.Unmarshal(msg.Data, &data); err != nil {
+		return fmt.Errorf("invalid tenant.chat.edit data: %w", err)
+	}
+
+	if data.TenantID == "" || data.MessageID == "" || data.Content == "" {
+		return fmt.Errorf("tenant_id, message_id and content are required")
+	}
+
+	// Edit via chat service
+	chatMsg, err := h.chatService.EditMessage(ctx, data.MessageID, client.userID, client.tenantID, data.Content, client.isAdmin)
+	if err != nil {
+		return err
+	}
+
+	// Broadcast edit event
+	scope := "tenant:" + data.TenantID
+	editedAt := chatMsg.UpdatedAt.Format(time.RFC3339)
+	h.hub.Broadcast(scope, &OutboundMessage{
+		Type: TypeTenantChatEdited,
+		Data: &TenantChatMessageData{
+			ID:        chatMsg.ID,
+			TenantID:  data.TenantID,
+			UserID:    chatMsg.UserID,
+			Content:   chatMsg.Body,
+			CreatedAt: chatMsg.CreatedAt.Format(time.RFC3339),
+			EditedAt:  &editedAt,
+		},
+	}, nil)
+
+	client.sendAck(msg.OpID, map[string]string{"status": "edited"})
+	return nil
+}
+
+// handleTenantChatDelete handles tenant.chat.delete messages
+func (h *DefaultMessageHandler) handleTenantChatDelete(ctx context.Context, client *Client, msg *InboundMessage) error {
+	var data TenantChatDeleteData
+	if err := json.Unmarshal(msg.Data, &data); err != nil {
+		return fmt.Errorf("invalid tenant.chat.delete data: %w", err)
+	}
+
+	if data.TenantID == "" || data.MessageID == "" {
+		return fmt.Errorf("tenant_id and message_id are required")
+	}
+
+	// Delete via chat service (soft delete)
+	err := h.chatService.DeleteMessage(ctx, data.MessageID, client.userID, client.tenantID, "soft", client.isAdmin, client.isModerator)
+	if err != nil {
+		return err
+	}
+
+	// Broadcast delete event
+	scope := "tenant:" + data.TenantID
+	deletedAt := time.Now().Format(time.RFC3339)
+	h.hub.Broadcast(scope, &OutboundMessage{
+		Type: TypeTenantChatDeleted,
+		Data: map[string]string{
+			"tenant_id":  data.TenantID,
+			"message_id": data.MessageID,
+			"deleted_at": deletedAt,
+		},
+	}, nil)
+
+	client.sendAck(msg.OpID, map[string]string{"status": "deleted"})
+	return nil
+}
+
+// handleTenantChatTyping handles tenant.chat.typing messages
+func (h *DefaultMessageHandler) handleTenantChatTyping(ctx context.Context, client *Client, msg *InboundMessage) error {
+	var data TenantChatTypingData
+	if err := json.Unmarshal(msg.Data, &data); err != nil {
+		return fmt.Errorf("invalid tenant.chat.typing data: %w", err)
+	}
+
+	if data.TenantID == "" {
+		return fmt.Errorf("tenant_id is required")
+	}
+
+	// Broadcast typing indicator
+	scope := "tenant:" + data.TenantID
+	h.hub.Broadcast(scope, &OutboundMessage{
+		Type: TypeTenantChatTypingUser,
+		Data: &TenantChatTypingUserData{
+			TenantID: data.TenantID,
+			UserID:   client.userID,
+			Typing:   data.Typing,
+		},
+	}, client) // Exclude sender
+
+	return nil
+}
+
+// handleTenantJoin handles tenant.join messages - join tenant room for real-time updates
+func (h *DefaultMessageHandler) handleTenantJoin(ctx context.Context, client *Client, msg *InboundMessage) error {
+	var data TenantJoinData
+	if err := json.Unmarshal(msg.Data, &data); err != nil {
+		return fmt.Errorf("invalid tenant.join data: %w", err)
+	}
+
+	if data.TenantID == "" {
+		return fmt.Errorf("tenant_id is required")
+	}
+
+	// TODO: Verify user is a member of the tenant before allowing join
+	// For now, allow all authenticated users
+
+	room := "tenant:" + data.TenantID
+	client.JoinRoom(room)
+
+	client.sendAck(msg.OpID, map[string]string{
+		"room":   room,
+		"status": "joined",
+	})
+
+	return nil
+}
+
+// handleTenantLeave handles tenant.leave messages - leave tenant room
+func (h *DefaultMessageHandler) handleTenantLeave(ctx context.Context, client *Client, msg *InboundMessage) error {
+	var data TenantLeaveData
+	if err := json.Unmarshal(msg.Data, &data); err != nil {
+		return fmt.Errorf("invalid tenant.leave data: %w", err)
+	}
+
+	if data.TenantID == "" {
+		return fmt.Errorf("tenant_id is required")
+	}
+
+	room := "tenant:" + data.TenantID
+	client.LeaveRoom(room)
+
+	client.sendAck(msg.OpID, map[string]string{
+		"room":   room,
+		"status": "left",
+	})
+
+	return nil
+}
+
+// ==================== TENANT EVENT BROADCASTERS ====================
+
+// BroadcastTenantMemberJoined broadcasts when a user joins a tenant
+func (h *DefaultMessageHandler) BroadcastTenantMemberJoined(tenantID, userID, role string) {
+	room := "tenant:" + tenantID
+	h.hub.Broadcast(room, &OutboundMessage{
+		Type: TypeTenantMemberJoined,
+		Data: &TenantMemberEventData{
+			TenantID: tenantID,
+			UserID:   userID,
+			Role:     role,
+		},
+	}, nil)
+}
+
+// BroadcastTenantMemberLeft broadcasts when a user leaves a tenant
+func (h *DefaultMessageHandler) BroadcastTenantMemberLeft(tenantID, userID string) {
+	room := "tenant:" + tenantID
+	h.hub.Broadcast(room, &OutboundMessage{
+		Type: TypeTenantMemberLeft,
+		Data: &TenantMemberEventData{
+			TenantID: tenantID,
+			UserID:   userID,
+		},
+	}, nil)
+}
+
+// BroadcastTenantMemberKicked broadcasts when a user is kicked from a tenant
+func (h *DefaultMessageHandler) BroadcastTenantMemberKicked(tenantID, userID, kickedBy, reason string) {
+	room := "tenant:" + tenantID
+	h.hub.Broadcast(room, &OutboundMessage{
+		Type: TypeTenantMemberKicked,
+		Data: &TenantMemberEventData{
+			TenantID: tenantID,
+			UserID:   userID,
+			By:       kickedBy,
+			Reason:   reason,
+		},
+	}, nil)
+}
+
+// BroadcastTenantMemberRoleChanged broadcasts when a member's role changes
+func (h *DefaultMessageHandler) BroadcastTenantMemberRoleChanged(tenantID, userID, oldRole, newRole string) {
+	room := "tenant:" + tenantID
+	h.hub.Broadcast(room, &OutboundMessage{
+		Type: TypeTenantMemberRoleChanged,
+		Data: &TenantMemberEventData{
+			TenantID: tenantID,
+			UserID:   userID,
+			OldRole:  oldRole,
+			NewRole:  newRole,
+		},
+	}, nil)
 }

@@ -22,11 +22,17 @@ type User struct {
 
 // Tenant represents a tenant (organization) in the system
 type Tenant struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	OwnerID   string    `json:"owner_id"` // User ID of the owner
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID           string           `json:"id"`
+	Name         string           `json:"name"`
+	Description  string           `json:"description"`
+	IconURL      string           `json:"icon_url"`
+	Visibility   TenantVisibility `json:"visibility"`
+	AccessType   TenantAccessType `json:"access_type"`
+	PasswordHash string           `json:"-"`
+	MaxMembers   int              `json:"max_members"`
+	OwnerID      string           `json:"owner_id"` // User ID of the owner
+	CreatedAt    time.Time        `json:"created_at"`
+	UpdatedAt    time.Time        `json:"updated_at"`
 }
 
 // RegisterRequest is the request body for user registration

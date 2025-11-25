@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -93,6 +94,20 @@ func TestTenantMembershipService_CreateTenant_Multiple(t *testing.T) {
 	assert.Equal(t, 3, len(members))
 }
 
+func TestTenantMembershipService_CreateTenant_PasswordRequiresSecret(t *testing.T) {
+	svc, _ := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	req := &domain.CreateTenantRequest{
+		Name:       "Secret Tenant",
+		Visibility: domain.TenantVisibilityPrivate,
+		AccessType: domain.TenantAccessPassword,
+	}
+
+	_, err := svc.CreateTenant(ctx, "owner", req)
+	require.Error(t, err)
+}
+
 // ==================== GET TENANT TESTS ====================
 
 func TestTenantMembershipService_GetTenant_Success(t *testing.T) {
@@ -116,6 +131,101 @@ func TestTenantMembershipService_GetTenant_NotFound(t *testing.T) {
 	_, err := svc.GetTenant(ctx, "non-existent")
 
 	require.Error(t, err)
+}
+
+// ==================== DISCOVERY TESTS ====================
+
+func TestTenantMembershipService_ListPublicTenants_FiltersVisibility(t *testing.T) {
+	svc, _ := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	// Two public tenants and two that should be hidden
+	_, _ = svc.CreateTenant(ctx, "owner-alpha", &domain.CreateTenantRequest{
+		Name:       "Alpha Ops",
+		Visibility: domain.TenantVisibilityPublic,
+		AccessType: domain.TenantAccessOpen,
+	})
+	_, _ = svc.CreateTenant(ctx, "owner-beta", &domain.CreateTenantRequest{
+		Name:       "Beta Labs",
+		Visibility: domain.TenantVisibilityPrivate,
+		AccessType: domain.TenantAccessInviteOnly,
+	})
+	_, _ = svc.CreateTenant(ctx, "owner-gamma", &domain.CreateTenantRequest{
+		Name:       "Gamma Edge",
+		Visibility: domain.TenantVisibilityPublic,
+		AccessType: domain.TenantAccessOpen,
+	})
+	_, _ = svc.CreateTenant(ctx, "owner-delta", &domain.CreateTenantRequest{
+		Name:       "Delta Hidden",
+		Visibility: domain.TenantVisibilityUnlisted,
+		AccessType: domain.TenantAccessOpen,
+	})
+
+	results, cursor, err := svc.ListPublicTenants(ctx, &domain.ListTenantsRequest{Limit: 10})
+	require.NoError(t, err)
+	assert.Equal(t, "", cursor)
+	require.Len(t, results, 2)
+	nameSet := map[string]bool{}
+	for _, tenant := range results {
+		nameSet[tenant.Name] = true
+		assert.Equal(t, 1, tenant.MemberCount)
+	}
+	assert.True(t, nameSet["Alpha Ops"])
+	assert.True(t, nameSet["Gamma Edge"])
+}
+
+func TestTenantMembershipService_ListPublicTenants_SearchAndCursor(t *testing.T) {
+	svc, _ := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	// Create three public tenants with two matching the search term
+	_, _ = svc.CreateTenant(ctx, "owner-alpha", &domain.CreateTenantRequest{
+		Name:       "Alpha Core",
+		Visibility: domain.TenantVisibilityPublic,
+		AccessType: domain.TenantAccessOpen,
+	})
+	_, _ = svc.CreateTenant(ctx, "owner-beta", &domain.CreateTenantRequest{
+		Name:       "Beta Ops",
+		Visibility: domain.TenantVisibilityPublic,
+		AccessType: domain.TenantAccessOpen,
+	})
+	_, _ = svc.CreateTenant(ctx, "owner-alpine", &domain.CreateTenantRequest{
+		Name:       "Alpine Edge",
+		Visibility: domain.TenantVisibilityPublic,
+		AccessType: domain.TenantAccessOpen,
+	})
+
+	results, cursor, err := svc.ListPublicTenants(ctx, &domain.ListTenantsRequest{
+		Limit:  1,
+		Search: "al",
+	})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	assert.True(t, strings.Contains(strings.ToLower(results[0].Name), "al"))
+	assert.NotEmpty(t, cursor)
+
+	// Second page using cursor should also return a matching tenant
+	secondPage, nextCursor, err := svc.ListPublicTenants(ctx, &domain.ListTenantsRequest{
+		Limit:  1,
+		Search: "al",
+		Cursor: cursor,
+	})
+	require.NoError(t, err)
+	require.Len(t, secondPage, 1)
+	assert.True(t, strings.Contains(strings.ToLower(secondPage[0].Name), "al"))
+	// No more matches afterwards
+	assert.Equal(t, "", nextCursor)
+}
+
+func TestTenantMembershipService_ListPublicTenants_InvalidCursor(t *testing.T) {
+	svc, _ := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	_, _, err := svc.ListPublicTenants(ctx, &domain.ListTenantsRequest{Cursor: "not-a-number"})
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrInvalidRequest, domainErr.Code)
 }
 
 // ==================== JOIN TENANT TESTS ====================
@@ -156,6 +266,98 @@ func TestTenantMembershipService_JoinTenant_NonExistent(t *testing.T) {
 	_, err := svc.JoinTenant(ctx, "user-1", "non-existent", &domain.JoinTenantRequest{})
 
 	require.Error(t, err)
+}
+
+func TestTenantMembershipService_JoinTenant_PasswordProtected(t *testing.T) {
+	svc, _ := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenant, err := svc.CreateTenant(ctx, "owner", &domain.CreateTenantRequest{
+		Name:       "Secret",
+		Visibility: domain.TenantVisibilityPrivate,
+		AccessType: domain.TenantAccessPassword,
+		Password:   "super-secret",
+	})
+	require.NoError(t, err)
+
+	_, err = svc.JoinTenant(ctx, "user-1", tenant.ID, &domain.JoinTenantRequest{})
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrInvalidRequest, domainErr.Code)
+
+	_, err = svc.JoinTenant(ctx, "user-1", tenant.ID, &domain.JoinTenantRequest{Password: "bad-pass"})
+	require.Error(t, err)
+	domainErr, ok = err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrInvalidCredentials, domainErr.Code)
+
+	member, err := svc.JoinTenant(ctx, "user-1", tenant.ID, &domain.JoinTenantRequest{Password: "super-secret"})
+	require.NoError(t, err)
+	assert.Equal(t, tenant.ID, member.TenantID)
+}
+
+func TestTenantMembershipService_JoinTenant_InviteOnly(t *testing.T) {
+	svc, _ := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenant, err := svc.CreateTenant(ctx, "owner", &domain.CreateTenantRequest{
+		Name:       "Private",
+		Visibility: domain.TenantVisibilityPrivate,
+		AccessType: domain.TenantAccessInviteOnly,
+	})
+	require.NoError(t, err)
+
+	_, err = svc.JoinTenant(ctx, "user-1", tenant.ID, &domain.JoinTenantRequest{})
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
+}
+
+func TestTenantMembershipService_JoinTenant_MaxMembersReached(t *testing.T) {
+	svc, _ := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenant, err := svc.CreateTenant(ctx, "owner", &domain.CreateTenantRequest{
+		Name:       "Small",
+		Visibility: domain.TenantVisibilityPrivate,
+		AccessType: domain.TenantAccessOpen,
+		MaxMembers: 1,
+	})
+	require.NoError(t, err)
+
+	_, err = svc.JoinTenant(ctx, "user-1", tenant.ID, &domain.JoinTenantRequest{})
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
+}
+
+func TestTenantMembershipService_JoinByCode_RespectsCapacity(t *testing.T) {
+	svc, _ := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenant, err := svc.CreateTenant(ctx, "owner", &domain.CreateTenantRequest{
+		Name:       "InviteOnly",
+		Visibility: domain.TenantVisibilityPrivate,
+		AccessType: domain.TenantAccessInviteOnly,
+		MaxMembers: 2,
+	})
+	require.NoError(t, err)
+
+	invite, err := svc.CreateInvite(ctx, "owner", tenant.ID, &domain.CreateTenantInviteRequest{MaxUses: 5, ExpiresIn: 3600})
+	require.NoError(t, err)
+
+	member, err := svc.JoinByCode(ctx, "user-1", invite.Code)
+	require.NoError(t, err)
+	assert.Equal(t, tenant.ID, member.TenantID)
+
+	_, err = svc.JoinByCode(ctx, "user-2", invite.Code)
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 }
 
 // ==================== LEAVE TENANT TESTS ====================

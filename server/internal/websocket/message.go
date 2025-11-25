@@ -62,6 +62,25 @@ const (
 	// Control messages
 	TypeError MessageType = "error"
 	TypeAck   MessageType = "ack"
+
+	// Tenant chat inbound messages (client -> server)
+	TypeTenantChatSend   MessageType = "tenant.chat.send"
+	TypeTenantChatEdit   MessageType = "tenant.chat.edit"
+	TypeTenantChatDelete MessageType = "tenant.chat.delete"
+	TypeTenantChatTyping MessageType = "tenant.chat.typing"
+	TypeTenantJoin       MessageType = "tenant.join"
+	TypeTenantLeave      MessageType = "tenant.leave"
+
+	// Tenant chat outbound messages (server -> client)
+	TypeTenantChatMessage       MessageType = "tenant.chat.message"
+	TypeTenantChatEdited        MessageType = "tenant.chat.edited"
+	TypeTenantChatDeleted       MessageType = "tenant.chat.deleted"
+	TypeTenantChatTypingUser    MessageType = "tenant.chat.typing.user"
+	TypeTenantAnnouncement      MessageType = "tenant.announcement"
+	TypeTenantMemberJoined      MessageType = "tenant.member.joined"
+	TypeTenantMemberLeft        MessageType = "tenant.member.left"
+	TypeTenantMemberKicked      MessageType = "tenant.member.kicked"
+	TypeTenantMemberRoleChanged MessageType = "tenant.member.role_changed"
 )
 
 // InboundMessage represents a message from client to server
@@ -257,4 +276,77 @@ type Message struct {
 	Data      json.RawMessage `json:"data,omitempty"`
 	Error     *ErrorData      `json:"error,omitempty"`
 	Signature string          `json:"signature,omitempty"`
+}
+
+// ==================== TENANT CHAT DATA TYPES ====================
+
+// TenantChatSendData represents data for tenant.chat.send messages
+type TenantChatSendData struct {
+	TenantID string `json:"tenant_id"`
+	Content  string `json:"content"`
+}
+
+// TenantChatEditData represents data for tenant.chat.edit messages
+type TenantChatEditData struct {
+	TenantID  string `json:"tenant_id"`
+	MessageID string `json:"message_id"`
+	Content   string `json:"content"`
+}
+
+// TenantChatDeleteData represents data for tenant.chat.delete messages
+type TenantChatDeleteData struct {
+	TenantID  string `json:"tenant_id"`
+	MessageID string `json:"message_id"`
+}
+
+// TenantChatTypingData represents data for tenant.chat.typing messages
+type TenantChatTypingData struct {
+	TenantID string `json:"tenant_id"`
+	Typing   bool   `json:"typing"`
+}
+
+// TenantJoinData represents data for tenant.join messages
+type TenantJoinData struct {
+	TenantID string `json:"tenant_id"`
+}
+
+// TenantLeaveData represents data for tenant.leave messages
+type TenantLeaveData struct {
+	TenantID string `json:"tenant_id"`
+}
+
+// TenantChatMessageData represents data for tenant.chat.message events
+type TenantChatMessageData struct {
+	ID        string              `json:"id"`
+	TenantID  string              `json:"tenant_id"`
+	UserID    string              `json:"user_id"`
+	User      *TenantChatUserInfo `json:"user,omitempty"`
+	Content   string              `json:"content"`
+	CreatedAt string              `json:"created_at"`
+	EditedAt  *string             `json:"edited_at,omitempty"`
+}
+
+// TenantChatUserInfo represents user info in tenant chat messages
+type TenantChatUserInfo struct {
+	ID          string `json:"id"`
+	DisplayName string `json:"display_name"`
+	Nickname    string `json:"nickname,omitempty"`
+}
+
+// TenantChatTypingUserData represents data for tenant.chat.typing.user events
+type TenantChatTypingUserData struct {
+	TenantID string `json:"tenant_id"`
+	UserID   string `json:"user_id"`
+	Typing   bool   `json:"typing"`
+}
+
+// TenantMemberEventData represents data for tenant.member.* events
+type TenantMemberEventData struct {
+	TenantID string `json:"tenant_id"`
+	UserID   string `json:"user_id"`
+	Role     string `json:"role,omitempty"`
+	OldRole  string `json:"old_role,omitempty"`
+	NewRole  string `json:"new_role,omitempty"`
+	By       string `json:"by,omitempty"` // Who performed the action
+	Reason   string `json:"reason,omitempty"`
 }

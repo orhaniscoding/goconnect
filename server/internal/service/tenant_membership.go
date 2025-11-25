@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -46,34 +48,38 @@ func NewTenantMembershipService(
 func (s *TenantMembershipService) CreateTenant(ctx context.Context, userID string, req *domain.CreateTenantRequest) (*domain.TenantExtended, error) {
 	// Generate ID
 	tenantID := uuid.New().String()
-
-	// Create basic tenant first (for backwards compatibility with existing Tenant struct)
-	basicTenant := &domain.Tenant{
-		ID:        tenantID,
-		Name:      req.Name,
-		OwnerID:   userID,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+	visibility := req.Visibility
+	if visibility == "" {
+		visibility = domain.TenantVisibilityPrivate
+	}
+	accessType := req.AccessType
+	if accessType == "" {
+		accessType = domain.TenantAccessInviteOnly
+	}
+	var passwordHash string
+	if accessType == domain.TenantAccessPassword {
+		if strings.TrimSpace(req.Password) == "" {
+			return nil, domain.NewError(domain.ErrValidation, "Password required for password-protected tenants", map[string]string{"field": "password"})
+		}
+		passwordHash = HashTenantPassword(req.Password)
+	}
+	now := time.Now()
+	tenant := &domain.Tenant{
+		ID:           tenantID,
+		Name:         req.Name,
+		Description:  req.Description,
+		Visibility:   visibility,
+		AccessType:   accessType,
+		PasswordHash: passwordHash,
+		MaxMembers:   req.MaxMembers,
+		OwnerID:      userID,
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 
 	// Create tenant in repository
-	if err := s.tenantRepo.Create(ctx, basicTenant); err != nil {
+	if err := s.tenantRepo.Create(ctx, tenant); err != nil {
 		return nil, fmt.Errorf("failed to create tenant: %w", err)
-	}
-
-	// TODO: Update tenant with extended fields when TenantRepository supports it
-	// For now, create extended response
-	tenant := &domain.TenantExtended{
-		ID:          tenantID,
-		Name:        req.Name,
-		Description: req.Description,
-		Visibility:  req.Visibility,
-		AccessType:  req.AccessType,
-		MaxMembers:  req.MaxMembers,
-		OwnerID:     userID,
-		CreatedAt:   basicTenant.CreatedAt,
-		UpdatedAt:   basicTenant.UpdatedAt,
-		MemberCount: 1,
 	}
 
 	// Add creator as owner
@@ -86,7 +92,10 @@ func (s *TenantMembershipService) CreateTenant(ctx context.Context, userID strin
 		return nil, fmt.Errorf("failed to add owner as member: %w", err)
 	}
 
-	return tenant, nil
+	return &domain.TenantExtended{
+		Tenant:      *tenant,
+		MemberCount: 1,
+	}, nil
 }
 
 // GetTenant gets a tenant by ID with member count
@@ -102,14 +111,60 @@ func (s *TenantMembershipService) GetTenant(ctx context.Context, tenantID string
 	}
 
 	return &domain.TenantExtended{
-		ID:          basicTenant.ID,
-		Name:        basicTenant.Name,
-		OwnerID:     basicTenant.OwnerID,
-		CreatedAt:   basicTenant.CreatedAt,
-		UpdatedAt:   basicTenant.UpdatedAt,
+		Tenant:      *basicTenant,
 		MemberCount: memberCount,
-		// TODO: Extended fields from DB
 	}, nil
+}
+
+// ListPublicTenants returns discoverable tenants for unauthenticated discovery/search flows
+func (s *TenantMembershipService) ListPublicTenants(ctx context.Context, req *domain.ListTenantsRequest) ([]*domain.TenantExtended, string, error) {
+	if req == nil {
+		req = &domain.ListTenantsRequest{}
+	}
+
+	limit := req.Limit
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+
+	offset := 0
+	if cursor := strings.TrimSpace(req.Cursor); cursor != "" {
+		parsed, err := strconv.Atoi(cursor)
+		if err != nil || parsed < 0 {
+			return nil, "", domain.NewError(domain.ErrInvalidRequest, "Invalid cursor value", map[string]string{"cursor": req.Cursor})
+		}
+		offset = parsed
+	}
+
+	// Fetch tenants using existing repository pagination (order by created_at DESC)
+	tenants, total, err := s.tenantRepo.ListAll(ctx, limit, offset, req.Search)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var result []*domain.TenantExtended
+	for _, tenant := range tenants {
+		if tenant.Visibility != domain.TenantVisibilityPublic {
+			continue
+		}
+
+		memberCount, err := s.memberRepo.CountByTenant(ctx, tenant.ID)
+		if err != nil {
+			return nil, "", err
+		}
+
+		result = append(result, &domain.TenantExtended{
+			Tenant:      *tenant,
+			MemberCount: memberCount,
+		})
+	}
+
+	nextCursor := ""
+	if offset+len(tenants) < total {
+		nextCursor = strconv.Itoa(offset + len(tenants))
+	}
+
+	return result, nextCursor, nil
 }
 
 // ==================== MEMBERSHIP OPERATIONS ====================
@@ -128,9 +183,26 @@ func (s *TenantMembershipService) JoinTenant(ctx context.Context, userID, tenant
 		return nil, err
 	}
 
-	// TODO: Check tenant.AccessType and req.Password when extended fields available
-	// For now, allow open joining
-	_ = tenant
+	if tenant.AccessType == domain.TenantAccessInviteOnly {
+		return nil, domain.NewError(domain.ErrForbidden, "This tenant requires an invite code to join", nil)
+	}
+
+	if tenant.AccessType == domain.TenantAccessPassword {
+		password := ""
+		if req != nil {
+			password = req.Password
+		}
+		if strings.TrimSpace(password) == "" {
+			return nil, domain.NewError(domain.ErrInvalidRequest, "Password required to join this tenant", map[string]string{"field": "password"})
+		}
+		if tenant.PasswordHash == "" || HashTenantPassword(password) != tenant.PasswordHash {
+			return nil, domain.NewError(domain.ErrInvalidCredentials, "Invalid tenant password", nil)
+		}
+	}
+
+	if err := s.ensureTenantCapacity(ctx, tenant); err != nil {
+		return nil, err
+	}
 
 	// Create membership
 	member := &domain.TenantMember{
@@ -166,6 +238,14 @@ func (s *TenantMembershipService) JoinByCode(ctx context.Context, userID string,
 	existing, _ := s.memberRepo.GetByUserAndTenant(ctx, userID, invite.TenantID)
 	if existing != nil {
 		return nil, domain.NewError(domain.ErrAlreadyMember, "You are already a member of this tenant", nil)
+	}
+
+	tenant, err := s.tenantRepo.GetByID(ctx, invite.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.ensureTenantCapacity(ctx, tenant); err != nil {
+		return nil, err
 	}
 
 	// Increment use count
@@ -300,6 +380,21 @@ func (s *TenantMembershipService) RemoveMember(ctx context.Context, actorID, ten
 	}
 
 	return s.memberRepo.Delete(ctx, targetMemberID)
+}
+
+func (s *TenantMembershipService) ensureTenantCapacity(ctx context.Context, tenant *domain.Tenant) error {
+	if tenant == nil || tenant.MaxMembers <= 0 {
+		return nil
+	}
+
+	count, err := s.memberRepo.CountByTenant(ctx, tenant.ID)
+	if err != nil {
+		return err
+	}
+	if count >= tenant.MaxMembers {
+		return domain.NewError(domain.ErrForbidden, fmt.Sprintf("Tenant has reached the maximum of %d members", tenant.MaxMembers), map[string]int{"max_members": tenant.MaxMembers})
+	}
+	return nil
 }
 
 // ==================== INVITE OPERATIONS ====================

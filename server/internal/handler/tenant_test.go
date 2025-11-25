@@ -1,0 +1,1128 @@
+package handler
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/orhaniscoding/goconnect/server/internal/domain"
+	"github.com/orhaniscoding/goconnect/server/internal/repository"
+	"github.com/orhaniscoding/goconnect/server/internal/service"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// setupTenantTest creates all required repositories and services for tenant testing
+func setupTenantTest() (*gin.Engine, *TenantHandler, *service.TenantMembershipService, *mockAuthService) {
+	gin.SetMode(gin.TestMode)
+
+	// Create repositories
+	tenantMemberRepo := repository.NewInMemoryTenantMemberRepository()
+	tenantInviteRepo := repository.NewInMemoryTenantInviteRepository()
+	tenantAnnouncementRepo := repository.NewInMemoryTenantAnnouncementRepository()
+	tenantChatRepo := repository.NewInMemoryTenantChatRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+
+	// Create service
+	tenantService := service.NewTenantMembershipService(
+		tenantMemberRepo,
+		tenantInviteRepo,
+		tenantAnnouncementRepo,
+		tenantChatRepo,
+		tenantRepo,
+		userRepo,
+	)
+
+	// Create handler
+	handler := NewTenantHandler(tenantService)
+
+	// Create router with auth middleware mock
+	r := gin.New()
+	mockAuth := newMockAuthServiceWithTokens()
+
+	return r, handler, tenantService, mockAuth
+}
+
+// authMiddleware returns a test auth middleware that sets user context
+func authMiddleware(mockAuth *mockAuthService) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token := c.GetHeader("Authorization")
+		if len(token) > 7 && token[:7] == "Bearer " {
+			token = token[7:]
+		}
+
+		claims, err := mockAuth.ValidateToken(c.Request.Context(), token)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			return
+		}
+
+		c.Set("user_id", claims.UserID)
+		c.Set("tenant_id", claims.TenantID)
+		c.Set("is_admin", claims.IsAdmin)
+		c.Next()
+	}
+}
+
+// ==================== CREATE TENANT TESTS ====================
+
+func TestTenantHandler_CreateTenant(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		r, handler, _, mockAuth := setupTenantTest()
+		r.POST("/v1/tenants", authMiddleware(mockAuth), handler.CreateTenant)
+
+		body := map[string]interface{}{
+			"name":        "Test Tenant",
+			"description": "A test tenant",
+			"visibility":  "public",
+			"access_type": "open",
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("POST", "/v1/tenants", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusCreated, w.Code)
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+		data := response["data"].(map[string]interface{})
+		assert.Equal(t, "Test Tenant", data["name"])
+		assert.NotEmpty(t, data["id"])
+	})
+
+	t.Run("Missing name", func(t *testing.T) {
+		r, handler, _, mockAuth := setupTenantTest()
+		r.POST("/v1/tenants", authMiddleware(mockAuth), handler.CreateTenant)
+
+		body := map[string]interface{}{
+			"description": "A test tenant without name",
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("POST", "/v1/tenants", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("Unauthorized", func(t *testing.T) {
+		r, handler, _, mockAuth := setupTenantTest()
+		r.POST("/v1/tenants", authMiddleware(mockAuth), handler.CreateTenant)
+
+		body := map[string]interface{}{
+			"name": "Test Tenant",
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("POST", "/v1/tenants", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer invalid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+// ==================== GET TENANT TESTS ====================
+
+func TestTenantHandler_GetTenant(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.GET("/v1/tenants/:tenantId", authMiddleware(mockAuth), handler.GetTenant)
+
+		// Create a tenant first
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("GET", "/v1/tenants/"+tenant.ID, nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+		data := response["data"].(map[string]interface{})
+		assert.Equal(t, "Test Tenant", data["name"])
+	})
+
+	t.Run("Not found", func(t *testing.T) {
+		r, handler, _, mockAuth := setupTenantTest()
+		r.GET("/v1/tenants/:tenantId", authMiddleware(mockAuth), handler.GetTenant)
+
+		req := httptest.NewRequest("GET", "/v1/tenants/non-existent", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Service returns error for non-existent tenant
+		assert.True(t, w.Code == http.StatusNotFound || w.Code == http.StatusInternalServerError)
+	})
+}
+
+// ==================== PUBLIC TENANT DISCOVERY TESTS ====================
+
+func TestTenantHandler_ListPublicTenants(t *testing.T) {
+	r, handler, tenantService, _ := setupTenantTest()
+	r.GET("/v1/tenants/public", handler.ListPublicTenants)
+
+	ctx := context.Background()
+	_, err := tenantService.CreateTenant(ctx, "owner_alpha", &domain.CreateTenantRequest{
+		Name:       "Alpha Ops",
+		Visibility: domain.TenantVisibilityPublic,
+		AccessType: domain.TenantAccessOpen,
+	})
+	require.NoError(t, err)
+	_, err = tenantService.CreateTenant(ctx, "owner_beta", &domain.CreateTenantRequest{
+		Name:       "Beta Private",
+		Visibility: domain.TenantVisibilityPrivate,
+		AccessType: domain.TenantAccessInviteOnly,
+	})
+	require.NoError(t, err)
+	_, err = tenantService.CreateTenant(ctx, "owner_gamma", &domain.CreateTenantRequest{
+		Name:       "Gamma Ops",
+		Visibility: domain.TenantVisibilityPublic,
+		AccessType: domain.TenantAccessOpen,
+	})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest("GET", "/v1/tenants/public?limit=5", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	var response map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &response)
+	data := response["data"].([]interface{})
+	assert.Len(t, data, 2)
+}
+
+func TestTenantHandler_RegisterRoutes_PublicVsProtected(t *testing.T) {
+	r, handler, tenantService, _ := setupTenantTest()
+
+	authMiddleware := func(c *gin.Context) {
+		if c.GetHeader("Authorization") == "" {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		c.Set("user_id", "user_dev")
+		c.Next()
+	}
+
+	handler.RegisterRoutes(r.Group("/v1"), authMiddleware)
+
+	ctx := context.Background()
+	tenant, err := tenantService.CreateTenant(ctx, "owner", &domain.CreateTenantRequest{
+		Name:       "Public Ops",
+		Visibility: domain.TenantVisibilityPublic,
+		AccessType: domain.TenantAccessOpen,
+	})
+	require.NoError(t, err)
+
+	// Public listing should succeed without auth header
+	publicReq := httptest.NewRequest("GET", "/v1/tenants/public", nil)
+	publicResp := httptest.NewRecorder()
+	r.ServeHTTP(publicResp, publicReq)
+	assert.Equal(t, http.StatusOK, publicResp.Code)
+
+	// Protected tenant detail should require auth
+	protectedReq := httptest.NewRequest("GET", "/v1/tenants/"+tenant.ID, nil)
+	protectedResp := httptest.NewRecorder()
+	r.ServeHTTP(protectedResp, protectedReq)
+	assert.Equal(t, http.StatusUnauthorized, protectedResp.Code)
+
+	// Same endpoint with auth header should pass
+	protectedReqAuth := httptest.NewRequest("GET", "/v1/tenants/"+tenant.ID, nil)
+	protectedReqAuth.Header.Set("Authorization", "Bearer test")
+	protectedRespAuth := httptest.NewRecorder()
+	r.ServeHTTP(protectedRespAuth, protectedReqAuth)
+	assert.Equal(t, http.StatusOK, protectedRespAuth.Code)
+
+	// Users/me/tenants also needs auth
+	userTenantsReq := httptest.NewRequest("GET", "/v1/users/me/tenants", nil)
+	userTenantsResp := httptest.NewRecorder()
+	r.ServeHTTP(userTenantsResp, userTenantsReq)
+	assert.Equal(t, http.StatusUnauthorized, userTenantsResp.Code)
+
+	userTenantsReqAuth := httptest.NewRequest("GET", "/v1/users/me/tenants", nil)
+	userTenantsReqAuth.Header.Set("Authorization", "Bearer test")
+	userTenantsRespAuth := httptest.NewRecorder()
+	r.ServeHTTP(userTenantsRespAuth, userTenantsReqAuth)
+	assert.Equal(t, http.StatusOK, userTenantsRespAuth.Code)
+}
+
+func TestTenantHandler_SearchTenants(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		r, handler, tenantService, _ := setupTenantTest()
+		r.GET("/v1/tenants/search", handler.SearchTenants)
+
+		ctx := context.Background()
+		_, err := tenantService.CreateTenant(ctx, "owner_alpha", &domain.CreateTenantRequest{
+			Name:       "Alpha Ops",
+			Visibility: domain.TenantVisibilityPublic,
+			AccessType: domain.TenantAccessOpen,
+		})
+		require.NoError(t, err)
+		_, err = tenantService.CreateTenant(ctx, "owner_beta", &domain.CreateTenantRequest{
+			Name:       "Beta Ops",
+			Visibility: domain.TenantVisibilityPublic,
+			AccessType: domain.TenantAccessOpen,
+		})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("GET", "/v1/tenants/search?q=alpha&limit=5", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+		data := response["data"].([]interface{})
+		assert.Len(t, data, 1)
+	})
+
+	t.Run("Missing query", func(t *testing.T) {
+		r, handler, _, _ := setupTenantTest()
+		r.GET("/v1/tenants/search", handler.SearchTenants)
+
+		req := httptest.NewRequest("GET", "/v1/tenants/search", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+}
+
+// ==================== JOIN TENANT TESTS ====================
+
+func TestTenantHandler_JoinTenant(t *testing.T) {
+	t.Run("Success - Open tenant", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.POST("/v1/tenants/:tenantId/join", authMiddleware(mockAuth), handler.JoinTenant)
+
+		// Create a public open tenant
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "owner_user", &domain.CreateTenantRequest{
+			Name:       "Open Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("POST", "/v1/tenants/"+tenant.ID+"/join", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+		assert.Contains(t, response["message"], "Successfully joined")
+	})
+
+	t.Run("Already a member - idempotent", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.POST("/v1/tenants/:tenantId/join", authMiddleware(mockAuth), handler.JoinTenant)
+
+		// Create tenant (owner is auto-member)
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Try to join as owner (already member)
+		// Service allows idempotent join - returns existing membership
+		req := httptest.NewRequest("POST", "/v1/tenants/"+tenant.ID+"/join", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Should succeed (idempotent) or conflict based on implementation
+		assert.True(t, w.Code == http.StatusOK || w.Code == http.StatusConflict)
+	})
+
+	t.Run("Password protected requires password", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.POST("/v1/tenants/:tenantId/join", authMiddleware(mockAuth), handler.JoinTenant)
+
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "owner_user", &domain.CreateTenantRequest{
+			Name:       "Password Tenant",
+			Visibility: domain.TenantVisibilityPrivate,
+			AccessType: domain.TenantAccessPassword,
+			Password:   "super-secret",
+		})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("POST", "/v1/tenants/"+tenant.ID+"/join", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("Password protected success with valid password", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.POST("/v1/tenants/:tenantId/join", authMiddleware(mockAuth), handler.JoinTenant)
+
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "owner_user", &domain.CreateTenantRequest{
+			Name:       "Password Tenant",
+			Visibility: domain.TenantVisibilityPrivate,
+			AccessType: domain.TenantAccessPassword,
+			Password:   "super-secret",
+		})
+		require.NoError(t, err)
+
+		body := map[string]string{"password": "super-secret"}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("POST", "/v1/tenants/"+tenant.ID+"/join", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("Invite only requires code", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.POST("/v1/tenants/:tenantId/join", authMiddleware(mockAuth), handler.JoinTenant)
+
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "owner_user", &domain.CreateTenantRequest{
+			Name:       "Invite Tenant",
+			Visibility: domain.TenantVisibilityPrivate,
+			AccessType: domain.TenantAccessInviteOnly,
+		})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("POST", "/v1/tenants/"+tenant.ID+"/join", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusForbidden, w.Code)
+	})
+
+	t.Run("Capacity limit enforced", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.POST("/v1/tenants/:tenantId/join", authMiddleware(mockAuth), handler.JoinTenant)
+
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "owner_user", &domain.CreateTenantRequest{
+			Name:       "Limited Tenant",
+			Visibility: domain.TenantVisibilityPrivate,
+			AccessType: domain.TenantAccessOpen,
+			MaxMembers: 1,
+		})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("POST", "/v1/tenants/"+tenant.ID+"/join", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusForbidden, w.Code)
+	})
+}
+
+// ==================== JOIN BY CODE TESTS ====================
+
+func TestTenantHandler_JoinByCode(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.POST("/v1/tenants/join-by-code", authMiddleware(mockAuth), handler.JoinByCode)
+
+		// Create tenant and invite
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "owner_user", &domain.CreateTenantRequest{
+			Name:       "Invite Only Tenant",
+			Visibility: "private",
+			AccessType: "invite_only",
+		})
+		require.NoError(t, err)
+
+		// Create invite
+		invite, err := tenantService.CreateInvite(ctx, "owner_user", tenant.ID, &domain.CreateTenantInviteRequest{
+			MaxUses:   10,
+			ExpiresIn: 3600,
+		})
+		require.NoError(t, err)
+
+		body := map[string]interface{}{
+			"code": invite.Code,
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("POST", "/v1/tenants/join-by-code", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("Invalid code", func(t *testing.T) {
+		r, handler, _, mockAuth := setupTenantTest()
+		r.POST("/v1/tenants/join-by-code", authMiddleware(mockAuth), handler.JoinByCode)
+
+		body := map[string]interface{}{
+			"code": "invalid-code-123",
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("POST", "/v1/tenants/join-by-code", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Service returns BadRequest or NotFound for invalid code
+		assert.True(t, w.Code == http.StatusBadRequest || w.Code == http.StatusNotFound)
+	})
+}
+
+// ==================== LEAVE TENANT TESTS ====================
+
+func TestTenantHandler_LeaveTenant(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.DELETE("/v1/tenants/:tenantId/leave", authMiddleware(mockAuth), handler.LeaveTenant)
+
+		// Create tenant
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "owner_user", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Join as another user
+		_, err = tenantService.JoinTenant(ctx, "user_dev", tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+
+		// Leave
+		req := httptest.NewRequest("DELETE", "/v1/tenants/"+tenant.ID+"/leave", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("Owner cannot leave", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.DELETE("/v1/tenants/:tenantId/leave", authMiddleware(mockAuth), handler.LeaveTenant)
+
+		// Create tenant as user_dev (the token user)
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Try to leave as owner
+		req := httptest.NewRequest("DELETE", "/v1/tenants/"+tenant.ID+"/leave", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusForbidden, w.Code)
+	})
+}
+
+// ==================== GET USER TENANTS TESTS ====================
+
+func TestTenantHandler_GetUserTenants(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.GET("/v1/users/me/tenants", authMiddleware(mockAuth), handler.GetUserTenants)
+
+		// Create tenants
+		ctx := context.Background()
+		_, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Tenant 1",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		_, err = tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Tenant 2",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("GET", "/v1/users/me/tenants", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+		data := response["data"].([]interface{})
+		assert.Len(t, data, 2)
+	})
+
+	t.Run("Empty list", func(t *testing.T) {
+		r, handler, _, mockAuth := setupTenantTest()
+		r.GET("/v1/users/me/tenants", authMiddleware(mockAuth), handler.GetUserTenants)
+
+		req := httptest.NewRequest("GET", "/v1/users/me/tenants", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+		// Data can be nil or empty array
+		if data, ok := response["data"].([]interface{}); ok {
+			assert.Len(t, data, 0)
+		} else {
+			// nil is also acceptable for empty list
+			assert.Nil(t, response["data"])
+		}
+	})
+}
+
+// ==================== GET TENANT MEMBERS TESTS ====================
+
+func TestTenantHandler_GetTenantMembers(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.GET("/v1/tenants/:tenantId/members", authMiddleware(mockAuth), handler.GetTenantMembers)
+
+		// Create tenant
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("GET", "/v1/tenants/"+tenant.ID+"/members", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+		data := response["data"].([]interface{})
+		assert.Len(t, data, 1) // Owner is a member
+	})
+
+	t.Run("With pagination", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.GET("/v1/tenants/:tenantId/members", authMiddleware(mockAuth), handler.GetTenantMembers)
+
+		// Create tenant
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "owner_user", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Add more members
+		for i := 0; i < 5; i++ {
+			tenantService.JoinTenant(ctx, "member_"+string(rune('a'+i)), tenant.ID, &domain.JoinTenantRequest{})
+		}
+
+		req := httptest.NewRequest("GET", "/v1/tenants/"+tenant.ID+"/members?limit=3", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+		data := response["data"].([]interface{})
+		// Should return up to limit members
+		assert.True(t, len(data) <= 3)
+	})
+}
+
+// ==================== UPDATE MEMBER ROLE TESTS ====================
+
+func TestTenantHandler_UpdateMemberRole(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.PATCH("/v1/tenants/:tenantId/members/:memberId", authMiddleware(mockAuth), handler.UpdateMemberRole)
+
+		// Create tenant as user_dev (token user)
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Add a member and capture membership ID for handler path
+		member, err := tenantService.JoinTenant(ctx, "member_user", tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+
+		body := map[string]interface{}{
+			"role": "admin",
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("PATCH", "/v1/tenants/"+tenant.ID+"/members/"+member.ID, bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("Forbidden - not admin", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.PATCH("/v1/tenants/:tenantId/members/:memberId", authMiddleware(mockAuth), handler.UpdateMemberRole)
+
+		// Create tenant as different user
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "owner_user", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// user_dev joins as member (actor)
+		_, err = tenantService.JoinTenant(ctx, "user_dev", tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+
+		// Add target member to attempt promoting
+		targetMember, err := tenantService.JoinTenant(ctx, "target_user", tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+
+		body := map[string]interface{}{
+			"role": "admin",
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("PATCH", "/v1/tenants/"+tenant.ID+"/members/"+targetMember.ID, bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Non-admin trying to update role should fail with Forbidden
+		assert.Equal(t, http.StatusForbidden, w.Code)
+	})
+}
+
+// ==================== REMOVE MEMBER TESTS ====================
+
+func TestTenantHandler_RemoveMember(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.DELETE("/v1/tenants/:tenantId/members/:memberId", authMiddleware(mockAuth), handler.RemoveMember)
+
+		// Create tenant as user_dev (token user is owner)
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Add a member and use returned membership ID
+		memberToRemove, err := tenantService.JoinTenant(ctx, "member_to_remove", tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("DELETE", "/v1/tenants/"+tenant.ID+"/members/"+memberToRemove.ID, nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Owner should be able to remove member
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
+// ==================== INVITE TESTS ====================
+
+func TestTenantHandler_CreateInvite(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.POST("/v1/tenants/:tenantId/invites", authMiddleware(mockAuth), handler.CreateInvite)
+
+		// Create tenant as user_dev
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		body := map[string]interface{}{
+			"max_uses":   5,
+			"expires_in": 3600,
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("POST", "/v1/tenants/"+tenant.ID+"/invites", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusCreated, w.Code)
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+		data := response["data"].(map[string]interface{})
+		assert.NotEmpty(t, data["code"])
+	})
+}
+
+func TestTenantHandler_ListInvites(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.GET("/v1/tenants/:tenantId/invites", authMiddleware(mockAuth), handler.ListInvites)
+
+		// Create tenant as user_dev
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Create some invites
+		tenantService.CreateInvite(ctx, "user_dev", tenant.ID, &domain.CreateTenantInviteRequest{MaxUses: 5, ExpiresIn: 3600})
+		tenantService.CreateInvite(ctx, "user_dev", tenant.ID, &domain.CreateTenantInviteRequest{MaxUses: 10, ExpiresIn: 7200})
+
+		req := httptest.NewRequest("GET", "/v1/tenants/"+tenant.ID+"/invites", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+		data := response["data"].([]interface{})
+		assert.Len(t, data, 2)
+	})
+}
+
+func TestTenantHandler_RevokeInvite(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.DELETE("/v1/tenants/:tenantId/invites/:inviteId", authMiddleware(mockAuth), handler.RevokeInvite)
+
+		// Create tenant as user_dev
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Create invite
+		invite, err := tenantService.CreateInvite(ctx, "user_dev", tenant.ID, &domain.CreateTenantInviteRequest{MaxUses: 5, ExpiresIn: 3600})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("DELETE", "/v1/tenants/"+tenant.ID+"/invites/"+invite.ID, nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
+// ==================== ANNOUNCEMENT TESTS ====================
+
+func TestTenantHandler_CreateAnnouncement(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.POST("/v1/tenants/:tenantId/announcements", authMiddleware(mockAuth), handler.CreateAnnouncement)
+
+		// Create tenant as user_dev (owner can create announcements)
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		body := map[string]interface{}{
+			"title":   "Test Announcement",
+			"content": "This is a test announcement",
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("POST", "/v1/tenants/"+tenant.ID+"/announcements", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusCreated, w.Code)
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+		data := response["data"].(map[string]interface{})
+		assert.Equal(t, "Test Announcement", data["title"])
+	})
+
+	t.Run("Forbidden - not admin", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.POST("/v1/tenants/:tenantId/announcements", authMiddleware(mockAuth), handler.CreateAnnouncement)
+
+		// Create tenant as different user
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "owner_user", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// user_dev joins as member
+		_, err = tenantService.JoinTenant(ctx, "user_dev", tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+
+		body := map[string]interface{}{
+			"title":   "Unauthorized Announcement",
+			"content": "Should fail",
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("POST", "/v1/tenants/"+tenant.ID+"/announcements", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusForbidden, w.Code)
+	})
+}
+
+func TestTenantHandler_ListAnnouncements(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.GET("/v1/tenants/:tenantId/announcements", authMiddleware(mockAuth), handler.ListAnnouncements)
+
+		// Create tenant as user_dev
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Create announcements
+		tenantService.CreateAnnouncement(ctx, "user_dev", tenant.ID, &domain.CreateAnnouncementRequest{
+			Title:   "Announcement 1",
+			Content: "Content 1",
+		})
+		tenantService.CreateAnnouncement(ctx, "user_dev", tenant.ID, &domain.CreateAnnouncementRequest{
+			Title:   "Announcement 2",
+			Content: "Content 2",
+		})
+
+		req := httptest.NewRequest("GET", "/v1/tenants/"+tenant.ID+"/announcements", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+		data := response["data"].([]interface{})
+		assert.Len(t, data, 2)
+	})
+}
+
+func TestTenantHandler_DeleteAnnouncement(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.DELETE("/v1/tenants/:tenantId/announcements/:announcementId", authMiddleware(mockAuth), handler.DeleteAnnouncement)
+
+		// Create tenant as user_dev
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Create announcement
+		ann, err := tenantService.CreateAnnouncement(ctx, "user_dev", tenant.ID, &domain.CreateAnnouncementRequest{
+			Title:   "To Delete",
+			Content: "Will be deleted",
+		})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("DELETE", "/v1/tenants/"+tenant.ID+"/announcements/"+ann.ID, nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
+// ==================== CHAT TESTS ====================
+
+func TestTenantHandler_SendChatMessage(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.POST("/v1/tenants/:tenantId/chat/messages", authMiddleware(mockAuth), handler.SendChatMessage)
+
+		// Create tenant as user_dev
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		body := map[string]interface{}{
+			"content": "Hello, this is a test message!",
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("POST", "/v1/tenants/"+tenant.ID+"/chat/messages", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusCreated, w.Code)
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+		data := response["data"].(map[string]interface{})
+		assert.Equal(t, "Hello, this is a test message!", data["content"])
+	})
+
+	t.Run("Forbidden - not a member", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.POST("/v1/tenants/:tenantId/chat/messages", authMiddleware(mockAuth), handler.SendChatMessage)
+
+		// Create tenant as different user
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "owner_user", &domain.CreateTenantRequest{
+			Name:       "Private Tenant",
+			Visibility: "private",
+			AccessType: "invite_only",
+		})
+		require.NoError(t, err)
+
+		body := map[string]interface{}{
+			"content": "Unauthorized message",
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("POST", "/v1/tenants/"+tenant.ID+"/chat/messages", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusForbidden, w.Code)
+	})
+}
+
+func TestTenantHandler_GetChatHistory(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.GET("/v1/tenants/:tenantId/chat/messages", authMiddleware(mockAuth), handler.GetChatHistory)
+
+		// Create tenant as user_dev
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Send some messages
+		tenantService.SendChatMessage(ctx, "user_dev", tenant.ID, &domain.SendChatMessageRequest{Content: "Message 1"})
+		time.Sleep(1 * time.Millisecond)
+		tenantService.SendChatMessage(ctx, "user_dev", tenant.ID, &domain.SendChatMessageRequest{Content: "Message 2"})
+
+		req := httptest.NewRequest("GET", "/v1/tenants/"+tenant.ID+"/chat/messages", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+		data := response["data"].([]interface{})
+		assert.Len(t, data, 2)
+	})
+}
+
+func TestTenantHandler_DeleteChatMessage(t *testing.T) {
+	t.Run("Success - own message", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.DELETE("/v1/tenants/:tenantId/chat/messages/:messageId", authMiddleware(mockAuth), handler.DeleteChatMessage)
+
+		// Create tenant as user_dev
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Send a message
+		msg, err := tenantService.SendChatMessage(ctx, "user_dev", tenant.ID, &domain.SendChatMessageRequest{Content: "To delete"})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("DELETE", "/v1/tenants/"+tenant.ID+"/chat/messages/"+msg.ID, nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}

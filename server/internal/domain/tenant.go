@@ -115,20 +115,9 @@ type TenantChatMessage struct {
 
 // ---- Extended Tenant struct (replaces basic one in auth.go) ----
 
-// TenantExtended represents a tenant with multi-membership fields
+// TenantExtended represents a tenant with computed fields (e.g. member count)
 type TenantExtended struct {
-	ID           string           `json:"id" db:"id"`
-	Name         string           `json:"name" db:"name"`
-	Description  string           `json:"description" db:"description"`
-	IconURL      string           `json:"icon_url,omitempty" db:"icon_url"`
-	Visibility   TenantVisibility `json:"visibility" db:"visibility"`
-	AccessType   TenantAccessType `json:"access_type" db:"access_type"`
-	PasswordHash string           `json:"-" db:"password_hash"` // For password access
-	MaxMembers   int              `json:"max_members" db:"max_members"`
-	OwnerID      string           `json:"owner_id" db:"owner_id"`
-	CreatedAt    time.Time        `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time        `json:"updated_at" db:"updated_at"`
-	// Computed fields
+	Tenant
 	MemberCount int `json:"member_count" db:"member_count"`
 }
 

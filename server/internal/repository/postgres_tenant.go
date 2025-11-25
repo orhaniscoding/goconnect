@@ -21,12 +21,36 @@ func NewPostgresTenantRepository(db *sql.DB) *PostgresTenantRepository {
 
 func (r *PostgresTenantRepository) Create(ctx context.Context, tenant *domain.Tenant) error {
 	query := `
-		INSERT INTO tenants (id, name, created_at, updated_at)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO tenants (
+			id,
+			name,
+			description,
+			icon_url,
+			visibility,
+			access_type,
+			password_hash,
+			max_members,
+			owner_id,
+			created_at,
+			updated_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`
+
+	var ownerID interface{}
+	if tenant.OwnerID != "" {
+		ownerID = tenant.OwnerID
+	}
 	_, err := r.db.ExecContext(ctx, query,
 		tenant.ID,
 		tenant.Name,
+		tenant.Description,
+		tenant.IconURL,
+		tenant.Visibility,
+		tenant.AccessType,
+		tenant.PasswordHash,
+		tenant.MaxMembers,
+		ownerID,
 		tenant.CreatedAt,
 		tenant.UpdatedAt,
 	)
@@ -38,14 +62,33 @@ func (r *PostgresTenantRepository) Create(ctx context.Context, tenant *domain.Te
 
 func (r *PostgresTenantRepository) GetByID(ctx context.Context, id string) (*domain.Tenant, error) {
 	query := `
-		SELECT id, name, created_at, updated_at
+		SELECT 
+			id,
+			name,
+			description,
+			icon_url,
+			visibility,
+			access_type,
+			password_hash,
+			max_members,
+			owner_id,
+			created_at,
+			updated_at
 		FROM tenants
 		WHERE id = $1
 	`
 	tenant := &domain.Tenant{}
+	var description, iconURL, passwordHash, ownerID sql.NullString
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&tenant.ID,
 		&tenant.Name,
+		&description,
+		&iconURL,
+		&tenant.Visibility,
+		&tenant.AccessType,
+		&passwordHash,
+		&tenant.MaxMembers,
+		&ownerID,
 		&tenant.CreatedAt,
 		&tenant.UpdatedAt,
 	)
@@ -55,6 +98,10 @@ func (r *PostgresTenantRepository) GetByID(ctx context.Context, id string) (*dom
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tenant by ID: %w", err)
 	}
+	tenant.Description = description.String
+	tenant.IconURL = iconURL.String
+	tenant.PasswordHash = passwordHash.String
+	tenant.OwnerID = ownerID.String
 	return tenant, nil
 }
 
@@ -103,7 +150,7 @@ func (r *PostgresTenantRepository) Delete(ctx context.Context, id string) error 
 
 func (r *PostgresTenantRepository) List(ctx context.Context) ([]*domain.Tenant, error) {
 	query := `
-		SELECT id, name, created_at, updated_at
+		SELECT id, name, description, icon_url, visibility, access_type, password_hash, max_members, owner_id, created_at, updated_at
 		FROM tenants
 		ORDER BY created_at DESC
 	`
@@ -116,15 +163,27 @@ func (r *PostgresTenantRepository) List(ctx context.Context) ([]*domain.Tenant, 
 	var tenants []*domain.Tenant
 	for rows.Next() {
 		tenant := &domain.Tenant{}
+		var description, iconURL, passwordHash, ownerID sql.NullString
 		err := rows.Scan(
 			&tenant.ID,
 			&tenant.Name,
+			&description,
+			&iconURL,
+			&tenant.Visibility,
+			&tenant.AccessType,
+			&passwordHash,
+			&tenant.MaxMembers,
+			&ownerID,
 			&tenant.CreatedAt,
 			&tenant.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan tenant: %w", err)
 		}
+		tenant.Description = description.String
+		tenant.IconURL = iconURL.String
+		tenant.PasswordHash = passwordHash.String
+		tenant.OwnerID = ownerID.String
 		tenants = append(tenants, tenant)
 	}
 
@@ -157,7 +216,7 @@ func (r *PostgresTenantRepository) ListAll(ctx context.Context, limit, offset in
 
 	// Get data
 	listQuery := fmt.Sprintf(`
-		SELECT id, name, created_at, updated_at
+		SELECT id, name, description, icon_url, visibility, access_type, password_hash, max_members, owner_id, created_at, updated_at
 		FROM tenants
 		%s
 		ORDER BY created_at DESC
@@ -175,15 +234,27 @@ func (r *PostgresTenantRepository) ListAll(ctx context.Context, limit, offset in
 	var tenants []*domain.Tenant
 	for rows.Next() {
 		tenant := &domain.Tenant{}
+		var description, iconURL, passwordHash, ownerID sql.NullString
 		err := rows.Scan(
 			&tenant.ID,
 			&tenant.Name,
+			&description,
+			&iconURL,
+			&tenant.Visibility,
+			&tenant.AccessType,
+			&passwordHash,
+			&tenant.MaxMembers,
+			&ownerID,
 			&tenant.CreatedAt,
 			&tenant.UpdatedAt,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan tenant: %w", err)
 		}
+		tenant.Description = description.String
+		tenant.IconURL = iconURL.String
+		tenant.PasswordHash = passwordHash.String
+		tenant.OwnerID = ownerID.String
 		tenants = append(tenants, tenant)
 	}
 

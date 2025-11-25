@@ -14,7 +14,6 @@ import {
 } from '../../../../lib/api'
 
 type TabType = 'discover' | 'my-tenants'
-type FilterType = 'all' | 'public' | 'invite_only'
 
 export default function TenantsPage() {
     const router = useRouter()
@@ -23,33 +22,50 @@ export default function TenantsPage() {
     const notification = useNotification()
 
     const [activeTab, setActiveTab] = useState<TabType>('discover')
-    const [filter, setFilter] = useState<FilterType>('all')
     const [search, setSearch] = useState('')
     const [tenants, setTenants] = useState<TenantWithMemberCount[]>([])
     const [myTenants, setMyTenants] = useState<TenantWithMemberCount[]>([])
     const [loading, setLoading] = useState(true)
+    const [loadingMore, setLoadingMore] = useState(false)
     const [inviteCode, setInviteCode] = useState('')
     const [joiningTenant, setJoiningTenant] = useState<string | null>(null)
     const [showInviteModal, setShowInviteModal] = useState(false)
+    const [nextCursor, setNextCursor] = useState<string | undefined>(undefined)
 
     const loadDiscoverTenants = useCallback(async () => {
         setLoading(true)
+        setNextCursor(undefined)
         try {
-            const visibility = filter === 'all' ? undefined : (filter === 'public' ? 'public' : undefined)
-            const accessType = filter === 'invite_only' ? 'invite_only' : undefined
-            const data = await discoverTenants({
+            const result = await discoverTenants({
                 search: search || undefined,
-                visibility,
-                accessType,
                 limit: 50
             })
-            setTenants(data)
+            setTenants(result.data)
+            setNextCursor(result.next_cursor)
         } catch (err) {
             notification.error(t('error.generic'), String(err))
         } finally {
             setLoading(false)
         }
-    }, [filter, search, notification, t])
+    }, [search, notification, t])
+
+    const loadMoreTenants = useCallback(async () => {
+        if (!nextCursor) return
+        setLoadingMore(true)
+        try {
+            const result = await discoverTenants({
+                search: search || undefined,
+                limit: 50,
+                cursor: nextCursor
+            })
+            setTenants(prev => [...prev, ...result.data])
+            setNextCursor(result.next_cursor)
+        } catch (err) {
+            notification.error(t('error.generic'), String(err))
+        } finally {
+            setLoadingMore(false)
+        }
+    }, [search, nextCursor, notification, t])
 
     const loadMyTenants = useCallback(async () => {
         setLoading(true)
@@ -320,7 +336,7 @@ export default function TenantsPage() {
                         </button>
                     </div>
 
-                    {/* Search & Filters (only for discover tab) */}
+                    {/* Search (only for discover tab) */}
                     {activeTab === 'discover' && (
                         <div style={{
                             display: 'flex',
@@ -344,29 +360,6 @@ export default function TenantsPage() {
                                         boxSizing: 'border-box'
                                     }}
                                 />
-                            </div>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                {(['all', 'public', 'inviteOnly'] as const).map((f) => (
-                                    <button
-                                        key={f}
-                                        onClick={() => setFilter(f === 'inviteOnly' ? 'invite_only' : f)}
-                                        style={{
-                                            padding: '12px 20px',
-                                            backgroundColor: (f === 'inviteOnly' ? filter === 'invite_only' : filter === f)
-                                                ? '#3b82f6' : 'white',
-                                            color: (f === 'inviteOnly' ? filter === 'invite_only' : filter === f)
-                                                ? 'white' : '#374151',
-                                            border: '1px solid #e5e7eb',
-                                            borderRadius: 8,
-                                            cursor: 'pointer',
-                                            fontSize: 14,
-                                            fontWeight: 500,
-                                            transition: 'all 0.2s'
-                                        }}
-                                    >
-                                        {t(`tenant.discover.filters.${f}`)}
-                                    </button>
-                                ))}
                             </div>
                         </div>
                     )}
@@ -392,13 +385,41 @@ export default function TenantsPage() {
                                 <p style={{ fontSize: 16 }}>{t('tenant.discover.noResults')}</p>
                             </div>
                         ) : (
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-                                gap: 20
-                            }}>
-                                {tenants.map(tenant => renderTenantCard(tenant, false))}
-                            </div>
+                            <>
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+                                    gap: 20
+                                }}>
+                                    {tenants.map(tenant => renderTenantCard(tenant, false))}
+                                </div>
+                                {nextCursor && (
+                                    <div style={{
+                                        display: 'flex',
+                                        justifyContent: 'center',
+                                        marginTop: 24
+                                    }}>
+                                        <button
+                                            onClick={loadMoreTenants}
+                                            disabled={loadingMore}
+                                            style={{
+                                                minWidth: 200,
+                                                padding: '12px 24px',
+                                                backgroundColor: loadingMore ? '#9ca3af' : '#1f2937',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: 8,
+                                                cursor: loadingMore ? 'not-allowed' : 'pointer',
+                                                fontSize: 15,
+                                                fontWeight: 600,
+                                                transition: 'background-color 0.2s'
+                                            }}
+                                        >
+                                            {loadingMore ? t('tenant.discover.loadingMore') : t('tenant.discover.loadMore')}
+                                        </button>
+                                    </div>
+                                )}
+                            </>
                         )
                     ) : (
                         myTenants.length === 0 ? (

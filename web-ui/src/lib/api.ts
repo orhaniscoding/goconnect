@@ -1131,10 +1131,12 @@ export interface TenantChatMessage {
   id: string
   tenant_id: string
   user_id: string
+  user_name?: string
   content: string
   is_deleted?: boolean
   is_edited?: boolean
   created_at: string
+  updated_at?: string
   edited_at?: string
   user?: {
     id: string
@@ -1209,12 +1211,12 @@ export async function getTenantById(accessToken: string, tenantId: string): Prom
   })
 }
 
-// ==================== MEMBERSHIP OPERATIONS ====================
+// ==================== MEMBERSHIP OPERATIONS (WITH TOKEN) ====================
 
 /**
- * Join a tenant (for open or password-protected tenants)
+ * Join a tenant (for open or password-protected tenants) - explicit token version
  */
-export async function joinTenant(accessToken: string, tenantId: string, req?: JoinTenantRequest): Promise<{ data: TenantMember; message: string }> {
+export async function joinTenantWithToken(accessToken: string, tenantId: string, req?: JoinTenantRequest): Promise<{ data: TenantMember; message: string }> {
   return api(`/v1/tenants/${tenantId}/join`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -1234,9 +1236,9 @@ export async function joinTenantByCode(accessToken: string, code: string): Promi
 }
 
 /**
- * Leave a tenant (owner cannot leave)
+ * Leave a tenant (owner cannot leave) - explicit token version
  */
-export async function leaveTenant(accessToken: string, tenantId: string): Promise<{ message: string }> {
+export async function leaveTenantWithToken(accessToken: string, tenantId: string): Promise<{ message: string }> {
   return api(`/v1/tenants/${tenantId}/leave`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -1253,9 +1255,9 @@ export async function getUserTenants(accessToken: string): Promise<{ data: Tenan
 }
 
 /**
- * Get members of a tenant
+ * Get members of a tenant - explicit token version
  */
-export async function getTenantMembers(
+export async function getTenantMembersWithToken(
   accessToken: string,
   tenantId: string,
   options?: { role?: string; limit?: number; cursor?: string }
@@ -1271,9 +1273,9 @@ export async function getTenantMembers(
 }
 
 /**
- * Update a member's role in a tenant (admin+ only)
+ * Update a member's role in a tenant (admin+ only) - explicit token version
  */
-export async function updateMemberRole(
+export async function updateMemberRoleWithToken(
   accessToken: string,
   tenantId: string,
   memberId: string,
@@ -1287,9 +1289,9 @@ export async function updateMemberRole(
 }
 
 /**
- * Remove/kick a member from a tenant (moderator+ only)
+ * Remove/kick a member from a tenant (moderator+ only) - explicit token version
  */
-export async function removeTenantMember(
+export async function removeTenantMemberWithToken(
   accessToken: string,
   tenantId: string,
   memberId: string
@@ -1300,12 +1302,12 @@ export async function removeTenantMember(
   })
 }
 
-// ==================== INVITE OPERATIONS ====================
+// ==================== INVITE OPERATIONS (WITH TOKEN) ====================
 
 /**
- * Create a tenant invite code (admin+ only)
+ * Create a tenant invite code (admin+ only) - explicit token version
  */
-export async function createTenantInvite(
+export async function createTenantInviteWithToken(
   accessToken: string,
   tenantId: string,
   req?: CreateTenantInviteRequest
@@ -1327,9 +1329,9 @@ export async function listTenantInvites(accessToken: string, tenantId: string): 
 }
 
 /**
- * Revoke a tenant invite (admin+ only)
+ * Revoke a tenant invite (admin+ only) - explicit token version
  */
-export async function revokeTenantInvite(
+export async function revokeTenantInviteWithToken(
   accessToken: string,
   tenantId: string,
   inviteId: string
@@ -1405,12 +1407,12 @@ export async function deleteAnnouncement(
   })
 }
 
-// ==================== CHAT OPERATIONS ====================
+// ==================== CHAT OPERATIONS (WITH TOKEN) ====================
 
 /**
- * Send a chat message to tenant general chat
+ * Send a chat message to tenant general chat - explicit token version
  */
-export async function sendTenantChatMessage(
+export async function sendTenantChatMessageWithToken(
   accessToken: string,
   tenantId: string,
   content: string
@@ -1440,9 +1442,9 @@ export async function getTenantChatHistory(
 }
 
 /**
- * Delete a chat message (author or moderator+ only)
+ * Delete a chat message (author or moderator+ only) - explicit token version
  */
-export async function deleteTenantChatMessage(
+export async function deleteTenantChatMessageWithToken(
   accessToken: string,
   tenantId: string,
   messageId: string
@@ -1470,24 +1472,33 @@ export interface TenantWithMemberCount {
 /**
  * Discover public tenants (auto token)
  */
+export interface TenantListResult {
+  data: TenantWithMemberCount[]
+  next_cursor?: string
+}
+
 export async function discoverTenants(options?: {
   search?: string
-  visibility?: string
-  accessType?: string
   limit?: number
-  offset?: number
-}): Promise<TenantWithMemberCount[]> {
+  cursor?: string
+}): Promise<TenantListResult> {
   const params = new URLSearchParams()
-  if (options?.search) params.set('search', options.search)
-  if (options?.visibility) params.set('visibility', options.visibility)
-  if (options?.accessType) params.set('access_type', options.accessType)
   if (options?.limit) params.set('limit', String(options.limit))
-  if (options?.offset) params.set('offset', String(options.offset))
-  const query = params.toString() ? `?${params.toString()}` : ''
-  const res = await api(`/v1/tenants/discover${query}`, {
-    headers: getAuthHeader(),
-  })
-  return res.data || []
+  if (options?.cursor) params.set('cursor', options.cursor)
+
+  let path = '/v1/tenants/public'
+  const query = options?.search?.trim()
+  if (query) {
+    params.set('q', query)
+    path = '/v1/tenants/search'
+  }
+
+  const queryString = params.toString() ? `?${params.toString()}` : ''
+  const res = await api(`${path}${queryString}`)
+  return {
+    data: res.data || [],
+    next_cursor: res.next_cursor || res.nextCursor || undefined,
+  }
 }
 
 /**

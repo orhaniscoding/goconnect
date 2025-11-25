@@ -393,43 +393,9 @@ func main() {
 	// Register network routes (auth + role middleware applied within)
 	handler.RegisterNetworkRoutes(r, networkHandler, authService, membershipRepo)
 
-	// Register tenant routes (multi-tenant membership system)
-	tenantGroup := r.Group("/v1/tenants")
-	tenantGroup.Use(handler.AuthMiddleware(authService))
-	{
-		// Tenant CRUD
-		tenantGroup.POST("", tenantHandler.CreateTenant)
-		tenantGroup.GET("/:tenantId", tenantHandler.GetTenant)
-
-		// Membership operations
-		tenantGroup.POST("/:tenantId/join", tenantHandler.JoinTenant)
-		tenantGroup.DELETE("/:tenantId/leave", tenantHandler.LeaveTenant)
-		tenantGroup.GET("/:tenantId/members", tenantHandler.GetTenantMembers)
-		tenantGroup.PATCH("/:tenantId/members/:memberId", tenantHandler.UpdateMemberRole)
-		tenantGroup.DELETE("/:tenantId/members/:memberId", tenantHandler.RemoveMember)
-
-		// Invites
-		tenantGroup.POST("/:tenantId/invites", tenantHandler.CreateInvite)
-		tenantGroup.GET("/:tenantId/invites", tenantHandler.ListInvites)
-		tenantGroup.DELETE("/:tenantId/invites/:inviteId", tenantHandler.RevokeInvite)
-
-		// Announcements
-		tenantGroup.POST("/:tenantId/announcements", tenantHandler.CreateAnnouncement)
-		tenantGroup.GET("/:tenantId/announcements", tenantHandler.ListAnnouncements)
-		tenantGroup.PATCH("/:tenantId/announcements/:announcementId", tenantHandler.UpdateAnnouncement)
-		tenantGroup.DELETE("/:tenantId/announcements/:announcementId", tenantHandler.DeleteAnnouncement)
-
-		// Tenant chat
-		tenantGroup.POST("/:tenantId/chat/messages", tenantHandler.SendChatMessage)
-		tenantGroup.GET("/:tenantId/chat/messages", tenantHandler.GetChatHistory)
-		tenantGroup.DELETE("/:tenantId/chat/messages/:messageId", tenantHandler.DeleteChatMessage)
-	}
-
-	// Join by invite code (doesn't require knowing tenant ID)
-	r.POST("/v1/tenants/join-by-code", handler.AuthMiddleware(authService), tenantHandler.JoinByCode)
-
-	// User's tenant memberships
-	r.GET("/v1/users/me/tenants", handler.AuthMiddleware(authService), tenantHandler.GetUserTenants)
+	// Register tenant routes (public discovery + authenticated operations)
+	apiV1 := r.Group("/v1")
+	tenantHandler.RegisterRoutes(apiV1, handler.AuthMiddleware(authService))
 
 	// Register device routes
 	handler.RegisterDeviceRoutes(r, deviceHandler, handler.AuthMiddleware(authService))

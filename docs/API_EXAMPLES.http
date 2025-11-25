@@ -187,6 +187,174 @@ Idempotency-Key: {{$guid}}
 ###
 
 # ========================================
+# Tenant API Examples
+# ========================================
+# Discovery endpoints (/v1/tenants/public, /v1/tenants/search) are public
+# All other tenant operations require authentication
+# Add: Authorization: Bearer {access_token}
+# ========================================
+
+### List Public Tenants (No Auth Required)
+GET http://localhost:8080/v1/tenants/public?limit=20
+
+###
+
+### Search Tenants by Name (No Auth Required)
+GET http://localhost:8080/v1/tenants/search?q=core&limit=10
+
+###
+
+### Create Tenant
+POST http://localhost:8080/v1/tenants
+Content-Type: application/json
+Authorization: Bearer {access_token}
+
+{
+  "name": "Core Infrastructure",
+  "description": "Primary infra tenant",
+  "visibility": "public",
+  "access_type": "open",
+  "max_members": 250
+}
+
+###
+
+### Get Tenant Details
+GET http://localhost:8080/v1/tenants/{tenant_id}
+Authorization: Bearer {access_token}
+
+###
+
+### List My Tenants
+GET http://localhost:8080/v1/users/me/tenants
+Authorization: Bearer {access_token}
+
+###
+
+### Join Tenant (Open)
+POST http://localhost:8080/v1/tenants/{tenant_id}/join
+Authorization: Bearer {access_token}
+
+###
+
+### Join Tenant (Password Protected)
+POST http://localhost:8080/v1/tenants/{tenant_id}/join
+Content-Type: application/json
+Authorization: Bearer {access_token}
+
+{
+  "password": "tenantPass123"
+}
+
+###
+
+### Join Tenant via Invite Code
+POST http://localhost:8080/v1/tenants/join-by-code
+Content-Type: application/json
+Authorization: Bearer {access_token}
+
+{
+  "code": "ABCD1234"
+}
+
+###
+
+### Leave Tenant
+POST http://localhost:8080/v1/tenants/{tenant_id}/leave
+Authorization: Bearer {access_token}
+
+###
+
+### List Tenant Members
+GET http://localhost:8080/v1/tenants/{tenant_id}/members?limit=25&role=member
+Authorization: Bearer {access_token}
+
+###
+
+### Update Tenant Member Role (Owner/Admin)
+PATCH http://localhost:8080/v1/tenants/{tenant_id}/members/{member_id}
+Content-Type: application/json
+Authorization: Bearer {access_token}
+
+{
+  "role": "moderator"
+}
+
+###
+
+### Remove Tenant Member (Owner/Admin)
+DELETE http://localhost:8080/v1/tenants/{tenant_id}/members/{member_id}
+Authorization: Bearer {access_token}
+
+###
+
+### Create Tenant Invite (Admin)
+POST http://localhost:8080/v1/tenants/{tenant_id}/invites
+Content-Type: application/json
+Authorization: Bearer {access_token}
+
+{
+  "max_uses": 5,
+  "expires_in": 86400
+}
+
+###
+
+### List Tenant Invites (Admin)
+GET http://localhost:8080/v1/tenants/{tenant_id}/invites
+Authorization: Bearer {access_token}
+
+###
+
+### Revoke Tenant Invite (Admin)
+DELETE http://localhost:8080/v1/tenants/{tenant_id}/invites/{invite_id}
+Authorization: Bearer {access_token}
+
+###
+
+### Create Tenant Announcement (Moderator+)
+POST http://localhost:8080/v1/tenants/{tenant_id}/announcements
+Content-Type: application/json
+Authorization: Bearer {access_token}
+
+{
+  "title": "Maintenance Window",
+  "content": "Scheduled maintenance on Friday 22:00 UTC",
+  "is_pinned": true
+}
+
+###
+
+### List Tenant Announcements
+GET http://localhost:8080/v1/tenants/{tenant_id}/announcements?limit=10&pinned=true
+Authorization: Bearer {access_token}
+
+###
+
+### Send Tenant Chat Message
+POST http://localhost:8080/v1/tenants/{tenant_id}/chat/messages
+Content-Type: application/json
+Authorization: Bearer {access_token}
+
+{
+  "content": "Hello team, deployment starts at 20:00 UTC"
+}
+
+###
+
+### Get Tenant Chat History
+GET http://localhost:8080/v1/tenants/{tenant_id}/chat/messages?limit=20
+Authorization: Bearer {access_token}
+
+###
+
+### Delete Tenant Chat Message (Author or Moderator)
+DELETE http://localhost:8080/v1/tenants/{tenant_id}/chat/messages/{message_id}
+Authorization: Bearer {access_token}
+
+###
+
+# ========================================
 # IP Allocation API Examples
 # ========================================
 

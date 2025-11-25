@@ -16,6 +16,13 @@ import {
     type TenantChatMessage,
     type TenantMember
 } from '../../../../../../lib/api'
+import {
+    useWebSocket,
+    type TenantChatMessagePayload,
+    type TenantChatEditedPayload,
+    type TenantChatDeletedPayload,
+    type TenantChatTypingPayload
+} from '../../../../../../lib/websocket'
 
 export default function TenantChatPage() {
     const router = useRouter()
@@ -34,10 +41,15 @@ export default function TenantChatPage() {
     const [editingMessage, setEditingMessage] = useState<TenantChatMessage | null>(null)
     const [editContent, setEditContent] = useState('')
     const [showSidebar, setShowSidebar] = useState(true)
+    const [typingUsers, setTypingUsers] = useState<string[]>([])
 
     const messagesEndRef = useRef<HTMLDivElement>(null)
     const inputRef = useRef<HTMLInputElement>(null)
+    const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const user = getUser()
+
+    // WebSocket connection
+    const ws = useWebSocket()
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -80,34 +92,112 @@ export default function TenantChatPage() {
         scrollToBottom()
     }, [messages])
 
-    // Poll for new messages every 3 seconds
+    // WebSocket: Join tenant room and setup listeners
     useEffect(() => {
-        if (!myMembership) return
+        if (!myMembership || !ws.isConnected) return
 
-        const interval = setInterval(async () => {
-            try {
-                const newMessages = await getTenantChat(tenantId, { limit: 100 })
-                setMessages(newMessages)
-            } catch {
-                // Silently fail
+        // Join tenant chat room
+        ws.joinTenantRoom(tenantId)
+
+        // Listen for new messages
+        const handleNewMessage = (msg: TenantChatMessagePayload) => {
+            if (msg.tenant_id !== tenantId) return
+
+            setMessages(prev => {
+                // Check if message already exists
+                if (prev.find(m => m.id === msg.message_id)) return prev
+
+                // Add new message
+                const newMsg: TenantChatMessage = {
+                    id: msg.message_id,
+                    tenant_id: msg.tenant_id,
+                    user_id: msg.sender.user_id,
+                    user_name: msg.sender.display_name,
+                    content: msg.content,
+                    created_at: msg.timestamp,
+                    updated_at: msg.timestamp
+                }
+                return [...prev, newMsg]
+            })
+        }
+
+        // Listen for edited messages
+        const handleEditedMessage = (data: TenantChatEditedPayload) => {
+            if (data.tenant_id !== tenantId) return
+
+            setMessages(prev => prev.map(m =>
+                m.id === data.message_id
+                    ? { ...m, content: data.content, updated_at: data.updated_at }
+                    : m
+            ))
+        }
+
+        // Listen for deleted messages
+        const handleDeletedMessage = (data: TenantChatDeletedPayload) => {
+            if (data.tenant_id !== tenantId) return
+
+            setMessages(prev => prev.filter(m => m.id !== data.message_id))
+        }
+
+        // Listen for typing users
+        const handleTyping = (data: TenantChatTypingPayload) => {
+            if (data.tenant_id !== tenantId || data.user_id === user?.id) return
+
+            setTypingUsers(prev => {
+                if (data.is_typing) {
+                    if (!prev.includes(data.user_name)) {
+                        return [...prev, data.user_name]
+                    }
+                } else {
+                    return prev.filter(name => name !== data.user_name)
+                }
+                return prev
+            })
+
+            // Auto-remove typing after 5 seconds
+            if (data.is_typing) {
+                setTimeout(() => {
+                    setTypingUsers(prev => prev.filter(name => name !== data.user_name))
+                }, 5000)
             }
-        }, 3000)
+        }
 
-        return () => clearInterval(interval)
-    }, [tenantId, myMembership])
+        // Register listeners
+        ws.on('tenant.chat.message', handleNewMessage)
+        ws.on('tenant.chat.edited', handleEditedMessage)
+        ws.on('tenant.chat.deleted', handleDeletedMessage)
+        ws.on('tenant.chat.typing.user', handleTyping)
+
+        // Cleanup
+        return () => {
+            ws.off('tenant.chat.message', handleNewMessage)
+            ws.off('tenant.chat.edited', handleEditedMessage)
+            ws.off('tenant.chat.deleted', handleDeletedMessage)
+            ws.off('tenant.chat.typing.user', handleTyping)
+            ws.leaveTenantRoom(tenantId)
+        }
+    }, [tenantId, myMembership, ws.isConnected, ws, user?.id])
 
     const handleSend = async () => {
         if (!message.trim() || sending) return
 
         setSending(true)
         try {
-            await sendTenantChatMessage(tenantId, { content: message.trim() })
-            setMessage('')
-            inputRef.current?.focus()
+            // Try WebSocket first for real-time delivery
+            if (ws.isConnected) {
+                ws.sendTenantChatMessage(tenantId, message.trim())
+                setMessage('')
+                inputRef.current?.focus()
+            } else {
+                // Fallback to REST API
+                await sendTenantChatMessage(tenantId, { content: message.trim() })
+                setMessage('')
+                inputRef.current?.focus()
 
-            // Reload messages
-            const newMessages = await getTenantChat(tenantId, { limit: 100 })
-            setMessages(newMessages)
+                // Reload messages if using REST
+                const newMessages = await getTenantChat(tenantId, { limit: 100 })
+                setMessages(newMessages)
+            }
         } catch (err) {
             notification.error(t('chat.error.send'), String(err))
         } finally {
@@ -115,10 +205,28 @@ export default function TenantChatPage() {
         }
     }
 
+    // Send typing indicator
+    const handleTyping = () => {
+        if (!ws.isConnected) return
+
+        // Debounce typing indicator
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current)
+        }
+
+        ws.sendTenantTyping(tenantId, true)
+
+        typingTimeoutRef.current = setTimeout(() => {
+            ws.sendTenantTyping(tenantId, false)
+        }, 2000)
+    }
+
     const handleKeyPress = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault()
             handleSend()
+        } else {
+            handleTyping()
         }
     }
 
@@ -489,6 +597,44 @@ export default function TenantChatPage() {
                             backgroundColor: 'white',
                             borderTop: '1px solid #e5e7eb'
                         }}>
+                            {/* Typing Indicator */}
+                            {typingUsers.length > 0 && (
+                                <div style={{
+                                    fontSize: 12,
+                                    color: '#6b7280',
+                                    marginBottom: 8,
+                                    fontStyle: 'italic'
+                                }}>
+                                    {typingUsers.length === 1
+                                        ? `${typingUsers[0]} ${t('chat.typing.single')}`
+                                        : typingUsers.length === 2
+                                            ? `${typingUsers[0]} ${t('chat.typing.and')} ${typingUsers[1]} ${t('chat.typing.plural')}`
+                                            : `${typingUsers.slice(0, 2).join(', ')} ${t('chat.typing.andOthers', { count: typingUsers.length - 2 })}`
+                                    }
+                                </div>
+                            )}
+
+                            {/* WebSocket Connection Status */}
+                            {!ws.isConnected && (
+                                <div style={{
+                                    fontSize: 11,
+                                    color: '#f59e0b',
+                                    marginBottom: 8,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 4
+                                }}>
+                                    <span style={{
+                                        width: 6,
+                                        height: 6,
+                                        borderRadius: 3,
+                                        backgroundColor: '#f59e0b',
+                                        animation: 'pulse 2s infinite'
+                                    }} />
+                                    {t('chat.connection.reconnecting')}
+                                </div>
+                            )}
+
                             <div style={{
                                 display: 'flex',
                                 gap: 12,

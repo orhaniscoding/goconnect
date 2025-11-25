@@ -573,7 +573,18 @@
         "save": "Save"
       }
     },
-    "edited": "(edited)"
+    "edited": "(edited)",
+    "typing": {
+      "single": "is typing...",
+      "plural": "are typing...",
+      "and": "and",
+      "andOthers": "and {{count}} more are typing..."
+    },
+    "connection": {
+      "connected": "Connected",
+      "reconnecting": "Reconnecting...",
+      "disconnected": "Disconnected"
+    }
   },
   "tenants": {
     "title": "Servers",
@@ -668,6 +679,157 @@
       "invalidCode": "Invalid invite code",
       "alreadyMember": "You're already a member",
       "ownerCantLeave": "Owner cannot leave. Transfer ownership first."
+    }
+  },
+  "tenant": {
+    "title": "Teams",
+    "discover": {
+      "title": "Discover Teams",
+      "subtitle": "Join public teams or use an invite code",
+      "searchPlaceholder": "Search teams...",
+      "noResults": "No teams found",
+      "loadMore": "Load more teams",
+      "loadingMore": "Loading more...",
+      "filters": {
+        "all": "All",
+        "public": "Public",
+        "inviteOnly": "Invite Only"
+      }
+    },
+    "join": {
+      "title": "Join Team",
+      "button": "Join",
+      "inviteCode": "Invite Code",
+      "inviteCodePlaceholder": "Enter invite code",
+      "useInvite": "Use Invite",
+      "password": "Password",
+      "passwordPlaceholder": "Enter team password",
+      "success": "You joined the team successfully!",
+      "error": {
+        "alreadyMember": "You are already a member",
+        "invalidCode": "Invalid invite code",
+        "invalidPassword": "Incorrect password",
+        "maxMembers": "The team reached its member limit",
+        "inviteExpired": "Invite code has expired",
+        "inviteMaxUses": "Invite code reached maximum uses"
+      }
+    },
+    "leave": {
+      "title": "Leave Team",
+      "confirm": "Are you sure you want to leave this team?",
+      "button": "Leave",
+      "success": "You left the team successfully",
+      "error": {
+        "ownerCannotLeave": "You cannot leave as the team owner. Transfer ownership first or delete the team."
+      }
+    },
+    "members": {
+      "title": "Members",
+      "count": "{count} members",
+      "online": "{count} online",
+      "roles": {
+        "owner": "Owner",
+        "admin": "Admin",
+        "moderator": "Moderator",
+        "vip": "VIP",
+        "member": "Member"
+      },
+      "actions": {
+        "promote": "Promote",
+        "demote": "Demote",
+        "kick": "Remove",
+        "ban": "Ban"
+      }
+    },
+    "invites": {
+      "title": "Invites",
+      "create": "Create Invite",
+      "code": "Invite Code",
+      "copyCode": "Copy Code",
+      "copied": "Copied!",
+      "expiresAt": "Expires: {date}",
+      "maxUses": "Max uses: {count}",
+      "uses": "{used}/{max} used",
+      "unlimited": "Unlimited",
+      "never": "Never",
+      "revoke": "Revoke",
+      "settings": {
+        "expiry": "Expiration",
+        "maxUses": "Max Uses",
+        "hours": "{count} hours",
+        "days": "{count} days",
+        "noExpiry": "No expiry",
+        "noLimit": "No limit"
+      }
+    },
+    "announcements": {
+      "title": "Announcements",
+      "create": "Create Announcement",
+      "edit": "Edit",
+      "delete": "Delete",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "pinned": "Pinned",
+      "noAnnouncements": "No announcements yet",
+      "form": {
+        "title": "Title",
+        "titlePlaceholder": "Announcement title",
+        "content": "Content",
+        "contentPlaceholder": "Write the announcement...",
+        "priority": "Priority",
+        "priorities": {
+          "low": "Low",
+          "normal": "Normal",
+          "high": "High",
+          "urgent": "Urgent"
+        }
+      }
+    },
+    "chat": {
+      "title": "Team Chat",
+      "placeholder": "Message the team...",
+      "noMessages": "No messages yet. Be the first to say hi!",
+      "newMessages": "{count} new messages"
+    },
+    "settings": {
+      "title": "Team Settings",
+      "general": "General",
+      "visibility": "Visibility",
+      "visibilityOptions": {
+        "public": "Public",
+        "private": "Private"
+      },
+      "accessType": "Access Type",
+      "accessTypes": {
+        "open": "Open (anyone can join)",
+        "password": "Password protected",
+        "invite_only": "Invite only"
+      },
+      "description": "Description",
+      "descriptionPlaceholder": "Describe the team...",
+      "maxMembers": "Maximum Members"
+    },
+    "permissions": {
+      "title": "Permissions",
+      "required": "You do not have permission for this action",
+      "roleRequired": "You need at least the {role} role"
+    },
+    "myTenants": {
+      "title": "My Teams",
+      "empty": "You are not part of any teams yet",
+      "create": "Create Team"
+    },
+    "card": {
+      "members": "{count} members",
+      "visibility": {
+        "public": "Public",
+        "private": "Private"
+      },
+      "accessType": {
+        "open": "Open",
+        "password": "Password",
+        "invite_only": "Invite Only"
+      }
     }
   }
 }

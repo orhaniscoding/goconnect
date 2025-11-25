@@ -611,7 +611,18 @@
         "save": "Kaydet"
       }
     },
-    "edited": "(düzenlendi)"
+    "edited": "(düzenlendi)",
+    "typing": {
+      "single": "yazıyor...",
+      "plural": "yazıyor...",
+      "and": "ve",
+      "andOthers": "ve {{count}} kişi daha yazıyor..."
+    },
+    "connection": {
+      "connected": "Bağlı",
+      "reconnecting": "Yeniden bağlanıyor...",
+      "disconnected": "Bağlantı kesildi"
+    }
   },
   "tenant": {
     "title": "Ekipler",
@@ -620,6 +631,8 @@
       "subtitle": "Herkese açık ekiplere katılın veya davet kodu kullanın",
       "searchPlaceholder": "Ekip ara...",
       "noResults": "Ekip bulunamadı",
+      "loadMore": "Daha fazla ekip yükle",
+      "loadingMore": "Yükleniyor...",
       "filters": {
         "all": "Tümü",
         "public": "Herkese Açık",
