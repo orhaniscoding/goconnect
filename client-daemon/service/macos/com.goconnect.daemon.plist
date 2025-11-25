@@ -1,1 +1,40 @@
-<?xml version="1.0"?><plist version="1.0"><dict><key>Label</key><string>com.goconnect.daemon</string><key>ProgramArguments</key><array><string>/usr/local/bin/goconnect-daemon</string></array><key>RunAtLoad</key><true/></dict></plist>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.goconnect.daemon</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/goconnect-daemon</string>
+    </array>
+    
+    <!-- Start automatically at boot -->
+    <key>RunAtLoad</key>
+    <true/>
+    
+    <!-- Keep alive: restart if crashes or exits -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+        <key>Crashed</key>
+        <true/>
+    </dict>
+    
+    <!-- Restart throttling -->
+    <key>ThrottleInterval</key>
+    <integer>5</integer>
+    
+    <!-- Run as root for VPN operations -->
+    <key>UserName</key>
+    <string>root</string>
+    
+    <!-- Logging -->
+    <key>StandardOutPath</key>
+    <string>/var/log/goconnect-daemon.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/goconnect-daemon.err</string>
+</dict>
+</plist>

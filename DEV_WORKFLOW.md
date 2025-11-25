@@ -41,12 +41,12 @@ npm run build
 ```
 
 ### Required Tool Versions:
-| Tool | Version | Notes |
-|------|---------|-------|
-| Go | 1.24+ | Required for latest features |
+| Tool          | Version  | Notes                              |
+| ------------- | -------- | ---------------------------------- |
+| Go            | 1.24+    | Required for latest features       |
 | golangci-lint | v1.64.8+ | Required for Go 1.24 compatibility |
-| Node.js | 20 LTS | For web-ui |
-| npm | 10+ | Comes with Node 20 |
+| Node.js       | 20 LTS   | For web-ui                         |
+| npm           | 10+      | Comes with Node 20                 |
 
 ---
 
@@ -102,12 +102,12 @@ When adding UI text:
 
 ## 🧪 Testing Requirements
 
-| Change Type | Required Tests |
-|-------------|----------------|
-| New endpoint | Unit + integration test |
-| Bug fix | Regression test |
-| Security fix | Security test case |
-| Business logic | Unit tests |
+| Change Type    | Required Tests          |
+| -------------- | ----------------------- |
+| New endpoint   | Unit + integration test |
+| Bug fix        | Regression test         |
+| Security fix   | Security test case      |
+| Business logic | Unit tests              |
 
 Use `sync/atomic` for shared counters in concurrent tests to avoid data races.
 
