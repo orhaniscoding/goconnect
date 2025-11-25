@@ -496,7 +496,18 @@ components:
     # Invite Token Schemas
     InviteToken:
       type: object
-      required: [id, network_id, token, invite_url, expires_at, uses_max, uses_left, created_at, is_active]
+      required:
+        [
+          id,
+          network_id,
+          token,
+          invite_url,
+          expires_at,
+          uses_max,
+          uses_left,
+          created_at,
+          is_active,
+        ]
       properties:
         id:
           type: string

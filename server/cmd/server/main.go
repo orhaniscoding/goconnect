@@ -323,6 +323,10 @@ func main() {
 	// Initialize WebSocket HTTP handler
 	webSocketHandler := handler.NewWebSocketHandler(hub)
 
+	// Initialize rate limit store
+	rateLimits := handler.LoadEndpointRateLimitsFromEnv()
+	rateLimitStore := handler.NewRateLimitStore(rateLimits)
+
 	// Setup router
 	r := gin.New()
 	r.Use(gin.Recovery())
@@ -333,8 +337,27 @@ func main() {
 		c.JSON(200, gin.H{"ok": true, "service": "goconnect-server"})
 	})
 
-	// Register auth routes (some require auth)
-	handler.RegisterAuthRoutes(r, authHandler, handler.AuthMiddleware(authService))
+	// Register auth routes with rate limiting
+	// Auth routes are rate limited to prevent brute force attacks
+	authGroup := r.Group("/v1/auth")
+	authGroup.Use(rateLimitStore.AuthRateLimit())
+	{
+		authGroup.POST("/register", authHandler.Register)
+		authGroup.POST("/login", authHandler.Login)
+		authGroup.POST("/refresh", authHandler.Refresh)
+		authGroup.GET("/oidc/login", authHandler.LoginOIDC)
+		authGroup.GET("/oidc/callback", authHandler.CallbackOIDC)
+	}
+	// Protected auth routes (no auth rate limit, use default)
+	authProtected := r.Group("/v1/auth")
+	authProtected.Use(handler.AuthMiddleware(authService))
+	{
+		authProtected.POST("/password", authHandler.ChangePassword)
+		authProtected.GET("/me", authHandler.Me)
+		authProtected.POST("/2fa/generate", authHandler.Generate2FA)
+		authProtected.POST("/2fa/enable", authHandler.Enable2FA)
+		authProtected.POST("/2fa/disable", authHandler.Disable2FA)
+	}
 
 	// Register network routes (auth + role middleware applied within)
 	handler.RegisterNetworkRoutes(r, networkHandler, authService, membershipRepo)
@@ -342,8 +365,19 @@ func main() {
 	// Register device routes
 	handler.RegisterDeviceRoutes(r, deviceHandler, handler.AuthMiddleware(authService))
 
-	// Register chat routes
-	handler.RegisterChatRoutes(r, chatHandler, handler.AuthMiddleware(authService))
+	// Register chat routes with rate limiting
+	chatGroup := r.Group("/v1/chat")
+	chatGroup.Use(handler.AuthMiddleware(authService))
+	chatGroup.Use(rateLimitStore.ChatRateLimit()) // Rate limit chat operations
+	{
+		chatGroup.GET("", chatHandler.ListMessages)
+		chatGroup.POST("", chatHandler.SendMessage)
+		chatGroup.GET("/:id", chatHandler.GetMessage)
+		chatGroup.PATCH("/:id", chatHandler.EditMessage)
+		chatGroup.DELETE("/:id", chatHandler.DeleteMessage)
+		chatGroup.GET("/:id/edits", chatHandler.GetEditHistory)
+		chatGroup.POST("/:id/redact", handler.RequireModerator(), chatHandler.RedactMessage)
+	}
 
 	// Register upload routes
 	handler.RegisterUploadRoutes(r, uploadHandler, handler.AuthMiddleware(authService))
@@ -358,8 +392,20 @@ func main() {
 		meGroup.DELETE("/delete", gdprHandler.RequestDeletion)
 	}
 
-	// Register invite routes
-	handler.RegisterInviteRoutes(r, inviteHandler, handler.AuthMiddleware(authService))
+	// Register invite routes with rate limiting
+	// Public validation endpoint (no rate limit needed)
+	r.GET("/v1/invites/:token/validate", inviteHandler.ValidateInvite)
+
+	// Protected invite management endpoints with rate limiting
+	inviteGroup := r.Group("/v1/networks/:id/invites")
+	inviteGroup.Use(handler.AuthMiddleware(authService))
+	inviteGroup.Use(rateLimitStore.InviteRateLimit())
+	{
+		inviteGroup.POST("", inviteHandler.CreateInvite)
+		inviteGroup.GET("", inviteHandler.ListInvites)
+		inviteGroup.GET("/:invite_id", inviteHandler.GetInvite)
+		inviteGroup.DELETE("/:invite_id", inviteHandler.RevokeInvite)
+	}
 
 	// Register admin routes
 	adminGroup := r.Group("/v1/admin")
