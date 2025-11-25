@@ -13,11 +13,11 @@ RUN apk add --no-cache git ca-certificates tzdata
 WORKDIR /build
 
 # Copy go mod files first for better caching
-COPY server/go.mod server/go.sum ./
+COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy source code
-COPY server/ ./
+COPY . ./
 
 # Build arguments for version info
 ARG VERSION=dev

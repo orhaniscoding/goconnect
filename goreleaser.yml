@@ -104,32 +104,7 @@ archives:
         dst: install/windows
         strip_parent: true
 
-  # Full Bundle (Server + Daemon)
-  - id: full-bundle
-    ids:
-      - server
-      - daemon
-    formats:
-      - tar.gz
-    format_overrides:
-      - goos: windows
-        formats:
-          - zip
-    name_template: "goconnect-bundle_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    files:
-      - README.md
-      - LICENSE
-      - docs/*
-      - docker-compose.yml
-      - src: client-daemon/service/linux/*
-        dst: install/linux
-        strip_parent: true
-      - src: client-daemon/service/macos/*
-        dst: install/macos
-        strip_parent: true
-      - src: client-daemon/service/windows/*
-        dst: install/windows
-        strip_parent: true
+  # NOTE: Bundle removed to reduce asset count. Users can download server + daemon separately.
 
 # =============================================================================
 # LINUX PACKAGES - .deb and .rpm with systemd
@@ -202,13 +177,7 @@ checksum:
   name_template: "checksums.txt"
   algorithm: sha256
 
-# =============================================================================
-# SBOM - Software Bill of Materials
-# =============================================================================
-sboms:
-  - artifacts: archive
-    documents:
-      - "{{ .ArtifactName }}.sbom.json"
+# NOTE: SBOM removed to reduce asset count. Can be generated separately if needed.
 
 # =============================================================================
 # RELEASE - GitHub Release with detailed notes
@@ -224,7 +193,27 @@ release:
   header: |
     ## 🚀 GoConnect v{{ .Version }}
 
-    Release Date: {{ .Date }}
+    **Release Date:** {{ .Date }}
+
+    ---
+
+    ## 📋 Available Downloads
+
+    | Component | Description | Platforms |
+    |-----------|-------------|-----------|
+    | **goconnect-server** | VPN management server with REST API | Linux, macOS, Windows |
+    | **goconnect-daemon** | Client VPN daemon (background service) | Linux, macOS, Windows |
+
+    ### 📦 Package Types
+
+    | Extension | Type | Best For |
+    |-----------|------|----------|
+    | `.deb` | Debian package | Ubuntu, Debian (auto-installs systemd service) |
+    | `.rpm` | Red Hat package | RHEL, Fedora, CentOS (auto-installs systemd service) |
+    | `.tar.gz` | Portable archive | macOS, Linux (includes install scripts) |
+    | `.zip` | Portable archive | Windows (includes PowerShell install script) |
+
+    ---
 
     ### What's Changed
     See [CHANGELOG.md](https://github.com/orhaniscoding/goconnect/blob/main/CHANGELOG.md) for full details.
@@ -232,58 +221,76 @@ release:
   footer: |
     ---
 
-    ## 📦 Installation Guide
+    ## 📦 Quick Start
 
-    ### 🐧 Linux (Recommended)
+    ### 🖥️ Server Setup (Self-Hosted)
 
-    **Debian/Ubuntu (.deb)**
+    **Option 1: Docker (Recommended)**
     ```bash
-    # Download and install
+    # Pull and run
+    docker pull ghcr.io/orhaniscoding/goconnect-server:{{ .Version }}
+    docker run -d --name goconnect \
+      -p 8080:8080 \
+      -v goconnect-data:/data \
+      ghcr.io/orhaniscoding/goconnect-server:{{ .Version }}
+    ```
+
+    **Option 2: Linux Package**
+    ```bash
+    # Debian/Ubuntu
+    wget https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-server_{{ .Version }}_linux_amd64.deb
+    sudo dpkg -i goconnect-server_{{ .Version }}_linux_amd64.deb
+    sudo systemctl start goconnect-server
+
+    # RHEL/Fedora
+    wget https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-server_{{ .Version }}_linux_amd64.rpm
+    sudo rpm -i goconnect-server_{{ .Version }}_linux_amd64.rpm
+    sudo systemctl start goconnect-server
+    ```
+
+    ---
+
+    ## 💻 Client (Daemon) Installation
+
+    ### 🐧 Linux
+
+    **Debian/Ubuntu (.deb) - Recommended**
+    ```bash
     wget https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-daemon_{{ .Version }}_linux_amd64.deb
     sudo dpkg -i goconnect-daemon_{{ .Version }}_linux_amd64.deb
-
-    # Start service
-    sudo systemctl start goconnect-daemon
-    sudo systemctl enable goconnect-daemon
+    sudo systemctl enable --now goconnect-daemon
     ```
 
     **RHEL/Fedora (.rpm)**
     ```bash
-    # Download and install
     wget https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-daemon_{{ .Version }}_linux_amd64.rpm
     sudo rpm -i goconnect-daemon_{{ .Version }}_linux_amd64.rpm
-
-    # Start service
-    sudo systemctl start goconnect-daemon
+    sudo systemctl enable --now goconnect-daemon
     ```
 
-    **Portable (tar.gz)**
+    **Portable (.tar.gz)**
     ```bash
-    # Download and extract
     wget https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-daemon_{{ .Version }}_linux_amd64.tar.gz
     tar -xzf goconnect-daemon_{{ .Version }}_linux_amd64.tar.gz
     cd goconnect-daemon_{{ .Version }}_linux_amd64
-
-    # Install with script
-    sudo ./install/linux/install.sh
+    sudo ./install/linux/goconnect-daemon.service  # Copy to systemd
     ```
 
     ### 🍎 macOS
 
-    **Intel (amd64)**
     ```bash
-    wget https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-daemon_{{ .Version }}_darwin_amd64.tar.gz
-    tar -xzf goconnect-daemon_{{ .Version }}_darwin_amd64.tar.gz
-    cd goconnect-daemon_{{ .Version }}_darwin_amd64
-    sudo ./install/macos/install.sh
-    ```
+    # Intel Mac
+    curl -LO https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-daemon_{{ .Version }}_darwin_amd64.tar.gz
 
-    **Apple Silicon (arm64)**
-    ```bash
-    wget https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-daemon_{{ .Version }}_darwin_arm64.tar.gz
-    tar -xzf goconnect-daemon_{{ .Version }}_darwin_arm64.tar.gz
-    cd goconnect-daemon_{{ .Version }}_darwin_arm64
-    sudo ./install/macos/install.sh
+    # Apple Silicon (M1/M2/M3)
+    curl -LO https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-daemon_{{ .Version }}_darwin_arm64.tar.gz
+
+    # Extract and install
+    tar -xzf goconnect-daemon_*.tar.gz
+    cd goconnect-daemon_*
+    sudo cp goconnect-daemon /usr/local/bin/
+    sudo cp install/macos/com.goconnect.daemon.plist /Library/LaunchDaemons/
+    sudo launchctl load /Library/LaunchDaemons/com.goconnect.daemon.plist
     ```
 
     ### 🪟 Windows
@@ -293,29 +300,31 @@ release:
     # Download
     Invoke-WebRequest -Uri "https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-daemon_{{ .Version }}_windows_amd64.zip" -OutFile "goconnect-daemon.zip"
 
-    # Extract
-    Expand-Archive -Path "goconnect-daemon.zip" -DestinationPath "goconnect-daemon"
-    cd goconnect-daemon
-
-    # Install as service
+    # Extract and install
+    Expand-Archive -Path "goconnect-daemon.zip" -DestinationPath "$env:ProgramFiles\GoConnect"
+    cd "$env:ProgramFiles\GoConnect"
     .\install\windows\install.ps1
-    ```
-
-    ### 🐳 Docker (Server Only)
-
-    ```bash
-    docker pull ghcr.io/orhaniscoding/goconnect-server:{{ .Version }}
-    docker run -d -p 8080:8080 ghcr.io/orhaniscoding/goconnect-server:{{ .Version }}
     ```
 
     ---
 
-    ## 🔐 Verification
+    ## 🔐 Verify Downloads
 
-    Verify downloads using checksums:
     ```bash
-    sha256sum -c checksums.txt
+    # Download checksums
+    wget https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/checksums.txt
+
+    # Verify your download
+    sha256sum -c checksums.txt --ignore-missing
     ```
+
+    ---
+
+    ## 📚 Documentation
+
+    - [Configuration Guide](https://github.com/orhaniscoding/goconnect/blob/main/docs/CONFIG_FLAGS.md)
+    - [API Examples](https://github.com/orhaniscoding/goconnect/blob/main/docs/API_EXAMPLES.http)
+    - [Security Guide](https://github.com/orhaniscoding/goconnect/blob/main/docs/SECURITY.md)
 
     ---
 

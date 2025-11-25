@@ -1077,10 +1077,10 @@ export default function AdminPage() {
                             {device.name}
                           </td>
                           <td style={{ padding: '12px', fontSize: 14, fontFamily: 'monospace', color: '#6c757d' }}>
-                            {device.ip_address}
+                            {device.last_ip || '-'}
                           </td>
                           <td style={{ padding: '12px', fontSize: 13, fontFamily: 'monospace', color: '#6c757d' }}>
-                            {device.public_key.substring(0, 12)}...
+                            {device.pubkey.substring(0, 12)}...
                           </td>
                           <td style={{ padding: '12px', fontSize: 13, fontFamily: 'monospace', color: '#6c757d' }}>
                             {device.tenant_id.substring(0, 12)}...

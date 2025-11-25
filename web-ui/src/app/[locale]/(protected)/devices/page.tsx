@@ -651,9 +651,9 @@ export default function DevicesPage() {
                       🖥️ {device.hostname}
                     </div>
                   )}
-                  {device.ip_address && (
+                  {device.last_ip && (
                     <div style={{ fontSize: 13, color: '#6b7280' }}>
-                      🌐 {device.ip_address}
+                      🌐 {device.last_ip}
                     </div>
                   )}
                   {device.os_version && (
