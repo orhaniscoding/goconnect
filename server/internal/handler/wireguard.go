@@ -234,12 +234,22 @@ func (h *WireGuardHandler) GetProfile(c *gin.Context) {
 
 	// Check for JSON request (used by Client Daemon for rich metadata)
 	if c.GetHeader("Accept") == "application/json" {
+		// Build DNS list from network config
+		dnsServers := []string{}
+		if network.DNS != nil && *network.DNS != "" {
+			for _, s := range strings.Split(*network.DNS, ",") {
+				if trimmed := strings.TrimSpace(s); trimmed != "" {
+					dnsServers = append(dnsServers, trimmed)
+				}
+			}
+		}
+
 		// Construct Interface Config
 		interfaceConfig := domain.InterfaceConfig{
 			PrivateKey: privateKey,
 			ListenPort: 51820, // Default, client can override
 			Addresses:  []string{deviceIP + "/" + fmt.Sprintf("%d", prefixLen)},
-			DNS:        []string{}, // TODO: Add DNS servers if managed
+			DNS:        dnsServers,
 		}
 
 		// Filter out self from peers
