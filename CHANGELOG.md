@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.8.5](https://github.com/orhaniscoding/goconnect/compare/v2.8.4...v2.8.5) (2025-11-25)
+
+
+### Bug Fixes
+
+* **release:** optimize assets, fix Docker builds, improve release notes ([b87112e](https://github.com/orhaniscoding/goconnect/commit/b87112e90a7bbaa58bf7b84ed960d57c78551415))
+
 ## [2.8.4](https://github.com/orhaniscoding/goconnect/compare/v2.8.3...v2.8.4) (2025-11-25)
 
 
