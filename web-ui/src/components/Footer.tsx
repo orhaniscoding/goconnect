@@ -20,11 +20,11 @@ export default function Footer() {
         ) : (
           <span style={{ color: 'gray', display: 'flex', alignItems: 'center', gap: 4 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: 'gray' }}></span>
-            Daemon: {error ? 'Disconnected' : 'Connecting...'}
+            Daemon: {error ? t('footer.daemon.disconnected') : t('footer.daemon.connecting')}
           </span>
         )}
       </div>
-      <div aria-label={t('footer.locale', 'Locale')}><LocaleSwitcher /></div>
+      <div aria-label={t('footer.locale')}><LocaleSwitcher /></div>
     </footer>
   )
 }

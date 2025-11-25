@@ -29,12 +29,12 @@ export default function Register({ params }: RegisterPageProps) {
 
         // Validation
         if (!name || !email || !password || !confirmPassword) {
-            setError(t.errorRequired)
+            setError(t('register.error.required'))
             return
         }
 
         if (!email.includes('@')) {
-            setError(t.errorEmailFormat)
+            setError(t('register.error.emailFormat'))
             return
         }
 

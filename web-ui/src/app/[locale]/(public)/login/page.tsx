@@ -27,10 +27,10 @@ export default function Login({ params }: LoginPageProps) {
     useEffect(() => {
         const errorParam = searchParams.get('error')
         if (errorParam === 'oidc_failed') {
-            setError('SSO Login Failed')
-            notification.error('Login Failed', 'SSO Login Failed')
+            setError(t('login.error.sso.msg'))
+            notification.error(t('login.error.sso.title'), t('login.error.sso.msg'))
         }
-    }, [searchParams, notification])
+    }, [searchParams, notification, t])
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault()
@@ -40,14 +40,14 @@ export default function Login({ params }: LoginPageProps) {
         if (!email || !password) {
             const msg = t('login.error.required')
             setError(msg)
-            notification.warning('Validation Error', msg)
+            notification.warning(t('login.error.validation.title'), msg)
             return
         }
 
         if (!email.includes('@')) {
             const msg = t('login.error.emailFormat')
             setError(msg)
-            notification.warning('Validation Error', msg)
+            notification.warning(t('login.error.validation.title'), msg)
             return
         }
 
@@ -60,7 +60,7 @@ export default function Login({ params }: LoginPageProps) {
             setTokens(response.data.access_token, response.data.refresh_token)
             setUser(response.data.user)
 
-            notification.success('Welcome back!', 'Login successful')
+            notification.success(t('login.success.title'), t('login.success.msg'))
 
             // Redirect to dashboard
             router.push(`/${params.locale}/dashboard`)
@@ -69,11 +69,11 @@ export default function Login({ params }: LoginPageProps) {
             if (err.message.includes('ERR_2FA_REQUIRED') || err.message.includes('Two-factor authentication required')) {
                 setShow2FA(true)
                 setError('')
-                notification.info('2FA Required', 'Please enter your authentication code')
+                notification.info(t('login.2fa.required.title'), t('login.2fa.required.msg'))
             } else {
                 const msg = err.message || t('login.error.network')
                 setError(msg)
-                notification.error('Login Failed', msg)
+                notification.error(t('login.error.failed.title'), msg)
             }
         } finally {
             setIsLoading(false)
@@ -152,7 +152,7 @@ export default function Login({ params }: LoginPageProps) {
                     ) : (
                         <div style={{ marginBottom: 24 }}>
                             <label style={{ display: 'block', marginBottom: 8, fontWeight: 500 }}>
-                                Authentication Code
+                                {t('login.2fa.code')}
                             </label>
                             <input
                                 type="text"
@@ -183,7 +183,7 @@ export default function Login({ params }: LoginPageProps) {
                                         fontSize: 14
                                     }}
                                 >
-                                    Back to Login
+                                    {t('login.2fa.back')}
                                 </button>
                             </div>
                         </div>
@@ -239,7 +239,7 @@ export default function Login({ params }: LoginPageProps) {
                                 gap: 8
                             }}
                         >
-                            Login with SSO
+                            {t('login.sso')}
                         </button>
                     </div>
                 </form>
