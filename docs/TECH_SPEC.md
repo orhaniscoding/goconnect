@@ -49,7 +49,7 @@ form-action 'self';
 
 ## 2) Teknoloji & Temel İlkeler
 
-* **Go 1.22+**, **Node 20+**, **Postgres 15+**, **Redis 7+**, **Next.js 14+**
+* **Go 1.24+**, **Node 20+**, **Postgres 15+**, **Redis 7+**, **Next.js 15+**
 * Kimlikler: **ULID**; Zaman: **UTC**; Günlük: **JSON (zap)**
 * İzlenebilirlik: **OpenTelemetry** trace + **Prometheus** metrikleri
 * Şifreleme: **Argon2**; Tokenlar: **JWT** + **JWKS rotation (kid)**
@@ -105,8 +105,8 @@ client-daemon/
 
 web-ui/
   package.json  next.config.js  .env.example
-  public/locales/tr/common.json
-  public/locales/en/common.json
+  src/locales/tr/common.json
+  src/locales/en/common.json
   src/lib/{api.ts, bridge.ts}
   src/components/Footer.tsx
   src/app/(public)/login/page.tsx
@@ -444,7 +444,7 @@ ldflags:
 
 ## 15) i18n & A11Y & UI Branding
 
-* **i18n**: `public/locales/{tr,en}/common.json` — **UI stringleri hard-code etmeyin.**
+* **i18n**: `src/locales/{tr,en}/common.json` — **UI stringleri hard-code etmeyin.**
 * **A11Y**: Kontrast, odak halkası, ARIA, klavye erişimi; komponent PR’larında lint
 * **Footer**:
 

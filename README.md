@@ -368,7 +368,7 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed gu
 
 **Quick Start:**
 1. Fork the repository
-2. Create feature branch: `git checkout -b feat/amazing-feature`
+2. Work directly on `main` branch (no feature branches)
 3. Make changes and add tests
 4. Run checks: `make ci`
 5. Commit with [Conventional Commits](https://www.conventionalcommits.org/): `git commit -S -m "feat(server): add amazing feature"`

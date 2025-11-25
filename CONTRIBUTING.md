@@ -5,7 +5,7 @@ Thank you for your interest in contributing to GoConnect! This document provides
 ## 🚀 Quick Start
 
 ### Prerequisites
-- **Go** 1.22 or higher
+- **Go** 1.24 or higher
 - **Node.js** 18+ and npm
 - **Git** with commit signing configured
 - **golangci-lint** (optional but recommended)
@@ -30,19 +30,25 @@ make status
 
 ## 🔧 Development Workflow
 
-### 1. Create a Feature Branch
+### 1. Work on Main Branch (No Feature Branches)
+
+This project follows a **strictly no branching** policy. All development occurs directly on `main`:
+
 ```bash
-git checkout -b feat/<scope>-<description>
-# or
-git checkout -b fix/<scope>-<issue-number>
+# Stay on main
+git checkout main
+
+# Keep up to date
+git pull --rebase
 ```
 
-Branch naming conventions:
-- `feat/server-ip-allocation` - New feature
-- `fix/auth-token-validation` - Bug fix
-- `docs/api-examples` - Documentation
-- `refactor/service-layer` - Code refactoring
-- `test/handler-coverage` - Test additions
+**Commit message prefixes (Conventional Commits):**
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `docs:` - Documentation
+- `refactor:` - Code refactoring
+- `test:` - Test additions
+- `chore:` - Build process, tooling
 
 ### 2. Make Your Changes
 
@@ -193,18 +199,20 @@ refactor(service): extract membership logic to separate service
 test(handler): add comprehensive RBAC test coverage
 ```
 
-### 7. Open a Pull Request
+### 7. Push and Submit
 
-1. Push your branch:
+1. Push your changes:
 ```bash
-git push origin feat/your-feature
+git push origin main
 ```
 
-2. Create PR on GitHub with:
-   - Clear title following conventional commits
-   - Description of changes
-   - Link to related issues
-   - Screenshots (if UI changes)
+2. For external contributors (fork workflow):
+   - Push to your fork's main branch
+   - Create PR on GitHub with:
+     - Clear title following conventional commits
+     - Description of changes
+     - Link to related issues
+     - Screenshots (if UI changes)
 
 ## ✅ PR Checklist
 
