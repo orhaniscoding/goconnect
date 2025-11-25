@@ -1050,4 +1050,390 @@ export async function deleteTenant(tenantId: string, accessToken: string): Promi
   })
 }
 
+// ==================== TENANT MULTI-MEMBERSHIP API ====================
+
+// Types
+export type TenantRole = 'owner' | 'admin' | 'moderator' | 'vip' | 'member'
+export type TenantVisibility = 'public' | 'unlisted' | 'private'
+export type TenantAccessType = 'open' | 'password' | 'invite_only'
+
+export interface TenantExtended {
+  id: string
+  name: string
+  description: string
+  icon_url?: string
+  visibility: TenantVisibility
+  access_type: TenantAccessType
+  max_members: number
+  owner_id: string
+  member_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface TenantMember {
+  id: string
+  tenant_id: string
+  user_id: string
+  role: TenantRole
+  nickname?: string
+  joined_at: string
+  updated_at: string
+  user?: {
+    id: string
+    email: string
+    locale: string
+  }
+}
+
+export interface TenantInvite {
+  id: string
+  tenant_id: string
+  code: string
+  max_uses: number
+  use_count: number
+  expires_at?: string
+  created_by: string
+  created_at: string
+  revoked_at?: string
+}
+
+export interface TenantAnnouncement {
+  id: string
+  tenant_id: string
+  title: string
+  content: string
+  author_id: string
+  is_pinned: boolean
+  created_at: string
+  updated_at: string
+  author?: {
+    id: string
+    email: string
+    locale: string
+  }
+}
+
+export interface TenantChatMessage {
+  id: string
+  tenant_id: string
+  user_id: string
+  content: string
+  created_at: string
+  edited_at?: string
+  user?: {
+    id: string
+    email: string
+    locale: string
+  }
+}
+
+// Request types
+export interface CreateTenantRequest {
+  name: string
+  description?: string
+  visibility: TenantVisibility
+  access_type: TenantAccessType
+  password?: string
+  max_members?: number
+}
+
+export interface JoinTenantRequest {
+  password?: string
+}
+
+export interface JoinByCodeRequest {
+  code: string
+}
+
+export interface UpdateMemberRoleRequest {
+  role: TenantRole
+}
+
+export interface CreateTenantInviteRequest {
+  max_uses?: number
+  expires_in?: number // seconds
+}
+
+export interface CreateAnnouncementRequest {
+  title: string
+  content: string
+  is_pinned?: boolean
+}
+
+export interface UpdateAnnouncementRequest {
+  title?: string
+  content?: string
+  is_pinned?: boolean
+}
+
+export interface SendChatMessageRequest {
+  content: string
+}
+
+// ==================== TENANT OPERATIONS ====================
+
+/**
+ * Create a new tenant (user becomes owner)
+ */
+export async function createTenant(accessToken: string, req: CreateTenantRequest): Promise<{ data: TenantExtended }> {
+  return api('/v1/tenants', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify(req),
+  })
+}
+
+/**
+ * Get tenant by ID
+ */
+export async function getTenantById(accessToken: string, tenantId: string): Promise<{ data: TenantExtended }> {
+  return api(`/v1/tenants/${tenantId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+}
+
+// ==================== MEMBERSHIP OPERATIONS ====================
+
+/**
+ * Join a tenant (for open or password-protected tenants)
+ */
+export async function joinTenant(accessToken: string, tenantId: string, req?: JoinTenantRequest): Promise<{ data: TenantMember; message: string }> {
+  return api(`/v1/tenants/${tenantId}/join`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: req ? JSON.stringify(req) : undefined,
+  })
+}
+
+/**
+ * Join a tenant using an invite code (Steam-like)
+ */
+export async function joinTenantByCode(accessToken: string, code: string): Promise<{ data: TenantMember; message: string }> {
+  return api('/v1/tenants/join-by-code', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ code }),
+  })
+}
+
+/**
+ * Leave a tenant (owner cannot leave)
+ */
+export async function leaveTenant(accessToken: string, tenantId: string): Promise<{ message: string }> {
+  return api(`/v1/tenants/${tenantId}/leave`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+}
+
+/**
+ * Get all tenants the current user is a member of
+ */
+export async function getUserTenants(accessToken: string): Promise<{ data: TenantMember[] }> {
+  return api('/v1/users/me/tenants', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+}
+
+/**
+ * Get members of a tenant
+ */
+export async function getTenantMembers(
+  accessToken: string,
+  tenantId: string,
+  options?: { role?: string; limit?: number; cursor?: string }
+): Promise<{ data: TenantMember[]; next_cursor?: string }> {
+  const params = new URLSearchParams()
+  if (options?.role) params.set('role', options.role)
+  if (options?.limit) params.set('limit', String(options.limit))
+  if (options?.cursor) params.set('cursor', options.cursor)
+  const query = params.toString() ? `?${params.toString()}` : ''
+  return api(`/v1/tenants/${tenantId}/members${query}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+}
+
+/**
+ * Update a member's role in a tenant (admin+ only)
+ */
+export async function updateMemberRole(
+  accessToken: string,
+  tenantId: string,
+  memberId: string,
+  role: TenantRole
+): Promise<{ message: string }> {
+  return api(`/v1/tenants/${tenantId}/members/${memberId}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ role }),
+  })
+}
+
+/**
+ * Remove/kick a member from a tenant (moderator+ only)
+ */
+export async function removeTenantMember(
+  accessToken: string,
+  tenantId: string,
+  memberId: string
+): Promise<{ message: string }> {
+  return api(`/v1/tenants/${tenantId}/members/${memberId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+}
+
+// ==================== INVITE OPERATIONS ====================
+
+/**
+ * Create a tenant invite code (admin+ only)
+ */
+export async function createTenantInvite(
+  accessToken: string,
+  tenantId: string,
+  req?: CreateTenantInviteRequest
+): Promise<{ data: TenantInvite }> {
+  return api(`/v1/tenants/${tenantId}/invites`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: req ? JSON.stringify(req) : undefined,
+  })
+}
+
+/**
+ * List all invites for a tenant (admin+ only)
+ */
+export async function listTenantInvites(accessToken: string, tenantId: string): Promise<{ data: TenantInvite[] }> {
+  return api(`/v1/tenants/${tenantId}/invites`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+}
+
+/**
+ * Revoke a tenant invite (admin+ only)
+ */
+export async function revokeTenantInvite(
+  accessToken: string,
+  tenantId: string,
+  inviteId: string
+): Promise<{ message: string }> {
+  return api(`/v1/tenants/${tenantId}/invites/${inviteId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+}
+
+// ==================== ANNOUNCEMENT OPERATIONS ====================
+
+/**
+ * Create an announcement (moderator+ only)
+ */
+export async function createAnnouncement(
+  accessToken: string,
+  tenantId: string,
+  req: CreateAnnouncementRequest
+): Promise<{ data: TenantAnnouncement }> {
+  return api(`/v1/tenants/${tenantId}/announcements`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify(req),
+  })
+}
+
+/**
+ * List announcements for a tenant
+ */
+export async function listAnnouncements(
+  accessToken: string,
+  tenantId: string,
+  options?: { pinned?: boolean; limit?: number; cursor?: string }
+): Promise<{ data: TenantAnnouncement[]; next_cursor?: string }> {
+  const params = new URLSearchParams()
+  if (options?.pinned !== undefined) params.set('pinned', String(options.pinned))
+  if (options?.limit) params.set('limit', String(options.limit))
+  if (options?.cursor) params.set('cursor', options.cursor)
+  const query = params.toString() ? `?${params.toString()}` : ''
+  return api(`/v1/tenants/${tenantId}/announcements${query}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+}
+
+/**
+ * Update an announcement (moderator+ only)
+ */
+export async function updateAnnouncement(
+  accessToken: string,
+  tenantId: string,
+  announcementId: string,
+  req: UpdateAnnouncementRequest
+): Promise<{ message: string }> {
+  return api(`/v1/tenants/${tenantId}/announcements/${announcementId}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify(req),
+  })
+}
+
+/**
+ * Delete an announcement (moderator+ only)
+ */
+export async function deleteAnnouncement(
+  accessToken: string,
+  tenantId: string,
+  announcementId: string
+): Promise<{ message: string }> {
+  return api(`/v1/tenants/${tenantId}/announcements/${announcementId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+}
+
+// ==================== CHAT OPERATIONS ====================
+
+/**
+ * Send a chat message to tenant general chat
+ */
+export async function sendTenantChatMessage(
+  accessToken: string,
+  tenantId: string,
+  content: string
+): Promise<{ data: TenantChatMessage }> {
+  return api(`/v1/tenants/${tenantId}/chat/messages`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ content }),
+  })
+}
+
+/**
+ * Get chat history for a tenant
+ */
+export async function getTenantChatHistory(
+  accessToken: string,
+  tenantId: string,
+  options?: { before?: string; limit?: number }
+): Promise<{ data: TenantChatMessage[] }> {
+  const params = new URLSearchParams()
+  if (options?.before) params.set('before', options.before)
+  if (options?.limit) params.set('limit', String(options.limit))
+  const query = params.toString() ? `?${params.toString()}` : ''
+  return api(`/v1/tenants/${tenantId}/chat/messages${query}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+}
+
+/**
+ * Delete a chat message (author or moderator+ only)
+ */
+export async function deleteTenantChatMessage(
+  accessToken: string,
+  tenantId: string,
+  messageId: string
+): Promise<{ message: string }> {
+  return api(`/v1/tenants/${tenantId}/chat/messages/${messageId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+}
 

@@ -612,5 +612,154 @@
       }
     },
     "edited": "(düzenlendi)"
+  },
+  "tenant": {
+    "title": "Ekipler",
+    "discover": {
+      "title": "Ekipleri Keşfet",
+      "subtitle": "Herkese açık ekiplere katılın veya davet kodu kullanın",
+      "searchPlaceholder": "Ekip ara...",
+      "noResults": "Ekip bulunamadı",
+      "filters": {
+        "all": "Tümü",
+        "public": "Herkese Açık",
+        "inviteOnly": "Sadece Davetli"
+      }
+    },
+    "join": {
+      "title": "Ekibe Katıl",
+      "button": "Katıl",
+      "inviteCode": "Davet Kodu",
+      "inviteCodePlaceholder": "Davet kodunu girin",
+      "useInvite": "Daveti Kullan",
+      "password": "Şifre",
+      "passwordPlaceholder": "Ekip şifresini girin",
+      "success": "Ekibe başarıyla katıldınız!",
+      "error": {
+        "alreadyMember": "Zaten bu ekibin üyesisiniz",
+        "invalidCode": "Geçersiz davet kodu",
+        "invalidPassword": "Yanlış şifre",
+        "maxMembers": "Ekip maksimum üye sayısına ulaştı",
+        "inviteExpired": "Davet kodunun süresi doldu",
+        "inviteMaxUses": "Davet kodu maksimum kullanıma ulaştı"
+      }
+    },
+    "leave": {
+      "title": "Ekipten Ayrıl",
+      "confirm": "Bu ekipten ayrılmak istediğinizden emin misiniz?",
+      "button": "Ayrıl",
+      "success": "Ekipten başarıyla ayrıldınız",
+      "error": {
+        "ownerCannotLeave": "Ekip sahibi olarak ayrılamazsınız. Önce sahipliği devredin veya ekibi silin."
+      }
+    },
+    "members": {
+      "title": "Üyeler",
+      "count": "{{count}} üye",
+      "online": "{{count}} çevrimiçi",
+      "roles": {
+        "owner": "Sahip",
+        "admin": "Yönetici",
+        "moderator": "Moderatör",
+        "vip": "VIP",
+        "member": "Üye"
+      },
+      "actions": {
+        "promote": "Yükselt",
+        "demote": "Düşür",
+        "kick": "At",
+        "ban": "Yasakla"
+      }
+    },
+    "invites": {
+      "title": "Davetler",
+      "create": "Davet Oluştur",
+      "code": "Davet Kodu",
+      "copyCode": "Kodu Kopyala",
+      "copied": "Kopyalandı!",
+      "expiresAt": "Bitiş: {{date}}",
+      "maxUses": "Maks kullanım: {{count}}",
+      "uses": "{{used}}/{{max}} kullanıldı",
+      "unlimited": "Sınırsız",
+      "never": "Asla",
+      "revoke": "İptal Et",
+      "settings": {
+        "expiry": "Geçerlilik Süresi",
+        "maxUses": "Maksimum Kullanım",
+        "hours": "{{count}} saat",
+        "days": "{{count}} gün",
+        "noExpiry": "Süresiz",
+        "noLimit": "Limitsiz"
+      }
+    },
+    "announcements": {
+      "title": "Duyurular",
+      "create": "Duyuru Oluştur",
+      "edit": "Düzenle",
+      "delete": "Sil",
+      "pin": "Sabitle",
+      "unpin": "Sabitlemeyi Kaldır",
+      "pinned": "Sabitlenmiş",
+      "noAnnouncements": "Henüz duyuru yok",
+      "form": {
+        "title": "Başlık",
+        "titlePlaceholder": "Duyuru başlığı",
+        "content": "İçerik",
+        "contentPlaceholder": "Duyuru içeriği...",
+        "priority": "Öncelik",
+        "priorities": {
+          "low": "Düşük",
+          "normal": "Normal",
+          "high": "Yüksek",
+          "urgent": "Acil"
+        }
+      }
+    },
+    "chat": {
+      "title": "Ekip Sohbeti",
+      "placeholder": "Ekibe mesaj yaz...",
+      "noMessages": "Henüz mesaj yok. İlk mesajı sen gönder!",
+      "newMessages": "{{count}} yeni mesaj"
+    },
+    "settings": {
+      "title": "Ekip Ayarları",
+      "general": "Genel",
+      "visibility": "Görünürlük",
+      "visibilityOptions": {
+        "public": "Herkese Açık",
+        "private": "Gizli"
+      },
+      "accessType": "Erişim Tipi",
+      "accessTypes": {
+        "open": "Açık (herkes katılabilir)",
+        "password": "Şifreli",
+        "invite_only": "Sadece Davetli"
+      },
+      "description": "Açıklama",
+      "descriptionPlaceholder": "Ekip açıklaması...",
+      "maxMembers": "Maksimum Üye Sayısı"
+    },
+    "permissions": {
+      "title": "İzinler",
+      "required": "Bu işlem için yeterli yetkiniz yok",
+      "roleRequired": "En az {{role}} rolüne sahip olmalısınız"
+    },
+    "myTenants": {
+      "title": "Ekiplerim",
+      "empty": "Henüz bir ekibe üye değilsiniz",
+      "create": "Ekip Oluştur"
+    },
+    "card": {
+      "members": "{{count}} üye",
+      "visibility": {
+        "public": "Herkese Açık",
+        "private": "Gizli"
+      },
+      "accessType": {
+        "open": "Açık",
+        "password": "Şifreli",
+        "invite_only": "Davetli"
+      }
+    }
   }
 }

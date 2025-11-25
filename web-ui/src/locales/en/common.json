@@ -574,5 +574,100 @@
       }
     },
     "edited": "(edited)"
+  },
+  "tenants": {
+    "title": "Servers",
+    "subtitle": "Manage your server memberships",
+    "myServers": "My Servers",
+    "discover": "Discover",
+    "create": "Create Server",
+    "join": "Join Server",
+    "joinByCode": "Join with Code",
+    "leave": "Leave Server",
+    "settings": "Server Settings",
+    "empty": "You're not a member of any servers yet.",
+    "emptyDiscover": "No public servers found.",
+    "search": "Search servers...",
+    "role": {
+      "owner": "Owner",
+      "admin": "Admin",
+      "moderator": "Moderator",
+      "vip": "VIP",
+      "member": "Member"
+    },
+    "visibility": {
+      "public": "Public",
+      "unlisted": "Unlisted",
+      "private": "Private"
+    },
+    "access": {
+      "open": "Open",
+      "password": "Password Protected",
+      "invite_only": "Invite Only"
+    },
+    "members": {
+      "title": "Members",
+      "count": "{count} members",
+      "kick": "Kick",
+      "changeRole": "Change Role",
+      "roleUpdated": "Role updated successfully",
+      "kicked": "Member has been removed"
+    },
+    "invites": {
+      "title": "Invites",
+      "create": "Create Invite",
+      "code": "Invite Code",
+      "uses": "{used}/{max} uses",
+      "unlimited": "Unlimited",
+      "expires": "Expires {date}",
+      "never": "Never expires",
+      "copy": "Copy Code",
+      "copied": "Copied!",
+      "revoke": "Revoke",
+      "revoked": "Invite revoked"
+    },
+    "announcements": {
+      "title": "Announcements",
+      "create": "New Announcement",
+      "pinned": "Pinned",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleted": "Announcement deleted"
+    },
+    "chat": {
+      "title": "General Chat",
+      "placeholder": "Send a message...",
+      "send": "Send"
+    },
+    "form": {
+      "name": "Server Name",
+      "namePlaceholder": "My Awesome Server",
+      "description": "Description",
+      "descriptionPlaceholder": "What's this server about?",
+      "visibility": "Visibility",
+      "accessType": "Join Method",
+      "password": "Password",
+      "maxMembers": "Max Members (0 = unlimited)",
+      "inviteCode": "Invite Code",
+      "inviteCodePlaceholder": "Enter invite code",
+      "create": "Create Server",
+      "creating": "Creating...",
+      "join": "Join",
+      "joining": "Joining..."
+    },
+    "success": {
+      "created": "Server created successfully!",
+      "joined": "You've joined the server!",
+      "left": "You've left the server.",
+      "messageSent": "Message sent"
+    },
+    "error": {
+      "createFailed": "Failed to create server",
+      "joinFailed": "Failed to join server",
+      "leaveFailed": "Failed to leave server",
+      "invalidCode": "Invalid invite code",
+      "alreadyMember": "You're already a member",
+      "ownerCantLeave": "Owner cannot leave. Transfer ownership first."
+    }
   }
 }
