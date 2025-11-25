@@ -88,3 +88,82 @@ func BenchmarkSqliteAuditor_Event(b *testing.B) {
 		b.Fatalf("db not created: %v", err)
 	}
 }
+
+func TestSqliteAuditor_QueryLogsFiltered(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "audit_filter.db")
+	a, err := NewSqliteAuditor(dbPath)
+	if err != nil {
+		t.Fatalf("new auditor: %v", err)
+	}
+	defer a.Close()
+
+	ctx := context.Background()
+
+	// Create test events
+	// Note: Without hashing, actor/object are stored as "[redacted]"
+	// So we can only filter by action and tenant_id reliably without hashing
+	a.Event(ctx, "tenant-1", ActionNetworkCreated, "alice", "net-1", nil)
+	a.Event(ctx, "tenant-1", ActionIPAllocated, "bob", "net-1", nil)
+	a.Event(ctx, "tenant-1", ActionNetworkCreated, "charlie", "net-2", nil)
+	a.Event(ctx, "tenant-2", ActionNetworkCreated, "david", "net-3", nil)
+
+	tests := []struct {
+		name          string
+		tenantID      string
+		filter        AuditFilter
+		expectedCount int
+	}{
+		{
+			name:          "no filter - tenant-1",
+			tenantID:      "tenant-1",
+			filter:        AuditFilter{},
+			expectedCount: 3,
+		},
+		{
+			name:          "filter by actor - redacted (all actors redacted without hasher)",
+			tenantID:      "tenant-1",
+			filter:        AuditFilter{Actor: "[redacted]"},
+			expectedCount: 3, // All actors are [redacted] when no hasher is set
+		},
+		{
+			name:          "filter by action - NETWORK_CREATED",
+			tenantID:      "tenant-1",
+			filter:        AuditFilter{Action: ActionNetworkCreated},
+			expectedCount: 2,
+		},
+		{
+			name:          "filter by action - IP_ALLOCATED",
+			tenantID:      "tenant-1",
+			filter:        AuditFilter{Action: ActionIPAllocated},
+			expectedCount: 1,
+		},
+		{
+			name:          "different tenant",
+			tenantID:      "tenant-2",
+			filter:        AuditFilter{},
+			expectedCount: 1,
+		},
+		{
+			name:          "nonexistent actor",
+			tenantID:      "tenant-1",
+			filter:        AuditFilter{Actor: "nonexistent"},
+			expectedCount: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			logs, total, err := a.QueryLogsFiltered(ctx, tt.tenantID, tt.filter, 100, 0)
+			if err != nil {
+				t.Fatalf("query failed: %v", err)
+			}
+			if total != tt.expectedCount {
+				t.Errorf("expected total %d, got %d", tt.expectedCount, total)
+			}
+			if len(logs) != tt.expectedCount {
+				t.Errorf("expected %d logs, got %d", tt.expectedCount, len(logs))
+			}
+		})
+	}
+}

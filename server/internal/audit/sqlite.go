@@ -498,24 +498,68 @@ type LogEntry struct {
 	RequestID string         `json:"request_id"`
 }
 
+// AuditFilter contains filtering options for audit log queries
+type AuditFilter struct {
+	Actor      string
+	Action     string
+	ObjectType string
+	From       *time.Time
+	To         *time.Time
+}
+
 // QueryLogs retrieves audit logs with filtering and pagination
 func (a *SqliteAuditor) QueryLogs(ctx context.Context, tenantID string, limit, offset int) ([]LogEntry, int, error) {
+	return a.QueryLogsFiltered(ctx, tenantID, AuditFilter{}, limit, offset)
+}
+
+// QueryLogsFiltered retrieves audit logs with optional filters and pagination
+func (a *SqliteAuditor) QueryLogsFiltered(ctx context.Context, tenantID string, filter AuditFilter, limit, offset int) ([]LogEntry, int, error) {
+	// Build WHERE clause
+	conditions := []string{"tenant_id = ?"}
+	args := []interface{}{tenantID}
+
+	if filter.Actor != "" {
+		conditions = append(conditions, "actor = ?")
+		args = append(args, filter.Actor)
+	}
+	if filter.Action != "" {
+		conditions = append(conditions, "action = ?")
+		args = append(args, filter.Action)
+	}
+	if filter.ObjectType != "" {
+		// Object is stored as JSON, so we need to check if it contains the type
+		conditions = append(conditions, "json_extract(object, '$.type') = ?")
+		args = append(args, filter.ObjectType)
+	}
+	if filter.From != nil {
+		conditions = append(conditions, "ts >= ?")
+		args = append(args, filter.From.Format(time.RFC3339))
+	}
+	if filter.To != nil {
+		conditions = append(conditions, "ts <= ?")
+		args = append(args, filter.To.Format(time.RFC3339))
+	}
+
+	whereClause := strings.Join(conditions, " AND ")
+
 	// Count total
 	var total int
-	countQuery := `SELECT COUNT(*) FROM audit_events WHERE tenant_id = ?`
-	if err := a.db.QueryRowContext(ctx, countQuery, tenantID).Scan(&total); err != nil {
+	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM audit_events WHERE %s`, whereClause)
+	if err := a.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("failed to count logs: %w", err)
 	}
 
 	// Query logs
-	query := `
+	query := fmt.Sprintf(`
 		SELECT seq, ts, tenant_id, action, actor, object, details, request_id
 		FROM audit_events
-		WHERE tenant_id = ?
+		WHERE %s
 		ORDER BY seq DESC
 		LIMIT ? OFFSET ?
-	`
-	rows, err := a.db.QueryContext(ctx, query, tenantID, limit, offset)
+	`, whereClause)
+	args = append(args, limit, offset)
+
+	rows, err := a.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to query logs: %w", err)
 	}

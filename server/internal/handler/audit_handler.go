@@ -15,6 +15,7 @@ type AuditExportProvider interface {
 }
 
 // AuditListHandler returns a gin handler for listing audit logs
+// Supports query parameters: actor, action, object_type, from, to, page, limit
 func AuditListHandler(aud audit.Auditor) gin.HandlerFunc {
 	// Attempt to unwrap to *audit.SqliteAuditor
 	sa, _ := aud.(*audit.SqliteAuditor)
@@ -42,7 +43,26 @@ func AuditListHandler(aud audit.Auditor) gin.HandlerFunc {
 		}
 		offset := (page - 1) * limit
 
-		logs, total, err := sa.QueryLogs(c.Request.Context(), tenantID, limit, offset)
+		// Build filter from query parameters
+		filter := audit.AuditFilter{
+			Actor:      c.Query("actor"),
+			Action:     c.Query("action"),
+			ObjectType: c.Query("object_type"),
+		}
+
+		// Parse from/to timestamps
+		if fromStr := c.Query("from"); fromStr != "" {
+			if t, err := time.Parse(time.RFC3339, fromStr); err == nil {
+				filter.From = &t
+			}
+		}
+		if toStr := c.Query("to"); toStr != "" {
+			if t, err := time.Parse(time.RFC3339, toStr); err == nil {
+				filter.To = &t
+			}
+		}
+
+		logs, total, err := sa.QueryLogsFiltered(c.Request.Context(), tenantID, filter, limit, offset)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to query logs"})
 			return
@@ -54,6 +74,13 @@ func AuditListHandler(aud audit.Auditor) gin.HandlerFunc {
 				"page":  page,
 				"limit": limit,
 				"total": total,
+			},
+			"filters": gin.H{
+				"actor":       filter.Actor,
+				"action":      filter.Action,
+				"object_type": filter.ObjectType,
+				"from":        filter.From,
+				"to":          filter.To,
 			},
 		})
 	}

@@ -650,6 +650,33 @@ components:
           $ref: "#/components/schemas/IPRule"
           description: The rule that matched (if any)
 
+    AuditLogEntry:
+      type: object
+      properties:
+        seq:
+          type: integer
+          description: Sequence number
+        timestamp:
+          type: string
+          format: date-time
+        tenant_id:
+          type: string
+        action:
+          type: string
+          description: Action type (e.g., NETWORK_CREATE, USER_LOGIN)
+        actor:
+          type: string
+          description: User ID who performed the action
+        object:
+          type: object
+          description: Object details including type and ID
+        details:
+          type: object
+          description: Additional action-specific details
+        request_id:
+          type: string
+          description: Correlation ID for the request
+
 paths:
   /v1/auth/register:
     post:
@@ -773,6 +800,105 @@ paths:
                     example: true
         "401":
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/audit/logs:
+    get:
+      summary: List audit logs
+      description: "Retrieve audit logs with optional filtering by actor, action, object type, and time range."
+      tags: [Audit]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: actor
+          in: query
+          description: Filter by actor ID
+          schema:
+            type: string
+        - name: action
+          in: query
+          description: Filter by action type
+          schema:
+            type: string
+        - name: object_type
+          in: query
+          description: Filter by object type
+          schema:
+            type: string
+        - name: from
+          in: query
+          description: Filter logs from this timestamp (RFC3339)
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          description: Filter logs up to this timestamp (RFC3339)
+          schema:
+            type: string
+            format: date-time
+        - name: page
+          in: query
+          description: Page number (1-based)
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of items per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: List of audit logs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AuditLogEntry"
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      total:
+                        type: integer
+                  filters:
+                    type: object
+                    properties:
+                      actor:
+                        type: string
+                      action:
+                        type: string
+                      object_type:
+                        type: string
+                      from:
+                        type: string
+                        format: date-time
+                      to:
+                        type: string
+                        format: date-time
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "501":
+          description: Audit log listing not supported for this auditor
           content:
             application/json:
               schema:
@@ -2262,3 +2388,5 @@ tags:
     description: "Network invitation token management"
   - name: IPRules
     description: "IP allowlist/denylist management for tenant access control"
+  - name: Audit
+    description: "Audit log querying and integrity verification"
