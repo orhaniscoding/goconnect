@@ -259,7 +259,7 @@ release:
     curl -LO https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-server_{{ .Version }}_darwin_arm64.tar.gz
     tar -xzf goconnect-server_{{ .Version }}_darwin_arm64.tar.gz
     sudo cp goconnect-server /usr/local/bin/
-    
+
     # Run
     JWT_SECRET=$(openssl rand -base64 32) goconnect-server
     ```
