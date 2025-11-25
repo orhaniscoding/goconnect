@@ -235,6 +235,251 @@ All WebSocket messages follow this structure:
 }
 ```
 
+---
+
+## Tenant Chat Messages
+
+Tenant chat provides real-time messaging within tenant/organization rooms.
+
+### Inbound (Client → Server)
+
+#### `tenant.join` - Join Tenant Room
+
+**Payload:**
+```json
+{
+  "type": "tenant.join",
+  "op_id": "op-10",
+  "data": {
+    "tenant_id": "tnt_abc123"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "type": "ack",
+  "op_id": "op-10",
+  "data": {
+    "status": "joined",
+    "room": "tenant:tnt_abc123"
+  }
+}
+```
+
+#### `tenant.leave` - Leave Tenant Room
+
+**Payload:**
+```json
+{
+  "type": "tenant.leave",
+  "op_id": "op-11",
+  "data": {
+    "tenant_id": "tnt_abc123"
+  }
+}
+```
+
+#### `tenant.chat.send` - Send Tenant Chat Message
+
+**Payload:**
+```json
+{
+  "type": "tenant.chat.send",
+  "op_id": "op-12",
+  "data": {
+    "tenant_id": "tnt_abc123",
+    "content": "Hello team!"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "type": "ack",
+  "op_id": "op-12",
+  "data": {
+    "message_id": "msg_xyz789",
+    "created_at": "2025-01-15T14:30:00Z"
+  }
+}
+```
+
+#### `tenant.chat.edit` - Edit Tenant Chat Message
+
+**Payload:**
+```json
+{
+  "type": "tenant.chat.edit",
+  "op_id": "op-13",
+  "data": {
+    "tenant_id": "tnt_abc123",
+    "message_id": "msg_xyz789",
+    "content": "Hello team! (updated)"
+  }
+}
+```
+
+#### `tenant.chat.delete` - Delete Tenant Chat Message
+
+**Payload:**
+```json
+{
+  "type": "tenant.chat.delete",
+  "op_id": "op-14",
+  "data": {
+    "tenant_id": "tnt_abc123",
+    "message_id": "msg_xyz789"
+  }
+}
+```
+
+#### `tenant.chat.typing` - Typing Indicator
+
+**Payload:**
+```json
+{
+  "type": "tenant.chat.typing",
+  "op_id": "op-15",
+  "data": {
+    "tenant_id": "tnt_abc123",
+    "typing": true
+  }
+}
+```
+
+### Outbound (Server → Client)
+
+#### `tenant.chat.message` - New Tenant Chat Message
+
+Broadcast to all users in the tenant room.
+
+**Payload:**
+```json
+{
+  "type": "tenant.chat.message",
+  "data": {
+    "message_id": "msg_xyz789",
+    "tenant_id": "tnt_abc123",
+    "sender": {
+      "user_id": "user_456",
+      "display_name": "John Doe",
+      "nickname": "JD"
+    },
+    "content": "Hello team!",
+    "timestamp": "2025-01-15T14:30:00Z"
+  }
+}
+```
+
+#### `tenant.chat.edited` - Message Edited
+
+**Payload:**
+```json
+{
+  "type": "tenant.chat.edited",
+  "data": {
+    "tenant_id": "tnt_abc123",
+    "message_id": "msg_xyz789",
+    "content": "Hello team! (updated)",
+    "updated_at": "2025-01-15T14:31:00Z"
+  }
+}
+```
+
+#### `tenant.chat.deleted` - Message Deleted
+
+**Payload:**
+```json
+{
+  "type": "tenant.chat.deleted",
+  "data": {
+    "tenant_id": "tnt_abc123",
+    "message_id": "msg_xyz789"
+  }
+}
+```
+
+#### `tenant.chat.typing.user` - User Typing Indicator
+
+**Payload:**
+```json
+{
+  "type": "tenant.chat.typing.user",
+  "data": {
+    "tenant_id": "tnt_abc123",
+    "user_id": "user_456",
+    "user_name": "John Doe",
+    "is_typing": true
+  }
+}
+```
+
+#### `tenant.member.joined` - Member Joined Tenant
+
+**Payload:**
+```json
+{
+  "type": "tenant.member.joined",
+  "data": {
+    "tenant_id": "tnt_abc123",
+    "user_id": "user_789",
+    "role": "member"
+  }
+}
+```
+
+#### `tenant.member.left` - Member Left Tenant
+
+**Payload:**
+```json
+{
+  "type": "tenant.member.left",
+  "data": {
+    "tenant_id": "tnt_abc123",
+    "user_id": "user_789"
+  }
+}
+```
+
+#### `tenant.member.role_changed` - Member Role Updated
+
+**Payload:**
+```json
+{
+  "type": "tenant.member.role_changed",
+  "data": {
+    "tenant_id": "tnt_abc123",
+    "user_id": "user_789",
+    "old_role": "member",
+    "new_role": "admin",
+    "by": "user_owner"
+  }
+}
+```
+
+#### `tenant.announcement` - New Announcement
+
+**Payload:**
+```json
+{
+  "type": "tenant.announcement",
+  "data": {
+    "id": "ann_123",
+    "tenant_id": "tnt_abc123",
+    "title": "Server Maintenance",
+    "content": "Scheduled maintenance on Saturday.",
+    "author_id": "user_admin",
+    "is_pinned": true,
+    "created_at": "2025-01-15T10:00:00Z"
+  }
+}
+```
+
+---
+
 ### Outbound Messages (Server → Client)
 
 #### 1. `chat.message` - New Chat Message
