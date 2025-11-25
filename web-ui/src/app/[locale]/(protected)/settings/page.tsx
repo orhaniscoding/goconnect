@@ -6,11 +6,13 @@ import QRCode from 'qrcode'
 import { getUser, getAccessToken, setUser } from '../../../../lib/auth'
 import { generate2FA, enable2FA, disable2FA } from '../../../../lib/api'
 import { useNotification } from '../../../../contexts/NotificationContext'
+import { useT } from '../../../../lib/i18n-context'
 import AuthGuard from '../../../../components/AuthGuard'
 
 export default function Settings() {
     const router = useRouter()
     const notification = useNotification()
+    const t = useT()
     const [user, setUserState] = useState<any>(null)
     const [secret, setSecret] = useState('')
     const [otpAuthUrl, setOtpAuthUrl] = useState('')
@@ -42,7 +44,7 @@ export default function Settings() {
             setOtpAuthUrl(data.url)
             setStep('scan')
         } catch (err: any) {
-            notification.error('Error', err.message || 'Failed to generate 2FA')
+            notification.error(t('settings.notifications.error'), err.message || t('settings.notifications.generateFailed'))
         }
     }
 
@@ -58,11 +60,11 @@ export default function Settings() {
             setUser(updatedUser)
             setUserState(updatedUser)
 
-            notification.success('Success', 'Two-factor authentication enabled!')
+            notification.success(t('settings.notifications.success'), t('settings.notifications.enabled'))
             setStep('initial')
             setCode('')
         } catch (err: any) {
-            notification.error('Error', err.message || 'Failed to verify code')
+            notification.error(t('settings.notifications.error'), err.message || t('settings.notifications.verifyFailed'))
         }
     }
 
@@ -82,11 +84,11 @@ export default function Settings() {
             setUser(updatedUser)
             setUserState(updatedUser)
 
-            notification.success('Success', 'Two-factor authentication disabled.')
+            notification.success(t('settings.notifications.success'), t('settings.notifications.disabled'))
             setStep('initial')
             setCode('')
         } catch (err: any) {
-            notification.error('Error', err.message || 'Failed to disable 2FA')
+            notification.error(t('settings.notifications.error'), err.message || t('settings.notifications.disableFailed'))
         }
     }
 
@@ -96,33 +98,33 @@ export default function Settings() {
         <AuthGuard>
             <div style={{ padding: 24, maxWidth: 800, margin: '0 auto' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
-                    <h1 style={{ fontSize: 24, fontWeight: 'bold' }}>Settings</h1>
+                    <h1 style={{ fontSize: 24, fontWeight: 'bold' }}>{t('settings.title')}</h1>
                     <button
                         onClick={() => router.back()}
                         style={{ padding: '8px 16px', cursor: 'pointer' }}
                     >
-                        Back
+                        {t('settings.back')}
                     </button>
                 </div>
 
                 <div style={{ backgroundColor: 'white', padding: 24, borderRadius: 8, boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                    <h2 style={{ fontSize: 20, marginBottom: 16 }}>Profile</h2>
-                    <div style={{ marginBottom: 8 }}><strong>Name:</strong> {user.name}</div>
-                    <div style={{ marginBottom: 8 }}><strong>Email:</strong> {user.email}</div>
-                    <div style={{ marginBottom: 8 }}><strong>Tenant ID:</strong> {user.tenant_id}</div>
-                    <div style={{ marginBottom: 8 }}><strong>Auth Provider:</strong> {user.auth_provider || 'local'}</div>
+                    <h2 style={{ fontSize: 20, marginBottom: 16 }}>{t('settings.profile.title')}</h2>
+                    <div style={{ marginBottom: 8 }}><strong>{t('settings.profile.name')}:</strong> {user.name}</div>
+                    <div style={{ marginBottom: 8 }}><strong>{t('settings.profile.email')}:</strong> {user.email}</div>
+                    <div style={{ marginBottom: 8 }}><strong>{t('settings.profile.tenant')}:</strong> {user.tenant_id}</div>
+                    <div style={{ marginBottom: 8 }}><strong>{t('settings.profile.provider')}:</strong> {user.auth_provider || 'local'}</div>
                 </div>
 
                 <div style={{ marginTop: 24, backgroundColor: 'white', padding: 24, borderRadius: 8, boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                    <h2 style={{ fontSize: 20, marginBottom: 16 }}>Security</h2>
+                    <h2 style={{ fontSize: 20, marginBottom: 16 }}>{t('settings.security.title')}</h2>
 
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div>
-                            <strong>Two-Factor Authentication (2FA)</strong>
+                            <strong>{t('settings.2fa.title')}</strong>
                             <p style={{ color: '#666', marginTop: 4 }}>
                                 {user.two_fa_enabled
-                                    ? 'Your account is secured with 2FA.'
-                                    : 'Add an extra layer of security to your account.'}
+                                    ? t('settings.2fa.enabled.desc')
+                                    : t('settings.2fa.disabled.desc')}
                             </p>
                         </div>
 
@@ -138,13 +140,13 @@ export default function Settings() {
                                     cursor: 'pointer'
                                 }}
                             >
-                                Enable 2FA
+                                {t('settings.2fa.enable')}
                             </button>
                         )}
 
                         {user.two_fa_enabled && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                                <span style={{ color: 'green', fontWeight: 'bold' }}>Enabled</span>
+                                <span style={{ color: 'green', fontWeight: 'bold' }}>{t('settings.2fa.enabled')}</span>
                                 <button
                                     onClick={handleDisable2FA}
                                     style={{
@@ -157,7 +159,7 @@ export default function Settings() {
                                         fontSize: 14
                                     }}
                                 >
-                                    Disable
+                                    {t('settings.2fa.disable')}
                                 </button>
                             </div>
                         )}
@@ -165,8 +167,8 @@ export default function Settings() {
 
                     {step === 'disable' && (
                         <div style={{ marginTop: 24, borderTop: '1px solid #eee', paddingTop: 24 }}>
-                            <h3>Disable Two-Factor Authentication</h3>
-                            <p>Please enter the code from your authenticator app to confirm.</p>
+                            <h3>{t('settings.2fa.disable.title')}</h3>
+                            <p>{t('settings.2fa.disable.desc')}</p>
 
                             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
                                 <input
@@ -192,7 +194,7 @@ export default function Settings() {
                                         cursor: 'pointer'
                                     }}
                                 >
-                                    Confirm Disable
+                                    {t('settings.2fa.confirm')}
                                 </button>
                                 <button
                                     onClick={() => {
@@ -208,7 +210,7 @@ export default function Settings() {
                                         cursor: 'pointer'
                                     }}
                                 >
-                                    Cancel
+                                    {t('settings.2fa.cancel')}
                                 </button>
                             </div>
                         </div>
@@ -216,8 +218,8 @@ export default function Settings() {
 
                     {step === 'scan' && (
                         <div style={{ marginTop: 24, borderTop: '1px solid #eee', paddingTop: 24 }}>
-                            <h3>1. Scan QR Code</h3>
-                            <p>Open your authenticator app (Google Authenticator, Authy, etc.) and scan this code:</p>
+                            <h3>{t('settings.2fa.scan.title')}</h3>
+                            <p>{t('settings.2fa.scan.desc')}</p>
 
                             {qrCodeUrl && (
                                 <div style={{ margin: '16px 0' }}>
@@ -226,11 +228,11 @@ export default function Settings() {
                             )}
 
                             <p style={{ fontSize: 14, color: '#666' }}>
-                                Or enter this secret manually: <strong>{secret}</strong>
+                                {t('settings.2fa.manual')} <strong>{secret}</strong>
                             </p>
 
                             <div style={{ marginTop: 24 }}>
-                                <h3>2. Enter Code</h3>
+                                <h3>{t('settings.2fa.verify.title')}</h3>
                                 <div style={{ display: 'flex', gap: 8 }}>
                                     <input
                                         type="text"
@@ -255,7 +257,7 @@ export default function Settings() {
                                             cursor: 'pointer'
                                         }}
                                     >
-                                        Verify & Enable
+                                        {t('settings.2fa.verify.button')}
                                     </button>
                                     <button
                                         onClick={() => setStep('initial')}
@@ -268,7 +270,7 @@ export default function Settings() {
                                             cursor: 'pointer'
                                         }}
                                     >
-                                        Cancel
+                                        {t('settings.2fa.cancel')}
                                     </button>
                                 </div>
                             </div>
