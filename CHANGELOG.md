@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.0](https://github.com/orhaniscoding/goconnect/compare/v2.4.1...v2.5.0) (2025-11-25)
+
+
+### Features
+
+* comprehensive CI/CD with Docker, multi-platform builds, and installation guides ([ea46937](https://github.com/orhaniscoding/goconnect/commit/ea46937651726f430449bf95c19ccb60159dc16a))
+
 ## [2.4.1](https://github.com/orhaniscoding/goconnect/compare/v2.4.0...v2.4.1) (2025-11-25)
 
 
