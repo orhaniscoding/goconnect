@@ -567,6 +567,89 @@ components:
           type: string
           format: date-time
 
+    IPRule:
+      type: object
+      required: [id, tenant_id, type, cidr, created_by, created_at]
+      properties:
+        id:
+          type: string
+          description: Unique IP rule identifier
+          example: ipr_1234567890_123456
+        tenant_id:
+          type: string
+          description: Tenant this rule belongs to
+        type:
+          type: string
+          enum: [allow, deny]
+          description: Rule type (allow or deny)
+        cidr:
+          type: string
+          description: IP address or CIDR range
+          example: 192.168.1.0/24
+        description:
+          type: string
+          description: Optional description of the rule
+        created_by:
+          type: string
+          description: User ID who created this rule
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+          description: Optional expiration time
+
+    CreateIPRuleRequest:
+      type: object
+      required: [type, cidr]
+      properties:
+        type:
+          type: string
+          enum: [allow, deny]
+          description: Rule type
+        cidr:
+          type: string
+          description: IP address or CIDR range
+          example: 192.168.1.0/24
+        description:
+          type: string
+          maxLength: 256
+          description: Optional description
+        expires_at:
+          type: string
+          format: date-time
+          description: Optional expiration time
+
+    IPRulesListResponse:
+      type: object
+      properties:
+        rules:
+          type: array
+          items:
+            $ref: "#/components/schemas/IPRule"
+        total:
+          type: integer
+
+    CheckIPRequest:
+      type: object
+      required: [ip]
+      properties:
+        ip:
+          type: string
+          description: IP address to check
+          example: 192.168.1.50
+
+    CheckIPResponse:
+      type: object
+      properties:
+        allowed:
+          type: boolean
+          description: Whether the IP is allowed
+        matched_rule:
+          $ref: "#/components/schemas/IPRule"
+          description: The rule that matched (if any)
+
 paths:
   /v1/auth/register:
     post:
@@ -2031,6 +2114,145 @@ paths:
               schema:
                 $ref: "#/components/schemas/ValidateInviteResponse"
 
+  /v1/admin/ip-rules:
+    get:
+      summary: List IP rules
+      description: List all IP rules for the tenant
+      tags: [IPRules]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of IP rules
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IPRulesListResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - admin access required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      summary: Create IP rule
+      description: Create a new IP allow or deny rule
+      tags: [IPRules]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateIPRuleRequest"
+      responses:
+        "201":
+          description: IP rule created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IPRule"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - admin access required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/admin/ip-rules/{id}:
+    get:
+      summary: Get IP rule
+      description: Get a specific IP rule by ID
+      tags: [IPRules]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: IP rule details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IPRule"
+        "404":
+          description: IP rule not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      summary: Delete IP rule
+      description: Delete an IP rule
+      tags: [IPRules]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: IP rule deleted
+        "404":
+          description: IP rule not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/admin/ip-rules/check:
+    post:
+      summary: Check IP against rules
+      description: Check if an IP address is allowed or denied by the current rules
+      tags: [IPRules]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckIPRequest"
+      responses:
+        "200":
+          description: Check result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckIPResponse"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 tags:
   - name: Networks
     description: "Virtual network management operations"
@@ -2038,3 +2260,5 @@ tags:
     description: "GDPR Data Subject Rights (DSR) endpoints"
   - name: Invites
     description: "Network invitation token management"
+  - name: IPRules
+    description: "IP allowlist/denylist management for tenant access control"

@@ -166,6 +166,10 @@ func main() {
 	baseURL := getEnvOrDefault("APP_BASE_URL", "https://app.goconnect.example")
 	inviteService := service.NewInviteService(inviteRepo, networkRepo, membershipRepo, baseURL)
 
+	// Initialize IP Rule service
+	ipRuleRepo := repository.NewInMemoryIPRuleRepository()
+	ipRuleService := service.NewIPRuleService(ipRuleRepo)
+
 	// Initialize WireGuard Manager & Sync Service
 	var wgManager *wireguard.Manager
 	if cfg.WireGuard.PrivateKey != "" {
@@ -306,6 +310,7 @@ func main() {
 	uploadHandler := handler.NewUploadHandler("./uploads", "/uploads")
 	gdprHandler := handler.NewGDPRHandler(gdprService, aud)
 	inviteHandler := handler.NewInviteHandler(inviteService)
+	ipRuleHandler := handler.NewIPRuleHandler(ipRuleService)
 
 	// Initialize WebSocket components
 	// Circular dependency resolution: Handler -> Hub -> Handler
@@ -420,6 +425,13 @@ func main() {
 		adminGroup.GET("/networks", adminHandler.ListNetworks)
 		adminGroup.GET("/devices", adminHandler.ListDevices)
 		adminGroup.GET("/stats", adminHandler.GetSystemStats)
+
+		// IP Rule management endpoints
+		adminGroup.POST("/ip-rules", handler.GinWrap(ipRuleHandler.CreateIPRule))
+		adminGroup.GET("/ip-rules", handler.GinWrap(ipRuleHandler.ListIPRules))
+		adminGroup.GET("/ip-rules/:id", handler.GinWrap(ipRuleHandler.GetIPRule))
+		adminGroup.DELETE("/ip-rules/:id", handler.GinWrap(ipRuleHandler.DeleteIPRule))
+		adminGroup.POST("/ip-rules/check", handler.GinWrap(ipRuleHandler.CheckIP))
 	}
 
 	// Register WebSocket route
