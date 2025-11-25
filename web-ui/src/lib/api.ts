@@ -1211,6 +1211,46 @@ export async function getTenantById(accessToken: string, tenantId: string): Prom
   })
 }
 
+// Request type for updating tenant
+export interface UpdateTenantRequest {
+  name?: string
+  description?: string
+  visibility?: TenantVisibility
+  access_type?: TenantAccessType
+  password?: string // Required if changing to password access_type
+  max_members?: number
+}
+
+/**
+ * Update tenant settings (owner/admin only)
+ */
+export async function updateTenantWithToken(
+  accessToken: string,
+  tenantId: string,
+  req: UpdateTenantRequest
+): Promise<{ data: TenantExtended }> {
+  return api(`/v1/tenants/${tenantId}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify(req),
+  })
+}
+
+/**
+ * Update tenant settings (uses stored token) - convenience wrapper
+ */
+export async function updateTenant(
+  tenantId: string,
+  req: UpdateTenantRequest
+): Promise<TenantExtended> {
+  const token = getAccessToken()
+  if (!token) {
+    throw new Error('No access token available')
+  }
+  const response = await updateTenantWithToken(token, tenantId, req)
+  return response.data
+}
+
 // ==================== MEMBERSHIP OPERATIONS (WITH TOKEN) ====================
 
 /**
@@ -1465,6 +1505,8 @@ export interface TenantWithMemberCount {
   visibility: 'public' | 'private'
   access_type: 'open' | 'password' | 'invite_only'
   member_count?: number
+  max_members?: number
+  owner_id: string
   created_at: string
   updated_at: string
 }

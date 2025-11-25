@@ -405,6 +405,26 @@ export default function TenantDetailPage() {
                                             >
                                                 💬 {t('tenant.chat.title')}
                                             </button>
+                                            {canManageMembers && (
+                                                <button
+                                                    onClick={() => router.push(`/${params.locale}/tenants/${tenantId}/settings`)}
+                                                    style={{
+                                                        padding: '12px 24px',
+                                                        backgroundColor: '#f3f4f6',
+                                                        color: '#374151',
+                                                        border: '1px solid #e5e7eb',
+                                                        borderRadius: 8,
+                                                        cursor: 'pointer',
+                                                        fontSize: 14,
+                                                        fontWeight: 600,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 8
+                                                    }}
+                                                >
+                                                    ⚙️ {t('tenant.settings.title')}
+                                                </button>
+                                            )}
                                             {myMembership.role !== 'owner' && (
                                                 <button
                                                     onClick={() => setShowLeaveModal(true)}
