@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.8.4](https://github.com/orhaniscoding/goconnect/compare/v2.8.3...v2.8.4) (2025-11-25)
+
+
+### Bug Fixes
+
+* **release:** add Syft installation for SBOM generation ([7fb53f2](https://github.com/orhaniscoding/goconnect/commit/7fb53f2a136b9a6eca9d68d9e4808f5467fb80c9))
+
 ## [2.8.3](https://github.com/orhaniscoding/goconnect/compare/v2.8.2...v2.8.3) (2025-11-25)
 
 
