@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.8.7](https://github.com/orhaniscoding/goconnect/compare/v2.8.6...v2.8.7) (2025-11-25)
+
+
+### Bug Fixes
+
+* add standalone output for Next.js Docker build ([35460ea](https://github.com/orhaniscoding/goconnect/commit/35460eae6f23faf3554ca6722ecf8a64ef4d318a))
+
 ## [2.8.6](https://github.com/orhaniscoding/goconnect/compare/v2.8.5...v2.8.6) (2025-11-25)
 
 
