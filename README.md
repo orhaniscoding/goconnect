@@ -43,7 +43,7 @@
 - **SSO Integration**: OAuth2/OIDC support (Google, GitHub, etc.)
 
 ### 🌐 Modern Tech Stack
-- **Backend**: Go 1.22+ with Gin web framework
+- **Backend**: Go 1.24+ with Gin web framework
 - **Frontend**: Next.js 15 with TypeScript and Tailwind CSS
 - **Database**: PostgreSQL 14+ (in-memory for development)
 - **Real-time**: WebSocket for live updates
@@ -53,7 +53,7 @@
 ## 🚀 Quick Start
 
 ### Prerequisites
-- **Go** 1.22 or higher
+- **Go** 1.24 or higher
 - **Node.js** 18+ and npm (for web UI)
 - **PostgreSQL** 14+ (optional, uses in-memory by default)
 - **Make** (optional but recommended)
@@ -418,7 +418,7 @@ See [SECURITY.md](docs/SECURITY.md) for our security policy.
 
 ## 📊 Project Stats
 
-- **Language**: Go 1.22+, TypeScript
+- **Language**: Go 1.24+, TypeScript
 - **Test Coverage**: 60%+ (enforced)
 - **Total Tests**: 200+ (all passing)
 - **Lines of Code**: ~15,000

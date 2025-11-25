@@ -3,7 +3,7 @@
   "files.eol": "\n",
   "go.useLanguageServer": true,
   "go.toolsEnvVars": {
-    "GOTOOLCHAIN": "go1.22.9"
+    "GOTOOLCHAIN": "go1.24.0"
   },
   "go.lintTool": "golangci-lint",
   "go.lintFlags": [
