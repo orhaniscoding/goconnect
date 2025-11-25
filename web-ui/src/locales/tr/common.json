@@ -280,6 +280,118 @@
   "profile.notifications.2fa.disabled": "2FA Devre Dışı Bırakıldı",
   "profile.notifications.2fa.enabledMsg": "İki faktörlü doğrulama etkinleştirildi",
   "profile.notifications.2fa.disabledMsg": "İki faktörlü doğrulama devre dışı bırakıldı",
+  "devices": {
+    "title": "Cihazlar",
+    "back": "← Panele Dön",
+    "loading": "Cihazlar yükleniyor...",
+    "error": {
+      "load": "Cihazlar yüklenemedi",
+      "loadNetworks": "Ağlar yüklenemedi",
+      "register": "Cihaz kaydedilemedi",
+      "delete": "Cihaz silinemedi",
+      "toggle": "Cihaz durumu değiştirilemedi",
+      "unknown": "Bilinmeyen hata",
+      "auth": "Kimlik Doğrulama Hatası",
+      "loginAgain": "Lütfen tekrar giriş yapın",
+      "regFailed": "Kayıt Başarısız",
+      "daemonNotRunning": "Bu cihaz kaydedilemedi. Daemon çalışıyor mu?",
+      "config": "Konfigürasyon oluşturulamadı",
+      "fillAll": "Lütfen tüm alanları doldurun",
+      "invalidKey": "Geçersiz özel anahtar formatı. 44 karakterlik base64 dizesi olmalıdır."
+    },
+    "success": {
+      "registered": "Cihaz Kaydedildi",
+      "registeredMsg": "Bu cihaz başarıyla kaydedildi!",
+      "deleted": "Cihaz başarıyla silindi",
+      "enabled": "Cihaz başarıyla etkinleştirildi",
+      "disabled": "Cihaz başarıyla devre dışı bırakıldı",
+      "copied": "Konfigürasyon panoya kopyalandı!"
+    },
+    "local": {
+      "title": "Yeni Cihaz Tespit Edildi",
+      "message": "Bu cihaz GoConnect Daemon çalıştırıyor ancak henüz kayıtlı değil.",
+      "pubkey": "Genel Anahtar:",
+      "action": {
+        "register": "Bu Cihazı Kaydet",
+        "registering": "Kaydediliyor..."
+      }
+    },
+    "filter": {
+      "all": "Tüm Platformlar",
+      "windows": "Windows",
+      "macos": "macOS",
+      "linux": "Linux",
+      "android": "Android",
+      "ios": "iOS"
+    },
+    "action": {
+      "add": "+ Cihaz Ekle",
+      "cancel": "✕ İptal"
+    },
+    "form": {
+      "title": "Yeni Cihaz Kaydet",
+      "label": {
+        "name": "Cihaz Adı *",
+        "platform": "Platform *",
+        "pubkey": "WireGuard Genel Anahtarı * (44 karakter base64)",
+        "hostname": "Hostname (opsiyonel)",
+        "osVersion": "İşletim Sistemi Sürümü (opsiyonel)"
+      },
+      "placeholder": {
+        "name": "örn. Laptopum",
+        "pubkey": "örn. cOvbNjH7xqkK7xKJGVz8M3bKhq8tZ6vS4r9pW3nA2aZ=",
+        "hostname": "örn. LAPTOP-123",
+        "osVersion": "örn. Windows 11"
+      },
+      "action": {
+        "register": "Cihazı Kaydet",
+        "registering": "Kaydediliyor...",
+        "cancel": "İptal"
+      }
+    },
+    "empty": {
+      "title": "Henüz kayıtlı cihaz yok",
+      "subtitle": "GoConnect VPN'i kullanmaya başlamak için ilk cihazınızı kaydedin"
+    },
+    "card": {
+      "disabled": "DEVRE DIŞI",
+      "online": "Çevrimiçi",
+      "pubkey": "Genel Anahtar:",
+      "lastSeen": "Son görülme:",
+      "action": {
+        "getConfig": "📥 Konfigürasyonu Al",
+        "enable": "✓ Etkinleştir",
+        "disable": "⏸ Devre Dışı Bırak",
+        "delete": "🗑️ Sil"
+      }
+    },
+    "modal": {
+      "title": "{name} için WireGuard Konfigürasyonu",
+      "label": {
+        "network": "Ağ Seçin",
+        "privateKey": "Cihaz Özel Anahtarı",
+        "config": "Konfigürasyon Dosyası"
+      },
+      "placeholder": {
+        "network": "-- Ağ Seçin --",
+        "privateKey": "Cihazınızın WireGuard özel anahtarını girin"
+      },
+      "help": {
+        "privateKey": "44 karakterlik base64 dizesi. Özel anahtarınız sunucuda asla saklanmaz.",
+        "qr": "Bu QR kodunu WireGuard mobil uygulaması ile tarayın"
+      },
+      "action": {
+        "generate": "Konfigürasyon Oluştur",
+        "generating": "Oluşturuluyor...",
+        "cancel": "İptal",
+        "hideQr": "📱 QR Gizle",
+        "showQr": "📱 QR Göster",
+        "copy": "📋 Kopyala",
+        "download": "💾 İndir",
+        "close": "Kapat"
+      }
+    }
+  },
   "admin": {
     "accessDenied": "Erişim Reddedildi",
     "accessDeniedMsg": "Bu sayfaya erişmek için yönetici yetkilerine ihtiyacınız var.",

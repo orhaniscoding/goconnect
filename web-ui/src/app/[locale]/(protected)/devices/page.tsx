@@ -15,6 +15,7 @@ import {
 } from '../../../../lib/api'
 import { getAccessToken } from '../../../../lib/auth'
 import { bridge } from '../../../../lib/bridge'
+import { useT } from '../../../../lib/i18n-context'
 import { useNotification } from '../../../../contexts/NotificationContext'
 import AuthGuard from '../../../../components/AuthGuard'
 import Footer from '../../../../components/Footer'
@@ -24,6 +25,7 @@ type PlatformType = 'windows' | 'macos' | 'linux' | 'android' | 'ios'
 
 export default function DevicesPage() {
   const router = useRouter()
+  const t = useT()
   const notification = useNotification()
   const [devices, setDevices] = useState<Device[]>([])
   const [loading, setLoading] = useState(true)
@@ -83,7 +85,7 @@ export default function DevicesPage() {
     try {
       const token = getAccessToken()
       if (!token) {
-        notification.error('Authentication Error', 'Please log in again')
+        notification.error(t('devices.error.auth'), t('devices.error.loginAgain'))
         return
       }
 
@@ -93,14 +95,14 @@ export default function DevicesPage() {
         body: JSON.stringify({ token })
       })
 
-      notification.success('Device Registered', 'This device has been successfully registered!')
+      notification.success(t('devices.success.registered'), t('devices.success.registeredMsg'))
 
       // Refresh status and list
       await checkLocalDaemon()
       await loadDevices()
     } catch (err: any) {
       console.error('Registration failed:', err)
-      notification.error('Registration Failed', 'Could not register this device. Is the daemon running?')
+      notification.error(t('devices.error.regFailed'), t('devices.error.daemonNotRunning'))
     } finally {
       setRegisteringLocal(false)
     }
@@ -122,7 +124,7 @@ export default function DevicesPage() {
       )
       setDevices(response.devices || [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load devices')
+      setError(err instanceof Error ? err.message : t('devices.error.load'))
     } finally {
       setLoading(false)
     }
@@ -163,13 +165,13 @@ export default function DevicesPage() {
 
   const handleGenerateConfig = async () => {
     if (!selectedDevice || !selectedNetworkId || !privateKey) {
-      setConfigError('Please fill in all fields')
+      setConfigError(t('devices.error.fillAll'))
       return
     }
 
     // Validate private key (44 character base64)
     if (privateKey.length !== 44 || !/^[A-Za-z0-9+/]+=*$/.test(privateKey)) {
-      setConfigError('Invalid private key format. Must be 44 character base64 string.')
+      setConfigError(t('devices.error.invalidKey'))
       return
     }
 
@@ -191,7 +193,7 @@ export default function DevicesPage() {
       const qrUrl = await generateQRCode(config, 300)
       setQrCodeUrl(qrUrl)
     } catch (err) {
-      setConfigError(err instanceof Error ? err.message : 'Failed to generate config')
+      setConfigError(err instanceof Error ? err.message : t('devices.error.config'))
     } finally {
       setConfigLoading(false)
     }
@@ -204,7 +206,7 @@ export default function DevicesPage() {
   const handleCopyConfig = () => {
     if (generatedConfig) {
       navigator.clipboard.writeText(generatedConfig)
-      alert('Config copied to clipboard!')
+      alert(t('devices.success.copied'))
     }
   }
 
@@ -244,26 +246,26 @@ export default function DevicesPage() {
       })
       setShowAddForm(false)
       loadDevices()
-      alert('Device registered successfully!')
+      alert(t('devices.success.registeredMsg'))
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Failed to register device')
+      setFormError(err instanceof Error ? err.message : t('devices.error.register'))
     } finally {
       setSubmitting(false)
     }
   }
 
   const handleDeleteDevice = async (deviceId: string, deviceName: string) => {
-    if (!confirm(`Are you sure you want to delete "${deviceName}"?`)) return
+    if (!confirm(t('networks.confirm.delete', { name: deviceName }))) return
 
     try {
       const token = getAccessToken()
       if (!token) return
 
       await deleteDevice(deviceId, token)
-      alert('Device deleted successfully')
+      alert(t('devices.success.deleted'))
       loadDevices()
     } catch (err) {
-      alert('Failed to delete device: ' + (err instanceof Error ? err.message : 'Unknown error'))
+      alert(t('devices.error.delete') + ': ' + (err instanceof Error ? err.message : t('devices.error.unknown')))
     }
   }
 
@@ -274,14 +276,14 @@ export default function DevicesPage() {
 
       if (device.disabled_at) {
         await enableDevice(device.id, token)
-        alert('Device enabled successfully')
+        alert(t('devices.success.enabled'))
       } else {
         await disableDevice(device.id, token)
-        alert('Device disabled successfully')
+        alert(t('devices.success.disabled'))
       }
       loadDevices()
     } catch (err) {
-      alert('Failed to toggle device: ' + (err instanceof Error ? err.message : 'Unknown error'))
+      alert(t('devices.error.toggle') + ': ' + (err instanceof Error ? err.message : t('devices.error.unknown')))
     }
   }
 
@@ -311,7 +313,7 @@ export default function DevicesPage() {
     return (
       <AuthGuard>
         <div style={{ padding: 24, textAlign: 'center' }}>
-          <p>Loading devices...</p>
+          <p>{t('devices.loading')}</p>
         </div>
       </AuthGuard>
     )
@@ -322,7 +324,7 @@ export default function DevicesPage() {
       <div style={{ padding: 24, fontFamily: 'system-ui, -apple-system, sans-serif', maxWidth: 1200, margin: '0 auto' }}>
         {/* Header */}
         <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h1 style={{ margin: 0 }}>Devices</h1>
+          <h1 style={{ margin: 0 }}>{t('devices.title')}</h1>
           <button
             onClick={() => router.push('/en/dashboard')}
             style={{
@@ -334,7 +336,7 @@ export default function DevicesPage() {
               cursor: 'pointer'
             }}
           >
-            ← Back to Dashboard
+            {t('devices.back')}
           </button>
         </div>
 
@@ -352,12 +354,12 @@ export default function DevicesPage() {
           }}>
             <div>
               <h3 style={{ margin: '0 0 8px 0', color: '#1e40af' }}>
-                New Device Detected
+                {t('devices.local.title')}
               </h3>
               <p style={{ margin: 0, color: '#1e3a8a', fontSize: 14 }}>
-                This device is running the GoConnect Daemon but is not registered yet.
+                {t('devices.local.message')}
                 <br />
-                Public Key: <code style={{ backgroundColor: 'rgba(255,255,255,0.5)', padding: '2px 4px', borderRadius: 4 }}>
+                {t('devices.local.pubkey')} <code style={{ backgroundColor: 'rgba(255,255,255,0.5)', padding: '2px 4px', borderRadius: 4 }}>
                   {localDaemonStatus.device.public_key.substring(0, 12)}...
                 </code>
               </p>
@@ -376,7 +378,7 @@ export default function DevicesPage() {
                 opacity: registeringLocal ? 0.7 : 1
               }}
             >
-              {registeringLocal ? 'Registering...' : 'Register This Device'}
+              {registeringLocal ? t('devices.local.action.registering') : t('devices.local.action.register')}
             </button>
           </div>
         )}
@@ -393,12 +395,12 @@ export default function DevicesPage() {
               fontSize: 14
             }}
           >
-            <option value="">All Platforms</option>
-            <option value="windows">Windows</option>
-            <option value="macos">macOS</option>
-            <option value="linux">Linux</option>
-            <option value="android">Android</option>
-            <option value="ios">iOS</option>
+            <option value="">{t('devices.filter.all')}</option>
+            <option value="windows">{t('devices.filter.windows')}</option>
+            <option value="macos">{t('devices.filter.macos')}</option>
+            <option value="linux">{t('devices.filter.linux')}</option>
+            <option value="android">{t('devices.filter.android')}</option>
+            <option value="ios">{t('devices.filter.ios')}</option>
           </select>
 
           <button
@@ -413,7 +415,7 @@ export default function DevicesPage() {
               fontWeight: 500
             }}
           >
-            {showAddForm ? '✕ Cancel' : '+ Add Device'}
+            {showAddForm ? t('devices.action.cancel') : t('devices.action.add')}
           </button>
         </div>
 
@@ -426,18 +428,18 @@ export default function DevicesPage() {
             borderRadius: 8,
             border: '1px solid #e5e7eb'
           }}>
-            <h3 style={{ marginTop: 0, marginBottom: 16 }}>Register New Device</h3>
+            <h3 style={{ marginTop: 0, marginBottom: 16 }}>{t('devices.form.title')}</h3>
             <form onSubmit={handleAddDevice}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>
-                    Device Name *
+                    {t('devices.form.label.name')}
                   </label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="e.g., My Laptop"
+                    placeholder={t('devices.form.placeholder.name')}
                     required
                     style={{
                       width: '100%',
@@ -451,7 +453,7 @@ export default function DevicesPage() {
 
                 <div>
                   <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>
-                    Platform *
+                    {t('devices.form.label.platform')}
                   </label>
                   <select
                     value={formData.platform}
@@ -465,23 +467,23 @@ export default function DevicesPage() {
                       fontSize: 14
                     }}
                   >
-                    <option value="windows">Windows</option>
-                    <option value="macos">macOS</option>
-                    <option value="linux">Linux</option>
-                    <option value="android">Android</option>
-                    <option value="ios">iOS</option>
+                    <option value="windows">{t('devices.filter.windows')}</option>
+                    <option value="macos">{t('devices.filter.macos')}</option>
+                    <option value="linux">{t('devices.filter.linux')}</option>
+                    <option value="android">{t('devices.filter.android')}</option>
+                    <option value="ios">{t('devices.filter.ios')}</option>
                   </select>
                 </div>
 
                 <div style={{ gridColumn: '1 / -1' }}>
                   <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>
-                    WireGuard Public Key * (44 characters base64)
+                    {t('devices.form.label.pubkey')}
                   </label>
                   <input
                     type="text"
                     value={formData.pubkey}
                     onChange={(e) => setFormData({ ...formData, pubkey: e.target.value })}
-                    placeholder="e.g., cOvbNjH7xqkK7xKJGVz8M3bKhq8tZ6vS4r9pW3nA2aZ="
+                    placeholder={t('devices.form.placeholder.pubkey')}
                     required
                     minLength={44}
                     maxLength={44}
@@ -498,13 +500,13 @@ export default function DevicesPage() {
 
                 <div>
                   <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>
-                    Hostname (optional)
+                    {t('devices.form.label.hostname')}
                   </label>
                   <input
                     type="text"
                     value={formData.hostname}
                     onChange={(e) => setFormData({ ...formData, hostname: e.target.value })}
-                    placeholder="e.g., LAPTOP-123"
+                    placeholder={t('devices.form.placeholder.hostname')}
                     style={{
                       width: '100%',
                       padding: '8px 12px',
@@ -517,13 +519,13 @@ export default function DevicesPage() {
 
                 <div>
                   <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 500 }}>
-                    OS Version (optional)
+                    {t('devices.form.label.osVersion')}
                   </label>
                   <input
                     type="text"
                     value={formData.os_version}
                     onChange={(e) => setFormData({ ...formData, os_version: e.target.value })}
-                    placeholder="e.g., Windows 11"
+                    placeholder={t('devices.form.placeholder.osVersion')}
                     style={{
                       width: '100%',
                       padding: '8px 12px',
@@ -555,7 +557,7 @@ export default function DevicesPage() {
                     fontWeight: 500
                   }}
                 >
-                  {submitting ? 'Registering...' : 'Register Device'}
+                  {submitting ? t('devices.form.action.registering') : t('devices.form.action.register')}
                 </button>
                 <button
                   type="button"
@@ -569,7 +571,7 @@ export default function DevicesPage() {
                     cursor: 'pointer'
                   }}
                 >
-                  Cancel
+                  {t('devices.form.action.cancel')}
                 </button>
               </div>
             </form>
@@ -586,8 +588,8 @@ export default function DevicesPage() {
         {/* Devices List */}
         {devices.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 40, color: '#6b7280' }}>
-            <p style={{ fontSize: 18, marginBottom: 8 }}>No devices registered yet</p>
-            <p style={{ fontSize: 14 }}>Register your first device to get started with GoConnect VPN</p>
+            <p style={{ fontSize: 18, marginBottom: 8 }}>{t('devices.empty.title')}</p>
+            <p style={{ fontSize: 14 }}>{t('devices.empty.subtitle')}</p>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 16 }}>
@@ -626,7 +628,7 @@ export default function DevicesPage() {
                         color: '#991b1b',
                         borderRadius: 4
                       }}>
-                        DISABLED
+                        {t('devices.card.disabled')}
                       </span>
                     )}
                   </h3>
@@ -641,7 +643,7 @@ export default function DevicesPage() {
                       {device.platform}
                     </span>
                     {device.active && (
-                      <span style={{ marginLeft: 8, color: '#10b981' }}>● Online</span>
+                      <span style={{ marginLeft: 8, color: '#10b981' }}>● {t('devices.card.online')}</span>
                     )}
                   </div>
                   {device.hostname && (
@@ -663,7 +665,7 @@ export default function DevicesPage() {
 
                 {/* Public Key */}
                 <div style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Public Key:</div>
+                  <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>{t('devices.card.pubkey')}</div>
                   <div style={{
                     fontSize: 11,
                     fontFamily: 'monospace',
@@ -679,7 +681,7 @@ export default function DevicesPage() {
                 {/* Last Seen */}
                 {device.last_seen && (
                   <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 12 }}>
-                    Last seen: {new Date(device.last_seen).toLocaleString()}
+                    {t('devices.card.lastSeen')} {new Date(device.last_seen).toLocaleString()}
                   </div>
                 )}
 
@@ -698,7 +700,7 @@ export default function DevicesPage() {
                       fontSize: 13
                     }}
                   >
-                    📥 Get Config
+                    {t('devices.card.action.getConfig')}
                   </button>
                   <button
                     onClick={() => handleToggleDevice(device)}
@@ -713,7 +715,7 @@ export default function DevicesPage() {
                       fontSize: 13
                     }}
                   >
-                    {device.disabled_at ? '✓ Enable' : '⏸ Disable'}
+                    {device.disabled_at ? t('devices.card.action.enable') : t('devices.card.action.disable')}
                   </button>
                   <button
                     onClick={() => handleDeleteDevice(device.id, device.name)}
@@ -728,7 +730,7 @@ export default function DevicesPage() {
                       fontSize: 13
                     }}
                   >
-                    🗑️ Delete
+                    {t('devices.card.action.delete')}
                   </button>
                 </div>
               </div>
@@ -797,7 +799,7 @@ export default function DevicesPage() {
                       type="password"
                       value={privateKey}
                       onChange={(e) => setPrivateKey(e.target.value)}
-                      placeholder="Enter your device's WireGuard private key"
+                      placeholder={t('devices.modal.placeholder.privateKey')}
                       style={{
                         width: '100%',
                         padding: 10,
@@ -808,7 +810,7 @@ export default function DevicesPage() {
                       }}
                     />
                     <p style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
-                      44-character base64 string. Your private key is never stored on the server.
+                      {t('devices.modal.hint.privateKey')}
                     </p>
                   </div>
 
@@ -843,7 +845,7 @@ export default function DevicesPage() {
                         opacity: configLoading ? 0.6 : 1
                       }}
                     >
-                      {configLoading ? 'Generating...' : 'Generate Config'}
+                      {configLoading ? t('devices.modal.action.generating') : t('devices.modal.action.generate')}
                     </button>
                     <button
                       onClick={handleCloseConfigModal}
@@ -859,7 +861,7 @@ export default function DevicesPage() {
                         fontWeight: 600
                       }}
                     >
-                      Cancel
+                      {t('devices.modal.action.cancel')}
                     </button>
                   </div>
                 </>
@@ -867,7 +869,7 @@ export default function DevicesPage() {
                 <>
                   <div style={{ marginBottom: 20 }}>
                     <label style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>
-                      Configuration File
+                      {t('devices.modal.label.configFile')}
                     </label>
                     <textarea
                       value={generatedConfig}
@@ -900,7 +902,7 @@ export default function DevicesPage() {
                         color: '#6b7280',
                         marginBottom: 12
                       }}>
-                        Scan this QR code with WireGuard mobile app
+                        {t('devices.modal.qr.scan')}
                       </p>
                       <img
                         src={qrCodeUrl}
@@ -931,7 +933,7 @@ export default function DevicesPage() {
                         fontWeight: 600
                       }}
                     >
-                      {showQRCode ? '📱 Hide QR' : '📱 Show QR'}
+                      {showQRCode ? t('devices.modal.action.hideQR') : t('devices.modal.action.showQR')}
                     </button>
                     <button
                       onClick={handleCopyConfig}
@@ -947,7 +949,7 @@ export default function DevicesPage() {
                         fontWeight: 600
                       }}
                     >
-                      📋 Copy
+                      {t('devices.modal.action.copy')}
                     </button>
                     <button
                       onClick={handleDownloadConfig}
@@ -963,7 +965,7 @@ export default function DevicesPage() {
                         fontWeight: 600
                       }}
                     >
-                      💾 Download
+                      {t('devices.modal.action.download')}
                     </button>
                     <button
                       onClick={handleCloseConfigModal}
@@ -979,7 +981,7 @@ export default function DevicesPage() {
                         fontWeight: 600
                       }}
                     >
-                      Close
+                      {t('devices.modal.action.close')}
                     </button>
                   </div>
                 </>

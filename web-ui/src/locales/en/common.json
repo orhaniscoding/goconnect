@@ -334,6 +334,118 @@
   "admin.networks.searchPlaceholder": "Search networks by name or CIDR...",
   "admin.networks.table.name": "Name",
   "admin.networks.table.cidr": "CIDR",
+  "devices": {
+    "title": "Devices",
+    "back": "← Back to Dashboard",
+    "loading": "Loading devices...",
+    "error": {
+      "load": "Failed to load devices",
+      "loadNetworks": "Failed to load networks",
+      "register": "Failed to register device",
+      "delete": "Failed to delete device",
+      "toggle": "Failed to toggle device",
+      "unknown": "Unknown error",
+      "auth": "Authentication Error",
+      "loginAgain": "Please log in again",
+      "regFailed": "Registration Failed",
+      "daemonNotRunning": "Could not register this device. Is the daemon running?",
+      "config": "Failed to generate config",
+      "fillAll": "Please fill in all fields",
+      "invalidKey": "Invalid private key format. Must be 44 character base64 string."
+    },
+    "success": {
+      "registered": "Device Registered",
+      "registeredMsg": "This device has been successfully registered!",
+      "deleted": "Device deleted successfully",
+      "enabled": "Device enabled successfully",
+      "disabled": "Device disabled successfully",
+      "copied": "Config copied to clipboard!"
+    },
+    "local": {
+      "title": "New Device Detected",
+      "message": "This device is running the GoConnect Daemon but is not registered yet.",
+      "pubkey": "Public Key:",
+      "action": {
+        "register": "Register This Device",
+        "registering": "Registering..."
+      }
+    },
+    "filter": {
+      "all": "All Platforms",
+      "windows": "Windows",
+      "macos": "macOS",
+      "linux": "Linux",
+      "android": "Android",
+      "ios": "iOS"
+    },
+    "action": {
+      "add": "+ Add Device",
+      "cancel": "✕ Cancel"
+    },
+    "form": {
+      "title": "Register New Device",
+      "label": {
+        "name": "Device Name *",
+        "platform": "Platform *",
+        "pubkey": "WireGuard Public Key * (44 characters base64)",
+        "hostname": "Hostname (optional)",
+        "osVersion": "OS Version (optional)"
+      },
+      "placeholder": {
+        "name": "e.g., My Laptop",
+        "pubkey": "e.g., cOvbNjH7xqkK7xKJGVz8M3bKhq8tZ6vS4r9pW3nA2aZ=",
+        "hostname": "e.g., LAPTOP-123",
+        "osVersion": "e.g., Windows 11"
+      },
+      "action": {
+        "register": "Register Device",
+        "registering": "Registering...",
+        "cancel": "Cancel"
+      }
+    },
+    "empty": {
+      "title": "No devices registered yet",
+      "subtitle": "Register your first device to get started with GoConnect VPN"
+    },
+    "card": {
+      "disabled": "DISABLED",
+      "online": "Online",
+      "pubkey": "Public Key:",
+      "lastSeen": "Last seen:",
+      "action": {
+        "getConfig": "📥 Get Config",
+        "enable": "✓ Enable",
+        "disable": "⏸ Disable",
+        "delete": "🗑️ Delete"
+      }
+    },
+    "modal": {
+      "title": "Get WireGuard Config for {name}",
+      "label": {
+        "network": "Select Network",
+        "privateKey": "Device Private Key",
+        "config": "Configuration File"
+      },
+      "placeholder": {
+        "network": "-- Choose Network --",
+        "privateKey": "Enter your device's WireGuard private key"
+      },
+      "help": {
+        "privateKey": "44-character base64 string. Your private key is never stored on the server.",
+        "qr": "Scan this QR code with WireGuard mobile app"
+      },
+      "action": {
+        "generate": "Generate Config",
+        "generating": "Generating...",
+        "cancel": "Cancel",
+        "hideQr": "📱 Hide QR",
+        "showQr": "📱 Show QR",
+        "copy": "📋 Copy",
+        "download": "💾 Download",
+        "close": "Close"
+      }
+    }
+  },
   "admin.devices.title": "Device Management",
   "admin.devices.searchPlaceholder": "Search devices by name or IP...",
   "admin.devices.table.ip": "IP Address",
