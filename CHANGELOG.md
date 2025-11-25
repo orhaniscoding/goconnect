@@ -1,5 +1,44 @@
 # Changelog
 
+## [2.4.0](https://github.com/orhaniscoding/goconnect/compare/v2.3.0...v2.4.0) (2025-11-25)
+
+
+### Features
+
+* add wireguard metrics (peers, bytes, handshake) to prometheus endpoint ([53dc11b](https://github.com/orhaniscoding/goconnect/commit/53dc11bf27c898941d11d3759ad11e3727505bf8))
+* **admin:** add pagination controls to all tabs ([43b7368](https://github.com/orhaniscoding/goconnect/commit/43b73683437e40935faa458efe9d483310a0a36a))
+* **admin:** complete device management with delete functionality ([263e3b5](https://github.com/orhaniscoding/goconnect/commit/263e3b5fe53548a1163c3c4e08fa6d4d21df62d8))
+* **auth:** implement OIDC user provisioning (JIT) ([b50e04b](https://github.com/orhaniscoding/goconnect/commit/b50e04b290e82092e5baa902f1e69c39edaa0a77))
+* **auth:** implement token blacklist with Redis ([4333141](https://github.com/orhaniscoding/goconnect/commit/4333141cbd8c1d737a69325295a72246549efbc6))
+* **daemon:** improve OS detection and Linux DNS configuration ([efdc5df](https://github.com/orhaniscoding/goconnect/commit/efdc5dfd6d1bcfee52579864d2014c7b3bd0ca35))
+* **device:** implement offline detection worker ([648338e](https://github.com/orhaniscoding/goconnect/commit/648338ef6498a644b00e75a7aaf4a1bacbb0508c))
+* **device:** implement offline detection worker and fix audit logs ([8363d23](https://github.com/orhaniscoding/goconnect/commit/8363d232c20a7a7f13b9988211f6590047fb2710))
+* implement file upload progress signaling ([0ef96c4](https://github.com/orhaniscoding/goconnect/commit/0ef96c4a7a048b27df7959ff67d5cdbc74d8d96c))
+* implement message threading, typing indicators, and screen sharing signaling ([b9307d8](https://github.com/orhaniscoding/goconnect/commit/b9307d82d4e195965257e91d5cdd1bb3e0cfe19b))
+* implement OIDC (SSO) backend support ([ecc335c](https://github.com/orhaniscoding/goconnect/commit/ecc335c2fb76c60b88cfbefed094f05dda628264))
+* implement search and filtering for admin dashboard resources ([133751b](https://github.com/orhaniscoding/goconnect/commit/133751bec3a2d33a17475a198226f371b2fad562))
+* implement search and filtering in admin dashboard ([2581df4](https://github.com/orhaniscoding/goconnect/commit/2581df45435b137070ae7544ba6f78b3807aca1e))
+* implement websocket rate limiting ([c50956f](https://github.com/orhaniscoding/goconnect/commit/c50956f88b46c9c067beb07bef68c91233a9a3a4))
+* **server:** add graceful shutdown for HTTP server and background workers ([218595a](https://github.com/orhaniscoding/goconnect/commit/218595ad6a9fe975d3edf9ed4711957083e9b1b2))
+* **server:** populate DNS servers in WireGuard profile JSON response ([91e75a8](https://github.com/orhaniscoding/goconnect/commit/91e75a82cc5cc5e0c78490c461fbe929a5ce15c8))
+* **ui:** add OIDC login button and callback handler ([bf413d1](https://github.com/orhaniscoding/goconnect/commit/bf413d1ef77cd43080b870b0cfefe5b05ee96201))
+* **ui:** add settings page with 2FA management ([7640463](https://github.com/orhaniscoding/goconnect/commit/7640463fe86e330645b8cc64c1b3e2cac5a8d233))
+* **ui:** add settings page with 2FA management ([19df189](https://github.com/orhaniscoding/goconnect/commit/19df1895e1ef4352735d2f29cc9afcde5abc9b7c))
+* **ui:** display auth provider in admin user list ([52ab306](https://github.com/orhaniscoding/goconnect/commit/52ab306935a84d25d26a3b8187b153c608c72e56))
+* **websocket:** implement device online/offline events ([d778406](https://github.com/orhaniscoding/goconnect/commit/d778406d413988834ae28b6bb9801239b86ea106))
+* **websocket:** implement direct messages ([ab48094](https://github.com/orhaniscoding/goconnect/commit/ab4809422d72b11e14ce1d4c9739705b8aa4349f))
+* **websocket:** implement message reactions ([4a86f9b](https://github.com/orhaniscoding/goconnect/commit/4a86f9bacce7c4cda7f55ce4b02c33a8a30fba34))
+* **websocket:** implement message read receipts ([ac5461b](https://github.com/orhaniscoding/goconnect/commit/ac5461b5005d2b5886a32c227c6a5858ffd03ac8))
+* **websocket:** implement network membership events broadcast ([a31ac4f](https://github.com/orhaniscoding/goconnect/commit/a31ac4f84c4817806d492850dd4d92ad82bb5d73))
+* **websocket:** implement presence status broadcast ([eb9b124](https://github.com/orhaniscoding/goconnect/commit/eb9b124da78073a701915022f6dd3a22d56c8753))
+* **websocket:** implement rate limiting and room authorization ([77e6f33](https://github.com/orhaniscoding/goconnect/commit/77e6f33c9c253df07ea0a7bf27b39add91f44e02))
+* **websocket:** implement voice/video call signaling ([f333228](https://github.com/orhaniscoding/goconnect/commit/f333228c98b230086b929be2a9a082190a49e4eb))
+
+
+### Bug Fixes
+
+* **daemon:** implement missing configurator methods for darwin ([3509aa8](https://github.com/orhaniscoding/goconnect/commit/3509aa820e7821c2b055c47d4765c627162022dc))
+
 ## [Unreleased]
 
 ### Features
