@@ -68,7 +68,7 @@ export default function ChatPage() {
             const token = getAccessToken()
             if (!token) return
 
-            const response = await listNetworks({ visibility: 'mine' }, token)
+            const response = await listNetworks('mine', token)
             setNetworks(response.data)
         } catch (err) {
             console.error('Failed to load networks:', err)
