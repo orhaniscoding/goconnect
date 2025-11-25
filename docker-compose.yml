@@ -1,0 +1,189 @@
+# =============================================================================
+# GoConnect - Development & Production Docker Compose
+# =============================================================================
+# Usage:
+#   Development: docker compose up -d
+#   Production:  docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # GoConnect Server
+  # ---------------------------------------------------------------------------
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+      args:
+        VERSION: ${VERSION:-dev}
+        COMMIT: ${COMMIT:-unknown}
+        BUILD_DATE: ${BUILD_DATE:-unknown}
+    image: ghcr.io/orhaniscoding/goconnect-server:${VERSION:-latest}
+    container_name: goconnect-server
+    restart: unless-stopped
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    environment:
+      # Server
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=8080
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      # Database
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-goconnect}
+      - DB_USER=${DB_USER:-goconnect}
+      - DB_PASSWORD=${DB_PASSWORD:-goconnect_secret}
+      - DB_SSLMODE=${DB_SSLMODE:-disable}
+      # Redis
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      # JWT (CHANGE IN PRODUCTION!)
+      - JWT_SECRET=${JWT_SECRET:-change-me-in-production-minimum-32-chars}
+      - JWT_ACCESS_TTL=${JWT_ACCESS_TTL:-15m}
+      - JWT_REFRESH_TTL=${JWT_REFRESH_TTL:-168h}
+      # WireGuard
+      - WG_INTERFACE_NAME=${WG_INTERFACE_NAME:-wg0}
+      - WG_SERVER_ENDPOINT=${WG_SERVER_ENDPOINT:-vpn.example.com:51820}
+      - WG_SERVER_PUBKEY=${WG_SERVER_PUBKEY:-}
+      - WG_PRIVATE_KEY=${WG_PRIVATE_KEY:-}
+      - WG_DNS=${WG_DNS:-1.1.1.1,1.0.0.1}
+      # OIDC (Optional)
+      - OIDC_ISSUER=${OIDC_ISSUER:-}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET:-}
+      - OIDC_REDIRECT_URL=${OIDC_REDIRECT_URL:-}
+      # Audit
+      - AUDIT_SQLITE_DSN=/data/audit.db
+      - AUDIT_ASYNC=true
+      # CORS
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+    volumes:
+      - goconnect-data:/data
+      - goconnect-logs:/var/log/goconnect
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080/health",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - goconnect-net
+    # Required for WireGuard management
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv6.conf.all.forwarding=1
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL Database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:15-alpine
+    container_name: goconnect-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${DB_NAME:-goconnect}
+      - POSTGRES_USER=${DB_USER:-goconnect}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-goconnect_secret}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DB_USER:-goconnect} -d ${DB_NAME:-goconnect}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - goconnect-net
+    # Uncomment to expose PostgreSQL externally (development only)
+    # ports:
+    #   - "5432:5432"
+
+  # ---------------------------------------------------------------------------
+  # Redis Cache
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: goconnect-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - goconnect-net
+    # Uncomment to expose Redis externally (development only)
+    # ports:
+    #   - "6379:6379"
+
+  # ---------------------------------------------------------------------------
+  # Web UI (Optional - for development)
+  # ---------------------------------------------------------------------------
+  web-ui:
+    build:
+      context: ./web-ui
+      dockerfile: Dockerfile
+    image: ghcr.io/orhaniscoding/goconnect-web-ui:${VERSION:-latest}
+    container_name: goconnect-web-ui
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+      - NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-ws://localhost:8080/ws}
+    depends_on:
+      - server
+    networks:
+      - goconnect-net
+    profiles:
+      - full # Only start with: docker compose --profile full up
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  goconnect-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  goconnect-data:
+    driver: local
+  goconnect-logs:
+    driver: local

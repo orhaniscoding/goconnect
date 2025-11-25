@@ -1,41 +1,327 @@
 version: 2
-env: [CGO_ENABLED=0]
+
+project_name: goconnect
+
+env:
+  - CGO_ENABLED=0
+  - GO111MODULE=on
+
+before:
+  hooks:
+    - go mod tidy -C ./server
+    - go mod tidy -C ./client-daemon
+
+# =============================================================================
+# BUILDS - Cross-compile for all platforms
+# =============================================================================
 builds:
+  # Server Build
   - id: server
     dir: ./server
     main: ./cmd/server/main.go
     binary: goconnect-server
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=orhaniscoding
-    goos: [linux, darwin, windows]
-    goarch: [amd64, arm64]
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+      - -X main.builtBy=goreleaser
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64 # Windows ARM64 is rare for servers
+
+  # Client Daemon Build
   - id: daemon
     dir: ./client-daemon
     main: ./cmd/daemon/main.go
     binary: goconnect-daemon
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.builtBy=orhaniscoding
-    goos: [linux, darwin, windows]
-    goarch: [amd64, arm64]
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+      - -X main.builtBy=goreleaser
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+# =============================================================================
+# ARCHIVES - Portable versions with installers
+# =============================================================================
 archives:
-  - id: archive
-    formats: [tar.gz]
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  # Server Archive (portable)
+  - id: server-archive
+    builds:
+      - server
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: "goconnect-server_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
       - README.md
       - LICENSE
+      - docs/ADMIN_GUIDE.md
+      - docker-compose.yml
+
+  # Daemon Archive with install scripts (portable + easy install)
+  - id: daemon-archive
+    builds:
+      - daemon
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: "goconnect-daemon_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+      - src: client-daemon/service/linux/*
+        dst: install/linux
+        strip_parent: true
+      - src: client-daemon/service/macos/*
+        dst: install/macos
+        strip_parent: true
+      - src: client-daemon/service/windows/*
+        dst: install/windows
+        strip_parent: true
+
+  # Full Bundle (Server + Daemon)
+  - id: full-bundle
+    builds:
+      - server
+      - daemon
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: "goconnect-bundle_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+      - docs/*
+      - docker-compose.yml
+      - src: client-daemon/service/linux/*
+        dst: install/linux
+        strip_parent: true
+      - src: client-daemon/service/macos/*
+        dst: install/macos
+        strip_parent: true
+      - src: client-daemon/service/windows/*
+        dst: install/windows
+        strip_parent: true
+
+# =============================================================================
+# LINUX PACKAGES - .deb and .rpm with systemd
+# =============================================================================
 nfpms:
-  - id: linux
-    package_name: goconnect
+  # Server Package
+  - id: server-pkg
+    package_name: goconnect-server
+    builds:
+      - server
     vendor: orhaniscoding
-    maintainer: orhaniscoding
-    description: "GoConnect — Host/Daemon"
-    formats: [deb, rpm]
+    homepage: https://github.com/orhaniscoding/goconnect
+    maintainer: orhaniscoding <orhaniscoding@github.com>
+    description: |
+      GoConnect Server - VPN Management Server
+      Provides REST API, WebSocket, and WireGuard management.
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    dependencies:
+      - wireguard-tools
+    recommends:
+      - postgresql
+      - redis
+    bindir: /usr/local/bin
     contents:
-      - src: ./client-daemon/service/linux/goconnect-daemon.service
+      - src: docker-compose.yml
+        dst: /etc/goconnect/docker-compose.yml
+        type: config
+      - dst: /var/log/goconnect
+        type: dir
+        file_info:
+          mode: 0755
+
+  # Daemon Package
+  - id: daemon-pkg
+    package_name: goconnect-daemon
+    builds:
+      - daemon
+    vendor: orhaniscoding
+    homepage: https://github.com/orhaniscoding/goconnect
+    maintainer: orhaniscoding <orhaniscoding@github.com>
+    description: |
+      GoConnect Daemon - VPN Client Service
+      Runs as a background service to manage WireGuard connections.
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    dependencies:
+      - wireguard-tools
+    bindir: /usr/local/bin
+    contents:
+      - src: client-daemon/service/linux/goconnect-daemon.service
         dst: /usr/lib/systemd/system/goconnect-daemon.service
         type: config
-      - src: ./dist/server_{{ .Os }}_{{ .Arch }}/goconnect-server
-        dst: /usr/local/bin/goconnect-server
-      - src: ./dist/daemon_{{ .Os }}_{{ .Arch }}/goconnect-daemon
-        dst: /usr/local/bin/goconnect-daemon
+      - dst: /etc/goconnect
+        type: dir
+        file_info:
+          mode: 0755
+    scripts:
+      postinstall: |
+        #!/bin/sh
+        systemctl daemon-reload
+        systemctl enable goconnect-daemon
+        echo "GoConnect Daemon installed. Start with: sudo systemctl start goconnect-daemon"
+      preremove: |
+        #!/bin/sh
+        systemctl stop goconnect-daemon || true
+        systemctl disable goconnect-daemon || true
+
+# =============================================================================
+# CHECKSUMS - For verification
+# =============================================================================
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+# =============================================================================
+# SBOM - Software Bill of Materials
+# =============================================================================
+sboms:
+  - artifacts: archive
+    documents:
+      - "{{ .ArtifactName }}.sbom.json"
+
+# =============================================================================
+# RELEASE - GitHub Release with detailed notes
+# =============================================================================
+release:
+  github:
+    owner: orhaniscoding
+    name: goconnect
+  draft: false
+  prerelease: auto
+  mode: replace
+  name_template: "GoConnect v{{ .Version }}"
+  header: |
+    ## 🚀 GoConnect v{{ .Version }}
+
+    Release Date: {{ .Date }}
+
+    ### What's Changed
+    See [CHANGELOG.md](https://github.com/orhaniscoding/goconnect/blob/main/CHANGELOG.md) for full details.
+
+  footer: |
+    ---
+
+    ## 📦 Installation Guide
+
+    ### 🐧 Linux (Recommended)
+
+    **Debian/Ubuntu (.deb)**
+    ```bash
+    # Download and install
+    wget https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-daemon_{{ .Version }}_linux_amd64.deb
+    sudo dpkg -i goconnect-daemon_{{ .Version }}_linux_amd64.deb
+
+    # Start service
+    sudo systemctl start goconnect-daemon
+    sudo systemctl enable goconnect-daemon
+    ```
+
+    **RHEL/Fedora (.rpm)**
+    ```bash
+    # Download and install
+    wget https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-daemon_{{ .Version }}_linux_amd64.rpm
+    sudo rpm -i goconnect-daemon_{{ .Version }}_linux_amd64.rpm
+
+    # Start service
+    sudo systemctl start goconnect-daemon
+    ```
+
+    **Portable (tar.gz)**
+    ```bash
+    # Download and extract
+    wget https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-daemon_{{ .Version }}_linux_amd64.tar.gz
+    tar -xzf goconnect-daemon_{{ .Version }}_linux_amd64.tar.gz
+    cd goconnect-daemon_{{ .Version }}_linux_amd64
+
+    # Install with script
+    sudo ./install/linux/install.sh
+    ```
+
+    ### 🍎 macOS
+
+    **Intel (amd64)**
+    ```bash
+    wget https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-daemon_{{ .Version }}_darwin_amd64.tar.gz
+    tar -xzf goconnect-daemon_{{ .Version }}_darwin_amd64.tar.gz
+    cd goconnect-daemon_{{ .Version }}_darwin_amd64
+    sudo ./install/macos/install.sh
+    ```
+
+    **Apple Silicon (arm64)**
+    ```bash
+    wget https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-daemon_{{ .Version }}_darwin_arm64.tar.gz
+    tar -xzf goconnect-daemon_{{ .Version }}_darwin_arm64.tar.gz
+    cd goconnect-daemon_{{ .Version }}_darwin_arm64
+    sudo ./install/macos/install.sh
+    ```
+
+    ### 🪟 Windows
+
+    **PowerShell (Run as Administrator)**
+    ```powershell
+    # Download
+    Invoke-WebRequest -Uri "https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-daemon_{{ .Version }}_windows_amd64.zip" -OutFile "goconnect-daemon.zip"
+
+    # Extract
+    Expand-Archive -Path "goconnect-daemon.zip" -DestinationPath "goconnect-daemon"
+    cd goconnect-daemon
+
+    # Install as service
+    .\install\windows\install.ps1
+    ```
+
+    ### 🐳 Docker (Server Only)
+
+    ```bash
+    docker pull ghcr.io/orhaniscoding/goconnect-server:{{ .Version }}
+    docker run -d -p 8080:8080 ghcr.io/orhaniscoding/goconnect-server:{{ .Version }}
+    ```
+
+    ---
+
+    ## 🔐 Verification
+
+    Verify downloads using checksums:
+    ```bash
+    sha256sum -c checksums.txt
+    ```
+
+    ---
+
+    **Full Changelog**: https://github.com/orhaniscoding/goconnect/compare/v{{ .PreviousTag }}...v{{ .Tag }}
+
+# =============================================================================
+# ANNOUNCE - Optional notifications
+# =============================================================================
+announce:
+  skip: true # Enable when ready for Discord/Slack/etc notifications
+

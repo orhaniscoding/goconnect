@@ -105,9 +105,91 @@ npm install
 npm run dev
 ```
 
-### Docker Compose (Coming Soon)
+### Docker Compose (Recommended for Production)
 ```bash
+# Clone repository
+git clone https://github.com/orhaniscoding/goconnect.git
+cd goconnect
+
+# Start full stack (Server + Web UI + PostgreSQL + Redis)
 docker-compose up -d
+
+# Access
+# - Web UI: http://localhost:3000
+# - API Server: http://localhost:8080
+# - Health check: http://localhost:8080/health
+```
+
+### Platform-Specific Installation
+
+#### 🐧 Linux (Debian/Ubuntu)
+```bash
+# Download and install .deb package (includes systemd service)
+curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-daemon_amd64.deb
+sudo dpkg -i goconnect-daemon_amd64.deb
+
+# Or use install script
+curl -fsSL https://raw.githubusercontent.com/orhaniscoding/goconnect/main/client-daemon/service/linux/install.sh | sudo bash
+
+# Manage service
+sudo systemctl start goconnect-daemon
+sudo systemctl enable goconnect-daemon
+sudo systemctl status goconnect-daemon
+```
+
+#### 🍎 macOS
+```bash
+# Download and install via script (includes launchd service)
+curl -fsSL https://raw.githubusercontent.com/orhaniscoding/goconnect/main/client-daemon/service/macos/install.sh | sudo bash
+
+# Manage service
+sudo launchctl load /Library/LaunchDaemons/com.goconnect.daemon.plist
+sudo launchctl start com.goconnect.daemon
+```
+
+#### 🪟 Windows
+```powershell
+# Download and run PowerShell installer (elevated prompt required)
+irm https://raw.githubusercontent.com/orhaniscoding/goconnect/main/client-daemon/service/windows/install.ps1 | iex
+
+# Or manual installation
+# 1. Download goconnect-daemon_windows_amd64.zip from releases
+# 2. Extract to C:\Program Files\GoConnect
+# 3. Run install.ps1 as Administrator
+```
+
+#### 📦 Portable (All Platforms)
+```bash
+# Download portable archive (no installation required)
+# Linux/macOS: .tar.gz, Windows: .zip
+
+# Linux amd64
+curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-daemon_linux_amd64.tar.gz
+tar -xzf goconnect-daemon_linux_amd64.tar.gz
+./goconnect-daemon --help
+
+# macOS arm64 (Apple Silicon)
+curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-daemon_darwin_arm64.tar.gz
+tar -xzf goconnect-daemon_darwin_arm64.tar.gz
+./goconnect-daemon --help
+
+# Windows amd64
+# Download .zip, extract, and run goconnect-daemon.exe
+```
+
+### Server Installation
+
+```bash
+# Using Docker (recommended)
+docker run -d -p 8080:8080 \
+  -e DATABASE_URL=postgres://user:pass@host:5432/goconnect \
+  -e REDIS_URL=redis://host:6379 \
+  ghcr.io/orhaniscoding/goconnect-server:latest
+
+# Or download server binary
+curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-server_linux_amd64.tar.gz
+tar -xzf goconnect-server_linux_amd64.tar.gz
+./goconnect-server --help
 ```
 
 ## 📖 Documentation
