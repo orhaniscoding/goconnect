@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.10.0](https://github.com/orhaniscoding/goconnect/compare/v2.9.1...v2.10.0) (2025-11-25)
+
+
+### Features
+
+* **server:** integrate tenant multi-membership system into main.go ([1467ea5](https://github.com/orhaniscoding/goconnect/commit/1467ea5b9fac783066b98e58f8c54ff2e3f66ca4))
+
 ## [2.9.1](https://github.com/orhaniscoding/goconnect/compare/v2.9.0...v2.9.1) (2025-11-25)
 
 
