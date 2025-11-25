@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.8.1](https://github.com/orhaniscoding/goconnect/compare/v2.8.0...v2.8.1) (2025-11-25)
+
+
+### Bug Fixes
+
+* **release:** chain GoReleaser after Release Please for proper binary assets ([ea7cc37](https://github.com/orhaniscoding/goconnect/commit/ea7cc37e416ca99fc05e94fcd95f67126ea33b28))
+
 ## [2.8.0](https://github.com/orhaniscoding/goconnect/compare/v2.7.0...v2.8.0) (2025-11-25)
 
 
