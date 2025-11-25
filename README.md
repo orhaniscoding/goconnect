@@ -45,7 +45,7 @@
 ### 🌐 Modern Tech Stack
 - **Backend**: Go 1.24+ with Gin web framework
 - **Frontend**: Next.js 15 with TypeScript and Tailwind CSS
-- **Database**: PostgreSQL 14+ (in-memory for development)
+- **Database**: PostgreSQL 15+ (docker-compose defaults to 15)
 - **Real-time**: WebSocket for live updates
 - **API**: RESTful JSON API with OpenAPI 3.0 specification
 - **i18n**: Multi-language support (English, Turkish)
@@ -55,7 +55,7 @@
 ### Prerequisites
 - **Go** 1.24 or higher
 - **Node.js** 18+ and npm (for web UI)
-- **PostgreSQL** 14+ (optional, uses in-memory by default)
+- **PostgreSQL** 15+ (optional, uses in-memory by default)
 - **Make** (optional but recommended)
 
 ### Installation

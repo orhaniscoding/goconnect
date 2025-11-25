@@ -4,6 +4,8 @@
 
 ### Features
 
+* **server:** add signal-aware graceful shutdown for HTTP server, background workers, and audit pipelines
+
 ## [2.7.0] - 2025-11-25
 
 ### Features

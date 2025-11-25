@@ -9,8 +9,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -41,6 +43,9 @@ func main() {
 	auditQueue := flag.Int("audit-queue", 1024, "audit async queue size")
 	auditWorkers := flag.Int("audit-workers", 1, "audit async worker count")
 	flag.Parse()
+
+	ctx, stop := signal.NotifyContext(context.Background(), shutdownSignals()...)
+	defer stop()
 
 	// Register metrics early
 	metrics.Register()
@@ -133,6 +138,7 @@ func main() {
 			log.Printf("Warning: Failed to connect to Redis: %v. Token blacklist will be disabled.", err)
 		} else {
 			fmt.Println("Connected to Redis")
+			defer redisClient.Close()
 		}
 	}
 
@@ -146,7 +152,7 @@ func main() {
 	deviceService := service.NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, cfg.WireGuard)
 	deviceService.SetPeerProvisioning(peerProvisioningService)
 	// Start offline detection (check every 30s, mark offline if unseen for 2m)
-	go deviceService.StartOfflineDetection(context.Background(), 30*time.Second, 2*time.Minute)
+	go deviceService.StartOfflineDetection(ctx, 30*time.Second, 2*time.Minute)
 
 	chatService := service.NewChatService(chatRepo, userRepo)
 
@@ -163,18 +169,23 @@ func main() {
 
 			wgSyncService := service.NewWireGuardSyncService(peerRepo, wgManager)
 			// Start sync loop in background
-			go wgSyncService.StartSyncLoop(context.Background(), 10*time.Second)
+			go wgSyncService.StartSyncLoop(ctx, 10*time.Second)
 
 			// Start metrics collection loop
-			go func() {
+			go func(ctx context.Context) {
 				ticker := time.NewTicker(15 * time.Second)
 				defer ticker.Stop()
-				for range ticker.C {
-					if err := wgManager.UpdateMetrics(); err != nil {
-						log.Printf("Error updating WireGuard metrics: %v", err)
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case <-ticker.C:
+						if err := wgManager.UpdateMetrics(); err != nil {
+							log.Printf("Error updating WireGuard metrics: %v", err)
+						}
 					}
 				}
-			}()
+			}(ctx)
 		}
 	} else {
 		log.Println("Warning: WG_PRIVATE_KEY not set. WireGuard manager disabled.")
@@ -251,9 +262,19 @@ func main() {
 			// If async requested, it will wrap this below
 		}
 	}
-	if *asyncAudit {
-		aud = audit.NewAsyncAuditor(aud, audit.WithQueueSize(*auditQueue), audit.WithWorkers(*auditWorkers))
+	if sqliteAudRef != nil {
+		defer sqliteAudRef.Close()
 	}
+	var asyncAuditor *audit.AsyncAuditor
+	if *asyncAudit {
+		asyncAuditor = audit.NewAsyncAuditor(aud, audit.WithQueueSize(*auditQueue), audit.WithWorkers(*auditWorkers))
+		aud = asyncAuditor
+	}
+	defer func() {
+		if asyncAuditor != nil {
+			asyncAuditor.Close()
+		}
+	}()
 	membershipService.SetAuditor(aud)
 	networkService.SetAuditor(aud)
 	ipamService.SetAuditor(aud)
@@ -261,7 +282,7 @@ func main() {
 	chatService.SetAuditor(aud)
 
 	// Initialize OIDC Service
-	oidcService, err := service.NewOIDCService(context.Background())
+	oidcService, err := service.NewOIDCService(ctx)
 	if err != nil {
 		log.Printf("Warning: Failed to initialize OIDC service: %v", err)
 	}
@@ -280,7 +301,7 @@ func main() {
 	wsMsgHandler.SetHub(hub)
 
 	// Start Hub
-	go hub.Run(context.Background())
+	go hub.Run(ctx)
 
 	// Initialize Admin Service
 	adminService := service.NewAdminService(userRepo, tenantRepo, networkRepo, deviceRepo, chatRepo, hub.GetActiveConnectionCount)
@@ -348,17 +369,48 @@ func main() {
 
 	// Start server with timeouts
 	srv := &http.Server{
-		Addr:              ":8080",
+		Addr:              serverAddress(cfg),
 		Handler:           r,
 		ReadTimeout:       15 * time.Second,
 		ReadHeaderTimeout: 10 * time.Second,
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
+
+	go func() {
+		<-ctx.Done()
+		fmt.Println("Shutdown signal received. Draining HTTP server...")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil && err != http.ErrServerClosed {
+			fmt.Printf("Error during graceful shutdown: %v\n", err)
+		}
+	}()
+
 	fmt.Printf("GoConnect Server starting on %s...\n", srv.Addr)
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		fmt.Printf("Server failed to start: %v\n", err)
 	}
+}
+
+func serverAddress(cfg *config.Config) string {
+	const defaultPort = "8080"
+	if cfg == nil {
+		return ":" + defaultPort
+	}
+	host := cfg.Server.Host
+	port := cfg.Server.Port
+	if port == "" {
+		port = defaultPort
+	}
+	if host == "" {
+		return ":" + port
+	}
+	return host + ":" + port
+}
+
+func shutdownSignals() []os.Signal {
+	return []os.Signal{os.Interrupt, syscall.Signal(15)}
 }
 
 // getEnvOrDefault gets an environment variable or returns a default value

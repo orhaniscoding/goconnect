@@ -29,8 +29,8 @@ Enterprise-grade self-hosted VPN management platform with WireGuard integration,
 ## 📦 Quick Start
 
 ### Prerequisites
-- **Go**: 1.21+
-- **PostgreSQL**: 14+
+- **Go**: 1.24+
+- **PostgreSQL**: 15+
 - **WireGuard**: Server installation
 
 ### Installation
