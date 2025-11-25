@@ -11,6 +11,7 @@ import {
     getTenantByID,
     getTenantMembers,
     updateTenant,
+    deleteTenantAsOwner,
     type TenantWithMemberCount,
     type TenantMember,
     type TenantVisibility,
@@ -30,6 +31,11 @@ export default function TenantSettingsPage() {
     const [myMembership, setMyMembership] = useState<TenantMember | null>(null)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
+
+    // Delete confirmation state
+    const [showDeleteModal, setShowDeleteModal] = useState(false)
+    const [deleteConfirmName, setDeleteConfirmName] = useState('')
+    const [deleting, setDeleting] = useState(false)
 
     // Form state
     const [name, setName] = useState('')
@@ -74,6 +80,33 @@ export default function TenantSettingsPage() {
 
     // Permission check
     const canEditSettings = myMembership && ['owner', 'admin'].includes(myMembership.role)
+    const isOwner = myMembership?.role === 'owner'
+
+    // Handle tenant deletion
+    const handleDeleteTenant = async () => {
+        if (!isOwner) {
+            notification.error(t('tenant.settings.title'), t('tenant.settings.ownerOnly'))
+            return
+        }
+
+        if (deleteConfirmName !== tenant?.name) {
+            notification.error(t('tenant.settings.title'), t('tenant.settings.deleteConfirmInput'))
+            return
+        }
+
+        setDeleting(true)
+        try {
+            await deleteTenantAsOwner(tenantId)
+            notification.success(t('tenant.settings.title'), t('tenant.settings.deleted'))
+            setShowDeleteModal(false)
+            // Redirect to tenants list
+            router.push(`/${locale}/tenants`)
+        } catch (err) {
+            notification.error(t('tenant.settings.deleteError'), String(err))
+        } finally {
+            setDeleting(false)
+        }
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -404,25 +437,25 @@ export default function TenantSettingsPage() {
                             </div>
                         </section>
 
-                        {/* Danger Zone */}
-                        <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-red-200 dark:border-red-900/50 p-6">
-                            <h2 className="text-lg font-medium text-red-600 dark:text-red-400 mb-4">
-                                {t('tenant.settings.dangerZone')}
-                            </h2>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                                {t('tenant.settings.dangerZoneDesc')}
-                            </p>
-                            <button
-                                type="button"
-                                className="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                                onClick={() => {
-                                    // TODO: Implement tenant deletion
-                                    notification.error(t('tenant.settings.title'), 'Tenant deletion not yet implemented')
-                                }}
-                            >
-                                {t('tenant.settings.deleteTenant')}
-                            </button>
-                        </section>
+                        {/* Danger Zone - Only visible to owner */}
+                        {isOwner && (
+                            <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-red-200 dark:border-red-900/50 p-6">
+                                <h2 className="text-lg font-medium text-red-600 dark:text-red-400 mb-4">
+                                    {t('tenant.settings.dangerZone')}
+                                </h2>
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                                    {t('tenant.settings.dangerZoneDesc')}
+                                </p>
+                                <button
+                                    type="button"
+                                    className="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+                                    onClick={() => setShowDeleteModal(true)}
+                                    disabled={deleting}
+                                >
+                                    {t('tenant.settings.deleteTenant')}
+                                </button>
+                            </section>
+                        )}
 
                         {/* Submit Button */}
                         <div className="flex justify-end gap-4">
@@ -448,6 +481,91 @@ export default function TenantSettingsPage() {
                         </div>
                     </form>
                 </main>
+
+                {/* Delete Confirmation Modal */}
+                {showDeleteModal && (
+                    <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+                        <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                            {/* Background overlay */}
+                            <div 
+                                className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
+                                aria-hidden="true"
+                                onClick={() => !deleting && setShowDeleteModal(false)}
+                            />
+
+                            {/* Center modal */}
+                            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                            <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                                <div className="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                                    <div className="sm:flex sm:items-start">
+                                        {/* Warning icon */}
+                                        <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30 sm:mx-0 sm:h-10 sm:w-10">
+                                            <svg className="h-6 w-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                            </svg>
+                                        </div>
+                                        <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left flex-1">
+                                            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title">
+                                                {t('tenant.settings.deleteConfirmTitle')}
+                                            </h3>
+                                            <div className="mt-2">
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                    {t('tenant.settings.deleteConfirmMessage', { name: tenant?.name || '' })}
+                                                </p>
+                                            </div>
+                                            <div className="mt-4">
+                                                <label htmlFor="confirmName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                                    {t('tenant.settings.deleteConfirmInput')}
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    id="confirmName"
+                                                    value={deleteConfirmName}
+                                                    onChange={(e) => setDeleteConfirmName(e.target.value)}
+                                                    placeholder={tenant?.name || ''}
+                                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                                                    disabled={deleting}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="bg-gray-50 dark:bg-gray-700/50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={handleDeleteTenant}
+                                        disabled={deleting || deleteConfirmName !== tenant?.name}
+                                        className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        {deleting ? (
+                                            <>
+                                                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                                </svg>
+                                                {t('tenant.settings.deleting')}
+                                            </>
+                                        ) : (
+                                            t('tenant.settings.deleteConfirmButton')
+                                        )}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowDeleteModal(false)
+                                            setDeleteConfirmName('')
+                                        }}
+                                        disabled={deleting}
+                                        className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 dark:border-gray-600 shadow-sm px-4 py-2 bg-white dark:bg-gray-700 text-base font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:w-auto sm:text-sm disabled:opacity-50 transition-colors"
+                                    >
+                                        {t('common.cancel')}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <Footer />
             </div>

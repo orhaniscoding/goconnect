@@ -1251,6 +1251,21 @@ export async function updateTenant(
   return response.data
 }
 
+/**
+ * Delete tenant (owner only) - permanently deletes tenant and all associated data
+ * Uses stored token
+ */
+export async function deleteTenantAsOwner(tenantId: string): Promise<{ message: string }> {
+  const token = getAccessToken()
+  if (!token) {
+    throw new Error('No access token available')
+  }
+  return api(`/v1/tenants/${tenantId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+}
+
 // ==================== MEMBERSHIP OPERATIONS (WITH TOKEN) ====================
 
 /**
