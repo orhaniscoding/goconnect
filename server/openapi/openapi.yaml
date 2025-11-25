@@ -641,6 +641,33 @@ components:
           minimum: 0
           maximum: 10000
 
+    UpdateTenantRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 3
+          maxLength: 64
+          example: Updated Name
+        description:
+          type: [string, "null"]
+          maxLength: 500
+        visibility:
+          type: string
+          enum: [public, unlisted, private]
+        access_type:
+          type: string
+          enum: [open, password, invite_only]
+        password:
+          type: [string, "null"]
+          minLength: 4
+          maxLength: 64
+          description: Required when changing to password access_type
+        max_members:
+          type: integer
+          minimum: 0
+          maximum: 10000
+
     JoinTenantRequest:
       type: object
       properties:
@@ -2319,6 +2346,55 @@ paths:
                 $ref: "#/components/schemas/TenantResponse"
         "401":
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Tenant not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      summary: Update tenant settings
+      description: Update tenant settings (owner or admin only)
+      tags: [Tenants]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTenantRequest"
+      responses:
+        "200":
+          description: Tenant updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantResponse"
+        "400":
+          description: Validation error (e.g., password required for password access)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - not owner or admin
           content:
             application/json:
               schema:

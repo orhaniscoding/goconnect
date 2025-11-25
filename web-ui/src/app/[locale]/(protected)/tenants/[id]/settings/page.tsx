@@ -46,7 +46,7 @@ export default function TenantSettingsPage() {
         try {
             const tenantData = await getTenantByID(tenantId)
             setTenant(tenantData)
-            
+
             // Populate form with current values
             setName(tenantData.name)
             setDescription(tenantData.description || '')
@@ -55,7 +55,7 @@ export default function TenantSettingsPage() {
             setMaxMembers(tenantData.max_members || 100)
 
             const membersData = await getTenantMembers(tenantId)
-            
+
             // Find my membership
             if (user) {
                 const myMember = membersData.find((m: TenantMember) => m.user_id === user.id)
@@ -77,7 +77,7 @@ export default function TenantSettingsPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        
+
         if (!canEditSettings) {
             notification.error(t('error.generic'), 'You do not have permission to edit settings')
             return
@@ -86,19 +86,19 @@ export default function TenantSettingsPage() {
         setSaving(true)
         try {
             const updateReq: UpdateTenantRequest = {}
-            
+
             // Only include changed fields
             if (name !== tenant?.name) updateReq.name = name
             if (description !== (tenant?.description || '')) updateReq.description = description
             if (visibility !== tenant?.visibility) updateReq.visibility = visibility
             if (accessType !== tenant?.access_type) updateReq.access_type = accessType
             if (maxMembers !== (tenant?.max_members || 100)) updateReq.max_members = maxMembers
-            
+
             // Include password if changing to password access or updating password
             if (accessType === 'password' && password) {
                 updateReq.password = password
             }
-            
+
             // Validate password required for password access
             if (accessType === 'password' && !password && tenant?.access_type !== 'password') {
                 notification.error(t('tenant.settings.title'), t('tenant.settings.passwordRequired'))
@@ -203,7 +203,7 @@ export default function TenantSettingsPage() {
                             <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-6">
                                 {t('tenant.settings.basicInfo')}
                             </h2>
-                            
+
                             <div className="space-y-6">
                                 {/* Name */}
                                 <div>
@@ -394,7 +394,7 @@ export default function TenantSettingsPage() {
                                             placeholder={tenant.access_type === 'password' ? t('tenant.settings.leaveBlankToKeep') : t('tenant.settings.enterPassword')}
                                         />
                                         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                                            {tenant.access_type === 'password' 
+                                            {tenant.access_type === 'password'
                                                 ? t('tenant.settings.passwordChangeHint')
                                                 : t('tenant.settings.passwordRequiredHint')
                                             }
