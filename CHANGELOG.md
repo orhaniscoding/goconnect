@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.7.0](https://github.com/orhaniscoding/goconnect/compare/v2.6.0...v2.7.0) (2025-11-25)
+
+
+### Features
+
+* **iprules:** implement admin-configurable IP allowlist/denylist per tenant ([e10adf6](https://github.com/orhaniscoding/goconnect/commit/e10adf64a04f97e4ec57f5fed39e057ef2247e94))
+
 ## [2.6.0](https://github.com/orhaniscoding/goconnect/compare/v2.5.0...v2.6.0) (2025-11-25)
 
 
