@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.6.0](https://github.com/orhaniscoding/goconnect/compare/v2.5.0...v2.6.0) (2025-11-25)
+
+
+### Features
+
+* **gdpr:** implement GDPR/DSR endpoints for data export and deletion ([f370735](https://github.com/orhaniscoding/goconnect/commit/f37073564d30dcb612f9c4bd3be60e7670607ba3))
+* **invite:** implement network invite token system ([dfb8c51](https://github.com/orhaniscoding/goconnect/commit/dfb8c51dd0c7110aa44d645e229f0dd724178ab0))
+* **ratelimit:** implement endpoint-specific rate limiting ([5e1608f](https://github.com/orhaniscoding/goconnect/commit/5e1608fbd7291afa0a7eabcd4cad501c3a8947ba))
+
 ## [2.5.0](https://github.com/orhaniscoding/goconnect/compare/v2.4.1...v2.5.0) (2025-11-25)
 
 
