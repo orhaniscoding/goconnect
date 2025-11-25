@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.9.1](https://github.com/orhaniscoding/goconnect/compare/v2.9.0...v2.9.1) (2025-11-25)
+
+
+### Bug Fixes
+
+* **lint:** resolve client-daemon linting errors ([635d745](https://github.com/orhaniscoding/goconnect/commit/635d7451436c082a10c4b8e4d3fb8d3fb55d5bf8))
+
 ## [2.9.0](https://github.com/orhaniscoding/goconnect/compare/v2.8.8...v2.9.0) (2025-11-25)
 
 
