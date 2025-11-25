@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.9.0](https://github.com/orhaniscoding/goconnect/compare/v2.8.8...v2.9.0) (2025-11-25)
+
+
+### Features
+
+* **api:** add HTTP handlers for tenant multi-membership system ([b984827](https://github.com/orhaniscoding/goconnect/commit/b984827a86fb1c3eb90688510f84eb80313fe407))
+* **auth:** implement 2FA recovery codes for account recovery ([cab830f](https://github.com/orhaniscoding/goconnect/commit/cab830ff472dcf7fcbeb20510017933be5b697ea))
+* **dashboard:** add tenants quick action link ([9575953](https://github.com/orhaniscoding/goconnect/commit/9575953e95d959763c2902ae24b17c4a54e39251))
+* **repo:** add PostgreSQL implementations for InviteToken and IPRule ([cd3db72](https://github.com/orhaniscoding/goconnect/commit/cd3db72374e0d53df92cd0b9e2c9e8768cbfc6d4))
+* **tenant:** implement multi-membership system foundation ([3deedb2](https://github.com/orhaniscoding/goconnect/commit/3deedb27f4305eca6352aff290c05b7918e9b15e))
+* **web-ui:** add tenant API client and i18n translations ([ae54564](https://github.com/orhaniscoding/goconnect/commit/ae545646250fdc56f0857d9c7781ed1f22db238b))
+* **web-ui:** add tenant pages (discover, detail, chat) ([5ec1661](https://github.com/orhaniscoding/goconnect/commit/5ec1661d32a9bc8e1409670efbfbf51c88ff8b23))
+* **web:** add Recovery Codes management UI to Settings page ([3c51fbb](https://github.com/orhaniscoding/goconnect/commit/3c51fbb2bb14ff9f84e3c1e97e99296a14655cf9))
+
+
+### Bug Fixes
+
+* add KendimeNotlarim.md to .gitignore ([b0e70e2](https://github.com/orhaniscoding/goconnect/commit/b0e70e26c2c21f4fedf1c351ecf32ac0d4f5c84b))
+* ensure services restart automatically on all platforms ([60542f5](https://github.com/orhaniscoding/goconnect/commit/60542f514d563fcd03d4cf20a3be2420d14566c6))
+
 ## [2.8.8](https://github.com/orhaniscoding/goconnect/compare/v2.8.7...v2.8.8) (2025-11-25)
 
 
