@@ -344,6 +344,155 @@ components:
             next_cursor:
               type: [string, "null"]
 
+    # GDPR/DSR Schemas
+    GDPRExportData:
+      type: object
+      description: Complete user data export for GDPR compliance
+      required: [exported_at, user, devices, memberships, networks_owned]
+      properties:
+        exported_at:
+          type: string
+          format: date-time
+          description: When the export was generated
+        user:
+          $ref: "#/components/schemas/GDPRUserData"
+        devices:
+          type: array
+          items:
+            $ref: "#/components/schemas/GDPRDeviceData"
+        memberships:
+          type: array
+          items:
+            $ref: "#/components/schemas/GDPRMemberData"
+        networks_owned:
+          type: array
+          items:
+            $ref: "#/components/schemas/GDPRNetworkData"
+
+    GDPRUserData:
+      type: object
+      required: [id, email, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+          format: email
+        locale:
+          type: string
+          enum: [tr, en]
+        two_fa_enabled:
+          type: boolean
+        auth_provider:
+          type: string
+          enum: [local, google, github, oidc]
+        is_admin:
+          type: boolean
+        is_moderator:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    GDPRDeviceData:
+      type: object
+      required: [id, name, platform, public_key, created_at, last_seen, online]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        platform:
+          type: string
+        public_key:
+          type: string
+        ip_address:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        last_seen:
+          type: string
+          format: date-time
+        online:
+          type: boolean
+
+    GDPRMemberData:
+      type: object
+      required: [network_id, network_name, role, status]
+      properties:
+        network_id:
+          type: string
+        network_name:
+          type: string
+        role:
+          type: string
+          enum: [member, admin, owner]
+        status:
+          type: string
+          enum: [pending, approved, banned]
+        joined_at:
+          type: string
+          format: date-time
+
+    GDPRNetworkData:
+      type: object
+      required: [id, name, cidr, visibility, join_policy, created_at]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        cidr:
+          type: string
+        visibility:
+          type: string
+          enum: [public, private]
+        join_policy:
+          type: string
+          enum: [open, invite, approval]
+        created_at:
+          type: string
+          format: date-time
+
+    GDPRDeleteRequest:
+      type: object
+      required: [id, user_id, status, requested_at]
+      properties:
+        id:
+          type: string
+          description: Unique deletion request identifier
+        user_id:
+          type: string
+          description: User ID being deleted
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+          description: Current status of the deletion request
+        requested_at:
+          type: string
+          format: date-time
+          description: When the deletion was requested
+        completed_at:
+          type: string
+          format: date-time
+          description: When the deletion was completed (if applicable)
+        error:
+          type: string
+          description: Error message if deletion failed
+
+    RequestDeletionRequest:
+      type: object
+      required: [confirmation]
+      properties:
+        confirmation:
+          type: string
+          description: Must be exactly 'DELETE MY ACCOUNT' to confirm deletion
+          example: DELETE MY ACCOUNT
+
 paths:
   /v1/auth/register:
     post:
@@ -1563,6 +1712,102 @@ paths:
                       limit: { type: integer }
                       next_cursor: { type: string }
 
+  # GDPR/DSR Endpoints
+  /v1/me/export:
+    get:
+      summary: Export user data
+      description: |
+        Export all personal data for the authenticated user (GDPR Article 20).
+        Returns a JSON summary of user data including profile, devices, memberships, and owned networks.
+      tags: [GDPR]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User data export summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GDPRExportData"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Export failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/me/export/download:
+    get:
+      summary: Download user data as JSON file
+      description: |
+        Download all personal data as a JSON file (GDPR Article 20).
+        Returns a downloadable JSON file with Content-Disposition header.
+      tags: [GDPR]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: JSON file download
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GDPRExportData"
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+                example: attachment; filename="user-data-export.json"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/me/delete:
+    delete:
+      summary: Request account deletion
+      description: |
+        Request deletion of all personal data (GDPR Article 17 - Right to Erasure).
+        Requires explicit confirmation to prevent accidental deletion.
+        The deletion is processed asynchronously by a background worker.
+      tags: [GDPR]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestDeletionRequest"
+      responses:
+        "202":
+          description: Deletion request accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GDPRDeleteRequest"
+        "400":
+          description: Invalid confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 tags:
   - name: Networks
     description: "Virtual network management operations"
+  - name: GDPR
+    description: "GDPR Data Subject Rights (DSR) endpoints"

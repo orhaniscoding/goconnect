@@ -156,6 +156,9 @@ func main() {
 
 	chatService := service.NewChatService(chatRepo, userRepo)
 
+	// Initialize GDPR service
+	gdprService := service.NewGDPRService(userRepo, deviceRepo, networkRepo, membershipRepo)
+
 	// Initialize WireGuard Manager & Sync Service
 	var wgManager *wireguard.Manager
 	if cfg.WireGuard.PrivateKey != "" {
@@ -293,6 +296,7 @@ func main() {
 	deviceHandler := handler.NewDeviceHandler(deviceService)
 	chatHandler := handler.NewChatHandler(chatService)
 	uploadHandler := handler.NewUploadHandler("./uploads", "/uploads")
+	gdprHandler := handler.NewGDPRHandler(gdprService, aud)
 
 	// Initialize WebSocket components
 	// Circular dependency resolution: Handler -> Hub -> Handler
@@ -335,6 +339,15 @@ func main() {
 	// Register upload routes
 	handler.RegisterUploadRoutes(r, uploadHandler, handler.AuthMiddleware(authService))
 	r.Static("/uploads", "./uploads")
+
+	// Register GDPR routes (DSR - Data Subject Rights)
+	meGroup := r.Group("/v1/me")
+	meGroup.Use(handler.AuthMiddleware(authService))
+	{
+		meGroup.GET("/export", gdprHandler.ExportData)
+		meGroup.GET("/export/download", gdprHandler.ExportDataDownload)
+		meGroup.DELETE("/delete", gdprHandler.RequestDeletion)
+	}
 
 	// Register admin routes
 	adminGroup := r.Group("/v1/admin")
