@@ -97,43 +97,80 @@
   "role.admin": "Yönetici",
   "role.moderator": "Moderatör",
   "role.user": "Kullanıcı",
-  "networks.title": "Ağlar",
-  "networks.myNetworks": "Ağlarım",
-  "networks.publicNetworks": "Herkese Açık Ağlar",
-  "networks.allNetworks": "Tüm Ağlar",
-  "networks.createNew": "Ağ Oluştur",
-  "networks.noNetworks": "Ağ bulunamadı",
-  "networks.loading": "Ağlar yükleniyor...",
-  "networks.error": "Ağlar yüklenemedi",
-  "networks.members": "üye",
-  "networks.joinPolicy.open": "Açık",
-  "networks.joinPolicy.approval": "Onay Gerekli",
-  "networks.joinPolicy.invite": "Sadece Davet",
-  "networks.visibility.public": "Herkese Açık",
-  "networks.visibility.private": "Özel",
-  "networks.delete": "Sil",
-  "networks.confirmDelete": "Bu ağı silmek istediğinizden emin misiniz?",
-  "createNetwork.title": "Yeni Ağ Oluştur",
-  "createNetwork.name": "Ağ Adı",
-  "createNetwork.namePlaceholder": "örn. Benim VPN Ağım",
-  "createNetwork.visibility": "Görünürlük",
-  "createNetwork.joinPolicy": "Katılım Politikası",
-  "createNetwork.cidr": "CIDR Bloğu",
-  "createNetwork.cidrPlaceholder": "örn. 10.0.0.0/24",
-  "createNetwork.cidrHelp": "Bu ağ için IP aralığı (örn. 10.0.0.0/24)",
-  "createNetwork.dns": "DNS Sunucusu (opsiyonel)",
-  "createNetwork.dnsPlaceholder": "örn. 8.8.8.8",
-  "createNetwork.mtu": "MTU (opsiyonel)",
-  "createNetwork.mtuPlaceholder": "örn. 1420",
-  "createNetwork.splitTunnel": "Bölünmüş Tünel",
-  "createNetwork.splitTunnelHelp": "Sadece VPN trafiğini tünelden yönlendir",
-  "createNetwork.submit": "Ağ Oluştur",
-  "createNetwork.submitting": "Oluşturuluyor...",
-  "createNetwork.cancel": "İptal",
-  "createNetwork.success": "Ağ başarıyla oluşturuldu!",
-  "createNetwork.error.required": "Bu alan zorunludur",
-  "createNetwork.error.invalidCidr": "Geçersiz CIDR formatı (örn. 10.0.0.0/24)",
-  "createNetwork.error.network": "Ağ oluşturulamadı. Lütfen tekrar deneyin.",
+  "networks": {
+    "title": "Ağlar",
+    "view": {
+      "public": "Herkese Açık Ağlar",
+      "mine": "Ağlarım",
+      "all": "Tüm Ağlar"
+    },
+    "action": {
+      "create": "+ Ağ Oluştur"
+    },
+    "loading": "Ağlar yükleniyor...",
+    "error": {
+      "load": "Ağlar yüklenemedi",
+      "delete": "Ağ silinemedi",
+      "unknown": "Bilinmeyen hata"
+    },
+    "empty": "Ağ bulunamadı",
+    "confirm": {
+      "delete": "\"{name}\" ağını silmek istediğinizden emin misiniz?"
+    },
+    "card": {
+      "delete": "Sil",
+      "cidr": "CIDR:",
+      "visibility": {
+        "public": "Herkese Açık",
+        "private": "Özel"
+      },
+      "policy": {
+        "open": "Açık",
+        "approval": "Onay Gerekli",
+        "invite": "Sadece Davet"
+      },
+      "created": "Oluşturulma"
+    },
+    "modal": {
+      "title": "Yeni Ağ Oluştur",
+      "error": {
+        "nameRequired": "Ağ adı zorunludur",
+        "cidrRequired": "CIDR bloğu zorunludur",
+        "cidrInvalid": "Geçersiz CIDR formatı (örn. 10.0.0.0/24)",
+        "create": "Ağ oluşturulamadı"
+      },
+      "label": {
+        "name": "Ağ Adı *",
+        "cidr": "CIDR Bloğu *",
+        "visibility": "Görünürlük *",
+        "policy": "Katılım Politikası *",
+        "dns": "DNS Sunucusu (opsiyonel)",
+        "mtu": "MTU (opsiyonel)",
+        "splitTunnel": "Bölünmüş Tünel (sadece VPN trafiğini yönlendir)"
+      },
+      "placeholder": {
+        "name": "örn. Benim VPN Ağım",
+        "cidr": "örn. 10.0.0.0/24",
+        "dns": "örn. 8.8.8.8",
+        "mtu": "örn. 1420"
+      },
+      "help": {
+        "cidr": "Bu ağ için IP aralığı (örn. 10.0.0.0/24)"
+      },
+      "option": {
+        "public": "Herkese Açık",
+        "private": "Özel",
+        "open": "Açık",
+        "approval": "Onay Gerekli",
+        "invite": "Sadece Davet"
+      },
+      "action": {
+        "cancel": "İptal",
+        "create": "Ağ Oluştur",
+        "creating": "Oluşturuluyor..."
+      }
+    }
+  },
   "networkDetail.title": "Ağ Detayları",
   "networkDetail.overview": "Genel Bakış",
   "networkDetail.members": "Üyeler",

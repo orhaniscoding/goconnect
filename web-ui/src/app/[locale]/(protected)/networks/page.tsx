@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { listNetworks, createNetwork, deleteNetwork, Network, CreateNetworkRequest } from '../../../../lib/api'
 import { getAccessToken, getUser } from '../../../../lib/auth'
+import { useT } from '../../../../lib/i18n-context'
 import AuthGuard from '../../../../components/AuthGuard'
 import Footer from '../../../../components/Footer'
 
@@ -10,6 +11,7 @@ type ViewMode = 'public' | 'mine' | 'all'
 
 export default function NetworksPage() {
     const router = useRouter()
+    const t = useT()
     const [networks, setNetworks] = useState<Network[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -38,7 +40,7 @@ export default function NetworksPage() {
             const response = await listNetworks(viewMode, token)
             setNetworks(response.data || [])
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to load networks')
+            setError(err instanceof Error ? err.message : t('networks.error.load'))
         } finally {
             setLoading(false)
         }
@@ -58,7 +60,7 @@ export default function NetworksPage() {
     }
 
     const handleDeleteNetwork = async (id: string, name: string) => {
-        if (!confirm(`Are you sure you want to delete "${name}"?`)) return
+        if (!confirm(t('networks.confirm.delete', { name }))) return
 
         try {
             const token = getAccessToken()
@@ -67,7 +69,7 @@ export default function NetworksPage() {
             await deleteNetwork(id, token)
             loadNetworks() // Reload list
         } catch (err) {
-            alert('Failed to delete network: ' + (err instanceof Error ? err.message : 'Unknown error'))
+            alert(t('networks.error.delete') + ': ' + (err instanceof Error ? err.message : t('networks.error.unknown')))
         }
     }
 
@@ -77,7 +79,7 @@ export default function NetworksPage() {
                 {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                     <div>
-                        <h1 style={{ margin: 0, marginBottom: 8 }}>Networks</h1>
+                        <h1 style={{ margin: 0, marginBottom: 8 }}>{t('networks.title')}</h1>
                         <div style={{ display: 'flex', gap: 8 }}>
                             <button
                                 onClick={() => setViewMode('public')}
@@ -91,7 +93,7 @@ export default function NetworksPage() {
                                     fontSize: 13
                                 }}
                             >
-                                Public Networks
+                                {t('networks.view.public')}
                             </button>
                             <button
                                 onClick={() => setViewMode('mine')}
@@ -105,7 +107,7 @@ export default function NetworksPage() {
                                     fontSize: 13
                                 }}
                             >
-                                My Networks
+                                {t('networks.view.mine')}
                             </button>
                             {isAdmin && (
                                 <button
@@ -120,7 +122,7 @@ export default function NetworksPage() {
                                         fontSize: 13
                                     }}
                                 >
-                                    All Networks
+                                    {t('networks.view.all')}
                                 </button>
                             )}
                         </div>
@@ -138,14 +140,14 @@ export default function NetworksPage() {
                             fontWeight: 500
                         }}
                     >
-                        + Create Network
+                        {t('networks.action.create')}
                     </button>
                 </div>
 
                 {/* Loading State */}
                 {loading && (
                     <div style={{ textAlign: 'center', padding: 40, color: '#666' }}>
-                        Loading networks...
+                        {t('networks.loading')}
                     </div>
                 )}
 
@@ -161,7 +163,7 @@ export default function NetworksPage() {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
                         {networks.length === 0 ? (
                             <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 40, color: '#666' }}>
-                                No networks found
+                                {t('networks.empty')}
                             </div>
                         ) : (
                             networks.map(network => (
@@ -195,6 +197,7 @@ export default function NetworksPage() {
 // Network Card Component
 function NetworkCard({ network, onDelete, isAdmin }: { network: Network; onDelete: (id: string, name: string) => void; isAdmin: boolean }) {
     const router = useRouter()
+    const t = useT()
 
     return (
         <div
@@ -228,12 +231,12 @@ function NetworkCard({ network, onDelete, isAdmin }: { network: Network; onDelet
                             fontSize: 12
                         }}
                     >
-                        Delete
+                        {t('networks.card.delete')}
                     </button>
                 )}
             </div>
             <div style={{ marginBottom: 8, color: '#666', fontSize: 14 }}>
-                <div><strong>CIDR:</strong> {network.cidr}</div>
+                <div><strong>{t('networks.card.cidr')}</strong> {network.cidr}</div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                     <span style={{
                         padding: '2px 8px',
@@ -242,7 +245,7 @@ function NetworkCard({ network, onDelete, isAdmin }: { network: Network; onDelet
                         borderRadius: 4,
                         fontSize: 12
                     }}>
-                        {network.visibility === 'public' ? 'Public' : 'Private'}
+                        {network.visibility === 'public' ? t('networks.card.visibility.public') : t('networks.card.visibility.private')}
                     </span>
                     <span style={{
                         padding: '2px 8px',
@@ -251,12 +254,12 @@ function NetworkCard({ network, onDelete, isAdmin }: { network: Network; onDelet
                         borderRadius: 4,
                         fontSize: 12
                     }}>
-                        {network.join_policy === 'open' ? 'Open' : network.join_policy === 'approval' ? 'Approval' : 'Invite Only'}
+                        {network.join_policy === 'open' ? t('networks.card.policy.open') : network.join_policy === 'approval' ? t('networks.card.policy.approval') : t('networks.card.policy.invite')}
                     </span>
                 </div>
             </div>
             <div style={{ fontSize: 12, color: '#999' }}>
-                Created {new Date(network.created_at).toLocaleDateString()}
+                {t('networks.card.created')} {new Date(network.created_at).toLocaleDateString()}
             </div>
         </div>
     )
@@ -264,6 +267,7 @@ function NetworkCard({ network, onDelete, isAdmin }: { network: Network; onDelet
 
 // Create Network Modal Component
 function CreateNetworkModal({ onClose, onCreate }: { onClose: () => void; onCreate: (req: CreateNetworkRequest) => Promise<void> }) {
+    const t = useT()
     const [name, setName] = useState('')
     const [visibility, setVisibility] = useState<'public' | 'private'>('public')
     const [joinPolicy, setJoinPolicy] = useState<'open' | 'approval' | 'invite'>('open')
@@ -280,19 +284,19 @@ function CreateNetworkModal({ onClose, onCreate }: { onClose: () => void; onCrea
 
         // Validation
         if (!name.trim()) {
-            setError('Network name is required')
+            setError(t('networks.modal.error.nameRequired'))
             return
         }
 
         if (!cidr.trim()) {
-            setError('CIDR block is required')
+            setError(t('networks.modal.error.cidrRequired'))
             return
         }
 
         // Basic CIDR validation
         const cidrRegex = /^(\d{1,3}\.){3}\d{1,3}\/\d{1,2}$/
         if (!cidrRegex.test(cidr)) {
-            setError('Invalid CIDR format (e.g., 10.0.0.0/24)')
+            setError(t('networks.modal.error.cidrInvalid'))
             return
         }
 
@@ -312,7 +316,7 @@ function CreateNetworkModal({ onClose, onCreate }: { onClose: () => void; onCrea
 
             await onCreate(req)
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to create network')
+            setError(err instanceof Error ? err.message : t('networks.modal.error.create'))
             setLoading(false)
         }
     }
@@ -339,7 +343,7 @@ function CreateNetworkModal({ onClose, onCreate }: { onClose: () => void; onCrea
                 maxHeight: '90vh',
                 overflow: 'auto'
             }}>
-                <h2 style={{ marginTop: 0 }}>Create New Network</h2>
+                <h2 style={{ marginTop: 0 }}>{t('networks.modal.title')}</h2>
 
                 {error && (
                     <div style={{ padding: 12, backgroundColor: '#f8d7da', color: '#721c24', borderRadius: 4, marginBottom: 16, fontSize: 14 }}>
@@ -350,13 +354,13 @@ function CreateNetworkModal({ onClose, onCreate }: { onClose: () => void; onCrea
                 <form onSubmit={handleSubmit}>
                     <div style={{ marginBottom: 16 }}>
                         <label style={{ display: 'block', marginBottom: 4, fontWeight: 500, fontSize: 14 }}>
-                            Network Name *
+                            {t('networks.modal.label.name')}
                         </label>
                         <input
                             type="text"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            placeholder="e.g., My VPN Network"
+                            placeholder={t('networks.modal.placeholder.name')}
                             style={{
                                 width: '100%',
                                 padding: 8,
@@ -370,13 +374,13 @@ function CreateNetworkModal({ onClose, onCreate }: { onClose: () => void; onCrea
 
                     <div style={{ marginBottom: 16 }}>
                         <label style={{ display: 'block', marginBottom: 4, fontWeight: 500, fontSize: 14 }}>
-                            CIDR Block *
+                            {t('networks.modal.label.cidr')}
                         </label>
                         <input
                             type="text"
                             value={cidr}
                             onChange={(e) => setCidr(e.target.value)}
-                            placeholder="e.g., 10.0.0.0/24"
+                            placeholder={t('networks.modal.placeholder.cidr')}
                             style={{
                                 width: '100%',
                                 padding: 8,
@@ -387,13 +391,13 @@ function CreateNetworkModal({ onClose, onCreate }: { onClose: () => void; onCrea
                             }}
                         />
                         <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
-                            IP range for this network (e.g., 10.0.0.0/24)
+                            {t('networks.modal.help.cidr')}
                         </div>
                     </div>
 
                     <div style={{ marginBottom: 16 }}>
                         <label style={{ display: 'block', marginBottom: 4, fontWeight: 500, fontSize: 14 }}>
-                            Visibility *
+                            {t('networks.modal.label.visibility')}
                         </label>
                         <select
                             value={visibility}
@@ -407,14 +411,14 @@ function CreateNetworkModal({ onClose, onCreate }: { onClose: () => void; onCrea
                                 boxSizing: 'border-box'
                             }}
                         >
-                            <option value="public">Public</option>
-                            <option value="private">Private</option>
+                            <option value="public">{t('networks.modal.option.public')}</option>
+                            <option value="private">{t('networks.modal.option.private')}</option>
                         </select>
                     </div>
 
                     <div style={{ marginBottom: 16 }}>
                         <label style={{ display: 'block', marginBottom: 4, fontWeight: 500, fontSize: 14 }}>
-                            Join Policy *
+                            {t('networks.modal.label.policy')}
                         </label>
                         <select
                             value={joinPolicy}
@@ -428,21 +432,21 @@ function CreateNetworkModal({ onClose, onCreate }: { onClose: () => void; onCrea
                                 boxSizing: 'border-box'
                             }}
                         >
-                            <option value="open">Open</option>
-                            <option value="approval">Approval Required</option>
-                            <option value="invite">Invite Only</option>
+                            <option value="open">{t('networks.modal.option.open')}</option>
+                            <option value="approval">{t('networks.modal.option.approval')}</option>
+                            <option value="invite">{t('networks.modal.option.invite')}</option>
                         </select>
                     </div>
 
                     <div style={{ marginBottom: 16 }}>
                         <label style={{ display: 'block', marginBottom: 4, fontWeight: 500, fontSize: 14 }}>
-                            DNS Server (optional)
+                            {t('networks.modal.label.dns')}
                         </label>
                         <input
                             type="text"
                             value={dns}
                             onChange={(e) => setDns(e.target.value)}
-                            placeholder="e.g., 8.8.8.8"
+                            placeholder={t('networks.modal.placeholder.dns')}
                             style={{
                                 width: '100%',
                                 padding: 8,
@@ -456,13 +460,13 @@ function CreateNetworkModal({ onClose, onCreate }: { onClose: () => void; onCrea
 
                     <div style={{ marginBottom: 16 }}>
                         <label style={{ display: 'block', marginBottom: 4, fontWeight: 500, fontSize: 14 }}>
-                            MTU (optional)
+                            {t('networks.modal.label.mtu')}
                         </label>
                         <input
                             type="number"
                             value={mtu}
                             onChange={(e) => setMtu(e.target.value)}
-                            placeholder="e.g., 1420"
+                            placeholder={t('networks.modal.placeholder.mtu')}
                             style={{
                                 width: '100%',
                                 padding: 8,
@@ -482,7 +486,7 @@ function CreateNetworkModal({ onClose, onCreate }: { onClose: () => void; onCrea
                                 onChange={(e) => setSplitTunnel(e.target.checked)}
                                 style={{ marginRight: 8 }}
                             />
-                            <span style={{ fontSize: 14 }}>Split Tunnel (route only VPN traffic)</span>
+                            <span style={{ fontSize: 14 }}>{t('networks.modal.label.splitTunnel')}</span>
                         </label>
                     </div>
 
@@ -502,7 +506,7 @@ function CreateNetworkModal({ onClose, onCreate }: { onClose: () => void; onCrea
                                 opacity: loading ? 0.6 : 1
                             }}
                         >
-                            Cancel
+                            {t('networks.modal.action.cancel')}
                         </button>
                         <button
                             type="submit"
@@ -518,7 +522,7 @@ function CreateNetworkModal({ onClose, onCreate }: { onClose: () => void; onCrea
                                 opacity: loading ? 0.6 : 1
                             }}
                         >
-                            {loading ? 'Creating...' : 'Create Network'}
+                            {loading ? t('networks.modal.action.creating') : t('networks.modal.action.create')}
                         </button>
                     </div>
                 </form>
