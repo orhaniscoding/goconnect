@@ -1011,9 +1011,9 @@ Every AI response MUST:
 | TenantInviteRepository | ✅ | ✅ | ✅ | ✅ (26 tests) |
 | TenantAnnouncementRepository | ✅ | ✅ | ✅ | ✅ (21 tests) |
 | TenantChatRepository | ✅ | ✅ | ✅ | ✅ (24 tests) |
-| DeviceRepository | ✅ | ⏳ | ✅ | ⏳ |
-| PeerRepository | ✅ | ⏳ | ✅ | ⏳ |
-| MembershipRepository | ✅ | ⏳ | ✅ | ⏳ |
+| DeviceRepository | ✅ | ✅ | ✅ | ✅ (35 tests) |
+| PeerRepository | ✅ | ✅ | ✅ | ✅ (50 tests) |
+| MembershipRepository | ✅ | ✅ | ✅ | ✅ (15 tests) |
 
 Legend: ✅ = Complete, ⏳ = Needs implementation/tests
 
@@ -1063,6 +1063,9 @@ Legend: ✅ = Complete, ⏳ = Needs implementation/tests
 | `repository/tenant_invite_test.go` | 26 | High |
 | `repository/tenant_announcement_test.go` | 21 | High |
 | `repository/tenant_chat_test.go` | 24 | High |
+| `repository/device_test.go` | 35 | High |
+| `repository/peer_test.go` | 50 | High |
+| `repository/membership_test.go` | 15 | High |
 | `service/ip_rule_test.go` | 22 | High |
 | `service/tenant_membership_test.go` | 30 | High |
 | `service/auth_test.go` | ~15 | Medium |
