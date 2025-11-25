@@ -68,7 +68,7 @@ func NewError(code, message string, details interface{}) *Error {
 // ToHTTPStatus maps domain error codes to HTTP status codes
 func (e *Error) ToHTTPStatus() int {
 	switch e.Code {
-	case ErrInvalidRequest, ErrCIDRInvalid:
+	case ErrInvalidRequest, ErrCIDRInvalid, ErrValidation, ErrWeakPassword:
 		return http.StatusBadRequest
 	case ErrUnauthorized, ErrInvalidToken, ErrTokenExpired, ErrInvalidCredentials:
 		return http.StatusUnauthorized

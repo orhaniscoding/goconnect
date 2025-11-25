@@ -178,6 +178,130 @@ func TestTenantHandler_GetTenant(t *testing.T) {
 	})
 }
 
+// ==================== UPDATE TENANT TESTS ====================
+
+func TestTenantHandler_UpdateTenant(t *testing.T) {
+	t.Run("Success - Owner updates", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.PATCH("/v1/tenants/:tenantId", authMiddleware(mockAuth), handler.UpdateTenant)
+
+		// Create tenant as user_dev (token user)
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Original Name",
+			Visibility: domain.TenantVisibilityPrivate,
+			AccessType: domain.TenantAccessOpen,
+		})
+		require.NoError(t, err)
+
+		body := map[string]interface{}{
+			"name":        "Updated Name",
+			"description": "New description",
+			"visibility":  "public",
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("PATCH", "/v1/tenants/"+tenant.ID, bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+		data := response["data"].(map[string]interface{})
+		assert.Equal(t, "Updated Name", data["name"])
+		assert.Equal(t, "New description", data["description"])
+		assert.Equal(t, "public", data["visibility"])
+	})
+
+	t.Run("Forbidden - Non-member", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.PATCH("/v1/tenants/:tenantId", authMiddleware(mockAuth), handler.UpdateTenant)
+
+		// Create tenant as different user
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "owner_user", &domain.CreateTenantRequest{
+			Name:       "Other Tenant",
+			Visibility: domain.TenantVisibilityPrivate,
+			AccessType: domain.TenantAccessOpen,
+		})
+		require.NoError(t, err)
+
+		body := map[string]interface{}{
+			"name": "Trying to update",
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("PATCH", "/v1/tenants/"+tenant.ID, bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusForbidden, w.Code)
+	})
+
+	t.Run("Forbidden - Regular member", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.PATCH("/v1/tenants/:tenantId", authMiddleware(mockAuth), handler.UpdateTenant)
+
+		// Create tenant as different user
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "owner_user", &domain.CreateTenantRequest{
+			Name:       "Other Tenant",
+			Visibility: domain.TenantVisibilityPublic,
+			AccessType: domain.TenantAccessOpen,
+		})
+		require.NoError(t, err)
+
+		// user_dev joins as member
+		_, err = tenantService.JoinTenant(ctx, "user_dev", tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+
+		body := map[string]interface{}{
+			"name": "Trying to update as member",
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("PATCH", "/v1/tenants/"+tenant.ID, bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusForbidden, w.Code)
+	})
+
+	t.Run("Password required for password access", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.PATCH("/v1/tenants/:tenantId", authMiddleware(mockAuth), handler.UpdateTenant)
+
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: domain.TenantVisibilityPrivate,
+			AccessType: domain.TenantAccessOpen,
+		})
+		require.NoError(t, err)
+
+		// Try to change to password access without providing password
+		body := map[string]interface{}{
+			"access_type": "password",
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("PATCH", "/v1/tenants/"+tenant.ID, bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+}
+
 // ==================== PUBLIC TENANT DISCOVERY TESTS ====================
 
 func TestTenantHandler_ListPublicTenants(t *testing.T) {

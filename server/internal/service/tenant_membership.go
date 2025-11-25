@@ -116,6 +116,66 @@ func (s *TenantMembershipService) GetTenant(ctx context.Context, tenantID string
 	}, nil
 }
 
+// UpdateTenant updates tenant settings (owner/admin only)
+func (s *TenantMembershipService) UpdateTenant(ctx context.Context, userID, tenantID string, req *domain.UpdateTenantRequest) (*domain.TenantExtended, error) {
+	// Check if user has permission (owner or admin)
+	member, err := s.memberRepo.GetByUserAndTenant(ctx, userID, tenantID)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrForbidden, "You are not a member of this tenant", nil)
+	}
+
+	if member.Role != domain.TenantRoleOwner && member.Role != domain.TenantRoleAdmin {
+		return nil, domain.NewError(domain.ErrForbidden, "Only owner or admin can update tenant settings", nil)
+	}
+
+	// Get current tenant
+	tenant, err := s.tenantRepo.GetByID(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Apply updates
+	if req.Name != nil && strings.TrimSpace(*req.Name) != "" {
+		tenant.Name = strings.TrimSpace(*req.Name)
+	}
+	if req.Description != nil {
+		tenant.Description = strings.TrimSpace(*req.Description)
+	}
+	if req.Visibility != nil {
+		tenant.Visibility = *req.Visibility
+	}
+	if req.AccessType != nil {
+		tenant.AccessType = *req.AccessType
+		// If changing to password access, require password
+		if *req.AccessType == domain.TenantAccessPassword {
+			if req.Password == nil || strings.TrimSpace(*req.Password) == "" {
+				return nil, domain.NewError(domain.ErrValidation, "Password required for password-protected access", map[string]string{"field": "password"})
+			}
+		}
+	}
+	if req.Password != nil && strings.TrimSpace(*req.Password) != "" {
+		tenant.PasswordHash = HashTenantPassword(*req.Password)
+	}
+	if req.MaxMembers != nil {
+		tenant.MaxMembers = *req.MaxMembers
+	}
+
+	tenant.UpdatedAt = time.Now()
+
+	// Save updates
+	if err := s.tenantRepo.Update(ctx, tenant); err != nil {
+		return nil, fmt.Errorf("failed to update tenant: %w", err)
+	}
+
+	// Get member count for response
+	memberCount, _ := s.memberRepo.CountByTenant(ctx, tenantID)
+
+	return &domain.TenantExtended{
+		Tenant:      *tenant,
+		MemberCount: memberCount,
+	}, nil
+}
+
 // ListPublicTenants returns discoverable tenants for unauthenticated discovery/search flows
 func (s *TenantMembershipService) ListPublicTenants(ctx context.Context, req *domain.ListTenantsRequest) ([]*domain.TenantExtended, string, error) {
 	if req == nil {

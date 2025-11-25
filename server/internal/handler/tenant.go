@@ -61,6 +61,30 @@ func (h *TenantHandler) GetTenant(c *gin.Context) {
 	})
 }
 
+// UpdateTenant handles PATCH /v1/tenants/:tenantId
+func (h *TenantHandler) UpdateTenant(c *gin.Context) {
+	tenantID := c.Param("tenantId")
+	userID := c.GetString("user_id")
+
+	var req domain.UpdateTenantRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest,
+			"Invalid request body: "+err.Error(), nil))
+		return
+	}
+
+	tenant, err := h.tenantService.UpdateTenant(c.Request.Context(), userID, tenantID, &req)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data":    tenant,
+		"message": "Tenant updated successfully",
+	})
+}
+
 // ==================== DISCOVERY ROUTES ====================
 
 // ListPublicTenants handles GET /v1/tenants/public
@@ -534,6 +558,7 @@ func (h *TenantHandler) RegisterRoutes(rg *gin.RouterGroup, authMiddleware gin.H
 		// Tenant CRUD
 		tenants.POST("", h.CreateTenant)
 		tenants.GET("/:tenantId", h.GetTenant)
+		tenants.PATCH("/:tenantId", h.UpdateTenant)
 
 		// Membership
 		tenants.POST("/:tenantId/join", h.JoinTenant)
