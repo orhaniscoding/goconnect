@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import QRCode from 'qrcode'
 import { getUser, getAccessToken, setUser } from '../../../../lib/auth'
-import { generate2FA, enable2FA, disable2FA } from '../../../../lib/api'
+import { generate2FA, enable2FA, disable2FA, generateRecoveryCodes, getRecoveryCodeCount } from '../../../../lib/api'
 import { useNotification } from '../../../../contexts/NotificationContext'
 import { useT } from '../../../../lib/i18n-context'
 import AuthGuard from '../../../../components/AuthGuard'
@@ -20,11 +20,35 @@ export default function Settings() {
     const [code, setCode] = useState('')
     const [isEnabling, setIsEnabling] = useState(false)
     const [step, setStep] = useState<'initial' | 'scan' | 'verify' | 'disable'>('initial')
+    
+    // Recovery Codes state
+    const [recoveryCodesCount, setRecoveryCodesCount] = useState<number | null>(null)
+    const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
+    const [showRecoveryCodes, setShowRecoveryCodes] = useState(false)
+    const [recoveryCodeInput, setRecoveryCodeInput] = useState('')
+    const [isGeneratingRecoveryCodes, setIsGeneratingRecoveryCodes] = useState(false)
 
     useEffect(() => {
         const u = getUser()
         setUserState(u)
     }, [])
+
+    // Load recovery codes count when user has 2FA enabled
+    useEffect(() => {
+        const loadRecoveryCodesCount = async () => {
+            const token = getAccessToken()
+            if (!token || !user?.two_fa_enabled) return
+            
+            try {
+                const data = await getRecoveryCodeCount(token)
+                setRecoveryCodesCount(data.remaining_codes)
+            } catch (err) {
+                console.error('Failed to load recovery codes count:', err)
+            }
+        }
+        
+        loadRecoveryCodesCount()
+    }, [user?.two_fa_enabled])
 
     useEffect(() => {
         if (otpAuthUrl) {
@@ -70,6 +94,48 @@ export default function Settings() {
 
     const handleDisable2FA = () => {
         setStep('disable')
+    }
+
+    const handleGenerateRecoveryCodes = async () => {
+        if (!recoveryCodeInput || recoveryCodeInput.length !== 6) {
+            notification.error(t('settings.notifications.error'), t('settings.recovery.enterCode'))
+            return
+        }
+        
+        setIsGeneratingRecoveryCodes(true)
+        try {
+            const token = getAccessToken()
+            if (!token) return
+
+            const data = await generateRecoveryCodes(token, recoveryCodeInput)
+            setRecoveryCodes(data.codes)
+            setShowRecoveryCodes(true)
+            setRecoveryCodesCount(data.codes.length)
+            setRecoveryCodeInput('')
+            notification.success(t('settings.notifications.success'), t('settings.recovery.generated'))
+        } catch (err: any) {
+            notification.error(t('settings.notifications.error'), err.message || t('settings.recovery.generateFailed'))
+        } finally {
+            setIsGeneratingRecoveryCodes(false)
+        }
+    }
+
+    const handleCopyRecoveryCodes = () => {
+        const codesText = recoveryCodes.join('\n')
+        navigator.clipboard.writeText(codesText)
+        notification.success(t('settings.notifications.success'), t('settings.recovery.copied'))
+    }
+
+    const handleDownloadRecoveryCodes = () => {
+        const codesText = `GoConnect Recovery Codes\n${'='.repeat(30)}\n\nGenerated: ${new Date().toISOString()}\n\n${recoveryCodes.map((c, i) => `${i + 1}. ${c}`).join('\n')}\n\n${'='.repeat(30)}\nKeep these codes safe!\nEach code can only be used once.`
+        const blob = new Blob([codesText], { type: 'text/plain' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'goconnect-recovery-codes.txt'
+        a.click()
+        URL.revokeObjectURL(url)
+        notification.success(t('settings.notifications.success'), t('settings.recovery.downloaded'))
     }
 
     const confirmDisable2FA = async () => {
@@ -274,6 +340,169 @@ export default function Settings() {
                                     </button>
                                 </div>
                             </div>
+                        </div>
+                    )}
+
+                    {/* Recovery Codes Section */}
+                    {user.two_fa_enabled && (
+                        <div style={{ marginTop: 24, borderTop: '1px solid #eee', paddingTop: 24 }}>
+                            <h3 style={{ marginBottom: 8 }}>{t('settings.recovery.title')}</h3>
+                            <p style={{ color: '#666', marginBottom: 16 }}>{t('settings.recovery.desc')}</p>
+
+                            {/* Recovery codes status */}
+                            {recoveryCodesCount !== null && !showRecoveryCodes && (
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    backgroundColor: recoveryCodesCount <= 2 ? '#fff3cd' : '#e7f5e7',
+                                    padding: 16,
+                                    borderRadius: 8,
+                                    marginBottom: 16
+                                }}>
+                                    <div>
+                                        <strong>{t('settings.recovery.remaining')}: {recoveryCodesCount}/8</strong>
+                                        {recoveryCodesCount <= 2 && (
+                                            <p style={{ color: '#856404', marginTop: 4, fontSize: 14 }}>
+                                                {t('settings.recovery.lowWarning')}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Generate new recovery codes */}
+                            {!showRecoveryCodes && (
+                                <div style={{ marginTop: 16 }}>
+                                    <p style={{ marginBottom: 8, fontWeight: 500 }}>{t('settings.recovery.generateNew')}</p>
+                                    <p style={{ color: '#666', fontSize: 14, marginBottom: 12 }}>
+                                        {t('settings.recovery.generateWarning')}
+                                    </p>
+                                    <div style={{ display: 'flex', gap: 8 }}>
+                                        <input
+                                            type="text"
+                                            value={recoveryCodeInput}
+                                            onChange={(e) => setRecoveryCodeInput(e.target.value)}
+                                            placeholder="123456"
+                                            maxLength={6}
+                                            style={{
+                                                padding: 8,
+                                                borderRadius: 4,
+                                                border: '1px solid #ccc',
+                                                width: 120
+                                            }}
+                                        />
+                                        <button
+                                            onClick={handleGenerateRecoveryCodes}
+                                            disabled={isGeneratingRecoveryCodes}
+                                            style={{
+                                                backgroundColor: '#17a2b8',
+                                                color: 'white',
+                                                border: 'none',
+                                                padding: '8px 16px',
+                                                borderRadius: 4,
+                                                cursor: isGeneratingRecoveryCodes ? 'not-allowed' : 'pointer',
+                                                opacity: isGeneratingRecoveryCodes ? 0.7 : 1
+                                            }}
+                                        >
+                                            {isGeneratingRecoveryCodes ? t('settings.recovery.generating') : t('settings.recovery.generate')}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Display recovery codes */}
+                            {showRecoveryCodes && recoveryCodes.length > 0 && (
+                                <div style={{
+                                    backgroundColor: '#f8f9fa',
+                                    padding: 20,
+                                    borderRadius: 8,
+                                    border: '1px solid #dee2e6'
+                                }}>
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        marginBottom: 16
+                                    }}>
+                                        <strong style={{ color: '#dc3545' }}>⚠️ {t('settings.recovery.saveNow')}</strong>
+                                        <div style={{ display: 'flex', gap: 8 }}>
+                                            <button
+                                                onClick={handleCopyRecoveryCodes}
+                                                style={{
+                                                    backgroundColor: '#6c757d',
+                                                    color: 'white',
+                                                    border: 'none',
+                                                    padding: '6px 12px',
+                                                    borderRadius: 4,
+                                                    cursor: 'pointer',
+                                                    fontSize: 14
+                                                }}
+                                            >
+                                                📋 {t('settings.recovery.copy')}
+                                            </button>
+                                            <button
+                                                onClick={handleDownloadRecoveryCodes}
+                                                style={{
+                                                    backgroundColor: '#28a745',
+                                                    color: 'white',
+                                                    border: 'none',
+                                                    padding: '6px 12px',
+                                                    borderRadius: 4,
+                                                    cursor: 'pointer',
+                                                    fontSize: 14
+                                                }}
+                                            >
+                                                ⬇️ {t('settings.recovery.download')}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: 'repeat(2, 1fr)',
+                                        gap: 8,
+                                        backgroundColor: 'white',
+                                        padding: 16,
+                                        borderRadius: 4,
+                                        fontFamily: 'monospace',
+                                        fontSize: 14
+                                    }}>
+                                        {recoveryCodes.map((code, idx) => (
+                                            <div key={idx} style={{
+                                                padding: 8,
+                                                backgroundColor: '#f8f9fa',
+                                                borderRadius: 4,
+                                                textAlign: 'center'
+                                            }}>
+                                                {idx + 1}. {code}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <p style={{ marginTop: 12, color: '#666', fontSize: 13 }}>
+                                        {t('settings.recovery.oneTimeUse')}
+                                    </p>
+
+                                    <button
+                                        onClick={() => {
+                                            setShowRecoveryCodes(false)
+                                            setRecoveryCodes([])
+                                        }}
+                                        style={{
+                                            marginTop: 16,
+                                            backgroundColor: '#6c757d',
+                                            color: 'white',
+                                            border: 'none',
+                                            padding: '8px 16px',
+                                            borderRadius: 4,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        {t('settings.recovery.close')}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
