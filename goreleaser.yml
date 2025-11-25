@@ -192,15 +192,8 @@ nfpms:
         file_info:
           mode: 0755
     scripts:
-      postinstall: |
-        #!/bin/sh
-        systemctl daemon-reload
-        systemctl enable goconnect-daemon
-        echo "GoConnect Daemon installed. Start with: sudo systemctl start goconnect-daemon"
-      preremove: |
-        #!/bin/sh
-        systemctl stop goconnect-daemon || true
-        systemctl disable goconnect-daemon || true
+      postinstall: client-daemon/service/linux/postinstall.sh
+      preremove: client-daemon/service/linux/preremove.sh
 
 # =============================================================================
 # CHECKSUMS - For verification
