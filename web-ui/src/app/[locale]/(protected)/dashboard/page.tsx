@@ -285,6 +285,31 @@ export default function Dashboard() {
                     </div>
 
                     <div
+                        onClick={() => router.push(`/${params.locale}/tenants`)}
+                        style={{
+                            padding: 20,
+                            backgroundColor: '#fff',
+                            border: '2px solid #dee2e6',
+                            borderRadius: 8,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = '#3b82f6'
+                            e.currentTarget.style.transform = 'translateY(-2px)'
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = '#dee2e6'
+                            e.currentTarget.style.transform = 'translateY(0)'
+                        }}
+                    >
+                        <h3 style={{ margin: '0 0 8px 0', color: '#3b82f6' }}>👥 {t('tenant.title')}</h3>
+                        <p style={{ margin: 0, color: '#666', fontSize: 14 }}>
+                            {t('tenant.discover.subtitle')}
+                        </p>
+                    </div>
+
+                    <div
                         onClick={() => router.push('/en/profile')}
                         style={{
                             padding: 20,
