@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.8.8](https://github.com/orhaniscoding/goconnect/compare/v2.8.7...v2.8.8) (2025-11-25)
+
+
+### Bug Fixes
+
+* Docker build - add .gitkeep to public folder ([77390fb](https://github.com/orhaniscoding/goconnect/commit/77390fb9d0a3fedd09e736f3617932b9f7ef6d32))
+
 ## [2.8.7](https://github.com/orhaniscoding/goconnect/compare/v2.8.6...v2.8.7) (2025-11-25)
 
 
