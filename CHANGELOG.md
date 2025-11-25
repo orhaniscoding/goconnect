@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.8.0](https://github.com/orhaniscoding/goconnect/compare/v2.7.0...v2.8.0) (2025-11-25)
+
+
+### Features
+
+* **audit:** add filtering support to audit log queries ([adb597d](https://github.com/orhaniscoding/goconnect/commit/adb597d9fd8a3c4e23092e29cbfb21218e5ceb02))
+
 ## [2.7.0](https://github.com/orhaniscoding/goconnect/compare/v2.6.0...v2.7.0) (2025-11-25)
 
 
