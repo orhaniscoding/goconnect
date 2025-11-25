@@ -1,0 +1,554 @@
+package service
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/orhaniscoding/goconnect/server/internal/domain"
+	"github.com/orhaniscoding/goconnect/server/internal/repository"
+	"golang.org/x/crypto/argon2"
+)
+
+// TenantMembershipService handles tenant membership operations
+type TenantMembershipService struct {
+	memberRepo       repository.TenantMemberRepository
+	inviteRepo       repository.TenantInviteRepository
+	announcementRepo repository.TenantAnnouncementRepository
+	chatRepo         repository.TenantChatRepository
+	tenantRepo       repository.TenantRepository
+	userRepo         repository.UserRepository
+}
+
+// NewTenantMembershipService creates a new tenant membership service
+func NewTenantMembershipService(
+	memberRepo repository.TenantMemberRepository,
+	inviteRepo repository.TenantInviteRepository,
+	announcementRepo repository.TenantAnnouncementRepository,
+	chatRepo repository.TenantChatRepository,
+	tenantRepo repository.TenantRepository,
+	userRepo repository.UserRepository,
+) *TenantMembershipService {
+	return &TenantMembershipService{
+		memberRepo:       memberRepo,
+		inviteRepo:       inviteRepo,
+		announcementRepo: announcementRepo,
+		chatRepo:         chatRepo,
+		tenantRepo:       tenantRepo,
+		userRepo:         userRepo,
+	}
+}
+
+// ==================== TENANT OPERATIONS ====================
+
+// CreateTenant creates a new tenant with the user as owner
+func (s *TenantMembershipService) CreateTenant(ctx context.Context, userID string, req *domain.CreateTenantRequest) (*domain.TenantExtended, error) {
+	// Generate ID
+	tenantID := uuid.New().String()
+
+	// Create basic tenant first (for backwards compatibility with existing Tenant struct)
+	basicTenant := &domain.Tenant{
+		ID:        tenantID,
+		Name:      req.Name,
+		OwnerID:   userID,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	// Create tenant in repository
+	if err := s.tenantRepo.Create(ctx, basicTenant); err != nil {
+		return nil, fmt.Errorf("failed to create tenant: %w", err)
+	}
+
+	// TODO: Update tenant with extended fields when TenantRepository supports it
+	// For now, create extended response
+	tenant := &domain.TenantExtended{
+		ID:          tenantID,
+		Name:        req.Name,
+		Description: req.Description,
+		Visibility:  req.Visibility,
+		AccessType:  req.AccessType,
+		MaxMembers:  req.MaxMembers,
+		OwnerID:     userID,
+		CreatedAt:   basicTenant.CreatedAt,
+		UpdatedAt:   basicTenant.UpdatedAt,
+		MemberCount: 1,
+	}
+
+	// Add creator as owner
+	member := &domain.TenantMember{
+		TenantID: tenantID,
+		UserID:   userID,
+		Role:     domain.TenantRoleOwner,
+	}
+	if err := s.memberRepo.Create(ctx, member); err != nil {
+		return nil, fmt.Errorf("failed to add owner as member: %w", err)
+	}
+
+	return tenant, nil
+}
+
+// GetTenant gets a tenant by ID with member count
+func (s *TenantMembershipService) GetTenant(ctx context.Context, tenantID string) (*domain.TenantExtended, error) {
+	basicTenant, err := s.tenantRepo.GetByID(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	memberCount, err := s.memberRepo.CountByTenant(ctx, tenantID)
+	if err != nil {
+		memberCount = 0 // Non-critical, continue
+	}
+
+	return &domain.TenantExtended{
+		ID:          basicTenant.ID,
+		Name:        basicTenant.Name,
+		OwnerID:     basicTenant.OwnerID,
+		CreatedAt:   basicTenant.CreatedAt,
+		UpdatedAt:   basicTenant.UpdatedAt,
+		MemberCount: memberCount,
+		// TODO: Extended fields from DB
+	}, nil
+}
+
+// ==================== MEMBERSHIP OPERATIONS ====================
+
+// JoinTenant allows a user to join a tenant
+func (s *TenantMembershipService) JoinTenant(ctx context.Context, userID, tenantID string, req *domain.JoinTenantRequest) (*domain.TenantMember, error) {
+	// Check if already a member
+	existing, _ := s.memberRepo.GetByUserAndTenant(ctx, userID, tenantID)
+	if existing != nil {
+		return nil, domain.NewError(domain.ErrAlreadyMember, "You are already a member of this tenant", nil)
+	}
+
+	// Get tenant to check access type
+	tenant, err := s.tenantRepo.GetByID(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Check tenant.AccessType and req.Password when extended fields available
+	// For now, allow open joining
+	_ = tenant
+
+	// Create membership
+	member := &domain.TenantMember{
+		TenantID: tenantID,
+		UserID:   userID,
+		Role:     domain.TenantRoleMember,
+	}
+
+	if err := s.memberRepo.Create(ctx, member); err != nil {
+		return nil, err
+	}
+
+	return member, nil
+}
+
+// JoinByCode allows a user to join a tenant via invite code
+func (s *TenantMembershipService) JoinByCode(ctx context.Context, userID string, code string) (*domain.TenantMember, error) {
+	// Find invite by code
+	invite, err := s.inviteRepo.GetByCode(ctx, code)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate invite
+	if !invite.IsValid() {
+		if invite.RevokedAt != nil {
+			return nil, domain.NewError(domain.ErrInviteTokenRevoked, "This invite code has been revoked", nil)
+		}
+		return nil, domain.NewError(domain.ErrInviteTokenExpired, "This invite code has expired", nil)
+	}
+
+	// Check if already a member
+	existing, _ := s.memberRepo.GetByUserAndTenant(ctx, userID, invite.TenantID)
+	if existing != nil {
+		return nil, domain.NewError(domain.ErrAlreadyMember, "You are already a member of this tenant", nil)
+	}
+
+	// Increment use count
+	if err := s.inviteRepo.IncrementUseCount(ctx, invite.ID); err != nil {
+		return nil, err
+	}
+
+	// Create membership
+	member := &domain.TenantMember{
+		TenantID: invite.TenantID,
+		UserID:   userID,
+		Role:     domain.TenantRoleMember,
+	}
+
+	if err := s.memberRepo.Create(ctx, member); err != nil {
+		return nil, err
+	}
+
+	return member, nil
+}
+
+// LeaveTenant allows a user to leave a tenant
+func (s *TenantMembershipService) LeaveTenant(ctx context.Context, userID, tenantID string) error {
+	member, err := s.memberRepo.GetByUserAndTenant(ctx, userID, tenantID)
+	if err != nil {
+		return err
+	}
+
+	// Owner cannot leave (must transfer ownership first)
+	if member.Role == domain.TenantRoleOwner {
+		return domain.NewError(domain.ErrForbidden, "Owner cannot leave tenant. Transfer ownership first.", nil)
+	}
+
+	return s.memberRepo.Delete(ctx, member.ID)
+}
+
+// GetUserTenants returns all tenants a user is a member of
+func (s *TenantMembershipService) GetUserTenants(ctx context.Context, userID string) ([]*domain.TenantMember, error) {
+	return s.memberRepo.ListByUser(ctx, userID)
+}
+
+// GetTenantMembers returns all members of a tenant
+func (s *TenantMembershipService) GetTenantMembers(ctx context.Context, tenantID string, req *domain.ListTenantMembersRequest) ([]*domain.TenantMember, string, error) {
+	return s.memberRepo.ListByTenant(ctx, tenantID, req.Role, req.Limit, req.Cursor)
+}
+
+// UpdateMemberRole updates a member's role (requires admin+ permission)
+func (s *TenantMembershipService) UpdateMemberRole(ctx context.Context, actorID, tenantID, targetMemberID string, newRole domain.TenantRole) error {
+	// Get actor's role
+	actorRole, err := s.memberRepo.GetUserRole(ctx, actorID, tenantID)
+	if err != nil {
+		return domain.NewError(domain.ErrForbidden, "You are not a member of this tenant", nil)
+	}
+
+	// Get target member
+	targetMember, err := s.memberRepo.GetByID(ctx, targetMemberID)
+	if err != nil {
+		return err
+	}
+
+	// Verify target is in the same tenant
+	if targetMember.TenantID != tenantID {
+		return domain.NewError(domain.ErrNotFound, "Member not found in this tenant", nil)
+	}
+
+	// Permission checks
+	// 1. Cannot change your own role (except owner -> admin for transfer)
+	if targetMember.UserID == actorID && actorRole != domain.TenantRoleOwner {
+		return domain.NewError(domain.ErrForbidden, "You cannot change your own role", nil)
+	}
+
+	// 2. Only owner can set admin role
+	if newRole == domain.TenantRoleAdmin && actorRole != domain.TenantRoleOwner {
+		return domain.NewError(domain.ErrForbidden, "Only owner can promote to admin", nil)
+	}
+
+	// 3. Cannot demote someone with higher/equal role
+	if !actorRole.HasPermission(targetMember.Role) {
+		return domain.NewError(domain.ErrForbidden, "Cannot modify member with higher or equal role", nil)
+	}
+
+	// 4. Cannot set role higher than your own (except owner)
+	if actorRole != domain.TenantRoleOwner && !actorRole.HasPermission(newRole) {
+		return domain.NewError(domain.ErrForbidden, "Cannot set role higher than your own", nil)
+	}
+
+	// 5. Cannot set owner role via this method
+	if newRole == domain.TenantRoleOwner {
+		return domain.NewError(domain.ErrForbidden, "Use transfer ownership to change owner", nil)
+	}
+
+	return s.memberRepo.UpdateRole(ctx, targetMemberID, newRole)
+}
+
+// RemoveMember removes a member from a tenant (kick)
+func (s *TenantMembershipService) RemoveMember(ctx context.Context, actorID, tenantID, targetMemberID string) error {
+	// Get actor's role
+	actorRole, err := s.memberRepo.GetUserRole(ctx, actorID, tenantID)
+	if err != nil {
+		return domain.NewError(domain.ErrForbidden, "You are not a member of this tenant", nil)
+	}
+
+	// Need at least moderator to kick
+	if !actorRole.HasPermission(domain.TenantRoleModerator) {
+		return domain.NewError(domain.ErrForbidden, "You need moderator permission to remove members", nil)
+	}
+
+	// Get target member
+	targetMember, err := s.memberRepo.GetByID(ctx, targetMemberID)
+	if err != nil {
+		return err
+	}
+
+	// Verify same tenant
+	if targetMember.TenantID != tenantID {
+		return domain.NewError(domain.ErrNotFound, "Member not found in this tenant", nil)
+	}
+
+	// Cannot kick yourself
+	if targetMember.UserID == actorID {
+		return domain.NewError(domain.ErrForbidden, "Use leave instead of removing yourself", nil)
+	}
+
+	// Cannot kick owner
+	if targetMember.Role == domain.TenantRoleOwner {
+		return domain.NewError(domain.ErrForbidden, "Cannot remove tenant owner", nil)
+	}
+
+	// Cannot kick someone with higher/equal role
+	if !actorRole.HasPermission(targetMember.Role) || actorRole == targetMember.Role {
+		return domain.NewError(domain.ErrForbidden, "Cannot remove member with higher or equal role", nil)
+	}
+
+	return s.memberRepo.Delete(ctx, targetMemberID)
+}
+
+// ==================== INVITE OPERATIONS ====================
+
+// CreateInvite creates a new tenant invite code
+func (s *TenantMembershipService) CreateInvite(ctx context.Context, userID, tenantID string, req *domain.CreateTenantInviteRequest) (*domain.TenantInvite, error) {
+	// Check permission (need admin+)
+	hasRole, err := s.memberRepo.HasRole(ctx, userID, tenantID, domain.TenantRoleAdmin)
+	if err != nil {
+		return nil, err
+	}
+	if !hasRole {
+		return nil, domain.NewError(domain.ErrForbidden, "You need admin permission to create invites", nil)
+	}
+
+	// Generate code
+	code, err := domain.GenerateTenantInviteCode()
+	if err != nil {
+		return nil, err
+	}
+
+	invite := &domain.TenantInvite{
+		TenantID:  tenantID,
+		Code:      code,
+		MaxUses:   req.MaxUses,
+		CreatedBy: userID,
+	}
+
+	if req.ExpiresIn > 0 {
+		expiresAt := time.Now().Add(time.Duration(req.ExpiresIn) * time.Second)
+		invite.ExpiresAt = &expiresAt
+	}
+
+	if err := s.inviteRepo.Create(ctx, invite); err != nil {
+		return nil, err
+	}
+
+	return invite, nil
+}
+
+// ListInvites returns all invites for a tenant
+func (s *TenantMembershipService) ListInvites(ctx context.Context, userID, tenantID string) ([]*domain.TenantInvite, error) {
+	// Check permission (need admin+)
+	hasRole, err := s.memberRepo.HasRole(ctx, userID, tenantID, domain.TenantRoleAdmin)
+	if err != nil {
+		return nil, err
+	}
+	if !hasRole {
+		return nil, domain.NewError(domain.ErrForbidden, "You need admin permission to view invites", nil)
+	}
+
+	return s.inviteRepo.ListByTenant(ctx, tenantID)
+}
+
+// RevokeInvite revokes an invite code
+func (s *TenantMembershipService) RevokeInvite(ctx context.Context, userID, tenantID, inviteID string) error {
+	// Check permission
+	hasRole, err := s.memberRepo.HasRole(ctx, userID, tenantID, domain.TenantRoleAdmin)
+	if err != nil {
+		return err
+	}
+	if !hasRole {
+		return domain.NewError(domain.ErrForbidden, "You need admin permission to revoke invites", nil)
+	}
+
+	// Verify invite belongs to tenant
+	invite, err := s.inviteRepo.GetByID(ctx, inviteID)
+	if err != nil {
+		return err
+	}
+	if invite.TenantID != tenantID {
+		return domain.NewError(domain.ErrNotFound, "Invite not found in this tenant", nil)
+	}
+
+	return s.inviteRepo.Revoke(ctx, inviteID)
+}
+
+// ==================== ANNOUNCEMENT OPERATIONS ====================
+
+// CreateAnnouncement creates a new announcement
+func (s *TenantMembershipService) CreateAnnouncement(ctx context.Context, userID, tenantID string, req *domain.CreateAnnouncementRequest) (*domain.TenantAnnouncement, error) {
+	// Check permission (need moderator+)
+	hasRole, err := s.memberRepo.HasRole(ctx, userID, tenantID, domain.TenantRoleModerator)
+	if err != nil {
+		return nil, err
+	}
+	if !hasRole {
+		return nil, domain.NewError(domain.ErrForbidden, "You need moderator permission to create announcements", nil)
+	}
+
+	announcement := &domain.TenantAnnouncement{
+		TenantID: tenantID,
+		Title:    req.Title,
+		Content:  req.Content,
+		AuthorID: userID,
+		IsPinned: req.IsPinned,
+	}
+
+	if err := s.announcementRepo.Create(ctx, announcement); err != nil {
+		return nil, err
+	}
+
+	return announcement, nil
+}
+
+// GetAnnouncements returns announcements for a tenant
+func (s *TenantMembershipService) GetAnnouncements(ctx context.Context, userID, tenantID string, req *domain.ListAnnouncementsRequest) ([]*domain.TenantAnnouncement, string, error) {
+	// Check membership (any member can view)
+	_, err := s.memberRepo.GetByUserAndTenant(ctx, userID, tenantID)
+	if err != nil {
+		return nil, "", domain.NewError(domain.ErrForbidden, "You are not a member of this tenant", nil)
+	}
+
+	pinnedOnly := req.Pinned != nil && *req.Pinned
+	return s.announcementRepo.ListByTenant(ctx, tenantID, pinnedOnly, req.Limit, req.Cursor)
+}
+
+// UpdateAnnouncement updates an announcement
+func (s *TenantMembershipService) UpdateAnnouncement(ctx context.Context, userID, tenantID, announcementID string, req *domain.UpdateAnnouncementRequest) error {
+	// Check permission
+	hasRole, err := s.memberRepo.HasRole(ctx, userID, tenantID, domain.TenantRoleModerator)
+	if err != nil {
+		return err
+	}
+	if !hasRole {
+		return domain.NewError(domain.ErrForbidden, "You need moderator permission to update announcements", nil)
+	}
+
+	ann, err := s.announcementRepo.GetByID(ctx, announcementID)
+	if err != nil {
+		return err
+	}
+	if ann.TenantID != tenantID {
+		return domain.NewError(domain.ErrNotFound, "Announcement not found in this tenant", nil)
+	}
+
+	// Apply updates
+	if req.Title != nil {
+		ann.Title = *req.Title
+	}
+	if req.Content != nil {
+		ann.Content = *req.Content
+	}
+	if req.IsPinned != nil {
+		ann.IsPinned = *req.IsPinned
+	}
+
+	return s.announcementRepo.Update(ctx, ann)
+}
+
+// DeleteAnnouncement deletes an announcement
+func (s *TenantMembershipService) DeleteAnnouncement(ctx context.Context, userID, tenantID, announcementID string) error {
+	// Check permission
+	hasRole, err := s.memberRepo.HasRole(ctx, userID, tenantID, domain.TenantRoleModerator)
+	if err != nil {
+		return err
+	}
+	if !hasRole {
+		return domain.NewError(domain.ErrForbidden, "You need moderator permission to delete announcements", nil)
+	}
+
+	// Verify announcement belongs to tenant
+	ann, err := s.announcementRepo.GetByID(ctx, announcementID)
+	if err != nil {
+		return err
+	}
+	if ann.TenantID != tenantID {
+		return domain.NewError(domain.ErrNotFound, "Announcement not found in this tenant", nil)
+	}
+
+	return s.announcementRepo.Delete(ctx, announcementID)
+}
+
+// ==================== CHAT OPERATIONS ====================
+
+// SendChatMessage sends a message to tenant chat
+func (s *TenantMembershipService) SendChatMessage(ctx context.Context, userID, tenantID string, req *domain.SendChatMessageRequest) (*domain.TenantChatMessage, error) {
+	// Check membership
+	_, err := s.memberRepo.GetByUserAndTenant(ctx, userID, tenantID)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrForbidden, "You are not a member of this tenant", nil)
+	}
+
+	message := &domain.TenantChatMessage{
+		TenantID: tenantID,
+		UserID:   userID,
+		Content:  req.Content,
+	}
+
+	if err := s.chatRepo.Create(ctx, message); err != nil {
+		return nil, err
+	}
+
+	return message, nil
+}
+
+// GetChatHistory returns chat history for a tenant
+func (s *TenantMembershipService) GetChatHistory(ctx context.Context, userID, tenantID string, req *domain.ListChatMessagesRequest) ([]*domain.TenantChatMessage, error) {
+	// Check membership
+	_, err := s.memberRepo.GetByUserAndTenant(ctx, userID, tenantID)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrForbidden, "You are not a member of this tenant", nil)
+	}
+
+	return s.chatRepo.ListByTenant(ctx, tenantID, req.Before, req.Limit)
+}
+
+// DeleteChatMessage deletes a chat message
+func (s *TenantMembershipService) DeleteChatMessage(ctx context.Context, userID, tenantID, messageID string) error {
+	// Get message
+	msg, err := s.chatRepo.GetByID(ctx, messageID)
+	if err != nil {
+		return err
+	}
+	if msg.TenantID != tenantID {
+		return domain.NewError(domain.ErrNotFound, "Message not found in this tenant", nil)
+	}
+
+	// Check permission: author can delete own message, moderator+ can delete any
+	if msg.UserID != userID {
+		hasRole, err := s.memberRepo.HasRole(ctx, userID, tenantID, domain.TenantRoleModerator)
+		if err != nil {
+			return err
+		}
+		if !hasRole {
+			return domain.NewError(domain.ErrForbidden, "You can only delete your own messages", nil)
+		}
+	}
+
+	return s.chatRepo.SoftDelete(ctx, messageID)
+}
+
+// ==================== PERMISSION HELPERS ====================
+
+// CheckTenantPermission checks if user has required role in tenant
+func (s *TenantMembershipService) CheckTenantPermission(ctx context.Context, userID, tenantID string, requiredRole domain.TenantRole) error {
+	hasRole, err := s.memberRepo.HasRole(ctx, userID, tenantID, requiredRole)
+	if err != nil {
+		return err
+	}
+	if !hasRole {
+		return domain.NewError(domain.ErrForbidden, fmt.Sprintf("You need %s permission for this action", requiredRole), nil)
+	}
+	return nil
+}
+
+// HashTenantPassword hashes password for tenant access
+func HashTenantPassword(password string) string {
+	salt := []byte("tenant-password-salt") // In production, use random salt per tenant
+	hash := argon2.IDKey([]byte(password), salt, 1, 64*1024, 4, 32)
+	return fmt.Sprintf("%x", hash)
+}
