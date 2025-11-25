@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { getUser, getAccessToken } from '../../../../lib/auth'
 import { generate2FA, enable2FA, disable2FA, changePassword } from '../../../../lib/api'
 import { useNotification } from '../../../../contexts/NotificationContext'
+import { useT } from '../../../../lib/i18n-context'
 import AuthGuard from '../../../../components/AuthGuard'
 import Footer from '../../../../components/Footer'
 import { generateQRCode } from '../../../../lib/qrcode'
@@ -11,6 +12,7 @@ import { generateQRCode } from '../../../../lib/qrcode'
 export default function ProfilePage() {
   const router = useRouter()
   const notification = useNotification()
+  const t = useT()
   const [user, setUser] = useState<any>(null)
   const [editing, setEditing] = useState(false)
   const [changePasswordMode, setChangePasswordMode] = useState(false)
@@ -45,37 +47,37 @@ export default function ProfilePage() {
 
     // Validation
     if (!currentPassword || !newPassword || !confirmPassword) {
-      const msg = 'All password fields are required'
+      const msg = t('profile.password.error.required')
       setPasswordError(msg)
-      notification.warning('Validation Error', msg)
+      notification.warning(t('profile.notifications.validation'), msg)
       return
     }
 
     if (newPassword !== confirmPassword) {
-      const msg = 'New passwords do not match'
+      const msg = t('profile.password.error.mismatch')
       setPasswordError(msg)
-      notification.warning('Validation Error', msg)
+      notification.warning(t('profile.notifications.validation'), msg)
       return
     }
 
     if (newPassword.length < 8) {
-      const msg = 'Password must be at least 8 characters'
+      const msg = t('profile.password.error.length')
       setPasswordError(msg)
-      notification.warning('Validation Error', msg)
+      notification.warning(t('profile.notifications.validation'), msg)
       return
     }
 
     try {
       const token = getAccessToken()
       if (!token) {
-        notification.error('Error', 'Not authenticated')
+        notification.error(t('profile.notifications.error'), 'Not authenticated')
         return
       }
 
       await changePassword(token, currentPassword, newPassword)
 
       setPasswordSuccess(true)
-      notification.success('Success', 'Password changed successfully')
+      notification.success(t('profile.notifications.success'), t('profile.password.success'))
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
@@ -86,9 +88,9 @@ export default function ProfilePage() {
       }, 2000)
     } catch (err: any) {
       console.error('Password change error:', err)
-      const msg = err.message || 'Failed to change password'
+      const msg = err.message || t('profile.password.error.failed')
       setPasswordError(msg)
-      notification.error('Error', msg)
+      notification.error(t('profile.notifications.error'), msg)
     }
   }
 
@@ -118,7 +120,7 @@ export default function ProfilePage() {
         setError2FA(null)
         setCode('')
       } catch (err: any) {
-        notification.error('2FA Error', err.message)
+        notification.error(t('profile.notifications.2fa.error'), err.message)
       }
     }
   }
@@ -131,11 +133,11 @@ export default function ProfilePage() {
       if (twoFactorEnabled) {
         await disable2FA(token, code)
         setTwoFactorEnabled(false)
-        notification.success('2FA Disabled', 'Two-factor authentication has been disabled')
+        notification.success(t('profile.notifications.2fa.disabled'), t('profile.notifications.2fa.disabledMsg'))
       } else {
         await enable2FA(token, secret, code)
         setTwoFactorEnabled(true)
-        notification.success('2FA Enabled', 'Two-factor authentication has been enabled')
+        notification.success(t('profile.notifications.2fa.enabled'), t('profile.notifications.2fa.enabledMsg'))
       }
       setShow2FAModal(false)
     } catch (err: any) {
@@ -146,7 +148,7 @@ export default function ProfilePage() {
   if (!user) {
     return (
       <AuthGuard>
-        <div style={{ padding: 24 }}>Loading...</div>
+        <div style={{ padding: 24 }}>{t('dashboard.loading')}</div>
       </AuthGuard>
     )
   }
@@ -177,9 +179,9 @@ export default function ProfilePage() {
                 fontWeight: 500
               }}
             >
-              ← Back
+              ← {t('profile.header.back')}
             </button>
-            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>Profile Settings</h1>
+            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>{t('profile.header.title')}</h1>
           </div>
         </div>
 
@@ -194,13 +196,13 @@ export default function ProfilePage() {
             boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
           }}>
             <h2 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 600, color: '#212529' }}>
-              User Information
+              {t('profile.info.title')}
             </h2>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#6c757d', marginBottom: 6 }}>
-                  User ID
+                  {t('profile.info.id')}
                 </label>
                 <div style={{
                   padding: '10px 12px',
@@ -216,7 +218,7 @@ export default function ProfilePage() {
 
               <div>
                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#6c757d', marginBottom: 6 }}>
-                  Name
+                  {t('profile.info.name')}
                 </label>
                 <div style={{
                   padding: '10px 12px',
@@ -225,13 +227,13 @@ export default function ProfilePage() {
                   fontSize: 15,
                   color: '#212529'
                 }}>
-                  {user.name || 'Not set'}
+                  {user.name || t('profile.info.notSet')}
                 </div>
               </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#6c757d', marginBottom: 6 }}>
-                  Email
+                  {t('profile.info.email')}
                 </label>
                 <div style={{
                   padding: '10px 12px',
@@ -240,13 +242,13 @@ export default function ProfilePage() {
                   fontSize: 15,
                   color: '#212529'
                 }}>
-                  {user.email || 'Not set'}
+                  {user.email || t('profile.info.notSet')}
                 </div>
               </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#6c757d', marginBottom: 6 }}>
-                  Role
+                  {t('profile.info.role')}
                 </label>
                 <div style={{
                   padding: '10px 12px',
@@ -256,13 +258,13 @@ export default function ProfilePage() {
                   color: user.is_admin ? '#0f5132' : user.is_moderator ? '#084298' : '#212529',
                   fontWeight: 500
                 }}>
-                  {user.is_admin ? '👑 Administrator' : user.is_moderator ? '🛡️ Moderator' : '👤 User'}
+                  {user.is_admin ? `👑 ${t('role.administrator')}` : user.is_moderator ? `🛡️ ${t('role.moderator')}` : `👤 ${t('role.user')}`}
                 </div>
               </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#6c757d', marginBottom: 6 }}>
-                  Tenant ID
+                  {t('profile.info.tenant')}
                 </label>
                 <div style={{
                   padding: '10px 12px',
@@ -288,7 +290,7 @@ export default function ProfilePage() {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#212529' }}>
-                Password
+                {t('profile.password.title')}
               </h2>
               {!changePasswordMode && (
                 <button
@@ -304,7 +306,7 @@ export default function ProfilePage() {
                     fontWeight: 500
                   }}
                 >
-                  Change Password
+                  {t('profile.password.button')}
                 </button>
               )}
             </div>
@@ -331,13 +333,13 @@ export default function ProfilePage() {
                     borderRadius: 6,
                     fontSize: 14
                   }}>
-                    Password changed successfully!
+                    {t('profile.password.success')}
                   </div>
                 )}
 
                 <div>
                   <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#6c757d', marginBottom: 6 }}>
-                    Current Password
+                    {t('profile.password.current')}
                   </label>
                   <input
                     type="password"
@@ -356,7 +358,7 @@ export default function ProfilePage() {
 
                 <div>
                   <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#6c757d', marginBottom: 6 }}>
-                    New Password
+                    {t('profile.password.new')}
                   </label>
                   <input
                     type="password"
@@ -375,7 +377,7 @@ export default function ProfilePage() {
 
                 <div>
                   <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: '#6c757d', marginBottom: 6 }}>
-                    Confirm New Password
+                    {t('profile.password.confirm')}
                   </label>
                   <input
                     type="password"
@@ -406,7 +408,7 @@ export default function ProfilePage() {
                       fontWeight: 500
                     }}
                   >
-                    Save Password
+                    {t('profile.password.save')}
                   </button>
                   <button
                     type="button"
@@ -429,13 +431,13 @@ export default function ProfilePage() {
                       fontWeight: 500
                     }}
                   >
-                    Cancel
+                    {t('profile.password.cancel')}
                   </button>
                 </div>
               </form>
             ) : (
               <div style={{ color: '#6c757d', fontSize: 14 }}>
-                Click "Change Password" to update your password
+                {t('profile.password.desc')}
               </div>
             )}
           </div>
@@ -448,18 +450,18 @@ export default function ProfilePage() {
             boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
           }}>
             <h2 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 600, color: '#212529' }}>
-              Two-Factor Authentication (2FA)
+              {t('profile.2fa.title')}
             </h2>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <div style={{ fontSize: 15, color: '#212529', marginBottom: 4, fontWeight: 500 }}>
-                  2FA Status
+                  {t('profile.2fa.status.title')}
                 </div>
                 <div style={{ fontSize: 14, color: '#6c757d' }}>
                   {twoFactorEnabled
-                    ? 'Two-factor authentication is enabled for your account'
-                    : 'Enable 2FA for additional security (Coming soon)'}
+                    ? t('profile.2fa.status.enabledMsg')
+                    : t('profile.2fa.status.disabledMsg')}
                 </div>
               </div>
               <button
@@ -477,7 +479,7 @@ export default function ProfilePage() {
                   opacity: 0.6
                 }}
               >
-                {twoFactorEnabled ? 'Disable 2FA' : 'Enable 2FA'}
+                {twoFactorEnabled ? t('profile.2fa.button.disable') : t('profile.2fa.button.enable')}
               </button>
             </div>
 
@@ -489,7 +491,7 @@ export default function ProfilePage() {
               borderRadius: 6,
               fontSize: 13
             }}>
-              ⚠️ 2FA feature is planned for future release
+              {t('profile.2fa.warning')}
             </div>
           </div>
         </div>
