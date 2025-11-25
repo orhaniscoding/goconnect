@@ -50,6 +50,10 @@ const (
 	ErrWeakPassword       = "ERR_WEAK_PASSWORD"        // Password too weak
 	ErrSessionExpired     = "ERR_SESSION_EXPIRED"      // Session expired
 	ErrRefreshTokenReuse  = "ERR_REFRESH_TOKEN_REUSE"  // Refresh token reuse detected
+	// Invite token specific
+	ErrInviteTokenExpired  = "ERR_INVITE_TOKEN_EXPIRED"   // Invite token expired or exhausted
+	ErrInviteTokenNotFound = "ERR_INVITE_TOKEN_NOT_FOUND" // Invite token not found
+	ErrInviteTokenRevoked  = "ERR_INVITE_TOKEN_REVOKED"   // Invite token was revoked
 )
 
 // NewError creates a new domain error

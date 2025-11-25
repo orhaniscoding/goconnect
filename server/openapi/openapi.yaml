@@ -493,6 +493,69 @@ components:
           description: Must be exactly 'DELETE MY ACCOUNT' to confirm deletion
           example: DELETE MY ACCOUNT
 
+    # Invite Token Schemas
+    InviteToken:
+      type: object
+      required: [id, network_id, token, invite_url, expires_at, uses_max, uses_left, created_at, is_active]
+      properties:
+        id:
+          type: string
+          description: Unique invite token identifier
+          example: inv_1234567890_123456
+        network_id:
+          type: string
+          description: Network this invite is for
+        token:
+          type: string
+          description: The actual invite token string
+        invite_url:
+          type: string
+          format: uri
+          description: Full URL to join using this invite
+        expires_at:
+          type: string
+          format: date-time
+          description: When this invite expires
+        uses_max:
+          type: integer
+          description: Maximum number of uses (0 = unlimited)
+        uses_left:
+          type: integer
+          description: Remaining uses
+        created_at:
+          type: string
+          format: date-time
+        is_active:
+          type: boolean
+          description: Whether the invite is still valid
+
+    CreateInviteRequest:
+      type: object
+      properties:
+        expires_in:
+          type: integer
+          minimum: 60
+          maximum: 604800
+          description: Seconds until expiration (1 min to 7 days, default 24h)
+          example: 86400
+        uses_max:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Maximum uses (0 = unlimited)
+          example: 10
+
+    ValidateInviteResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        network_id:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+
 paths:
   /v1/auth/register:
     post:
@@ -1806,8 +1869,161 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  # Invite Token Endpoints
+  /v1/networks/{id}/invites:
+    post:
+      summary: Create invite token
+      description: |
+        Create a new invite token for a network.
+        Requires admin or owner role in the network.
+        Only works for networks with 'invite' or 'approval' join policy.
+      tags: [Invites]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInviteRequest"
+      responses:
+        "201":
+          description: Invite token created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InviteToken"
+        "400":
+          description: Invalid request (e.g., open network)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Not authorized (requires admin/owner role)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    get:
+      summary: List invite tokens
+      description: List all active invite tokens for a network
+      tags: [Invites]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of invite tokens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/InviteToken"
+
+  /v1/networks/{id}/invites/{invite_id}:
+    get:
+      summary: Get invite token details
+      description: Get details of a specific invite token
+      tags: [Invites]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: invite_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invite token details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InviteToken"
+        "404":
+          description: Invite not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      summary: Revoke invite token
+      description: Revoke an invite token so it can no longer be used
+      tags: [Invites]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: invite_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Invite revoked
+        "403":
+          description: Not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Invite not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/invites/{token}/validate:
+    get:
+      summary: Validate invite token
+      description: |
+        Validate an invite token without using it.
+        This is a public endpoint that doesn't require authentication.
+      tags: [Invites]
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidateInviteResponse"
+
 tags:
   - name: Networks
     description: "Virtual network management operations"
   - name: GDPR
     description: "GDPR Data Subject Rights (DSR) endpoints"
+  - name: Invites
+    description: "Network invitation token management"

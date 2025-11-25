@@ -100,6 +100,7 @@ func main() {
 	var deviceRepo repository.DeviceRepository
 	var peerRepo repository.PeerRepository
 	var chatRepo repository.ChatRepository
+	var inviteRepo repository.InviteTokenRepository
 
 	if *usePostgres && db != nil {
 		// PostgreSQL repositories
@@ -113,6 +114,7 @@ func main() {
 		deviceRepo = repository.NewPostgresDeviceRepository(db)
 		peerRepo = repository.NewPostgresPeerRepository(db)
 		chatRepo = repository.NewPostgresChatRepository(db)
+		inviteRepo = repository.NewInMemoryInviteTokenRepository() // TODO: Postgres implementation
 		fmt.Println("Using PostgreSQL repositories")
 	} else {
 		// In-memory repositories (fallback)
@@ -126,6 +128,7 @@ func main() {
 		deviceRepo = repository.NewInMemoryDeviceRepository()
 		peerRepo = repository.NewInMemoryPeerRepository()
 		chatRepo = repository.NewInMemoryChatRepository()
+		inviteRepo = repository.NewInMemoryInviteTokenRepository()
 		fmt.Println("Using in-memory repositories (no data persistence)")
 	}
 
@@ -158,6 +161,10 @@ func main() {
 
 	// Initialize GDPR service
 	gdprService := service.NewGDPRService(userRepo, deviceRepo, networkRepo, membershipRepo)
+
+	// Initialize Invite service
+	baseURL := getEnvOrDefault("APP_BASE_URL", "https://app.goconnect.example")
+	inviteService := service.NewInviteService(inviteRepo, networkRepo, membershipRepo, baseURL)
 
 	// Initialize WireGuard Manager & Sync Service
 	var wgManager *wireguard.Manager
@@ -283,6 +290,7 @@ func main() {
 	ipamService.SetAuditor(aud)
 	deviceService.SetAuditor(aud)
 	chatService.SetAuditor(aud)
+	inviteService.SetAuditor(aud)
 
 	// Initialize OIDC Service
 	oidcService, err := service.NewOIDCService(ctx)
@@ -297,6 +305,7 @@ func main() {
 	chatHandler := handler.NewChatHandler(chatService)
 	uploadHandler := handler.NewUploadHandler("./uploads", "/uploads")
 	gdprHandler := handler.NewGDPRHandler(gdprService, aud)
+	inviteHandler := handler.NewInviteHandler(inviteService)
 
 	// Initialize WebSocket components
 	// Circular dependency resolution: Handler -> Hub -> Handler
@@ -348,6 +357,9 @@ func main() {
 		meGroup.GET("/export/download", gdprHandler.ExportDataDownload)
 		meGroup.DELETE("/delete", gdprHandler.RequestDeletion)
 	}
+
+	// Register invite routes
+	handler.RegisterInviteRoutes(r, inviteHandler, handler.AuthMiddleware(authService))
 
 	// Register admin routes
 	adminGroup := r.Group("/v1/admin")
