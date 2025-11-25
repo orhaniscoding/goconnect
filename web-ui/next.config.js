@@ -5,6 +5,8 @@ const path = require('path');
 const nextConfig = {
     reactStrictMode: true,
     outputFileTracingRoot: path.join(__dirname, '..'),
+    // Enable standalone output for Docker deployment
+    output: 'standalone',
 };
 
 module.exports = nextConfig;
