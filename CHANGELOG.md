@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.12.0](https://github.com/orhaniscoding/goconnect/compare/v2.11.0...v2.12.0) (2025-11-25)
+
+
+### Features
+
+* **api:** implement PATCH /v1/tenants/{id} for tenant settings update ([d67167f](https://github.com/orhaniscoding/goconnect/commit/d67167fe1f825270ace209d391df041dc8dfa850))
+* **ui:** add Tenant Settings page for owner/admin ([4ca1090](https://github.com/orhaniscoding/goconnect/commit/4ca10905d579f76409f6f7624fad53d82c83cf51))
+
 ## [2.11.0](https://github.com/orhaniscoding/goconnect/compare/v2.10.0...v2.11.0) (2025-11-25)
 
 
