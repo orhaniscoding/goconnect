@@ -525,3 +525,365 @@ GET http://localhost:8080/v1/admin/devices?q=laptop&limit=10
 Authorization: Bearer {access_token}
 
 ###
+
+# ========================================
+# Tenant Multi-Membership API Examples
+# (Discord-like server membership system)
+# ========================================
+
+# ----------------------------------------
+# Tenant Discovery & Management
+# ----------------------------------------
+
+### List Public Tenants (Discover)
+GET http://localhost:8080/v1/tenants?visibility=public&limit=20
+Authorization: Bearer {access_token}
+
+###
+
+### Search Public Tenants
+GET http://localhost:8080/v1/tenants?q=gaming&visibility=public
+Authorization: Bearer {access_token}
+
+###
+
+### Get Tenant Details
+GET http://localhost:8080/v1/tenants/{tenant_id}
+Authorization: Bearer {access_token}
+
+###
+
+### Create New Tenant
+POST http://localhost:8080/v1/tenants
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{
+  "name": "My VPN Server",
+  "description": "A gaming VPN server for friends",
+  "visibility": "public",
+  "access_type": "open",
+  "max_members": 50
+}
+
+###
+
+### Create Private Tenant (Invite Only)
+POST http://localhost:8080/v1/tenants
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{
+  "name": "Private Work Server",
+  "description": "Internal company VPN",
+  "visibility": "private",
+  "access_type": "invite_only",
+  "max_members": 100
+}
+
+###
+
+### Update Tenant (Owner/Admin)
+PATCH http://localhost:8080/v1/tenants/{tenant_id}
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{
+  "name": "Updated Server Name",
+  "description": "New description",
+  "visibility": "public"
+}
+
+###
+
+### Delete Tenant (Owner Only)
+DELETE http://localhost:8080/v1/tenants/{tenant_id}
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+###
+
+# ----------------------------------------
+# Tenant Membership
+# ----------------------------------------
+
+### Get My Tenants
+GET http://localhost:8080/v1/users/me/tenants
+Authorization: Bearer {access_token}
+
+###
+
+### Join Open Tenant
+POST http://localhost:8080/v1/tenants/{tenant_id}/join
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+###
+
+### Join Password-Protected Tenant
+POST http://localhost:8080/v1/tenants/{tenant_id}/join
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{
+  "password": "server_password_123"
+}
+
+###
+
+### Join Tenant by Invite Code (Steam-like)
+POST http://localhost:8080/v1/tenants/join-by-code
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{
+  "code": "ABC123XY"
+}
+
+###
+
+### Leave Tenant
+POST http://localhost:8080/v1/tenants/{tenant_id}/leave
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+###
+
+# ----------------------------------------
+# Member Management
+# ----------------------------------------
+
+### List Tenant Members
+GET http://localhost:8080/v1/tenants/{tenant_id}/members?limit=50
+Authorization: Bearer {access_token}
+
+###
+
+### List Members by Role
+GET http://localhost:8080/v1/tenants/{tenant_id}/members?role=admin&limit=50
+Authorization: Bearer {access_token}
+
+###
+
+### Update Member Role (Owner/Admin)
+PATCH http://localhost:8080/v1/tenants/{tenant_id}/members/{member_id}
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{
+  "role": "moderator"
+}
+
+###
+
+### Remove Member (Kick)
+DELETE http://localhost:8080/v1/tenants/{tenant_id}/members/{member_id}
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+###
+
+### Ban Member (with reason)
+POST http://localhost:8080/v1/tenants/{tenant_id}/members/{member_id}/ban
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{
+  "reason": "Violation of server rules"
+}
+
+###
+
+### Transfer Ownership
+POST http://localhost:8080/v1/tenants/{tenant_id}/transfer
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{
+  "new_owner_id": "user_uuid_here"
+}
+
+###
+
+# ----------------------------------------
+# Tenant Invites (Steam-like codes)
+# ----------------------------------------
+
+### Create Invite Code
+POST http://localhost:8080/v1/tenants/{tenant_id}/invites
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{
+  "max_uses": 10,
+  "expires_in_hours": 168
+}
+
+###
+
+### Create Single-Use Invite
+POST http://localhost:8080/v1/tenants/{tenant_id}/invites
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{
+  "max_uses": 1,
+  "expires_in_hours": 24
+}
+
+###
+
+### Create Unlimited Invite
+POST http://localhost:8080/v1/tenants/{tenant_id}/invites
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{
+  "max_uses": 0,
+  "expires_in_hours": 0
+}
+
+###
+
+### List Tenant Invites
+GET http://localhost:8080/v1/tenants/{tenant_id}/invites
+Authorization: Bearer {access_token}
+
+###
+
+### Revoke Invite
+DELETE http://localhost:8080/v1/tenants/{tenant_id}/invites/{invite_id}
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+###
+
+# ----------------------------------------
+# Announcements
+# ----------------------------------------
+
+### Create Announcement (Admin/Moderator)
+POST http://localhost:8080/v1/tenants/{tenant_id}/announcements
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{
+  "title": "Server Maintenance",
+  "content": "We will be performing maintenance on Saturday at 10 PM UTC.",
+  "is_pinned": true
+}
+
+###
+
+### List Announcements
+GET http://localhost:8080/v1/tenants/{tenant_id}/announcements?limit=10
+Authorization: Bearer {access_token}
+
+###
+
+### List Pinned Announcements Only
+GET http://localhost:8080/v1/tenants/{tenant_id}/announcements?pinned_only=true
+Authorization: Bearer {access_token}
+
+###
+
+### Update Announcement
+PATCH http://localhost:8080/v1/tenants/{tenant_id}/announcements/{announcement_id}
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{
+  "title": "Updated: Server Maintenance",
+  "content": "Maintenance has been rescheduled to Sunday."
+}
+
+###
+
+### Pin/Unpin Announcement
+PATCH http://localhost:8080/v1/tenants/{tenant_id}/announcements/{announcement_id}/pin
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{
+  "is_pinned": true
+}
+
+###
+
+### Delete Announcement
+DELETE http://localhost:8080/v1/tenants/{tenant_id}/announcements/{announcement_id}
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+###
+
+# ----------------------------------------
+# Tenant Chat (REST fallback for WebSocket)
+# ----------------------------------------
+
+### Get Chat History
+GET http://localhost:8080/v1/tenants/{tenant_id}/chat/messages?limit=50
+Authorization: Bearer {access_token}
+
+###
+
+### Get Chat History (before specific message)
+GET http://localhost:8080/v1/tenants/{tenant_id}/chat/messages?before_id={message_id}&limit=50
+Authorization: Bearer {access_token}
+
+###
+
+### Send Chat Message (REST fallback)
+POST http://localhost:8080/v1/tenants/{tenant_id}/chat/messages
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{
+  "content": "Hello everyone!"
+}
+
+###
+
+### Edit Chat Message
+PATCH http://localhost:8080/v1/tenants/{tenant_id}/chat/messages/{message_id}
+Content-Type: application/json
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+{
+  "content": "Hello everyone! (edited)"
+}
+
+###
+
+### Delete Chat Message
+DELETE http://localhost:8080/v1/tenants/{tenant_id}/chat/messages/{message_id}
+Authorization: Bearer {access_token}
+Idempotency-Key: {{$guid}}
+
+###
+
+# ----------------------------------------
+# Role Hierarchy Reference
+# ----------------------------------------
+# owner     - Full control, can transfer ownership
+# admin     - Manage members, networks, settings
+# moderator - Manage chat, kick members below their role
+# vip       - Access to restricted networks
+# member    - Basic access
+# ----------------------------------------
