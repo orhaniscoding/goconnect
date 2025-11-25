@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.8.2](https://github.com/orhaniscoding/goconnect/compare/v2.8.1...v2.8.2) (2025-11-25)
+
+
+### Bug Fixes
+
+* **release:** add windows/arm64 ignore to daemon build for archive consistency ([063f245](https://github.com/orhaniscoding/goconnect/commit/063f245286295020796e957ee91c882366edac54))
+
 ## [2.8.1](https://github.com/orhaniscoding/goconnect/compare/v2.8.0...v2.8.1) (2025-11-25)
 
 
