@@ -1,3 +1,5 @@
+import { getAccessToken } from './auth'
+
 // Base API client
 export async function api(path: string, init?: RequestInit): Promise<any> {
   const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080'
@@ -15,6 +17,12 @@ export async function api(path: string, init?: RequestInit): Promise<any> {
   }
 
   return res.json()
+}
+
+// Helper to get auth header
+function getAuthHeader(): { Authorization: string } | {} {
+  const token = getAccessToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
 // Authentication API client
@@ -1075,13 +1083,16 @@ export interface TenantMember {
   id: string
   tenant_id: string
   user_id: string
+  user_name?: string
   role: TenantRole
   nickname?: string
+  created_at: string
   joined_at: string
   updated_at: string
   user?: {
     id: string
     email: string
+    name?: string
     locale: string
   }
 }
@@ -1103,6 +1114,7 @@ export interface TenantAnnouncement {
   tenant_id: string
   title: string
   content: string
+  priority: 'low' | 'normal' | 'high' | 'urgent'
   author_id: string
   is_pinned: boolean
   created_at: string
@@ -1110,6 +1122,7 @@ export interface TenantAnnouncement {
   author?: {
     id: string
     email: string
+    name?: string
     locale: string
   }
 }
@@ -1119,11 +1132,14 @@ export interface TenantChatMessage {
   tenant_id: string
   user_id: string
   content: string
+  is_deleted?: boolean
+  is_edited?: boolean
   created_at: string
   edited_at?: string
   user?: {
     id: string
     email: string
+    name?: string
     locale: string
   }
 }
@@ -1437,3 +1453,260 @@ export async function deleteTenantChatMessage(
   })
 }
 
+// ==================== SIMPLIFIED API (AUTO TOKEN) ====================
+// These functions automatically get the access token from local storage
+
+export interface TenantWithMemberCount {
+  id: string
+  name: string
+  description?: string
+  visibility: 'public' | 'private'
+  access_type: 'open' | 'password' | 'invite_only'
+  member_count?: number
+  created_at: string
+  updated_at: string
+}
+
+/**
+ * Discover public tenants (auto token)
+ */
+export async function discoverTenants(options?: {
+  search?: string
+  visibility?: string
+  accessType?: string
+  limit?: number
+  offset?: number
+}): Promise<TenantWithMemberCount[]> {
+  const params = new URLSearchParams()
+  if (options?.search) params.set('search', options.search)
+  if (options?.visibility) params.set('visibility', options.visibility)
+  if (options?.accessType) params.set('access_type', options.accessType)
+  if (options?.limit) params.set('limit', String(options.limit))
+  if (options?.offset) params.set('offset', String(options.offset))
+  const query = params.toString() ? `?${params.toString()}` : ''
+  const res = await api(`/v1/tenants/discover${query}`, {
+    headers: getAuthHeader(),
+  })
+  return res.data || []
+}
+
+/**
+ * Get current user's tenants (auto token)
+ */
+export async function getMyTenants(): Promise<TenantWithMemberCount[]> {
+  const res = await api('/v1/users/me/tenants', {
+    headers: getAuthHeader(),
+  })
+  return res.data || []
+}
+
+/**
+ * Get tenant by ID (auto token)
+ */
+export async function getTenantByID(tenantId: string): Promise<TenantWithMemberCount> {
+  const res = await api(`/v1/tenants/${tenantId}`, {
+    headers: getAuthHeader(),
+  })
+  return res.data
+}
+
+/**
+ * Join a tenant (auto token)
+ */
+export async function joinTenant(tenantId: string, password?: string): Promise<void> {
+  await api(`/v1/tenants/${tenantId}/join`, {
+    method: 'POST',
+    headers: getAuthHeader(),
+    body: password ? JSON.stringify({ password }) : undefined,
+  })
+}
+
+/**
+ * Use invite code to join tenant (auto token)
+ */
+export async function useTenantInvite(code: string): Promise<void> {
+  await api('/v1/tenants/join-by-code', {
+    method: 'POST',
+    headers: getAuthHeader(),
+    body: JSON.stringify({ code }),
+  })
+}
+
+/**
+ * Leave a tenant (auto token)
+ */
+export async function leaveTenant(tenantId: string): Promise<void> {
+  await api(`/v1/tenants/${tenantId}/leave`, {
+    method: 'POST',
+    headers: getAuthHeader(),
+  })
+}
+
+/**
+ * Get tenant members (auto token)
+ */
+export async function getTenantMembers(tenantId: string): Promise<TenantMember[]> {
+  const res = await api(`/v1/tenants/${tenantId}/members`, {
+    headers: getAuthHeader(),
+  })
+  return res.data || []
+}
+
+/**
+ * Update member role (auto token)
+ */
+export async function updateMemberRole(tenantId: string, memberId: string, role: TenantRole): Promise<void> {
+  await api(`/v1/tenants/${tenantId}/members/${memberId}`, {
+    method: 'PATCH',
+    headers: getAuthHeader(),
+    body: JSON.stringify({ role }),
+  })
+}
+
+/**
+ * Remove tenant member (auto token)
+ */
+export async function removeTenantMember(tenantId: string, memberId: string): Promise<void> {
+  await api(`/v1/tenants/${tenantId}/members/${memberId}`, {
+    method: 'DELETE',
+    headers: getAuthHeader(),
+  })
+}
+
+/**
+ * Get tenant invites (auto token)
+ */
+export async function getTenantInvites(tenantId: string): Promise<TenantInvite[]> {
+  const res = await api(`/v1/tenants/${tenantId}/invites`, {
+    headers: getAuthHeader(),
+  })
+  return res.data || []
+}
+
+/**
+ * Create tenant invite (auto token)
+ */
+export async function createTenantInvite(tenantId: string, options?: {
+  expiresInHours?: number
+  maxUses?: number
+}): Promise<TenantInvite> {
+  const res = await api(`/v1/tenants/${tenantId}/invites`, {
+    method: 'POST',
+    headers: getAuthHeader(),
+    body: JSON.stringify({
+      expires_in: options?.expiresInHours ? options.expiresInHours * 3600 : undefined,
+      max_uses: options?.maxUses,
+    }),
+  })
+  return res.data
+}
+
+/**
+ * Revoke tenant invite (auto token)
+ */
+export async function revokeTenantInvite(tenantId: string, inviteId: string): Promise<void> {
+  await api(`/v1/tenants/${tenantId}/invites/${inviteId}`, {
+    method: 'DELETE',
+    headers: getAuthHeader(),
+  })
+}
+
+/**
+ * Get tenant announcements (auto token)
+ */
+export async function getTenantAnnouncements(tenantId: string): Promise<TenantAnnouncement[]> {
+  const res = await api(`/v1/tenants/${tenantId}/announcements`, {
+    headers: getAuthHeader(),
+  })
+  return res.data || []
+}
+
+/**
+ * Create tenant announcement (auto token)
+ */
+export async function createTenantAnnouncement(tenantId: string, data: {
+  title: string
+  content: string
+  priority?: 'low' | 'normal' | 'high' | 'urgent'
+}): Promise<TenantAnnouncement> {
+  const res = await api(`/v1/tenants/${tenantId}/announcements`, {
+    method: 'POST',
+    headers: getAuthHeader(),
+    body: JSON.stringify(data),
+  })
+  return res.data
+}
+
+/**
+ * Delete tenant announcement (auto token)
+ */
+export async function deleteTenantAnnouncement(tenantId: string, announcementId: string): Promise<void> {
+  await api(`/v1/tenants/${tenantId}/announcements/${announcementId}`, {
+    method: 'DELETE',
+    headers: getAuthHeader(),
+  })
+}
+
+/**
+ * Toggle announcement pin (auto token)
+ */
+export async function toggleTenantAnnouncementPin(tenantId: string, announcementId: string): Promise<void> {
+  await api(`/v1/tenants/${tenantId}/announcements/${announcementId}/pin`, {
+    method: 'POST',
+    headers: getAuthHeader(),
+  })
+}
+
+/**
+ * Get tenant chat messages (auto token)
+ */
+export async function getTenantChat(tenantId: string, options?: {
+  limit?: number
+  before?: string
+}): Promise<TenantChatMessage[]> {
+  const params = new URLSearchParams()
+  if (options?.limit) params.set('limit', String(options.limit))
+  if (options?.before) params.set('before', options.before)
+  const query = params.toString() ? `?${params.toString()}` : ''
+  const res = await api(`/v1/tenants/${tenantId}/chat/messages${query}`, {
+    headers: getAuthHeader(),
+  })
+  return res.data || []
+}
+
+/**
+ * Send tenant chat message (auto token)
+ */
+export async function sendTenantChatMessage(tenantId: string, data: {
+  content: string
+}): Promise<TenantChatMessage> {
+  const res = await api(`/v1/tenants/${tenantId}/chat/messages`, {
+    method: 'POST',
+    headers: getAuthHeader(),
+    body: JSON.stringify(data),
+  })
+  return res.data
+}
+
+/**
+ * Edit tenant chat message (auto token)
+ */
+export async function editTenantChatMessage(tenantId: string, messageId: string, data: {
+  content: string
+}): Promise<void> {
+  await api(`/v1/tenants/${tenantId}/chat/messages/${messageId}`, {
+    method: 'PATCH',
+    headers: getAuthHeader(),
+    body: JSON.stringify(data),
+  })
+}
+
+/**
+ * Delete tenant chat message (soft delete) (auto token)
+ */
+export async function deleteTenantChatMessageSimple(tenantId: string, messageId: string): Promise<void> {
+  await api(`/v1/tenants/${tenantId}/chat/messages/${messageId}`, {
+    method: 'DELETE',
+    headers: getAuthHeader(),
+  })
+}
