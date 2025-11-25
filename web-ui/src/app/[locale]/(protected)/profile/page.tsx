@@ -258,7 +258,7 @@ export default function ProfilePage() {
                   color: user.is_admin ? '#0f5132' : user.is_moderator ? '#084298' : '#212529',
                   fontWeight: 500
                 }}>
-                  {user.is_admin ? `👑 ${t('role.administrator')}` : user.is_moderator ? `🛡️ ${t('role.moderator')}` : `👤 ${t('role.user')}`}
+                  {user.is_admin ? `👑 ${t('role.admin')}` : user.is_moderator ? `🛡️ ${t('role.moderator')}` : `👤 ${t('role.user')}`}
                 </div>
               </div>
 

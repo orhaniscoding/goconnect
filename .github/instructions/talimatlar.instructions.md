@@ -34,7 +34,6 @@ report:   (Adding analysis reports)
 
 The AI must always follow the rules defined in the following files:
 
-* `copilot.copilot-instructions.md`
 * `DEV_WORKFLOW.md`
 * `docs/RELEASE_PROCESS.md` (Strictly follow the CI/CD release steps defined here)
 * `CHANGELOG.md`
