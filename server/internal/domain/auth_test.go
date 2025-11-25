@@ -9,16 +9,16 @@ import (
 func TestUser_Sanitize(t *testing.T) {
 	now := time.Now()
 	user := &User{
-		ID:          "user-123",
-		TenantID:    "tenant-456",
-		Email:       "user@example.com",
-		PasswordHash:    "sensitive-password-hash-should-be-removed",
-		Locale:      "en",
-		IsAdmin:     true,
-		IsModerator: false,
-		TwoFAKey:    "sensitive-2fa-key-should-be-removed",
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ID:           "user-123",
+		TenantID:     "tenant-456",
+		Email:        "user@example.com",
+		PasswordHash: "sensitive-password-hash-should-be-removed",
+		Locale:       "en",
+		IsAdmin:      true,
+		IsModerator:  false,
+		TwoFAKey:     "sensitive-2fa-key-should-be-removed",
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 
 	sanitized := user.Sanitize()
@@ -61,8 +61,8 @@ func TestUser_Sanitize(t *testing.T) {
 // Test User.Sanitize returns a new instance
 func TestUser_Sanitize_ReturnsNewInstance(t *testing.T) {
 	original := &User{
-		ID:       "user-123",
-		Email:    "user@example.com",
+		ID:           "user-123",
+		Email:        "user@example.com",
 		PasswordHash: "secret-hash",
 	}
 
@@ -94,11 +94,11 @@ func TestUser_Sanitize_VariousUserTypes(t *testing.T) {
 		{
 			name: "Admin user",
 			user: &User{
-				ID:          "admin-1",
-				Email:       "admin@example.com",
-				PasswordHash:    "admin-hash",
-				IsAdmin:     true,
-				IsModerator: false,
+				ID:           "admin-1",
+				Email:        "admin@example.com",
+				PasswordHash: "admin-hash",
+				IsAdmin:      true,
+				IsModerator:  false,
 			},
 			checkFields: func(t *testing.T, sanitized *User) {
 				if !sanitized.IsAdmin {
@@ -115,12 +115,12 @@ func TestUser_Sanitize_VariousUserTypes(t *testing.T) {
 		{
 			name: "Moderator user",
 			user: &User{
-				ID:          "mod-1",
-				Email:       "mod@example.com",
-				PasswordHash:    "mod-hash",
-				TwoFAKey:    "mod-2fa",
-				IsAdmin:     false,
-				IsModerator: true,
+				ID:           "mod-1",
+				Email:        "mod@example.com",
+				PasswordHash: "mod-hash",
+				TwoFAKey:     "mod-2fa",
+				IsAdmin:      false,
+				IsModerator:  true,
 			},
 			checkFields: func(t *testing.T, sanitized *User) {
 				if sanitized.IsAdmin {
@@ -140,11 +140,11 @@ func TestUser_Sanitize_VariousUserTypes(t *testing.T) {
 		{
 			name: "Regular user",
 			user: &User{
-				ID:          "user-1",
-				Email:       "user@example.com",
-				PasswordHash:    "user-hash",
-				IsAdmin:     false,
-				IsModerator: false,
+				ID:           "user-1",
+				Email:        "user@example.com",
+				PasswordHash: "user-hash",
+				IsAdmin:      false,
+				IsModerator:  false,
 			},
 			checkFields: func(t *testing.T, sanitized *User) {
 				if sanitized.IsAdmin {
@@ -161,10 +161,10 @@ func TestUser_Sanitize_VariousUserTypes(t *testing.T) {
 		{
 			name: "User with Turkish locale",
 			user: &User{
-				ID:       "user-tr",
-				Email:    "user@example.com",
+				ID:           "user-tr",
+				Email:        "user@example.com",
 				PasswordHash: "hash",
-				Locale:   "tr",
+				Locale:       "tr",
 			},
 			checkFields: func(t *testing.T, sanitized *User) {
 				if sanitized.Locale != "tr" {
@@ -196,10 +196,10 @@ func TestUser_Sanitize_VariousUserTypes(t *testing.T) {
 // Test that sanitized user is safe for JSON marshaling
 func TestUser_Sanitize_SafeForJSON(t *testing.T) {
 	user := &User{
-		ID:       "user-123",
-		Email:    "user@example.com",
+		ID:           "user-123",
+		Email:        "user@example.com",
 		PasswordHash: "this-should-never-appear-in-json",
-		TwoFAKey: "this-should-never-appear-either",
+		TwoFAKey:     "this-should-never-appear-either",
 	}
 
 	sanitized := user.Sanitize()

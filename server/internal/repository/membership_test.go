@@ -175,7 +175,7 @@ func TestMembershipRepository_List_FilterByStatus(t *testing.T) {
 	assert.Contains(t, userIDs, "user-3")
 
 	// List only banned
-	members, next, err = repo.List(ctx, "network-1", "banned", 10, "")
+	members, _, err = repo.List(ctx, "network-1", "banned", 10, "")
 
 	require.NoError(t, err)
 	assert.Len(t, members, 1)

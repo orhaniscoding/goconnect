@@ -42,7 +42,7 @@ export function useT() {
                 break
             }
         }
-        
+
         // If value is not a string, use fallback or key
         if (typeof value !== 'string') {
             if (typeof varsOrFallback === 'string') {
@@ -50,19 +50,19 @@ export function useT() {
             }
             return key
         }
-        
+
         // If varsOrFallback is string, it's a fallback (no interpolation needed)
         if (typeof varsOrFallback === 'string') {
             return value || varsOrFallback
         }
-        
+
         // Interpolate variables: {varName} -> value
         if (varsOrFallback && typeof varsOrFallback === 'object') {
             return value.replace(/\{(\w+)\}/g, (_, varName) => {
                 return String(varsOrFallback[varName] ?? `{${varName}}`)
             })
         }
-        
+
         return value
     }
 }

@@ -63,8 +63,3 @@ func TestRateLimit_Join429(t *testing.T) {
 		t.Fatalf("expected code %s, got %s", domain.ErrRateLimited, errResp.Code)
 	}
 }
-
-
-
-
-
