@@ -77,7 +77,10 @@ goconnect/
 ├── client-daemon/              # Go VPN client daemon
 │   ├── cmd/daemon/main.go      # Entry point
 │   ├── internal/               # Daemon logic
-│   └── service/                # OS service files (systemd, launchd, Windows)
+│   └── service/                # OS service files
+│       ├── windows/install.ps1           # Windows Service installer
+│       ├── linux/goconnect-daemon.service # systemd unit file
+│       └── macos/com.goconnect.daemon.plist # launchd plist
 ├── web-ui/                     # Next.js 14 frontend
 │   ├── src/
 │   │   ├── app/                # App Router pages
@@ -285,6 +288,83 @@ COPY --from=builder /app/.next/static ./.next/static
 ### `web-ui/public/` - MUST exist:
 Keep `.gitkeep` file to ensure folder exists in git.
 
+### `server/docker-compose.yaml` - Production Deployment:
+```yaml
+services:
+  server:
+    restart: always    # Auto-restart on crash/reboot
+  db:
+    restart: always
+    volumes: [postgres_data:/var/lib/postgresql/data]  # Persistent!
+  redis:
+    restart: always
+    volumes: [redis_data:/data]  # Persistent!
+```
+
+---
+
+# 9.5) 🔧 SERVICE/DAEMON CONFIGURATION (ALL PLATFORMS)
+
+## Overview - Auto-Start & Recovery:
+
+| Platform | Method | Config File | Auto-Start | Crash Recovery |
+|----------|--------|-------------|------------|----------------|
+| **Windows** | Windows Service | `client-daemon/service/windows/install.ps1` | ✅ `StartupType Automatic` | ✅ 3x retry in 60s |
+| **Linux** | systemd | `client-daemon/service/linux/goconnect-daemon.service` | ✅ `WantedBy=multi-user.target` | ✅ `Restart=always` |
+| **macOS** | launchd | `client-daemon/service/macos/com.goconnect.daemon.plist` | ✅ `RunAtLoad=true` | ✅ `KeepAlive` |
+| **Server (Docker)** | Docker Compose | `server/docker-compose.yaml` | ✅ `restart: always` | ✅ `restart: always` |
+
+## Windows Service (`install.ps1`):
+```powershell
+# Key settings:
+New-Service -Name "GoConnectDaemon" -StartupType Automatic
+sc.exe failure GoConnectDaemon reset= 86400 actions= restart/60000/restart/60000/restart/60000
+```
+- Runs as LocalSystem
+- Auto-restarts 3 times on failure (60s intervals)
+- Resets failure count after 24h
+
+## Linux systemd (`goconnect-daemon.service`):
+```ini
+[Service]
+Restart=always
+RestartSec=5
+StartLimitInterval=0   # Unlimited restarts
+
+[Install]
+WantedBy=multi-user.target  # Start at boot
+```
+- Commands: `systemctl enable/start/stop goconnect-daemon`
+
+## macOS launchd (`com.goconnect.daemon.plist`):
+```xml
+<key>RunAtLoad</key><true/>           <!-- Start at boot -->
+<key>KeepAlive</key>
+<dict>
+    <key>SuccessfulExit</key><false/>  <!-- Restart if exits normally -->
+    <key>Crashed</key><true/>          <!-- Restart if crashes -->
+</dict>
+<key>ThrottleInterval</key><integer>5</integer>  <!-- Min 5s between restarts -->
+```
+- Log files: `/var/log/goconnect-daemon.log`, `/var/log/goconnect-daemon.err`
+- Runs as root (required for VPN operations)
+- Commands: `launchctl load/unload /Library/LaunchDaemons/com.goconnect.daemon.plist`
+
+## When Modifying Service Files:
+
+| Change | Files to Update |
+|--------|-----------------|
+| Daemon binary path | All 3 service files + `goreleaser.yml` |
+| Restart policy | Respective platform service file |
+| Logging config | macOS plist (StandardOutPath), Linux service (journald) |
+| Service name | All 3 service files + `docs/INSTALLATION.md` |
+
+## CRITICAL Rules:
+1. **ALL platforms must have equivalent functionality** - same auto-start, same crash recovery
+2. **Test on all platforms** before release
+3. **Update `docs/INSTALLATION.md`** when service install steps change
+4. **Update `goreleaser.yml` release notes** to reflect service commands
+
 ---
 
 # 10) 🧪 LINTING CONFIGURATION
@@ -451,6 +531,11 @@ Every AI response MUST:
 | Fix linting rules | `server/.golangci.yml` |
 | Update CI | `.github/workflows/*.yml` |
 | Add documentation | `docs/*.md` |
+| Modify Windows service | `client-daemon/service/windows/install.ps1` |
+| Modify Linux service | `client-daemon/service/linux/goconnect-daemon.service` |
+| Modify macOS service | `client-daemon/service/macos/com.goconnect.daemon.plist` |
+| Change Docker deployment | `server/docker-compose.yaml` |
+| Add daemon functionality | `client-daemon/cmd/daemon/main.go` |
 
 ---
 
