@@ -117,7 +117,8 @@ export default function AdminPage() {
     )
   }
 
-  function formatDate(dateString: string) {
+  function formatDate(dateString: string | undefined) {
+    if (!dateString) return '-'
     return new Date(dateString).toLocaleDateString()
   }
 
