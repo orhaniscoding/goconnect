@@ -31,15 +31,17 @@ func TestAgeRetentionPrunesOldEvents(t *testing.T) {
 }
 
 func TestAgeRetentionTamperDetected(t *testing.T) {
-	aud, err := NewSqliteAuditor(":memory:", WithMaxAge(30*time.Millisecond))
+	aud, err := NewSqliteAuditor(":memory:", WithMaxAge(50*time.Millisecond))
 	if err != nil {
 		t.Fatalf("new auditor: %v", err)
 	}
 	ctx := context.Background()
 	aud.Event(ctx, "t1", "A1", "actor", "obj", nil)
-	time.Sleep(40 * time.Millisecond)
-	aud.Event(ctx, "t1", "A2", "actor", "obj", nil) // A1 should be pruned on next insert
-	aud.Event(ctx, "t1", "A3", "actor", "obj", nil) // triggers pruning of A1
+	time.Sleep(60 * time.Millisecond)
+	// Insert multiple events so we have at least 3 after pruning
+	aud.Event(ctx, "t1", "A2", "actor", "obj", nil)
+	aud.Event(ctx, "t1", "A3", "actor", "obj", nil)
+	aud.Event(ctx, "t1", "A4", "actor", "obj", nil) // triggers pruning of A1
 	// Tamper last event hash
 	_, err = aud.db.ExecContext(ctx, `UPDATE audit_events SET chain_hash='deadbeef' WHERE seq=(SELECT MAX(seq) FROM audit_events)`)
 	if err != nil {
