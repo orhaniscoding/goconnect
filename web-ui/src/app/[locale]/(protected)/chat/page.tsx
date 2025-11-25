@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { getAccessToken, getUser } from '../../../../lib/auth'
+import { useT } from '../../../../lib/i18n-context'
 import { listNetworks, Network, listChatMessages, ChatMessage, uploadFile } from '../../../../lib/api'
 import AuthGuard from '../../../../components/AuthGuard'
 import Footer from '../../../../components/Footer'
@@ -18,6 +19,7 @@ interface WebSocketMessage {
 
 export default function ChatPage() {
     const router = useRouter()
+    const t = useT()
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [messageText, setMessageText] = useState('')
     const [ws, setWs] = useState<WebSocket | null>(null)
@@ -70,6 +72,7 @@ export default function ChatPage() {
             setNetworks(response.data)
         } catch (err) {
             console.error('Failed to load networks:', err)
+            setError(t('chat.error.loadNetworks'))
         } finally {
             setLoadingNetworks(false)
         }
@@ -110,6 +113,7 @@ export default function ChatPage() {
             setMessages(response.messages.reverse())
         } catch (err) {
             console.error('Failed to load messages:', err)
+            setError(t('chat.error.loadMessages'))
         }
     }
 
@@ -153,7 +157,7 @@ export default function ChatPage() {
 
             websocket.onerror = (event) => {
                 console.error('WebSocket error:', event)
-                setError('WebSocket connection error')
+                setError(t('chat.error.wsConnection'))
                 setConnected(false)
             }
 
@@ -168,7 +172,7 @@ export default function ChatPage() {
 
             setWs(websocket)
         } catch (err) {
-            setError('Failed to connect to WebSocket')
+            setError(t('chat.error.wsConnect'))
             console.error(err)
         }
     }
@@ -210,7 +214,7 @@ export default function ChatPage() {
                     setMessages((prev) =>
                         prev.map((m) =>
                             m.id === msg.data.message_id
-                                ? { ...m, body: '[REDACTED]', redacted: true }
+                                ? { ...m, body: t('chat.message.redacted'), redacted: true }
                                 : m
                         )
                     )
@@ -240,7 +244,7 @@ export default function ChatPage() {
             case 'error':
                 // Error received
                 console.error('WebSocket error:', msg.error)
-                setError(msg.error?.message || 'Unknown error')
+                setError(msg.error?.message || t('chat.status.unknown'))
                 break
 
             default:
@@ -256,7 +260,7 @@ export default function ChatPage() {
         }
 
         if (!ws || ws.readyState !== WebSocket.OPEN) {
-            setError('Not connected to WebSocket')
+            setError(t('chat.error.notConnected'))
             return
         }
 
@@ -277,7 +281,7 @@ export default function ChatPage() {
             setAttachments([])
             setError(null)
         } catch (err) {
-            setError('Failed to send message')
+            setError(t('chat.error.send'))
             console.error(err)
         }
     }
@@ -291,13 +295,13 @@ export default function ChatPage() {
 
         try {
             const token = getAccessToken()
-            if (!token) throw new Error('Not authenticated')
+            if (!token) throw new Error(t('chat.error.notAuthenticated'))
 
             const result = await uploadFile(file, token)
             setAttachments(prev => [...prev, result.url])
         } catch (err: any) {
             console.error('Upload failed:', err)
-            setError(err.message || 'Upload failed')
+            setError(err.message || t('chat.error.upload'))
         } finally {
             setUploading(false)
             // Reset input
@@ -317,9 +321,9 @@ export default function ChatPage() {
         const diffMs = now.getTime() - date.getTime()
         const diffMins = Math.floor(diffMs / 60000)
 
-        if (diffMins < 1) return 'Just now'
-        if (diffMins < 60) return `${diffMins}m ago`
-        if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`
+        if (diffMins < 1) return t('chat.time.justNow')
+        if (diffMins < 60) return `${diffMins}${t('chat.time.ago.m')}`
+        if (diffMins < 1440) return `${Math.floor(diffMins / 60)}${t('chat.time.ago.h')}`
         return date.toLocaleDateString()
     }
 
@@ -364,18 +368,18 @@ export default function ChatPage() {
             setEditText('')
             setError(null)
         } catch (err) {
-            setError('Failed to edit message')
+            setError(t('chat.error.edit'))
             console.error(err)
         }
     }
 
     const handleDeleteMessage = (messageId: string) => {
         if (!ws || ws.readyState !== WebSocket.OPEN) {
-            setError('Not connected to WebSocket')
+            setError(t('chat.error.notConnected'))
             return
         }
 
-        if (!confirm('Delete this message?')) {
+        if (!confirm(t('chat.confirm.delete'))) {
             return
         }
 
@@ -392,18 +396,18 @@ export default function ChatPage() {
             ws.send(JSON.stringify(message))
             setError(null)
         } catch (err) {
-            setError('Failed to delete message')
+            setError(t('chat.error.delete'))
             console.error(err)
         }
     }
 
     const handleRedactMessage = (messageId: string) => {
         if (!ws || ws.readyState !== WebSocket.OPEN) {
-            setError('Not connected to WebSocket')
+            setError(t('chat.error.notConnected'))
             return
         }
 
-        if (!confirm('Redact this message? This action cannot be undone.')) {
+        if (!confirm(t('chat.confirm.redact'))) {
             return
         }
 
@@ -412,7 +416,7 @@ export default function ChatPage() {
             op_id: `redact-${Date.now()}`,
             data: {
                 message_id: messageId,
-                mask: '[REDACTED BY MODERATOR]'
+                mask: t('chat.message.redactedByMod')
             }
         }
 
@@ -420,7 +424,7 @@ export default function ChatPage() {
             ws.send(JSON.stringify(message))
             setError(null)
         } catch (err) {
-            setError('Failed to redact message')
+            setError(t('chat.error.redact'))
             console.error(err)
         }
     }
@@ -456,11 +460,11 @@ export default function ChatPage() {
                                 fontSize: 14
                             }}
                         >
-                            ← Back
+                            ← {t('chat.header.back')}
                         </button>
                         <span style={{ fontSize: 20, fontWeight: 600 }}>
-                            💬 {scope === 'host' ? 'Global Chat' :
-                                networks.find(n => `network:${n.id}` === scope)?.name || 'Network Chat'}
+                            💬 {scope === 'host' ? t('chat.header.global') :
+                                networks.find(n => `network:${n.id}` === scope)?.name || t('chat.header.network')}
                         </span>
                         <select
                             value={scope}
@@ -476,7 +480,7 @@ export default function ChatPage() {
                                 minWidth: 200
                             }}
                         >
-                            <option value="host">🌐 Global Chat</option>
+                            <option value="host">🌐 {t('chat.header.global')}</option>
                             {networks.map((network) => (
                                 <option key={network.id} value={`network:${network.id}`}>
                                     🔒 {network.name}
@@ -493,7 +497,7 @@ export default function ChatPage() {
                             fontSize: 13,
                             fontWeight: 500
                         }}>
-                            {connected ? '● Connected' : '○ Disconnected'}
+                            {connected ? `● ${t('chat.header.status.connected')}` : `○ ${t('chat.header.status.disconnected')}`}
                         </div>
                     </div>
                 </div>
@@ -530,8 +534,8 @@ export default function ChatPage() {
                                     color: '#6c757d'
                                 }}>
                                     <div style={{ fontSize: 48, marginBottom: 16 }}>💬</div>
-                                    <div style={{ fontSize: 16 }}>No messages yet</div>
-                                    <div style={{ fontSize: 14, marginTop: 8 }}>Be the first to say hi!</div>
+                                    <div style={{ fontSize: 16 }}>{t('chat.empty.title')}</div>
+                                    <div style={{ fontSize: 14, marginTop: 8 }}>{t('chat.empty.subtitle')}</div>
                                 </div>
                             )}
 
@@ -557,7 +561,7 @@ export default function ChatPage() {
                                             paddingLeft: 8,
                                             paddingRight: 8
                                         }}>
-                                            {isOwnMessage ? 'You' : `User ${msg.user_id.substring(0, 8)}`} · {formatTime(msg.created_at)}
+                                            {isOwnMessage ? t('chat.user.you') : `${t('chat.user.other')} ${msg.user_id.substring(0, 8)}`} · {formatTime(msg.created_at)}
                                         </div>
                                         <div style={{
                                             padding: '12px 16px',
@@ -593,7 +597,7 @@ export default function ChatPage() {
                                                             gap: 4
                                                         }}
                                                     >
-                                                        📎 Attachment {i + 1}
+                                                        📎 {t('chat.attachment')} {i + 1}
                                                     </a>
                                                 ))}
                                             </div>
@@ -607,7 +611,7 @@ export default function ChatPage() {
                                                 paddingRight: 8,
                                                 fontStyle: 'italic'
                                             }}>
-                                                (edited)
+                                                {t('chat.edited')}
                                             </div>
                                         )}
                                         {isOwnMessage && !msg.deleted_at && !msg.redacted && (
@@ -638,7 +642,7 @@ export default function ChatPage() {
                                                             e.currentTarget.style.backgroundColor = '#e9ecef'
                                                         }}
                                                     >
-                                                        ✏️ Edit
+                                                        ✏️ {t('chat.action.edit')}
                                                     </button>
                                                 )}
                                                 <button
@@ -660,7 +664,7 @@ export default function ChatPage() {
                                                         e.currentTarget.style.backgroundColor = '#f8d7da'
                                                     }}
                                                 >
-                                                    🗑️ Delete
+                                                    🗑️ {t('chat.action.delete')}
                                                 </button>
                                             </div>
                                         )}
@@ -691,7 +695,7 @@ export default function ChatPage() {
                                                         e.currentTarget.style.backgroundColor = '#fff3cd'
                                                     }}
                                                 >
-                                                    🚫 Redact (Moderator)
+                                                    🚫 {t('chat.action.redact')}
                                                 </button>
                                             </div>
                                         )}
@@ -719,7 +723,7 @@ export default function ChatPage() {
                                             alignItems: 'center',
                                             gap: 6
                                         }}>
-                                            <span>📎 Attachment {i + 1}</span>
+                                            <span>📎 {t('chat.attachment')} {i + 1}</span>
                                             <button
                                                 onClick={() => removeAttachment(i)}
                                                 style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, color: '#dc3545' }}
@@ -749,7 +753,7 @@ export default function ChatPage() {
                                         cursor: connected && !uploading ? 'pointer' : 'not-allowed',
                                         fontSize: 20
                                     }}
-                                    title="Attach file"
+                                    title={t('chat.input.attach')}
                                 >
                                     {uploading ? '⏳' : '📎'}
                                 </button>
@@ -757,7 +761,7 @@ export default function ChatPage() {
                                     type="text"
                                     value={messageText}
                                     onChange={(e) => setMessageText(e.target.value)}
-                                    placeholder="Type a message..."
+                                    placeholder={t('chat.input.placeholder')}
                                     disabled={!connected}
                                     style={{
                                         flex: 1,
@@ -790,7 +794,7 @@ export default function ChatPage() {
                                         transition: 'background-color 0.2s'
                                     }}
                                 >
-                                    Send
+                                    {t('chat.input.send')}
                                 </button>
                             </form>
                         </div>
@@ -811,7 +815,7 @@ export default function ChatPage() {
                             fontSize: 14,
                             color: '#495057'
                         }}>
-                            Online Users ({onlineUsers.size})
+                            {t('chat.sidebar.online')} ({onlineUsers.size})
                         </div>
                         <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
                             {Array.from(onlineUsers).map(userId => (
@@ -833,13 +837,13 @@ export default function ChatPage() {
                                         overflow: 'hidden',
                                         textOverflow: 'ellipsis'
                                     }}>
-                                        {userId === currentUserId ? 'You' : `User ${userId.substring(0, 8)}`}
+                                        {userId === currentUserId ? t('chat.user.you') : `${t('chat.user.other')} ${userId.substring(0, 8)}`}
                                     </span>
                                 </div>
                             ))}
                             {onlineUsers.size === 0 && (
                                 <div style={{ padding: 16, color: '#6c757d', fontSize: 13, textAlign: 'center' }}>
-                                    No one else is online
+                                    {t('chat.sidebar.empty')}
                                 </div>
                             )}
                         </div>
@@ -874,7 +878,7 @@ export default function ChatPage() {
                                 fontWeight: 600,
                                 color: '#212529'
                             }}>
-                                Edit Message
+                                {t('chat.modal.edit.title')}
                             </h3>
                             <textarea
                                 value={editText}
@@ -911,7 +915,7 @@ export default function ChatPage() {
                                         cursor: 'pointer'
                                     }}
                                 >
-                                    Cancel
+                                    {t('chat.modal.edit.cancel')}
                                 </button>
                                 <button
                                     onClick={handleSaveEdit}
@@ -927,7 +931,7 @@ export default function ChatPage() {
                                         cursor: editText.trim() ? 'pointer' : 'not-allowed'
                                     }}
                                 >
-                                    Save
+                                    {t('chat.modal.edit.save')}
                                 </button>
                             </div>
                         </div>

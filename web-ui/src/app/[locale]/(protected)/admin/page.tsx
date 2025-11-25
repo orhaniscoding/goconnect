@@ -2,6 +2,7 @@
 import { useEffect, useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { getUser, getAccessToken } from '../../../../lib/auth'
+import { useT } from '../../../../lib/i18n-context'
 import {
   getSystemStats,
   listUsers,
@@ -25,6 +26,7 @@ import Footer from '../../../../components/Footer'
 
 export default function AdminPage() {
   const router = useRouter()
+  const t = useT()
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [activeTab, setActiveTab] = useState<'stats' | 'users' | 'tenants' | 'networks' | 'devices' | 'audit'>('stats')
 
@@ -89,7 +91,7 @@ export default function AdminPage() {
       setDevicesNextCursor(devicesRes.next_cursor || '')
     } catch (err: any) {
       console.error('Failed to load admin data:', err)
-      setError(err.message || 'Failed to load data')
+      setError(err.message || t('admin.error.loadData'))
     } finally {
       setLoading(false)
     }
@@ -108,8 +110,8 @@ export default function AdminPage() {
     return (
       <AuthGuard>
         <div style={{ padding: 24, textAlign: 'center' }}>
-          <h2>Access Denied</h2>
-          <p>You need administrator privileges to access this page.</p>
+          <h2>{t('admin.accessDenied')}</h2>
+          <p>{t('admin.accessDeniedMsg')}</p>
         </div>
       </AuthGuard>
     )
@@ -131,12 +133,12 @@ export default function AdminPage() {
       setUsers(usersRes.data)
     } catch (err: any) {
       console.error('Failed to toggle admin status:', err)
-      alert('Failed to update user: ' + (err.message || 'Unknown error'))
+      alert(t('admin.error.toggleAdmin') + ': ' + (err.message || 'Unknown error'))
     }
   }
 
   const handleDeleteTenant = async (tenantId: string) => {
-    if (!confirm('Are you sure you want to delete this tenant? This action cannot be undone.')) {
+    if (!confirm(t('admin.confirm.deleteTenant'))) {
       return
     }
 
@@ -151,12 +153,12 @@ export default function AdminPage() {
       setTenants(tenantsRes.data)
     } catch (err: any) {
       console.error('Failed to delete tenant:', err)
-      alert('Failed to delete tenant: ' + (err.message || 'Unknown error'))
+      alert(t('admin.error.deleteTenant') + ': ' + (err.message || 'Unknown error'))
     }
   }
 
   const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+    if (!confirm(t('admin.confirm.deleteUser'))) {
       return
     }
 
@@ -171,12 +173,12 @@ export default function AdminPage() {
       setUsers(usersRes.data)
     } catch (err: any) {
       console.error('Failed to delete user:', err)
-      alert('Failed to delete user: ' + (err.message || 'Unknown error'))
+      alert(t('admin.error.deleteUser') + ': ' + (err.message || 'Unknown error'))
     }
   }
 
   const handleDeleteDevice = async (deviceId: string) => {
-    if (!confirm('Are you sure you want to delete this device? This action cannot be undone.')) {
+    if (!confirm(t('admin.confirm.deleteDevice'))) {
       return
     }
 
@@ -191,7 +193,7 @@ export default function AdminPage() {
       setDevices(devicesRes.devices)
     } catch (err: any) {
       console.error('Failed to delete device:', err)
-      alert('Failed to delete device: ' + (err.message || 'Unknown error'))
+      alert(t('admin.error.deleteDevice') + ': ' + (err.message || 'Unknown error'))
     }
   }
 
@@ -371,10 +373,10 @@ export default function AdminPage() {
                 fontWeight: 500
               }}
             >
-              ← Back
+              ← {t('admin.back')}
             </button>
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>
-              👑 Admin Panel
+              👑 {t('admin.title')}
             </h1>
           </div>
           <div style={{
@@ -385,7 +387,7 @@ export default function AdminPage() {
             fontSize: 13,
             fontWeight: 600
           }}>
-            ADMIN ACCESS
+            {t('admin.badge')}
           </div>
         </div>
 
@@ -409,7 +411,7 @@ export default function AdminPage() {
                 fontWeight: 500
               }}
             >
-              📊 Statistics
+              📊 {t('admin.tabs.stats')}
             </button>
             <button
               onClick={() => setActiveTab('users')}
@@ -424,7 +426,7 @@ export default function AdminPage() {
                 fontWeight: 500
               }}
             >
-              👥 Users
+              👥 {t('admin.tabs.users')}
             </button>
             <button
               onClick={() => setActiveTab('tenants')}
@@ -439,7 +441,7 @@ export default function AdminPage() {
                 fontWeight: 500
               }}
             >
-              🏢 Tenants
+              🏢 {t('admin.tabs.tenants')}
             </button>
             <button
               onClick={() => setActiveTab('networks')}
@@ -454,7 +456,7 @@ export default function AdminPage() {
                 fontWeight: 500
               }}
             >
-              🌐 Networks
+              🌐 {t('admin.tabs.networks')}
             </button>
             <button
               onClick={() => setActiveTab('devices')}
@@ -469,7 +471,7 @@ export default function AdminPage() {
                 fontWeight: 500
               }}
             >
-              💻 Devices
+              💻 {t('admin.tabs.devices')}
             </button>
             <button
               onClick={() => setActiveTab('audit')}
@@ -484,7 +486,7 @@ export default function AdminPage() {
                 fontWeight: 500
               }}
             >
-              📜 Audit Logs
+              📜 {t('admin.tabs.audit')}
             </button>
           </div>
         </div>
@@ -494,7 +496,7 @@ export default function AdminPage() {
 
           {loading && (
             <div style={{ textAlign: 'center', padding: 40 }}>
-              <div style={{ fontSize: 24 }}>⏳ Loading...</div>
+              <div style={{ fontSize: 24 }}>⏳ {t('admin.loading')}</div>
             </div>
           )}
 
@@ -527,7 +529,7 @@ export default function AdminPage() {
                   borderLeft: '4px solid #007bff'
                 }}>
                   <div style={{ fontSize: 14, color: '#6c757d', marginBottom: 8 }}>
-                    Total Users
+                    {t('admin.stats.users')}
                   </div>
                   <div style={{ fontSize: 32, fontWeight: 600, color: '#007bff' }}>
                     {stats.total_users}
@@ -542,7 +544,7 @@ export default function AdminPage() {
                   borderLeft: '4px solid #28a745'
                 }}>
                   <div style={{ fontSize: 14, color: '#6c757d', marginBottom: 8 }}>
-                    Total Tenants
+                    {t('admin.stats.tenants')}
                   </div>
                   <div style={{ fontSize: 32, fontWeight: 600, color: '#28a745' }}>
                     {stats.total_tenants}
@@ -557,7 +559,7 @@ export default function AdminPage() {
                   borderLeft: '4px solid #ffc107'
                 }}>
                   <div style={{ fontSize: 14, color: '#6c757d', marginBottom: 8 }}>
-                    Total Networks
+                    {t('admin.stats.networks')}
                   </div>
                   <div style={{ fontSize: 32, fontWeight: 600, color: '#ffc107' }}>
                     {stats.total_networks}
@@ -572,7 +574,7 @@ export default function AdminPage() {
                   borderLeft: '4px solid #17a2b8'
                 }}>
                   <div style={{ fontSize: 14, color: '#6c757d', marginBottom: 8 }}>
-                    Total Devices
+                    {t('admin.stats.devices')}
                   </div>
                   <div style={{ fontSize: 32, fontWeight: 600, color: '#17a2b8' }}>
                     {stats.total_devices}
@@ -587,7 +589,7 @@ export default function AdminPage() {
                   borderLeft: '4px solid #6f42c1'
                 }}>
                   <div style={{ fontSize: 14, color: '#6c757d', marginBottom: 8 }}>
-                    Active Connections
+                    {t('admin.stats.connections')}
                   </div>
                   <div style={{ fontSize: 32, fontWeight: 600, color: '#6f42c1' }}>
                     {stats.active_connections}
@@ -602,7 +604,7 @@ export default function AdminPage() {
                   borderLeft: '4px solid #dc3545'
                 }}>
                   <div style={{ fontSize: 14, color: '#6c757d', marginBottom: 8 }}>
-                    Messages Today
+                    {t('admin.stats.messages')}
                   </div>
                   <div style={{ fontSize: 32, fontWeight: 600, color: '#dc3545' }}>
                     {stats.messages_today}
@@ -622,7 +624,7 @@ export default function AdminPage() {
                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
               }}>
                 <h2 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 600 }}>
-                  User Management
+                  {t('admin.users.title')}
                 </h2>
 
                 <form onSubmit={handleUserSearch} style={{ marginBottom: 16, display: 'flex', gap: 8 }}>
@@ -630,7 +632,7 @@ export default function AdminPage() {
                     type="text"
                     value={userSearchQuery}
                     onChange={(e) => setUserSearchQuery(e.target.value)}
-                    placeholder="Search users by email..."
+                    placeholder={t('admin.users.searchPlaceholder')}
                     style={{
                       flex: 1,
                       padding: '8px 12px',
@@ -653,7 +655,7 @@ export default function AdminPage() {
                       fontWeight: 500
                     }}
                   >
-                    🔍 Search
+                    🔍 {t('admin.users.search')}
                   </button>
                 </form>
 
@@ -662,22 +664,22 @@ export default function AdminPage() {
                     <thead>
                       <tr style={{ borderBottom: '2px solid #dee2e6' }}>
                         <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>
-                          Email
+                          {t('admin.users.table.email')}
                         </th>
                         <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>
-                          Role
+                          {t('admin.users.table.role')}
                         </th>
                         <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>
-                          Provider
+                          {t('admin.users.table.provider')}
                         </th>
                         <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>
-                          Tenant ID
+                          {t('admin.users.table.tenantId')}
                         </th>
                         <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>
-                          Created
+                          {t('admin.users.table.created')}
                         </th>
                         <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>
-                          Actions
+                          {t('admin.users.table.actions')}
                         </th>
                       </tr>
                     </thead>
@@ -696,7 +698,7 @@ export default function AdminPage() {
                               fontSize: 12,
                               fontWeight: 500
                             }}>
-                              {user.is_admin ? '👑 Admin' : user.is_moderator ? '🛡️ Moderator' : '👤 User'}
+                              {user.is_admin ? `👑 ${t('admin.users.role.admin')}` : user.is_moderator ? `🛡️ ${t('admin.users.role.moderator')}` : `👤 ${t('admin.users.role.user')}`}
                             </span>
                           </td>
                           <td style={{ padding: '12px' }}>
@@ -708,7 +710,7 @@ export default function AdminPage() {
                               fontSize: 12,
                               fontWeight: 500
                             }}>
-                              {user.auth_provider === 'oidc' ? 'SSO' : 'Local'}
+                              {user.auth_provider === 'oidc' ? t('admin.users.provider.sso') : t('admin.users.provider.local')}
                             </span>
                           </td>
                           <td style={{ padding: '12px', fontSize: 13, fontFamily: 'monospace', color: '#6c757d' }}>
@@ -731,9 +733,9 @@ export default function AdminPage() {
                                 cursor: user.id === currentUser?.id ? 'not-allowed' : 'pointer',
                                 opacity: user.id === currentUser?.id ? 0.6 : 1
                               }}
-                              title={user.id === currentUser?.id ? "You cannot change your own admin status" : (user.is_admin ? "Revoke Admin" : "Make Admin")}
+                              title={user.id === currentUser?.id ? t('admin.users.tooltip.selfAdmin') : (user.is_admin ? t('admin.users.action.revokeAdmin') : t('admin.users.action.makeAdmin'))}
                             >
-                              {user.is_admin ? 'Revoke Admin' : 'Make Admin'}
+                              {user.is_admin ? t('admin.users.action.revokeAdmin') : t('admin.users.action.makeAdmin')}
                             </button>
                             <button
                               onClick={() => handleDeleteUser(user.id)}
@@ -749,9 +751,9 @@ export default function AdminPage() {
                                 cursor: user.id === currentUser?.id ? 'not-allowed' : 'pointer',
                                 opacity: user.id === currentUser?.id ? 0.6 : 1
                               }}
-                              title={user.id === currentUser?.id ? "You cannot delete yourself" : "Delete User"}
+                              title={user.id === currentUser?.id ? t('admin.users.tooltip.selfDelete') : t('admin.users.action.delete')}
                             >
-                              Delete
+                              {t('admin.users.action.delete')}
                             </button>
                           </td>
                         </tr>
@@ -772,7 +774,7 @@ export default function AdminPage() {
                       opacity: (usersOffset === 0 || loading) ? 0.6 : 1
                     }}
                   >
-                    Previous
+                    {t('admin.pagination.previous')}
                   </button>
                   <button
                     onClick={() => handleUsersPageChange(usersOffset + 50)}
@@ -786,7 +788,7 @@ export default function AdminPage() {
                       opacity: (users.length < 50 || loading) ? 0.6 : 1
                     }}
                   >
-                    Next
+                    {t('admin.pagination.next')}
                   </button>
                 </div>
               </div>
@@ -803,7 +805,7 @@ export default function AdminPage() {
                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
               }}>
                 <h2 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 600 }}>
-                  Tenant Management
+                  {t('admin.tenants.title')}
                 </h2>
 
                 <form onSubmit={handleTenantSearch} style={{ marginBottom: 16, display: 'flex', gap: 8 }}>
@@ -811,7 +813,7 @@ export default function AdminPage() {
                     type="text"
                     value={tenantSearchQuery}
                     onChange={(e) => setTenantSearchQuery(e.target.value)}
-                    placeholder="Search tenants by name..."
+                    placeholder={t('admin.tenants.searchPlaceholder')}
                     style={{
                       flex: 1,
                       padding: '8px 12px',
@@ -834,7 +836,7 @@ export default function AdminPage() {
                       fontWeight: 500
                     }}
                   >
-                    🔍 Search
+                    🔍 {t('admin.users.search')}
                   </button>
                 </form>
 
@@ -855,7 +857,7 @@ export default function AdminPage() {
                             {tenant.name}
                           </h3>
                           <div style={{ fontSize: 13, fontFamily: 'monospace', color: '#6c757d' }}>
-                            ID: {tenant.id}
+                            {t('admin.tenants.id')}: {tenant.id}
                           </div>
                         </div>
                         <button
@@ -870,13 +872,13 @@ export default function AdminPage() {
                             cursor: 'pointer'
                           }}
                         >
-                          Delete
+                          {t('admin.users.action.delete')}
                         </button>
                       </div>
 
                       <div style={{ display: 'flex', gap: 24, fontSize: 14, color: '#6c757d' }}>
                         <div>
-                          <span style={{ fontWeight: 500 }}>Created:</span> {formatDate(tenant.created_at)}
+                          <span style={{ fontWeight: 500 }}>{t('admin.tenants.created')}:</span> {formatDate(tenant.created_at)}
                         </div>
                       </div>
                     </div>
@@ -895,7 +897,7 @@ export default function AdminPage() {
                       opacity: (tenantsOffset === 0 || loading) ? 0.6 : 1
                     }}
                   >
-                    Previous
+                    {t('admin.pagination.previous')}
                   </button>
                   <button
                     onClick={() => handleTenantsPageChange(tenantsOffset + 50)}
@@ -909,7 +911,7 @@ export default function AdminPage() {
                       opacity: (tenants.length < 50 || loading) ? 0.6 : 1
                     }}
                   >
-                    Next
+                    {t('admin.pagination.next')}
                   </button>
                 </div>
               </div>
@@ -926,7 +928,7 @@ export default function AdminPage() {
                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
               }}>
                 <h2 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 600 }}>
-                  Network Management
+                  {t('admin.networks.title')}
                 </h2>
 
                 <form onSubmit={handleNetworkSearch} style={{ marginBottom: 16, display: 'flex', gap: 8 }}>
@@ -934,7 +936,7 @@ export default function AdminPage() {
                     type="text"
                     value={networkSearchQuery}
                     onChange={(e) => setNetworkSearchQuery(e.target.value)}
-                    placeholder="Search networks by name or CIDR..."
+                    placeholder={t('admin.networks.searchPlaceholder')}
                     style={{
                       flex: 1,
                       padding: '8px 12px',
@@ -957,7 +959,7 @@ export default function AdminPage() {
                       fontWeight: 500
                     }}
                   >
-                    🔍 Search
+                    🔍 {t('admin.users.search')}
                   </button>
                 </form>
 
@@ -965,10 +967,10 @@ export default function AdminPage() {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '2px solid #dee2e6' }}>
-                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>Name</th>
-                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>CIDR</th>
-                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>Tenant ID</th>
-                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>Created</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>{t('admin.networks.table.name')}</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>{t('admin.networks.table.cidr')}</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>{t('admin.users.table.tenantId')}</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>{t('admin.users.table.created')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1004,7 +1006,7 @@ export default function AdminPage() {
                       opacity: (!networksNextCursor || loading) ? 0.6 : 1
                     }}
                   >
-                    Next Page
+                    {t('admin.pagination.nextPage')}
                   </button>
                 </div>
               </div>
@@ -1021,7 +1023,7 @@ export default function AdminPage() {
                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
               }}>
                 <h2 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 600 }}>
-                  Device Management
+                  {t('admin.devices.title')}
                 </h2>
 
                 <form onSubmit={handleDeviceSearch} style={{ marginBottom: 16, display: 'flex', gap: 8 }}>
@@ -1029,7 +1031,7 @@ export default function AdminPage() {
                     type="text"
                     value={deviceSearchQuery}
                     onChange={(e) => setDeviceSearchQuery(e.target.value)}
-                    placeholder="Search devices by name or IP..."
+                    placeholder={t('admin.devices.searchPlaceholder')}
                     style={{
                       flex: 1,
                       padding: '8px 12px',
@@ -1052,7 +1054,7 @@ export default function AdminPage() {
                       fontWeight: 500
                     }}
                   >
-                    🔍 Search
+                    🔍 {t('admin.users.search')}
                   </button>
                 </form>
 
@@ -1060,12 +1062,12 @@ export default function AdminPage() {
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '2px solid #dee2e6' }}>
-                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>Name</th>
-                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>IP Address</th>
-                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>Public Key</th>
-                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>Tenant ID</th>
-                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>Last Seen</th>
-                        <th style={{ padding: '12px', textAlign: 'right', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>Actions</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>{t('admin.networks.table.name')}</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>{t('admin.devices.table.ip')}</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>{t('admin.devices.table.publicKey')}</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>{t('admin.users.table.tenantId')}</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>{t('admin.devices.table.lastSeen')}</th>
+                        <th style={{ padding: '12px', textAlign: 'right', fontSize: 14, fontWeight: 600, color: '#6c757d' }}>{t('admin.users.table.actions')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1099,7 +1101,7 @@ export default function AdminPage() {
                                 fontSize: 12
                               }}
                             >
-                              Delete
+                              {t('admin.users.action.delete')}
                             </button>
                           </td>
                         </tr>
@@ -1107,7 +1109,7 @@ export default function AdminPage() {
                       {devices.length === 0 && (
                         <tr>
                           <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: '#6c757d' }}>
-                            No devices found.
+                            {t('admin.devices.noDevices')}
                           </td>
                         </tr>
                       )}
@@ -1127,7 +1129,7 @@ export default function AdminPage() {
                       opacity: (!devicesNextCursor || loading) ? 0.6 : 1
                     }}
                   >
-                    Next Page
+                    {t('admin.pagination.nextPage')}
                   </button>
                 </div>
               </div>
@@ -1144,18 +1146,18 @@ export default function AdminPage() {
                 boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
               }}>
                 <h2 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 600 }}>
-                  System Audit Logs
+                  {t('admin.audit.title')}
                 </h2>
 
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                     <thead>
                       <tr style={{ borderBottom: '2px solid #dee2e6', textAlign: 'left' }}>
-                        <th style={{ padding: '12px', color: '#495057' }}>Time</th>
-                        <th style={{ padding: '12px', color: '#495057' }}>Action</th>
-                        <th style={{ padding: '12px', color: '#495057' }}>Actor</th>
-                        <th style={{ padding: '12px', color: '#495057' }}>Object</th>
-                        <th style={{ padding: '12px', color: '#495057' }}>Details</th>
+                        <th style={{ padding: '12px', color: '#495057' }}>{t('admin.audit.table.time')}</th>
+                        <th style={{ padding: '12px', color: '#495057' }}>{t('admin.audit.table.action')}</th>
+                        <th style={{ padding: '12px', color: '#495057' }}>{t('admin.audit.table.actor')}</th>
+                        <th style={{ padding: '12px', color: '#495057' }}>{t('admin.audit.table.object')}</th>
+                        <th style={{ padding: '12px', color: '#495057' }}>{t('admin.audit.table.details')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1199,7 +1201,7 @@ export default function AdminPage() {
                       {auditLogs.length === 0 && (
                         <tr>
                           <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#6c757d' }}>
-                            No audit logs found.
+                            {t('admin.audit.noLogs')}
                           </td>
                         </tr>
                       )}
@@ -1219,7 +1221,7 @@ export default function AdminPage() {
                       opacity: (auditPage === 1 || loading) ? 0.6 : 1
                     }}
                   >
-                    Previous
+                    {t('admin.pagination.previous')}
                   </button>
                   <button
                     onClick={() => handleAuditPageChange(auditPage + 1)}
@@ -1233,7 +1235,7 @@ export default function AdminPage() {
                       opacity: (auditLogs.length < 50 || loading) ? 0.6 : 1
                     }}
                   >
-                    Next
+                    {t('admin.pagination.next')}
                   </button>
                 </div>
               </div>

@@ -242,5 +242,150 @@
   "profile.notifications.2fa.enabled": "2FA Enabled",
   "profile.notifications.2fa.disabled": "2FA Disabled",
   "profile.notifications.2fa.enabledMsg": "Two-factor authentication has been enabled",
-  "profile.notifications.2fa.disabledMsg": "Two-factor authentication has been disabled"
+  "profile.notifications.2fa.disabledMsg": "Two-factor authentication has been disabled",
+  "admin.accessDenied": "Access Denied",
+  "admin.accessDeniedMsg": "You need administrator privileges to access this page.",
+  "admin.error.loadData": "Failed to load admin data",
+  "admin.error.toggleAdmin": "Failed to toggle admin status",
+  "admin.error.updateUser": "Failed to update user",
+  "admin.error.deleteTenant": "Failed to delete tenant",
+  "admin.error.deleteUser": "Failed to delete user",
+  "admin.error.deleteDevice": "Failed to delete device",
+  "admin.confirm.deleteTenant": "Are you sure you want to delete this tenant? This action cannot be undone.",
+  "admin.confirm.deleteUser": "Are you sure you want to delete this user? This action cannot be undone.",
+  "admin.confirm.deleteDevice": "Are you sure you want to delete this device? This action cannot be undone.",
+  "admin.title": "Admin Panel",
+  "admin.badge": "ADMIN ACCESS",
+  "admin.back": "Back",
+  "admin.tabs.stats": "Statistics",
+  "admin.tabs.users": "Users",
+  "admin.tabs.tenants": "Tenants",
+  "admin.tabs.networks": "Networks",
+  "admin.tabs.devices": "Devices",
+  "admin.tabs.audit": "Audit Logs",
+  "admin.loading": "Loading...",
+  "admin.stats.users": "Total Users",
+  "admin.stats.tenants": "Total Tenants",
+  "admin.stats.networks": "Total Networks",
+  "admin.stats.devices": "Total Devices",
+  "admin.stats.connections": "Active Connections",
+  "admin.stats.messages": "Messages Today",
+  "admin.users.title": "User Management",
+  "admin.users.searchPlaceholder": "Search users by email...",
+  "admin.users.search": "Search",
+  "admin.users.table.email": "Email",
+  "admin.users.table.role": "Role",
+  "admin.users.table.provider": "Provider",
+  "admin.users.table.tenantId": "Tenant ID",
+  "admin.users.table.created": "Created",
+  "admin.users.table.actions": "Actions",
+  "admin.users.role.admin": "Admin",
+  "admin.users.role.moderator": "Moderator",
+  "admin.users.role.user": "User",
+  "admin.users.provider.sso": "SSO",
+  "admin.users.provider.local": "Local",
+  "admin.users.action.revokeAdmin": "Revoke Admin",
+  "admin.users.action.makeAdmin": "Make Admin",
+  "admin.users.action.delete": "Delete",
+  "admin.users.tooltip.selfAdmin": "You cannot change your own admin status",
+  "admin.users.tooltip.selfDelete": "You cannot delete yourself",
+  "admin.tenants.title": "Tenant Management",
+  "admin.tenants.searchPlaceholder": "Search tenants by name...",
+  "admin.tenants.id": "ID",
+  "admin.tenants.created": "Created",
+  "admin.networks.title": "Network Management",
+  "admin.networks.searchPlaceholder": "Search networks by name or CIDR...",
+  "admin.networks.table.name": "Name",
+  "admin.networks.table.cidr": "CIDR",
+  "admin.devices.title": "Device Management",
+  "admin.devices.searchPlaceholder": "Search devices by name or IP...",
+  "admin.devices.table.ip": "IP Address",
+  "admin.devices.table.publicKey": "Public Key",
+  "admin.devices.table.lastSeen": "Last Seen",
+  "admin.devices.noDevices": "No devices found.",
+  "admin.audit.title": "System Audit Logs",
+  "admin.audit.table.time": "Time",
+  "admin.audit.table.action": "Action",
+  "admin.audit.table.actor": "Actor",
+  "admin.audit.table.object": "Object",
+  "admin.audit.table.details": "Details",
+  "admin.audit.noLogs": "No audit logs found.",
+  "admin.pagination.previous": "Previous",
+  "admin.pagination.next": "Next",
+  "admin.pagination.nextPage": "Next Page",
+  "chat": {
+    "error": {
+      "loadNetworks": "Failed to load networks",
+      "loadMessages": "Failed to load messages",
+      "wsConnection": "WebSocket connection error",
+      "wsConnect": "Failed to connect to WebSocket",
+      "notConnected": "Not connected to WebSocket",
+      "send": "Failed to send message",
+      "notAuthenticated": "Not authenticated",
+      "upload": "Upload failed",
+      "edit": "Failed to edit message",
+      "delete": "Failed to delete message",
+      "redact": "Failed to redact message"
+    },
+    "status": {
+      "connected": "WebSocket connected",
+      "disconnected": "WebSocket disconnected",
+      "unknown": "Unknown error"
+    },
+    "message": {
+      "redacted": "[REDACTED]",
+      "redactedByMod": "[REDACTED BY MODERATOR]"
+    },
+    "time": {
+      "justNow": "Just now",
+      "ago": {
+        "m": "m ago",
+        "h": "h ago"
+      }
+    },
+    "confirm": {
+      "delete": "Delete this message?",
+      "redact": "Redact this message? This action cannot be undone."
+    },
+    "header": {
+      "back": "Back",
+      "global": "Global Chat",
+      "network": "Network Chat",
+      "status": {
+        "connected": "Connected",
+        "disconnected": "Disconnected"
+      }
+    },
+    "empty": {
+      "title": "No messages yet",
+      "subtitle": "Be the first to say hi!"
+    },
+    "user": {
+      "you": "You",
+      "other": "User"
+    },
+    "attachment": "Attachment",
+    "action": {
+      "edit": "Edit",
+      "delete": "Delete",
+      "redact": "Redact (Moderator)"
+    },
+    "input": {
+      "placeholder": "Type a message...",
+      "send": "Send",
+      "attach": "Attach file"
+    },
+    "sidebar": {
+      "online": "Online Users",
+      "empty": "No one else is online"
+    },
+    "modal": {
+      "edit": {
+        "title": "Edit Message",
+        "cancel": "Cancel",
+        "save": "Save"
+      }
+    },
+    "edited": "(edited)"
+  }
 }

@@ -242,5 +242,188 @@
   "profile.notifications.2fa.enabled": "2FA Etkinleştirildi",
   "profile.notifications.2fa.disabled": "2FA Devre Dışı Bırakıldı",
   "profile.notifications.2fa.enabledMsg": "İki faktörlü doğrulama etkinleştirildi",
-  "profile.notifications.2fa.disabledMsg": "İki faktörlü doğrulama devre dışı bırakıldı"
+  "profile.notifications.2fa.disabledMsg": "İki faktörlü doğrulama devre dışı bırakıldı",
+  "admin": {
+    "accessDenied": "Erişim Reddedildi",
+    "accessDeniedMsg": "Bu sayfaya erişmek için yönetici yetkilerine ihtiyacınız var.",
+    "error": {
+      "loadData": "Yönetici verileri yüklenemedi",
+      "toggleAdmin": "Yönetici durumu değiştirilemedi",
+      "updateUser": "Kullanıcı güncellenemedi",
+      "deleteTenant": "Kiracı silinemedi",
+      "deleteUser": "Kullanıcı silinemedi",
+      "deleteDevice": "Cihaz silinemedi"
+    },
+    "confirm": {
+      "deleteTenant": "Bu kiracıyı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+      "deleteUser": "Bu kullanıcıyı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+      "deleteDevice": "Bu cihazı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
+    },
+    "title": "Yönetici Paneli",
+    "badge": "YÖNETİCİ ERİŞİMİ",
+    "back": "Geri",
+    "tabs": {
+      "stats": "İstatistikler",
+      "users": "Kullanıcılar",
+      "tenants": "Kiracılar",
+      "networks": "Ağlar",
+      "devices": "Cihazlar",
+      "audit": "Denetim Kayıtları"
+    },
+    "loading": "Yükleniyor...",
+    "stats": {
+      "users": "Toplam Kullanıcı",
+      "tenants": "Toplam Kiracı",
+      "networks": "Toplam Ağ",
+      "devices": "Toplam Cihaz",
+      "connections": "Aktif Bağlantılar",
+      "messages": "Bugünkü Mesajlar"
+    },
+    "users": {
+      "title": "Kullanıcı Yönetimi",
+      "searchPlaceholder": "E-posta ile kullanıcı ara...",
+      "search": "Ara",
+      "table": {
+        "email": "E-posta",
+        "role": "Rol",
+        "provider": "Sağlayıcı",
+        "tenantId": "Kiracı ID",
+        "created": "Oluşturuldu",
+        "actions": "İşlemler"
+      },
+      "role": {
+        "admin": "Yönetici",
+        "moderator": "Moderatör",
+        "user": "Kullanıcı"
+      },
+      "provider": {
+        "sso": "SSO",
+        "local": "Yerel"
+      },
+      "action": {
+        "revokeAdmin": "Yöneticiliği Kaldır",
+        "makeAdmin": "Yönetici Yap",
+        "delete": "Sil"
+      },
+      "tooltip": {
+        "selfAdmin": "Kendi yönetici durumunuzu değiştiremezsiniz",
+        "selfDelete": "Kendinizi silemezsiniz"
+      }
+    },
+    "tenants": {
+      "title": "Kiracı Yönetimi",
+      "searchPlaceholder": "İsim ile kiracı ara...",
+      "id": "ID",
+      "created": "Oluşturuldu"
+    },
+    "networks": {
+      "title": "Ağ Yönetimi",
+      "searchPlaceholder": "İsim veya CIDR ile ağ ara...",
+      "table": {
+        "name": "İsim",
+        "cidr": "CIDR"
+      }
+    },
+    "devices": {
+      "title": "Cihaz Yönetimi",
+      "searchPlaceholder": "İsim veya IP ile cihaz ara...",
+      "table": {
+        "ip": "IP Adresi",
+        "publicKey": "Açık Anahtar",
+        "lastSeen": "Son Görülme"
+      },
+      "noDevices": "Cihaz bulunamadı."
+    },
+    "audit": {
+      "title": "Sistem Denetim Kayıtları",
+      "table": {
+        "time": "Zaman",
+        "action": "İşlem",
+        "actor": "Yapan",
+        "object": "Nesne",
+        "details": "Detaylar"
+      },
+      "noLogs": "Denetim kaydı bulunamadı."
+    },
+    "pagination": {
+      "previous": "Önceki",
+      "next": "Sonraki",
+      "nextPage": "Sonraki Sayfa"
+    }
+  },
+  "chat": {
+    "error": {
+      "loadNetworks": "Ağlar yüklenemedi",
+      "loadMessages": "Mesajlar yüklenemedi",
+      "wsConnection": "WebSocket bağlantı hatası",
+      "wsConnect": "WebSocket'e bağlanılamadı",
+      "notConnected": "WebSocket'e bağlı değil",
+      "send": "Mesaj gönderilemedi",
+      "notAuthenticated": "Kimlik doğrulanmadı",
+      "upload": "Yükleme başarısız",
+      "edit": "Mesaj düzenlenemedi",
+      "delete": "Mesaj silinemedi",
+      "redact": "Mesaj sansürlenemedi"
+    },
+    "status": {
+      "connected": "WebSocket bağlandı",
+      "disconnected": "WebSocket bağlantısı kesildi",
+      "unknown": "Bilinmeyen hata"
+    },
+    "message": {
+      "redacted": "[SANSÜRLENDİ]",
+      "redactedByMod": "[MODERATÖR TARAFINDAN SANSÜRLENDİ]"
+    },
+    "time": {
+      "justNow": "Az önce",
+      "ago": {
+        "m": "dk önce",
+        "h": "sa önce"
+      }
+    },
+    "confirm": {
+      "delete": "Bu mesajı silmek istiyor musunuz?",
+      "redact": "Bu mesajı sansürlemek istiyor musunuz? Bu işlem geri alınamaz."
+    },
+    "header": {
+      "back": "Geri",
+      "global": "Genel Sohbet",
+      "network": "Ağ Sohbeti",
+      "status": {
+        "connected": "Bağlı",
+        "disconnected": "Bağlantı Kesildi"
+      }
+    },
+    "empty": {
+      "title": "Henüz mesaj yok",
+      "subtitle": "İlk selamı sen ver!"
+    },
+    "user": {
+      "you": "Sen",
+      "other": "Kullanıcı"
+    },
+    "attachment": "Ek",
+    "action": {
+      "edit": "Düzenle",
+      "delete": "Sil",
+      "redact": "Sansürle (Moderatör)"
+    },
+    "input": {
+      "placeholder": "Bir mesaj yaz...",
+      "send": "Gönder",
+      "attach": "Dosya ekle"
+    },
+    "sidebar": {
+      "online": "Çevrimiçi Kullanıcılar",
+      "empty": "Başka kimse çevrimiçi değil"
+    },
+    "modal": {
+      "edit": {
+        "title": "Mesajı Düzenle",
+        "cancel": "İptal",
+        "save": "Kaydet"
+      }
+    },
+    "edited": "(düzenlendi)"
+  }
 }
