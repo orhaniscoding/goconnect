@@ -289,6 +289,15 @@ func (r *PostgresTenantMemberRepository) HasRole(ctx context.Context, userID, te
 	return role.HasPermission(requiredRole), nil
 }
 
+func (r *PostgresTenantMemberRepository) DeleteAllByTenant(ctx context.Context, tenantID string) error {
+	query := `DELETE FROM tenant_members WHERE tenant_id = $1`
+	_, err := r.db.ExecContext(ctx, query, tenantID)
+	if err != nil {
+		return fmt.Errorf("failed to delete tenant members: %w", err)
+	}
+	return nil
+}
+
 // Helper function for nullable strings
 func nullString(s string) sql.NullString {
 	if s == "" {

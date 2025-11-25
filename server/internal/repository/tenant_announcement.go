@@ -21,6 +21,9 @@ type TenantAnnouncementRepository interface {
 
 	// Pin operations
 	SetPinned(ctx context.Context, id string, pinned bool) error
+
+	// Bulk delete - used when deleting tenant
+	DeleteAllByTenant(ctx context.Context, tenantID string) error
 }
 
 // InMemoryTenantAnnouncementRepository is an in-memory implementation
@@ -124,5 +127,17 @@ func (r *InMemoryTenantAnnouncementRepository) SetPinned(ctx context.Context, id
 	}
 	ann.IsPinned = pinned
 	ann.UpdatedAt = time.Now()
+	return nil
+}
+
+func (r *InMemoryTenantAnnouncementRepository) DeleteAllByTenant(ctx context.Context, tenantID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for id, a := range r.announcements {
+		if a.TenantID == tenantID {
+			delete(r.announcements, id)
+		}
+	}
 	return nil
 }

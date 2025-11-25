@@ -197,3 +197,12 @@ func (r *PostgresTenantAnnouncementRepository) SetPinned(ctx context.Context, id
 	}
 	return nil
 }
+
+func (r *PostgresTenantAnnouncementRepository) DeleteAllByTenant(ctx context.Context, tenantID string) error {
+	query := `DELETE FROM tenant_announcements WHERE tenant_id = $1`
+	_, err := r.db.ExecContext(ctx, query, tenantID)
+	if err != nil {
+		return fmt.Errorf("failed to delete tenant announcements: %w", err)
+	}
+	return nil
+}

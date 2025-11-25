@@ -302,6 +302,96 @@ func TestTenantHandler_UpdateTenant(t *testing.T) {
 	})
 }
 
+func TestTenantHandler_DeleteTenant(t *testing.T) {
+	t.Run("Success - Owner deletes tenant", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.DELETE("/v1/tenants/:tenantId", authMiddleware(mockAuth), handler.DeleteTenant)
+
+		// Create tenant as user_dev (token user)
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Tenant to Delete",
+			Visibility: domain.TenantVisibilityPrivate,
+			AccessType: domain.TenantAccessOpen,
+		})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("DELETE", "/v1/tenants/"+tenant.ID, nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+		assert.Equal(t, "Tenant deleted successfully", response["message"])
+
+		// Verify tenant is deleted
+		_, err = tenantService.GetTenant(ctx, tenant.ID)
+		assert.Error(t, err)
+	})
+
+	t.Run("Forbidden - Non-member cannot delete", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.DELETE("/v1/tenants/:tenantId", authMiddleware(mockAuth), handler.DeleteTenant)
+
+		// Create tenant as different user
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "other_user", &domain.CreateTenantRequest{
+			Name:       "Other Tenant",
+			Visibility: domain.TenantVisibilityPrivate,
+			AccessType: domain.TenantAccessOpen,
+		})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("DELETE", "/v1/tenants/"+tenant.ID, nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusForbidden, w.Code)
+	})
+
+	t.Run("Forbidden - Admin cannot delete (only owner)", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.DELETE("/v1/tenants/:tenantId", authMiddleware(mockAuth), handler.DeleteTenant)
+
+		// Create tenant as different user
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "owner_user", &domain.CreateTenantRequest{
+			Name:       "Owner Tenant",
+			Visibility: domain.TenantVisibilityPublic,
+			AccessType: domain.TenantAccessOpen,
+		})
+		require.NoError(t, err)
+
+		// user_dev joins and is promoted to admin
+		membership, err := tenantService.JoinTenant(ctx, "user_dev", tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+		err = tenantService.UpdateMemberRole(ctx, "owner_user", tenant.ID, membership.ID, domain.TenantRoleAdmin)
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("DELETE", "/v1/tenants/"+tenant.ID, nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusForbidden, w.Code)
+	})
+
+	t.Run("Not Found - Tenant does not exist", func(t *testing.T) {
+		r, handler, _, mockAuth := setupTenantTest()
+		r.DELETE("/v1/tenants/:tenantId", authMiddleware(mockAuth), handler.DeleteTenant)
+
+		req := httptest.NewRequest("DELETE", "/v1/tenants/nonexistent-tenant-id", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusForbidden, w.Code) // Not found shows as forbidden since user is not a member
+	})
+}
+
 // ==================== PUBLIC TENANT DISCOVERY TESTS ====================
 
 func TestTenantHandler_ListPublicTenants(t *testing.T) {

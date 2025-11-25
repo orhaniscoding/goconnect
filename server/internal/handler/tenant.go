@@ -85,6 +85,22 @@ func (h *TenantHandler) UpdateTenant(c *gin.Context) {
 	})
 }
 
+// DeleteTenant handles DELETE /v1/tenants/:tenantId
+func (h *TenantHandler) DeleteTenant(c *gin.Context) {
+	tenantID := c.Param("tenantId")
+	userID := c.GetString("user_id")
+
+	err := h.tenantService.DeleteTenant(c.Request.Context(), userID, tenantID)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Tenant deleted successfully",
+	})
+}
+
 // ==================== DISCOVERY ROUTES ====================
 
 // ListPublicTenants handles GET /v1/tenants/public
@@ -559,6 +575,7 @@ func (h *TenantHandler) RegisterRoutes(rg *gin.RouterGroup, authMiddleware gin.H
 		tenants.POST("", h.CreateTenant)
 		tenants.GET("/:tenantId", h.GetTenant)
 		tenants.PATCH("/:tenantId", h.UpdateTenant)
+		tenants.DELETE("/:tenantId", h.DeleteTenant)
 
 		// Membership
 		tenants.POST("/:tenantId/join", h.JoinTenant)

@@ -21,6 +21,9 @@ type TenantChatRepository interface {
 
 	// Cleanup - delete old messages (retention policy)
 	DeleteOlderThan(ctx context.Context, tenantID string, before time.Time) (int, error)
+
+	// Bulk delete - used when deleting tenant
+	DeleteAllByTenant(ctx context.Context, tenantID string) error
 }
 
 // InMemoryTenantChatRepository is an in-memory implementation
@@ -141,4 +144,16 @@ func (r *InMemoryTenantChatRepository) DeleteOlderThan(ctx context.Context, tena
 		}
 	}
 	return deleted, nil
+}
+
+func (r *InMemoryTenantChatRepository) DeleteAllByTenant(ctx context.Context, tenantID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for id, m := range r.messages {
+		if m.TenantID == tenantID {
+			delete(r.messages, id)
+		}
+	}
+	return nil
 }

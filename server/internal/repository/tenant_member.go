@@ -28,6 +28,9 @@ type TenantMemberRepository interface {
 	UpdateRole(ctx context.Context, id string, role domain.TenantRole) error
 	GetUserRole(ctx context.Context, userID, tenantID string) (domain.TenantRole, error)
 	HasRole(ctx context.Context, userID, tenantID string, requiredRole domain.TenantRole) (bool, error)
+
+	// Bulk delete - used when deleting tenant
+	DeleteAllByTenant(ctx context.Context, tenantID string) error
 }
 
 // InMemoryTenantMemberRepository is an in-memory implementation
@@ -189,4 +192,16 @@ func (r *InMemoryTenantMemberRepository) HasRole(ctx context.Context, userID, te
 		}
 	}
 	return false, nil
+}
+
+func (r *InMemoryTenantMemberRepository) DeleteAllByTenant(ctx context.Context, tenantID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for id, m := range r.members {
+		if m.TenantID == tenantID {
+			delete(r.members, id)
+		}
+	}
+	return nil
 }

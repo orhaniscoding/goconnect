@@ -181,3 +181,12 @@ func (r *PostgresTenantChatRepository) DeleteOlderThan(ctx context.Context, tena
 	rows, _ := result.RowsAffected()
 	return int(rows), nil
 }
+
+func (r *PostgresTenantChatRepository) DeleteAllByTenant(ctx context.Context, tenantID string) error {
+	query := `DELETE FROM tenant_chat_messages WHERE tenant_id = $1`
+	_, err := r.db.ExecContext(ctx, query, tenantID)
+	if err != nil {
+		return fmt.Errorf("failed to delete tenant chat messages: %w", err)
+	}
+	return nil
+}

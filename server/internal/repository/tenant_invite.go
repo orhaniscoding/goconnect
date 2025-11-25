@@ -26,6 +26,9 @@ type TenantInviteRepository interface {
 
 	// Cleanup
 	DeleteExpired(ctx context.Context) (int, error)
+
+	// Bulk delete - used when deleting tenant
+	DeleteAllByTenant(ctx context.Context, tenantID string) error
 }
 
 // InMemoryTenantInviteRepository is an in-memory implementation
@@ -146,4 +149,16 @@ func (r *InMemoryTenantInviteRepository) DeleteExpired(ctx context.Context) (int
 		}
 	}
 	return deleted, nil
+}
+
+func (r *InMemoryTenantInviteRepository) DeleteAllByTenant(ctx context.Context, tenantID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for id, i := range r.invites {
+		if i.TenantID == tenantID {
+			delete(r.invites, id)
+		}
+	}
+	return nil
 }

@@ -212,3 +212,12 @@ func (r *PostgresTenantInviteRepository) DeleteExpired(ctx context.Context) (int
 	rows, _ := result.RowsAffected()
 	return int(rows), nil
 }
+
+func (r *PostgresTenantInviteRepository) DeleteAllByTenant(ctx context.Context, tenantID string) error {
+	query := `DELETE FROM tenant_invites WHERE tenant_id = $1`
+	_, err := r.db.ExecContext(ctx, query, tenantID)
+	if err != nil {
+		return fmt.Errorf("failed to delete tenant invites: %w", err)
+	}
+	return nil
+}

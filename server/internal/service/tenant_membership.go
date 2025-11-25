@@ -176,6 +176,54 @@ func (s *TenantMembershipService) UpdateTenant(ctx context.Context, userID, tena
 	}, nil
 }
 
+// DeleteTenant deletes a tenant (owner only)
+// This will also delete all members, invites, announcements, and chat messages
+func (s *TenantMembershipService) DeleteTenant(ctx context.Context, userID, tenantID string) error {
+	// Check if user is the owner
+	member, err := s.memberRepo.GetByUserAndTenant(ctx, userID, tenantID)
+	if err != nil {
+		return domain.NewError(domain.ErrForbidden, "You are not a member of this tenant", nil)
+	}
+
+	if member.Role != domain.TenantRoleOwner {
+		return domain.NewError(domain.ErrForbidden, "Only the owner can delete a tenant", nil)
+	}
+
+	// Get tenant to verify it exists
+	_, err = s.tenantRepo.GetByID(ctx, tenantID)
+	if err != nil {
+		return domain.NewError(domain.ErrNotFound, "Tenant not found", nil)
+	}
+
+	// Delete all related data in order:
+	// 1. Delete chat messages
+	if err := s.chatRepo.DeleteAllByTenant(ctx, tenantID); err != nil {
+		return fmt.Errorf("failed to delete chat messages: %w", err)
+	}
+
+	// 2. Delete announcements
+	if err := s.announcementRepo.DeleteAllByTenant(ctx, tenantID); err != nil {
+		return fmt.Errorf("failed to delete announcements: %w", err)
+	}
+
+	// 3. Delete invites
+	if err := s.inviteRepo.DeleteAllByTenant(ctx, tenantID); err != nil {
+		return fmt.Errorf("failed to delete invites: %w", err)
+	}
+
+	// 4. Delete all members
+	if err := s.memberRepo.DeleteAllByTenant(ctx, tenantID); err != nil {
+		return fmt.Errorf("failed to delete members: %w", err)
+	}
+
+	// 5. Delete the tenant itself
+	if err := s.tenantRepo.Delete(ctx, tenantID); err != nil {
+		return fmt.Errorf("failed to delete tenant: %w", err)
+	}
+
+	return nil
+}
+
 // ListPublicTenants returns discoverable tenants for unauthenticated discovery/search flows
 func (s *TenantMembershipService) ListPublicTenants(ctx context.Context, req *domain.ListTenantsRequest) ([]*domain.TenantExtended, string, error) {
 	if req == nil {
