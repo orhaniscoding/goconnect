@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.17.0](https://github.com/orhaniscoding/goconnect/compare/v2.16.0...v2.17.0) (2025-11-26)
+
+
+### Features
+
+* **network:** add DNS/MTU/split_tunnel editing support ([071fd21](https://github.com/orhaniscoding/goconnect/commit/071fd21c088a1bedf451566ddf95c991e7a93c20))
+* **web-ui:** add edit indicator to Network and Tenant chat messages ([71df624](https://github.com/orhaniscoding/goconnect/commit/71df624c3801214e4ee957019ed462200d4d4bf7))
+* **web-ui:** add online status indicators to tenant members page ([d4d1a97](https://github.com/orhaniscoding/goconnect/commit/d4d1a97af77dab2f7ad109f966186d4047eb0837))
+* **web-ui:** add UI components and dashboard improvements ([0e62d7d](https://github.com/orhaniscoding/goconnect/commit/0e62d7d2f6768c51a71a9e8ac35eafb332340e7c))
+
+
+### Bug Fixes
+
+* **auth:** enforce OIDC state validation ([c7fbd76](https://github.com/orhaniscoding/goconnect/commit/c7fbd768cfc7a776a7c41d5faa40ccbddb18381b))
+
 ## [2.16.0](https://github.com/orhaniscoding/goconnect/compare/v2.15.0...v2.16.0) (2025-11-26)
 
 
