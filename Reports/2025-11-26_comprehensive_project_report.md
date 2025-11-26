@@ -1,7 +1,7 @@
 # 📊 GoConnect - Kapsamlı Proje Raporu
 
 **Rapor Tarihi:** 26 Kasım 2025  
-**Mevcut Versiyon:** v2.12.0  
+**Mevcut Versiyon:** v2.14.0  
 **Rapor Hazırlayan:** AI Development Assistant
 
 ---
@@ -33,7 +33,7 @@ GoConnect, WireGuard tabanlı bir VPN yönetim sistemidir. Proje, planlanan öze
 
 | Metrik                      | Değer   | Durum                 |
 | --------------------------- | ------- | --------------------- |
-| Mevcut Versiyon             | v2.12.0 | ✅ Stabil              |
+| Mevcut Versiyon             | v2.14.0 | ✅ Stabil              |
 | Toplam Test Sayısı          | 1,250+  | ✅ Kapsamlı            |
 | Test Başarı Oranı           | %100    | ✅ Tüm testler geçiyor |
 | Go Dosya Sayısı             | 191     | Optimal               |
@@ -49,6 +49,8 @@ GoConnect, WireGuard tabanlı bir VPN yönetim sistemidir. Proje, planlanan öze
 4. ✅ Tenant ayarları sayfası (owner/admin)
 5. ✅ WebSocket tenant chat (typing indicators)
 6. ✅ Real-time mesajlaşma
+7. ✅ **Network Chat sayfası** (v2.14.0) - Ağ içi gerçek zamanlı sohbet
+8. ✅ **Gelişmiş Audit Log UI** (v2.14.0) - Filtreler ve renkli rozetler
 
 ---
 

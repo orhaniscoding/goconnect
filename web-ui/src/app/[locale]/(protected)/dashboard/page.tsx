@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { getUser, clearAuth, getAccessToken } from '../../../../lib/auth'
+import { getUser, getAccessToken } from '../../../../lib/auth'
 import { bridge } from '../../../../lib/bridge'
 import { useNotification } from '../../../../contexts/NotificationContext'
 import { useDaemon } from '../../../../contexts/DaemonContext'
@@ -66,49 +66,11 @@ export default function Dashboard() {
         }
     }
 
-    const handleLogout = () => {
-        clearAuth()
-        router.push('/en/login')
-    }
-
     return (
         <AuthGuard>
-            <div style={{ padding: 24, fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <div style={{ padding: 24, fontFamily: 'system-ui, -apple-system, sans-serif', maxWidth: 1400, margin: '0 auto' }}>
+                <div style={{ marginBottom: 24 }}>
                     <h1 style={{ margin: 0 }}>{t('dashboard.title')}</h1>
-                    <div>
-                        <button
-                            onClick={() => router.push(`/${params.locale}/settings`)}
-                            style={{
-                                padding: '8px 16px',
-                                backgroundColor: '#6c757d',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: 4,
-                                cursor: 'pointer',
-                                fontSize: 14,
-                                fontWeight: 500,
-                                marginRight: 8
-                            }}
-                        >
-                            {t('dashboard.settings')}
-                        </button>
-                        <button
-                            onClick={handleLogout}
-                            style={{
-                                padding: '8px 16px',
-                                backgroundColor: '#dc3545',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: 4,
-                                cursor: 'pointer',
-                                fontSize: 14,
-                                fontWeight: 500
-                            }}
-                        >
-                            {t('dashboard.logout')}
-                        </button>
-                    </div>
                 </div>
 
                 {user && (
