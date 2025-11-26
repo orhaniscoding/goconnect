@@ -2,7 +2,7 @@
 
 Enterprise-grade self-hosted VPN management platform with WireGuard integration, multi-tenancy, and comprehensive audit logging.
 
-## 🚀 Features
+##  Features
 
 ### Core Capabilities
 - **Multi-Tenant Architecture**: Isolated tenant spaces with RBAC
@@ -26,7 +26,7 @@ Enterprise-grade self-hosted VPN management platform with WireGuard integration,
 - **Comprehensive Testing**: 87.7% config coverage, 68.8% service coverage
 - **OpenAPI Specification**: Documented REST API
 
-## 📦 Quick Start
+##  Quick Start
 
 ### Prerequisites
 - **Go**: 1.24+
@@ -59,7 +59,7 @@ go run cmd/server/main.go
 docker compose up -d
 ```
 
-## ⚙️ Configuration
+##  Configuration
 
 All configuration is done via environment variables. See `.env.example` for all options.
 
@@ -87,29 +87,29 @@ AUDIT_QUEUE_SIZE=1024
 CORS_ALLOWED_ORIGINS=http://localhost:3000,https://app.example.com
 ```
 
-## 🏗️ Architecture
+##  Architecture
 
 ```
 server/
-├── cmd/server/              # Application entry point
-├── internal/
-│   ├── audit/              # Audit logging (stdout + SQLite)
-│   ├── config/             # Environment-based configuration ⭐ NEW
-│   ├── database/           # PostgreSQL connection & migrations
-│   ├── domain/             # Business entities & validation
-│   ├── handler/            # HTTP handlers (REST + WebSocket)
-│   ├── repository/         # Data access layer (in-memory + PostgreSQL)
-│   ├── service/            # Business logic layer
-│   ├── websocket/          # WebSocket hub & client management
-│   └── wireguard/          # WireGuard profile generation
-├── migrations/             # Database migration files
-│   ├── 000001_initial_schema.sql
-│   ├── 000002_chat_tables.sql
-│   └── 000003_device_tables.sql ⭐ NEW
-└── .env.example            # Environment template ⭐ NEW
+ cmd/server/              # Application entry point
+ internal/
+    audit/              # Audit logging (stdout + SQLite)
+    config/             # Environment-based configuration  NEW
+    database/           # PostgreSQL connection & migrations
+    domain/             # Business entities & validation
+    handler/            # HTTP handlers (REST + WebSocket)
+    repository/         # Data access layer (in-memory + PostgreSQL)
+    service/            # Business logic layer
+    websocket/          # WebSocket hub & client management
+    wireguard/          # WireGuard profile generation
+ migrations/             # Database migration files
+    000001_initial_schema.sql
+    000002_chat_tables.sql
+    000003_device_tables.sql  NEW
+ .env.example            # Environment template  NEW
 ```
 
-## 🧪 Testing
+##  Testing
 
 ```bash
 # Run all tests
@@ -132,7 +132,7 @@ go test ./internal/repository -tags=integration
 - **Audit**: 79.7%
 - **Service Layer**: 68.8%
 
-## 📚 API Documentation
+##  API Documentation
 
 ### Authentication
 ```http
@@ -182,7 +182,7 @@ ws://localhost:8080/ws?token=<jwt_token>
 
 See [docs/API_EXAMPLES.http](../docs/API_EXAMPLES.http) for full examples.
 
-## 🔒 Security
+##  Security
 
 ### Password Storage
 - **Algorithm**: Argon2id
@@ -198,7 +198,7 @@ See [docs/API_EXAMPLES.http](../docs/API_EXAMPLES.http) for full examples.
 - **Moderator**: Content moderation, can delete/redact messages
 - **User**: Standard access, can edit own messages (15min limit)
 
-## 🐛 Troubleshooting
+##  Troubleshooting
 
 ### "JWT_SECRET is required"
 Generate a secure key:
@@ -234,7 +234,7 @@ psql -h localhost -U postgres -d goconnect
 echo $DB_HOST $DB_PORT $DB_USER $DB_NAME
 ```
 
-## 📈 Performance
+##  Performance
 
 ### Recommended Production Settings
 
@@ -258,11 +258,11 @@ AUDIT_WORKER_COUNT=2
 - Prometheus metrics endpoint: `/metrics`
 - Health check: `/health`
 
-## 🛠️ Development
+##  Development
 
 ### Project Structure
 - **Domain-Driven Design**: Clear separation of concerns
-- **Repository Pattern**: Swappable data sources (in-memory ↔ PostgreSQL)
+- **Repository Pattern**: Swappable data sources (in-memory  PostgreSQL)
 - **Service Layer**: Business logic isolated from handlers
 - **Middleware**: Authentication, RBAC, CORS, Request ID
 
@@ -287,17 +287,17 @@ golangci-lint run
 gosec ./...
 ```
 
-## 📝 Migration Status
+##  Migration Status
 
 | File                        | Description                           | Status     |
 | --------------------------- | ------------------------------------- | ---------- |
-| `000001_initial_schema.sql` | Users, tenants, networks, memberships | ✅ Complete |
-| `000002_chat_tables.sql`    | Chat messages, edit history           | ✅ Complete |
-| `000003_device_tables.sql`  | Device management                     | ✅ Complete |
+| `000001_initial_schema.sql` | Users, tenants, networks, memberships |  Complete |
+| `000002_chat_tables.sql`    | Chat messages, edit history           |  Complete |
+| `000003_device_tables.sql`  | Device management                     |  Complete |
 
-## 🗺️ Roadmap
+##  Roadmap
 
-### Phase 1: Foundation ✅ (Current)
+### Phase 1: Foundation  (Current)
 - [x] Multi-tenant architecture
 - [x] JWT authentication
 - [x] Network & IP management
@@ -308,7 +308,7 @@ gosec ./...
 - [x] Environment configuration
 - [x] PostgreSQL migrations
 
-### Phase 2: Production Readiness 🚧
+### Phase 2: Production Readiness 
 - [ ] PostgreSQL repository implementations
 - [ ] Redis caching layer
 - [ ] Token revocation (blacklist)
@@ -323,15 +323,15 @@ gosec ./...
 - [ ] Multi-region support
 - [ ] Kubernetes deployment
 
-## 🤝 Contributing
+##  Contributing
 
 Contributions welcome! Please read [CONTRIBUTING.md](../CONTRIBUTING.md) first.
 
-## 📄 License
+##  License
 
 MIT License - see [LICENSE](../LICENSE) for details.
 
-## 🙏 Acknowledgments
+##  Acknowledgments
 
 - **WireGuard**: Fast, modern VPN protocol
 - **Gin**: High-performance HTTP framework
@@ -340,6 +340,6 @@ MIT License - see [LICENSE](../LICENSE) for details.
 
 ---
 
-**Built with ❤️ by [@orhaniscoding](https://github.com/orhaniscoding)**
+**Built with  by [@orhaniscoding](https://github.com/orhaniscoding)**
 
 For questions or support, open an issue or reach out via [GitHub Discussions](https://github.com/orhaniscoding/goconnect/discussions).
