@@ -1,19 +1,19 @@
-# GoConnect — Self-Hosted WireGuard VPN Management Platform
+# GoConnect - Self-Hosted WireGuard VPN Management Platform
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go)](https://go.dev/)
 [![Built with Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org/)
-[![Latest Release](https://img.shields.io/badge/version-v0.0.0-blue)](https://github.com/orhaniscoding/goconnect/releases)
+[![Latest Release](https://img.shields.io/badge/version-v2.17.0-blue)](https://github.com/orhaniscoding/goconnect/releases)
 
-> **Latest Release:** v0.0.0 · 2025-11-26  
+> **Latest Release:** v2.17.0  2025-11-26  
 > **Author:** [@orhaniscoding](https://github.com/orhaniscoding)  
 > **License:** MIT
 
 **GoConnect** is a modern, production-ready WireGuard VPN management platform with multi-tenancy, real-time chat, device management, and comprehensive audit logging. Built with Go, Next.js, and PostgreSQL.
 
-## ✨ Features
+## Features
 
-### 🔐 Core VPN Management
+### Core VPN Management
 - **WireGuard Integration**: Automated peer provisioning and configuration generation
 - **Multi-Network Support**: Create and manage multiple isolated VPN networks
 - **MagicDNS Lite**: Automatic hostname resolution via hosts file management
@@ -21,20 +21,20 @@
 - **Device Management**: Register and track devices across platforms (Linux, Windows, macOS, iOS, Android)
 - **Peer-to-Peer Mesh**: Full mesh networking with automatic peer discovery
 
-### 🏢 Multi-Tenancy & Access Control
+### Multi-Tenancy & Access Control
 - **Complete Tenant Isolation**: Security-first architecture with enforced boundaries
 - **Role-Based Access Control (RBAC)**: Owner, Admin, Moderator, and Member roles
 - **Network Membership**: Flexible join policies (Open, Approval Required, Invite-Only)
 - **Join Request Workflow**: Approve/deny membership requests with audit trail
 
-### 💬 Real-Time Communication
+### Real-Time Communication
 - **Built-in Chat**: Network-scoped and global chat with WebSocket support
 - **Message Moderation**: Redact, edit, and delete messages with full audit trail
 - **Edit History Tracking**: Complete message history with timestamps
 - **File Attachments**: Share files within chat (supported formats: images, docs, zip)
 - **Online Status**: Real-time online/offline status indicators for network members and chat users
 
-### 🔍 Observability & Security
+### Observability & Security
 - **Comprehensive Audit Logging**: Immutable SQLite-backed audit log with hash chain integrity
 - **Metrics Export**: Prometheus-compatible metrics for monitoring
 - **Health Checks**: Readiness and liveness probes for container orchestration
@@ -42,7 +42,7 @@
 - **2FA Support**: TOTP-based two-factor authentication
 - **SSO Integration**: OAuth2/OIDC support (Google, GitHub, etc.)
 
-### 🌐 Modern Tech Stack
+### Modern Tech Stack
 - **Backend**: Go 1.24+ with Gin web framework
 - **Frontend**: Next.js 15 with TypeScript and Tailwind CSS
 - **Database**: PostgreSQL 15+ (docker-compose defaults to 15)
@@ -50,7 +50,7 @@
 - **API**: RESTful JSON API with OpenAPI 3.0 specification
 - **i18n**: Multi-language support (English, Turkish)
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - **Go** 1.24 or higher
@@ -110,7 +110,7 @@ npm run dev
 docker-compose up -d
 ```
 
-## 📖 Documentation
+## Documentation
 
 - **[Technical Specification](docs/TECH_SPEC.md)** - Canonical project specification
 - **[API Examples](docs/API_EXAMPLES.http)** - HTTP request examples for testing
@@ -119,7 +119,7 @@ docker-compose up -d
 - **[Configuration Flags](docs/CONFIG_FLAGS.md)** - Environment variables and flags
 - **[OpenAPI Specification](server/openapi/openapi.yaml)** - Complete API documentation
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -149,58 +149,13 @@ GOCONNECT_API_TOKEN=<your-token>
 
 See [CONFIG_FLAGS.md](docs/CONFIG_FLAGS.md) for complete reference.
 
-## 🏗️ Architecture
+## Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                     WEB UI (Next.js)                    │
-│  - Dashboard (network management)                       │
-│  - Chat interface                                       │
-│  - Device/Peer management                               │
-│  Port: 3000 (development)                               │
-└────────────────────────┬────────────────────────────────┘
-                         │
-                         │ REST API (/v1/*)
-                         │ WebSocket (/v1/ws)
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│                  SERVER (Go Backend)                    │
-│  ┌───────────────────────────────────────────────────┐ │
-│  │ REST Handlers (Gin)                               │ │
-│  │ - /v1/networks (CRUD + memberships)               │ │
-│  │ - /v1/auth (register/login)                       │ │
-│  │ - /v1/chat (messages + moderation)                │ │
-│  │ - /v1/devices (device management)                 │ │
-│  │ - /v1/audit/integrity                             │ │
-│  │ - /health, /metrics (Prometheus)                  │ │
-│  └───────────────────────────────────────────────────┘ │
-│  ┌───────────────────────────────────────────────────┐ │
-│  │ Services (Business Logic)                         │ │
-│  │ - NetworkService, MembershipService               │ │
-│  │ - IPAMService, AuthService                        │ │
-│  │ - ChatService, DeviceService                      │ │
-│  │ - PeerProvisioningService                         │ │
-│  └───────────────────────────────────────────────────┘ │
-│  ┌───────────────────────────────────────────────────┐ │
-│  │ Repositories (Data Access)                        │ │
-│  │ - In-Memory (development)                         │ │
-│  │ - PostgreSQL (planned)                            │ │
-│  └───────────────────────────────────────────────────┘ │
-│  Port: 8080                                             │
-└─────────────────────────────────────────────────────────┘
-                         │
-                         │ WireGuard Profile
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│              CLIENT DAEMON (Platform Agent)             │
-│  - Apply WireGuard configuration                        │
-│  - Heartbeat to server                                  │
-│  - Auto-reconnect                                       │
-│  Port: Random (12000-13000)                             │
-└─────────────────────────────────────────────────────────┘
-```
+- **Web UI (Next.js)**: Dashboard, chat, device/peer management (port 3000 in development)
+- **Server (Go, Gin)**: REST `/v1/*`, WebSocket `/v1/ws`, handlers for auth/networks/chat/devices/audit, metrics/health (port 8080)
+- **Services**: Network, Membership, IPAM, Auth, Chat, Device, Peer Provisioning
+- **Repositories**: In-memory (dev) and PostgreSQL (production)
+- **Client Daemon**: Applies WireGuard config, heartbeats, auto-reconnect (random port 12000-13000)
 
 ### API Endpoints
 
@@ -246,7 +201,7 @@ GET    /v1/audit/integrity    Export integrity snapshot
 
 See [OpenAPI Specification](server/openapi/openapi.yaml) for complete API documentation.
 
-## 🧪 Development
+## Development
 
 ### Available Make Commands
 
@@ -307,7 +262,7 @@ Current coverage (as of 2025-11-26):
 - **metrics**: 100%
 - **wireguard**: 90.5%
 
-**Target**: ≥60% (enforced in CI)
+**Target**: 60% (enforced in CI)
 
 ### Linting
 
@@ -324,7 +279,7 @@ cd web-ui
 npm run lint
 ```
 
-## 📦 Deployment
+## Deployment
 
 ### Binary Releases
 
@@ -362,7 +317,7 @@ docker pull ghcr.io/orhaniscoding/goconnect-server:v0.0.0
 docker run -p 8080:8080 ghcr.io/orhaniscoding/goconnect-server:v0.0.0
 ```
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
@@ -377,11 +332,11 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed gu
 **Development Workflow:**
 - Run `make help` to see all available commands
 - All tests must pass: `make test-race`
-- Coverage must be ≥60%: `make test-coverage`
+- Coverage must be 60%: `make test-coverage`
 - Linters must be clean: `make lint`
 - Follow [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
 
-## 🛣️ Roadmap
+## Roadmap
 
 ### v1.3 (Current)
 - [ ] PostgreSQL migration (replace in-memory)
@@ -403,10 +358,10 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed gu
 
 See [GitHub Projects](https://github.com/orhaniscoding/goconnect/projects) for detailed roadmap.
 
-## 🔒 Security
+## Security
 
 ### Current Status
-⚠️ **Development Mode**: The current authentication implementation is a **PLACEHOLDER** for development purposes only. Do not use in production without implementing proper JWT/OIDC authentication.
+ **Development Mode**: The current authentication implementation is a **PLACEHOLDER** for development purposes only. Do not use in production without implementing proper JWT/OIDC authentication.
 
 ### Reporting Vulnerabilities
 Please report security vulnerabilities responsibly:
@@ -416,7 +371,7 @@ Please report security vulnerabilities responsibly:
 
 See [SECURITY.md](docs/SECURITY.md) for our security policy.
 
-## 📊 Project Stats
+## Project Stats
 
 - **Language**: Go 1.24+, TypeScript
 - **Test Coverage**: 60%+ (enforced)
@@ -424,7 +379,7 @@ See [SECURITY.md](docs/SECURITY.md) for our security policy.
 - **Lines of Code**: ~15,000
 - **Documentation**: Comprehensive (14 docs files)
 
-## 📄 License
+## License
 
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
@@ -452,7 +407,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - [WireGuard](https://www.wireguard.com/) - Fast and modern VPN protocol
 - [Gin Web Framework](https://gin-gonic.com/) - HTTP web framework
@@ -460,7 +415,7 @@ SOFTWARE.
 - [PostgreSQL](https://www.postgresql.org/) - Relational database
 - All open-source contributors
 
-## 📞 Support
+## Support
 
 - **Documentation**: [docs/](docs/)
 - **Issues**: [GitHub Issues](https://github.com/orhaniscoding/goconnect/issues)
@@ -469,4 +424,5 @@ SOFTWARE.
 
 ---
 
-**Built with ❤️ by orhaniscoding** | Latest Release: v0.0.0 (2025-11-26)
+**Built with care by orhaniscoding** | Latest Release: v2.17.0 (2025-11-26)
+
