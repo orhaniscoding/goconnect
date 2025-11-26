@@ -500,6 +500,44 @@
   "admin.pagination.previous": "Previous",
   "admin.pagination.next": "Next",
   "admin.pagination.nextPage": "Next Page",
+  "audit": {
+    "title": "System Audit Logs",
+    "subtitle": "{{total}} total audit entries",
+    "backToAdmin": "Back to Admin",
+    "refresh": "Refresh",
+    "loading": "Loading audit logs...",
+    "noLogs": "No audit logs found.",
+    "error": {
+      "load": "Failed to load audit logs"
+    },
+    "filter": {
+      "category": "Category",
+      "allCategories": "All Categories",
+      "network": "Network",
+      "membership": "Membership",
+      "ip": "IP Allocation",
+      "action": "Action",
+      "allActions": "All Actions",
+      "search": "Search",
+      "searchPlaceholder": "Search by actor, object, or details...",
+      "dateFrom": "From Date",
+      "dateTo": "To Date",
+      "clear": "Clear Filters"
+    },
+    "showing": "Showing {{count}} of {{total}} entries",
+    "table": {
+      "time": "Time",
+      "action": "Action",
+      "actor": "Actor",
+      "object": "Object",
+      "details": "Details"
+    },
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "page": "Page {{page}} of {{total}}"
+    }
+  },
   "chat": {
     "error": {
       "loadNetworks": "Failed to load networks",

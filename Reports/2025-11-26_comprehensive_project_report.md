@@ -151,6 +151,7 @@ GoConnect, WireGuard tabanlı bir VPN yönetim sistemidir. Proje, planlanan öze
 | Dashboard       | `/[locale]/dashboard`             | ✅     |
 | Networks        | `/[locale]/networks`              | ✅     |
 | Network Detail  | `/[locale]/networks/[id]`         | ✅     |
+| Network Chat    | `/[locale]/networks/[id]/chat`    | ✅     |
 | Devices         | `/[locale]/devices`               | ✅     |
 | Profile         | `/[locale]/profile`               | ✅     |
 | Settings        | `/[locale]/settings`              | ✅     |
@@ -222,7 +223,7 @@ Planlanan tüm kritik özellikler tamamlanmıştır.
 
 ### 5.3 Olası Gelecek Özellikler
 
-- Network-level chat (şu an tenant-level var)
+- ~~Network-level chat~~ ✅ Tamamlandı (v2.13.0)
 - File sharing in chat
 - Voice/video call entegrasyonu
 - Custom DNS per network

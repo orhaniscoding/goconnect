@@ -523,6 +523,29 @@
     },
     "audit": {
       "title": "Sistem Denetim Kayıtları",
+      "subtitle": "{{total}} toplam denetim kaydı",
+      "backToAdmin": "Yönetim Paneline Dön",
+      "refresh": "Yenile",
+      "loading": "Denetim kayıtları yükleniyor...",
+      "noLogs": "Denetim kaydı bulunamadı.",
+      "error": {
+        "load": "Denetim kayıtları yüklenemedi"
+      },
+      "filter": {
+        "category": "Kategori",
+        "allCategories": "Tüm Kategoriler",
+        "network": "Ağ",
+        "membership": "Üyelik",
+        "ip": "IP Tahsisi",
+        "action": "İşlem",
+        "allActions": "Tüm İşlemler",
+        "search": "Ara",
+        "searchPlaceholder": "Yapan, nesne veya detaylarda ara...",
+        "dateFrom": "Başlangıç Tarihi",
+        "dateTo": "Bitiş Tarihi",
+        "clear": "Filtreleri Temizle"
+      },
+      "showing": "{{total}} kayıttan {{count}} tanesi gösteriliyor",
       "table": {
         "time": "Zaman",
         "action": "İşlem",
@@ -530,7 +553,11 @@
         "object": "Nesne",
         "details": "Detaylar"
       },
-      "noLogs": "Denetim kaydı bulunamadı."
+      "pagination": {
+        "previous": "Önceki",
+        "next": "Sonraki",
+        "page": "Sayfa {{page}} / {{total}}"
+      }
     },
     "pagination": {
       "previous": "Önceki",
