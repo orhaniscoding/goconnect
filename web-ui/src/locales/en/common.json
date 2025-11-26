@@ -808,6 +808,7 @@
     },
     "settings": {
       "title": "Team Settings",
+      "generalTab": "General",
       "basicInfo": "Basic Information",
       "privacy": "Privacy & Access",
       "dangerZone": "Danger Zone",

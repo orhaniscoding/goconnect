@@ -752,6 +752,7 @@
     },
     "settings": {
       "title": "Ekip Ayarları",
+      "generalTab": "Genel",
       "basicInfo": "Temel Bilgiler",
       "privacy": "Gizlilik ve Erişim",
       "dangerZone": "Tehlikeli Bölge",

@@ -12,12 +12,16 @@ import {
   getTenantMembers,
   updateTenant,
   deleteTenantAsOwner,
+  getBannedTenantMembers,
+  unbanTenantMember,
   type TenantWithMemberCount,
   type TenantMember,
   type TenantVisibility,
   type TenantAccessType,
   type UpdateTenantRequest,
 } from '../../../../../../lib/api'
+
+type SettingsTab = 'general' | 'banned'
 
 export default function TenantSettingsPage() {
   const router = useRouter()
@@ -29,8 +33,12 @@ export default function TenantSettingsPage() {
 
   const [tenant, setTenant] = useState<TenantWithMemberCount | null>(null)
   const [myMembership, setMyMembership] = useState<TenantMember | null>(null)
+  const [bannedMembers, setBannedMembers] = useState<TenantMember[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [activeTab, setActiveTab] = useState<SettingsTab>('general')
+  const [loadingBanned, setLoadingBanned] = useState(false)
+  const [unbanningId, setUnbanningId] = useState<string | null>(null)
 
   // Delete confirmation state
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -78,9 +86,43 @@ export default function TenantSettingsPage() {
     loadTenantData()
   }, [loadTenantData])
 
-  // Permission check
+  // Permission check - defined before useEffect that depends on it
   const canEditSettings = myMembership && ['owner', 'admin'].includes(myMembership.role)
   const isOwner = myMembership?.role === 'owner'
+
+  // Load banned members when switching to banned tab
+  const loadBannedMembers = useCallback(async () => {
+    setLoadingBanned(true)
+    try {
+      const banned = await getBannedTenantMembers(tenantId)
+      setBannedMembers(banned)
+    } catch (err) {
+      notification.error(t('error.generic'), String(err))
+    } finally {
+      setLoadingBanned(false)
+    }
+  }, [tenantId, notification, t])
+
+  useEffect(() => {
+    if (activeTab === 'banned' && canEditSettings) {
+      loadBannedMembers()
+    }
+  }, [activeTab, canEditSettings, loadBannedMembers])
+
+  // Handle unban member
+  const handleUnbanMember = async (memberId: string) => {
+    setUnbanningId(memberId)
+    try {
+      await unbanTenantMember(tenantId, memberId)
+      notification.success(t('servers.members.unbanSuccess'))
+      // Refresh banned members list
+      await loadBannedMembers()
+    } catch (err) {
+      notification.error(t('servers.members.unbanError'), String(err))
+    } finally {
+      setUnbanningId(null)
+    }
+  }
 
   // Handle tenant deletion
   const handleDeleteTenant = async () => {
@@ -225,11 +267,37 @@ export default function TenantSettingsPage() {
                 </p>
               </div>
             </div>
+
+            {/* Tab Navigation */}
+            <div className="mt-4 flex border-b border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setActiveTab('general')}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'general'
+                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                }`}
+              >
+                {t('tenant.settings.generalTab')}
+              </button>
+              <button
+                onClick={() => setActiveTab('banned')}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'banned'
+                    ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                }`}
+              >
+                {t('servers.members.bannedMembers')}
+              </button>
+            </div>
           </div>
         </header>
 
         {/* Main Content */}
         <main className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+          {/* General Settings Tab */}
+          {activeTab === 'general' && (
           <form onSubmit={handleSubmit} className="space-y-8">
             {/* Basic Information */}
             <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -480,6 +548,80 @@ export default function TenantSettingsPage() {
               </button>
             </div>
           </form>
+          )}
+
+          {/* Banned Members Tab */}
+          {activeTab === 'banned' && (
+            <div className="space-y-6">
+              <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-6">
+                  {t('servers.members.bannedMembers')}
+                </h2>
+
+                {loadingBanned ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+                  </div>
+                ) : bannedMembers.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <svg className="mx-auto h-12 w-12 mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    {t('servers.members.noBannedMembers')}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {bannedMembers.map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900 dark:text-white">
+                              {member.nickname || member.user_id}
+                            </span>
+                            <span className="px-2 py-0.5 text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full">
+                              {t('servers.members.banned')}
+                            </span>
+                          </div>
+                          <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            {member.banned_at && (
+                              <span>
+                                {t('servers.members.bannedAt')}: {new Date(member.banned_at).toLocaleDateString()}
+                              </span>
+                            )}
+                            {member.banned_by && (
+                              <span className="ml-3">
+                                {t('servers.members.bannedBy')}: {member.banned_by}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleUnbanMember(member.id)}
+                          disabled={unbanningId === member.id}
+                          className="px-3 py-1.5 text-sm font-medium text-green-600 dark:text-green-400 border border-green-300 dark:border-green-700 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
+                          {unbanningId === member.id ? (
+                            <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                          ) : (
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          )}
+                          {t('servers.members.actions.unban')}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
+          )}
         </main>
 
         {/* Delete Confirmation Modal */}
