@@ -14,7 +14,12 @@ import (
 // WireGuardSyncService handles synchronization between DB peers and OS WireGuard interface
 type WireGuardSyncService struct {
 	peerRepo  repository.PeerRepository
-	wgManager *wireguard.Manager
+	wgManager peerSyncer
+}
+
+// peerSyncer abstracts WireGuard peer synchronization for easier testing.
+type peerSyncer interface {
+	SyncPeers([]wgtypes.PeerConfig) error
 }
 
 // NewWireGuardSyncService creates a new sync service
