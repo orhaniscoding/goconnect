@@ -12,6 +12,20 @@ interface NavItem {
   adminOnly?: boolean
 }
 
+const ICONS = {
+  dashboard: '📊',
+  networks: '🌐',
+  devices: '💻',
+  tenants: '👥',
+  profile: '🙍',
+  settings: '⚙️',
+  admin: '🛡️',
+  brand: '🌀',
+  logout: '↩️',
+  menuOpen: '✖️',
+  menuClosed: '☰',
+}
+
 export default function Navbar() {
   const router = useRouter()
   const params = useParams()
@@ -28,18 +42,16 @@ export default function Navbar() {
   }, [])
 
   const navItems: NavItem[] = [
-    { key: 'dashboard', label: t('nav.dashboard'), icon: '🏠', href: `/${locale}/dashboard` },
-    { key: 'networks', label: t('nav.networks'), icon: '🌐', href: `/${locale}/networks` },
-    { key: 'devices', label: t('nav.devices'), icon: '💻', href: `/${locale}/devices` },
-    { key: 'tenants', label: t('nav.tenants'), icon: '👥', href: `/${locale}/tenants` },
-    { key: 'profile', label: t('nav.profile'), icon: '👤', href: `/${locale}/profile` },
-    { key: 'settings', label: t('nav.settings'), icon: '⚙️', href: `/${locale}/settings` },
-    { key: 'admin', label: t('nav.admin'), icon: '👑', href: `/${locale}/admin`, adminOnly: true },
+    { key: 'dashboard', label: t('nav.dashboard'), icon: ICONS.dashboard, href: `/${locale}/dashboard` },
+    { key: 'networks', label: t('nav.networks'), icon: ICONS.networks, href: `/${locale}/networks` },
+    { key: 'devices', label: t('nav.devices'), icon: ICONS.devices, href: `/${locale}/devices` },
+    { key: 'tenants', label: t('nav.tenants'), icon: ICONS.tenants, href: `/${locale}/tenants` },
+    { key: 'profile', label: t('nav.profile'), icon: ICONS.profile, href: `/${locale}/profile` },
+    { key: 'settings', label: t('nav.settings'), icon: ICONS.settings, href: `/${locale}/settings` },
+    { key: 'admin', label: t('nav.admin'), icon: ICONS.admin, href: `/${locale}/admin`, adminOnly: true },
   ]
 
-  const isActive = (href: string) => {
-    return pathname.startsWith(href)
-  }
+  const isActive = (href: string) => pathname.startsWith(href)
 
   const handleLogout = () => {
     clearAuth()
@@ -78,7 +90,7 @@ export default function Navbar() {
             fontSize: 18
           }}
         >
-          <span style={{ fontSize: 24 }}>🔐</span>
+          <span style={{ fontSize: 24 }}>{ICONS.brand}</span>
           <span>GoConnect</span>
         </div>
 
@@ -150,7 +162,7 @@ export default function Navbar() {
               gap: 4
             }}
           >
-            <span>🚪</span>
+            <span>{ICONS.logout}</span>
             <span className="nav-label">{t('nav.logout')}</span>
           </button>
 
@@ -168,7 +180,7 @@ export default function Navbar() {
             }}
             className="mobile-menu-btn"
           >
-            {mobileMenuOpen ? '✕' : '☰'}
+            {mobileMenuOpen ? ICONS.menuOpen : ICONS.menuClosed}
           </button>
         </div>
       </div>

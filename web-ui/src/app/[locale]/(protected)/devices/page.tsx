@@ -290,13 +290,13 @@ export default function DevicesPage() {
 
   const getPlatformIcon = (platform: string) => {
     const icons: Record<string, string> = {
-      windows: '🪟',
-      macos: '🍎',
-      linux: '🐧',
-      android: '🤖',
-      ios: '📱'
+      windows: '??',
+      macos: '??',
+      linux: '??',
+      android: '??',
+      ios: '??',
     }
-    return icons[platform] || '💻'
+    return icons[platform] || '??'
   }
 
   const getPlatformColor = (platform: string) => {
@@ -1002,3 +1002,5 @@ export default function DevicesPage() {
     </AuthGuard>
   )
 }
+
+
