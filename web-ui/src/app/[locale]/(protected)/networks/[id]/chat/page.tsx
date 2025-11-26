@@ -9,6 +9,7 @@ import {
   getNetwork,
   listMembers,
   listChatMessages,
+  uploadFile,
   type Network,
   type Membership,
   type ChatMessage
@@ -34,6 +35,11 @@ export default function NetworkChatPage() {
   const [message, setMessage] = useState('')
   const [showSidebar, setShowSidebar] = useState(true)
   const [typingUsers, setTypingUsers] = useState<string[]>([])
+
+  // File Upload state
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  const [attachments, setAttachments] = useState<string[]>([])
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -167,7 +173,7 @@ export default function NetworkChatPage() {
   }, [networkId, myMembership, ws.isConnected, ws, user?.id])
 
   const handleSend = async () => {
-    if (!message.trim() || sending) return
+    if ((!message.trim() && attachments.length === 0) || sending) return
 
     setSending(true)
     try {
@@ -175,9 +181,11 @@ export default function NetworkChatPage() {
       if (ws.isConnected) {
         ws.send('chat.send', {
           scope: `network:${networkId}`,
-          body: message.trim()
+          body: message.trim(),
+          attachments: attachments
         })
         setMessage('')
+        setAttachments([])
         inputRef.current?.focus()
       } else {
         notification.error(t('chat.error.notConnected'), '')
@@ -187,6 +195,36 @@ export default function NetworkChatPage() {
     } finally {
       setSending(false)
     }
+  }
+
+  // File upload handler
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return
+
+    const file = e.target.files[0]
+    setUploading(true)
+
+    try {
+      const token = getAccessToken()
+      if (!token) throw new Error(t('chat.error.notAuthenticated'))
+
+      const result = await uploadFile(file, token)
+      setAttachments(prev => [...prev, result.url])
+    } catch (err: any) {
+      console.error('Upload failed:', err)
+      notification.error(t('chat.error.upload'), err.message || '')
+    } finally {
+      setUploading(false)
+      // Reset input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
+
+  // Remove attachment from list
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index))
   }
 
   // Send typing indicator
@@ -427,6 +465,32 @@ export default function NetworkChatPage() {
                           <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5 }}>
                             {isDeleted ? t('chat.message.redacted') : msg.body}
                           </p>
+                          {/* Attachments Display */}
+                          {msg.attachments && msg.attachments.length > 0 && !isDeleted && (
+                            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                              {msg.attachments.map((url, i) => {
+                                const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(url)
+                                return (
+                                  <a
+                                    key={i}
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{
+                                      color: isOwn ? 'white' : '#3b82f6',
+                                      fontSize: 13,
+                                      textDecoration: 'underline',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 4
+                                    }}
+                                  >
+                                    {isImage ? '🖼️' : '📎'} {t('chat.attachment')} {i + 1}
+                                  </a>
+                                )
+                              })}
+                            </div>
+                          )}
                         </div>
 
                         <span style={{
@@ -467,11 +531,60 @@ export default function NetworkChatPage() {
               backgroundColor: 'white',
               borderTop: '1px solid #e5e7eb'
             }}>
+              {/* Attachment Preview */}
+              {attachments.length > 0 && (
+                <div style={{ marginBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {attachments.map((url, i) => (
+                    <div key={i} style={{
+                      padding: '4px 8px',
+                      backgroundColor: '#e5e7eb',
+                      borderRadius: 4,
+                      fontSize: 12,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6
+                    }}>
+                      <span>📎 {t('chat.attachment')} {i + 1}</span>
+                      <button
+                        onClick={() => removeAttachment(i)}
+                        style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, color: '#ef4444' }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div style={{
                 display: 'flex',
                 gap: 12,
                 alignItems: 'center'
               }}>
+                {/* Hidden File Input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  style={{ display: 'none' }}
+                />
+                {/* Attachment Button */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={!ws.isConnected || uploading}
+                  style={{
+                    padding: '10px 12px',
+                    backgroundColor: '#f3f4f6',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: 24,
+                    cursor: ws.isConnected && !uploading ? 'pointer' : 'not-allowed',
+                    fontSize: 18,
+                    opacity: ws.isConnected && !uploading ? 1 : 0.5
+                  }}
+                  title={t('chat.input.attach')}
+                >
+                  {uploading ? '⏳' : '📎'}
+                </button>
                 <input
                   ref={inputRef}
                   type="text"
@@ -490,17 +603,17 @@ export default function NetworkChatPage() {
                 />
                 <button
                   onClick={handleSend}
-                  disabled={!message.trim() || sending}
+                  disabled={(!message.trim() && attachments.length === 0) || sending}
                   style={{
                     padding: '12px 24px',
                     backgroundColor: '#3b82f6',
                     color: 'white',
                     border: 'none',
                     borderRadius: 24,
-                    cursor: message.trim() && !sending ? 'pointer' : 'not-allowed',
+                    cursor: (message.trim() || attachments.length > 0) && !sending ? 'pointer' : 'not-allowed',
                     fontSize: 14,
                     fontWeight: 500,
-                    opacity: message.trim() && !sending ? 1 : 0.5
+                    opacity: (message.trim() || attachments.length > 0) && !sending ? 1 : 0.5
                   }}
                 >
                   {sending ? '...' : t('chat.input.send')}
