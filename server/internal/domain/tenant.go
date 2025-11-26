@@ -69,8 +69,15 @@ type TenantMember struct {
 	Nickname  string     `json:"nickname,omitempty" db:"nickname"` // Tenant-specific display name
 	JoinedAt  time.Time  `json:"joined_at" db:"joined_at"`
 	UpdatedAt time.Time  `json:"updated_at" db:"updated_at"`
+	BannedAt  *time.Time `json:"banned_at,omitempty" db:"banned_at"` // When user was banned (nil = not banned)
+	BannedBy  string     `json:"banned_by,omitempty" db:"banned_by"` // Who banned the user
 	// Enriched fields (not in DB)
 	User *User `json:"user,omitempty" db:"-"` // Populated on list queries
+}
+
+// IsBanned checks if the member is banned
+func (tm *TenantMember) IsBanned() bool {
+	return tm.BannedAt != nil
 }
 
 // TenantInvite represents a tenant-level invitation (Steam-like codes)
@@ -156,6 +163,11 @@ type JoinByCodeRequest struct {
 // UpdateMemberRoleRequest for updating a member's role
 type UpdateMemberRoleRequest struct {
 	Role TenantRole `json:"role" binding:"required,oneof=admin moderator vip member"`
+}
+
+// BanMemberRequest for banning a member from a tenant
+type BanMemberRequest struct {
+	Reason string `json:"reason,omitempty" binding:"max=500"` // Optional ban reason
 }
 
 // CreateTenantInviteRequest for creating tenant invites

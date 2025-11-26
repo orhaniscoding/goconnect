@@ -298,6 +298,33 @@ func (r *PostgresTenantMemberRepository) DeleteAllByTenant(ctx context.Context, 
 	return nil
 }
 
+func (r *PostgresTenantMemberRepository) Ban(ctx context.Context, id string, bannedBy string) error {
+	query := `UPDATE tenant_members SET banned_at = $2, banned_by = $3, updated_at = $2 WHERE id = $1`
+	now := time.Now()
+	result, err := r.db.ExecContext(ctx, query, id, now, bannedBy)
+	if err != nil {
+		return fmt.Errorf("failed to ban member: %w", err)
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return domain.NewError(domain.ErrNotFound, "Tenant member not found", nil)
+	}
+	return nil
+}
+
+func (r *PostgresTenantMemberRepository) IsBanned(ctx context.Context, userID, tenantID string) (bool, error) {
+	query := `SELECT banned_at IS NOT NULL FROM tenant_members WHERE user_id = $1 AND tenant_id = $2`
+	var isBanned bool
+	err := r.db.QueryRowContext(ctx, query, userID, tenantID).Scan(&isBanned)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("failed to check ban status: %w", err)
+	}
+	return isBanned, nil
+}
+
 // Helper function for nullable strings
 func nullString(s string) sql.NullString {
 	if s == "" {

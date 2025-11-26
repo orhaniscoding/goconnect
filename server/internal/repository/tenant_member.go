@@ -29,6 +29,10 @@ type TenantMemberRepository interface {
 	GetUserRole(ctx context.Context, userID, tenantID string) (domain.TenantRole, error)
 	HasRole(ctx context.Context, userID, tenantID string, requiredRole domain.TenantRole) (bool, error)
 
+	// Ban operations
+	Ban(ctx context.Context, id string, bannedBy string) error
+	IsBanned(ctx context.Context, userID, tenantID string) (bool, error)
+
 	// Bulk delete - used when deleting tenant
 	DeleteAllByTenant(ctx context.Context, tenantID string) error
 }
@@ -204,4 +208,31 @@ func (r *InMemoryTenantMemberRepository) DeleteAllByTenant(ctx context.Context, 
 		}
 	}
 	return nil
+}
+
+func (r *InMemoryTenantMemberRepository) Ban(ctx context.Context, id string, bannedBy string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	member, exists := r.members[id]
+	if !exists {
+		return domain.NewError(domain.ErrNotFound, "Tenant member not found", nil)
+	}
+	now := time.Now()
+	member.BannedAt = &now
+	member.BannedBy = bannedBy
+	member.UpdatedAt = now
+	return nil
+}
+
+func (r *InMemoryTenantMemberRepository) IsBanned(ctx context.Context, userID, tenantID string) (bool, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for _, m := range r.members {
+		if m.UserID == userID && m.TenantID == tenantID {
+			return m.IsBanned(), nil
+		}
+	}
+	return false, nil
 }

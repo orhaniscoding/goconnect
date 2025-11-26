@@ -620,6 +620,12 @@
       "title": "Members",
       "count": "{count} members",
       "kick": "Kick",
+      "ban": "Ban",
+      "banned": "Banned",
+      "banConfirmTitle": "Ban Member?",
+      "banConfirmMessage": "Are you sure you want to ban this member? They won't be able to rejoin the server even with an invite code.",
+      "banSuccess": "Member has been banned",
+      "banError": "Failed to ban member",
       "changeRole": "Change Role",
       "roleUpdated": "Role updated successfully",
       "kicked": "Member has been removed"

@@ -1089,6 +1089,8 @@ export interface TenantMember {
   created_at: string
   joined_at: string
   updated_at: string
+  banned_at?: string | null
+  banned_by?: string | null
   user?: {
     id: string
     email: string
@@ -1638,6 +1640,18 @@ export async function removeTenantMember(tenantId: string, memberId: string): Pr
   await api(`/v1/tenants/${tenantId}/members/${memberId}`, {
     method: 'DELETE',
     headers: getAuthHeader(),
+  })
+}
+
+/**
+ * Ban tenant member (auto token)
+ * Banned users cannot rejoin the tenant even with invite codes
+ */
+export async function banTenantMember(tenantId: string, memberId: string, reason?: string): Promise<void> {
+  await api(`/v1/tenants/${tenantId}/members/${memberId}/ban`, {
+    method: 'POST',
+    headers: getAuthHeader(),
+    body: reason ? JSON.stringify({ reason }) : undefined,
   })
 }
 

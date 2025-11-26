@@ -20,6 +20,7 @@ import {
     deleteTenantAnnouncement,
     toggleTenantAnnouncementPin,
     removeTenantMember,
+    banTenantMember,
     type TenantWithMemberCount,
     type TenantMember,
     type TenantAnnouncement,
@@ -165,6 +166,17 @@ export default function TenantDetailPage() {
             await loadTenantData()
         } catch (err) {
             notification.error(t('tenant.members.title'), String(err))
+        }
+    }
+
+    const handleBanMember = async (memberId: string) => {
+        if (!confirm(t('tenants.members.banConfirmMessage'))) return
+        try {
+            await banTenantMember(tenantId, memberId)
+            notification.success(t('tenants.members.title'), t('tenants.members.banSuccess'))
+            await loadTenantData()
+        } catch (err) {
+            notification.error(t('tenants.members.title'), t('tenants.members.banError'))
         }
     }
 
@@ -682,6 +694,35 @@ export default function TenantDetailPage() {
                                                         >
                                                             {t('tenant.members.actions.kick')}
                                                         </button>
+                                                        {!member.banned_at && (
+                                                            <button
+                                                                onClick={() => handleBanMember(member.id)}
+                                                                style={{
+                                                                    padding: '6px 12px',
+                                                                    backgroundColor: '#7f1d1d',
+                                                                    color: 'white',
+                                                                    border: 'none',
+                                                                    borderRadius: 6,
+                                                                    cursor: 'pointer',
+                                                                    fontSize: 12,
+                                                                    fontWeight: 500
+                                                                }}
+                                                            >
+                                                                {t('tenants.members.ban')}
+                                                            </button>
+                                                        )}
+                                                        {member.banned_at && (
+                                                            <span style={{
+                                                                padding: '6px 12px',
+                                                                backgroundColor: '#7f1d1d',
+                                                                color: 'white',
+                                                                borderRadius: 6,
+                                                                fontSize: 12,
+                                                                fontWeight: 500
+                                                            }}>
+                                                                {t('tenants.members.banned')}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>

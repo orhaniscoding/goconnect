@@ -991,6 +991,130 @@ func TestTenantHandler_RemoveMember(t *testing.T) {
 	})
 }
 
+// ==================== BAN MEMBER TESTS ====================
+
+func TestTenantHandler_BanMember(t *testing.T) {
+	t.Run("Success_OwnerBansMember", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.POST("/v1/tenants/:tenantId/members/:memberId/ban", authMiddleware(mockAuth), handler.BanMember)
+
+		// Create tenant as user_dev (token user is owner)
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Add a member to ban
+		memberToBan, err := tenantService.JoinTenant(ctx, "member_to_ban", tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("POST", "/v1/tenants/"+tenant.ID+"/members/"+memberToBan.ID+"/ban", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Owner should be able to ban member
+		assert.Equal(t, http.StatusOK, w.Code)
+		var response map[string]interface{}
+		err = json.Unmarshal(w.Body.Bytes(), &response)
+		require.NoError(t, err)
+		assert.Equal(t, "Member banned successfully", response["message"])
+	})
+
+	t.Run("Failure_MemberCannotBan", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.POST("/v1/tenants/:tenantId/members/:memberId/ban", authMiddleware(mockAuth), handler.BanMember)
+
+		// Create tenant as different user (not the token user)
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "different_owner", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Add token user (user_dev) as a regular member
+		_, err = tenantService.JoinTenant(ctx, "user_dev", tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+
+		// Add another member to try to ban
+		memberToBan, err := tenantService.JoinTenant(ctx, "member_to_ban", tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("POST", "/v1/tenants/"+tenant.ID+"/members/"+memberToBan.ID+"/ban", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Regular member should NOT be able to ban
+		assert.Equal(t, http.StatusForbidden, w.Code)
+	})
+
+	t.Run("Failure_CannotBanSelf", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.POST("/v1/tenants/:tenantId/members/:memberId/ban", authMiddleware(mockAuth), handler.BanMember)
+
+		// Create tenant as different user
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "different_owner", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Promote user_dev to admin so they can try to ban
+		tokenUserMember, err := tenantService.JoinTenant(ctx, "user_dev", tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+		err = tenantService.UpdateMemberRole(ctx, "different_owner", tenant.ID, tokenUserMember.ID, domain.TenantRoleAdmin)
+		require.NoError(t, err)
+
+		// Try to ban self
+		req := httptest.NewRequest("POST", "/v1/tenants/"+tenant.ID+"/members/"+tokenUserMember.ID+"/ban", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Should NOT be able to ban self
+		assert.Equal(t, http.StatusForbidden, w.Code)
+	})
+
+	t.Run("Failure_BannedUserCannotRejoin", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.POST("/v1/tenants/:tenantId/members/:memberId/ban", authMiddleware(mockAuth), handler.BanMember)
+		r.POST("/v1/tenants/:tenantId/join", authMiddleware(mockAuth), handler.JoinTenant)
+
+		// Create tenant as user_dev (token user is owner)
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Ban member using service directly
+		memberToBan, err := tenantService.JoinTenant(ctx, "test_user_2", tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+
+		err = tenantService.BanMember(ctx, "user_dev", tenant.ID, memberToBan.ID)
+		require.NoError(t, err)
+
+		// Try to rejoin using member-token (test_user_2)
+		req := httptest.NewRequest("POST", "/v1/tenants/"+tenant.ID+"/join", nil)
+		req.Header.Set("Authorization", "Bearer member-token") // Maps to test_user_2
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Banned user should NOT be able to rejoin
+		assert.Equal(t, http.StatusForbidden, w.Code)
+	})
+}
+
 // ==================== INVITE TESTS ====================
 
 func TestTenantHandler_CreateInvite(t *testing.T) {

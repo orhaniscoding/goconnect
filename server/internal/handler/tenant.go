@@ -318,6 +318,23 @@ func (h *TenantHandler) RemoveMember(c *gin.Context) {
 	})
 }
 
+// BanMember handles POST /v1/tenants/:tenantId/members/:memberId/ban
+func (h *TenantHandler) BanMember(c *gin.Context) {
+	tenantID := c.Param("tenantId")
+	memberID := c.Param("memberId")
+	actorID := c.GetString("user_id")
+
+	err := h.tenantService.BanMember(c.Request.Context(), actorID, tenantID, memberID)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Member banned successfully",
+	})
+}
+
 // ==================== INVITE ROUTES ====================
 
 // CreateInvite handles POST /v1/tenants/:tenantId/invites
@@ -586,6 +603,7 @@ func (h *TenantHandler) RegisterRoutes(rg *gin.RouterGroup, authMiddleware gin.H
 		tenants.GET("/:tenantId/members", h.GetTenantMembers)
 		tenants.PATCH("/:tenantId/members/:memberId", h.UpdateMemberRole)
 		tenants.DELETE("/:tenantId/members/:memberId", h.RemoveMember)
+		tenants.POST("/:tenantId/members/:memberId/ban", h.BanMember)
 
 		// Invites
 		tenants.POST("/:tenantId/invites", h.CreateInvite)

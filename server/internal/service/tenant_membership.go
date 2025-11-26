@@ -279,6 +279,15 @@ func (s *TenantMembershipService) ListPublicTenants(ctx context.Context, req *do
 
 // JoinTenant allows a user to join a tenant
 func (s *TenantMembershipService) JoinTenant(ctx context.Context, userID, tenantID string, req *domain.JoinTenantRequest) (*domain.TenantMember, error) {
+	// Check if banned
+	isBanned, err := s.memberRepo.IsBanned(ctx, userID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if isBanned {
+		return nil, domain.NewError(domain.ErrForbidden, "You are banned from this tenant", nil)
+	}
+
 	// Check if already a member
 	existing, _ := s.memberRepo.GetByUserAndTenant(ctx, userID, tenantID)
 	if existing != nil {
@@ -340,6 +349,15 @@ func (s *TenantMembershipService) JoinByCode(ctx context.Context, userID string,
 			return nil, domain.NewError(domain.ErrInviteTokenRevoked, "This invite code has been revoked", nil)
 		}
 		return nil, domain.NewError(domain.ErrInviteTokenExpired, "This invite code has expired", nil)
+	}
+
+	// Check if banned
+	isBanned, err := s.memberRepo.IsBanned(ctx, userID, invite.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	if isBanned {
+		return nil, domain.NewError(domain.ErrForbidden, "You are banned from this tenant", nil)
 	}
 
 	// Check if already a member
@@ -488,6 +506,53 @@ func (s *TenantMembershipService) RemoveMember(ctx context.Context, actorID, ten
 	}
 
 	return s.memberRepo.Delete(ctx, targetMemberID)
+}
+
+// BanMember bans a member from a tenant
+func (s *TenantMembershipService) BanMember(ctx context.Context, actorID, tenantID, targetMemberID string) error {
+	// Get actor's role
+	actorRole, err := s.memberRepo.GetUserRole(ctx, actorID, tenantID)
+	if err != nil {
+		return domain.NewError(domain.ErrForbidden, "You are not a member of this tenant", nil)
+	}
+
+	// Need at least admin to ban
+	if !actorRole.HasPermission(domain.TenantRoleAdmin) {
+		return domain.NewError(domain.ErrForbidden, "You need admin permission to ban members", nil)
+	}
+
+	// Get target member
+	targetMember, err := s.memberRepo.GetByID(ctx, targetMemberID)
+	if err != nil {
+		return err
+	}
+
+	// Verify same tenant
+	if targetMember.TenantID != tenantID {
+		return domain.NewError(domain.ErrNotFound, "Member not found in this tenant", nil)
+	}
+
+	// Cannot ban yourself
+	if targetMember.UserID == actorID {
+		return domain.NewError(domain.ErrForbidden, "Cannot ban yourself", nil)
+	}
+
+	// Cannot ban owner
+	if targetMember.Role == domain.TenantRoleOwner {
+		return domain.NewError(domain.ErrForbidden, "Cannot ban tenant owner", nil)
+	}
+
+	// Cannot ban someone with higher/equal role
+	if !actorRole.HasPermission(targetMember.Role) || actorRole == targetMember.Role {
+		return domain.NewError(domain.ErrForbidden, "Cannot ban member with higher or equal role", nil)
+	}
+
+	// Check if already banned
+	if targetMember.IsBanned() {
+		return domain.NewError(domain.ErrValidation, "Member is already banned", nil)
+	}
+
+	return s.memberRepo.Ban(ctx, targetMemberID, actorID)
 }
 
 func (s *TenantMembershipService) ensureTenantCapacity(ctx context.Context, tenant *domain.Tenant) error {

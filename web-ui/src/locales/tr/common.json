@@ -682,7 +682,14 @@
         "demote": "Düşür",
         "kick": "At",
         "ban": "Yasakla"
-      }
+      },
+      "banned": "Yasaklandı",
+      "banConfirmTitle": "Üyeyi Yasakla?",
+      "banConfirmMessage": "Bu üyeyi yasaklamak istediğinizden emin misiniz? Davet koduyla bile sunucuya tekrar katılamayacaklar.",
+      "banSuccess": "Üye yasaklandı",
+      "banError": "Üye yasaklanamadı",
+      "roleUpdated": "Rol başarıyla güncellendi",
+      "kicked": "Üye sunucudan çıkarıldı"
     },
     "invites": {
       "title": "Davetler",

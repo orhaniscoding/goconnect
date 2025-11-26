@@ -430,6 +430,13 @@ components:
         updated_at:
           type: string
           format: date-time
+        banned_at:
+          type: [string, "null"]
+          format: date-time
+          description: When the member was banned (null if not banned)
+        banned_by:
+          type: [string, "null"]
+          description: User ID who issued the ban
         user:
           $ref: "#/components/schemas/User"
 
@@ -692,6 +699,14 @@ components:
         role:
           type: string
           enum: [admin, moderator, vip, member]
+
+    BanMemberRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          description: Optional reason for the ban
 
     CreateTenantInviteRequest:
       type: object
@@ -2744,6 +2759,62 @@ paths:
                 $ref: "#/components/schemas/Error"
         "403":
           description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Member not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/tenants/{tenantId}/members/{memberId}/ban:
+    post:
+      summary: Ban member from tenant
+      description: Bans a member from the tenant. Banned users cannot rejoin the tenant even with invite codes. Requires admin or owner role.
+      tags: [Tenant Members]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BanMemberRequest"
+      responses:
+        "200":
+          description: Member banned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: Member already banned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden (cannot ban self, owner, or higher role)
           content:
             application/json:
               schema:
