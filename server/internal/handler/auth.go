@@ -1,10 +1,15 @@
 package handler
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
+	"context"
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-gonic/gin"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/service"
@@ -13,11 +18,17 @@ import (
 // AuthHandler handles authentication HTTP requests
 type AuthHandler struct {
 	authService *service.AuthService
-	oidcService *service.OIDCService
+	oidcService OIDCProvider
+}
+
+// OIDCProvider defines the minimal surface required from the OIDC service.
+type OIDCProvider interface {
+	GetLoginURL(state string) string
+	ExchangeCode(ctx context.Context, code string) (*oidc.IDToken, *service.UserInfo, error)
 }
 
 // NewAuthHandler creates a new auth handler
-func NewAuthHandler(authService *service.AuthService, oidcService *service.OIDCService) *AuthHandler {
+func NewAuthHandler(authService *service.AuthService, oidcService OIDCProvider) *AuthHandler {
 	return &AuthHandler{
 		authService: authService,
 		oidcService: oidcService,
@@ -325,8 +336,22 @@ func (h *AuthHandler) LoginOIDC(c *gin.Context) {
 		return
 	}
 
-	// TODO: Generate random state and store in cookie/redis
-	state := "random-state-to-be-implemented"
+	state, err := generateSecureState(32)
+	if err != nil {
+		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to start OIDC login", nil))
+		return
+	}
+
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(
+		"oidc_state",
+		state,
+		int(5*time.Minute/time.Second),
+		"/v1/auth/oidc",
+		"",
+		c.Request.TLS != nil, // Secure only when TLS is present
+		true,                 // HttpOnly
+	)
 
 	url := h.oidcService.GetLoginURL(state)
 	c.Redirect(http.StatusTemporaryRedirect, url)
@@ -347,7 +372,15 @@ func (h *AuthHandler) CallbackOIDC(c *gin.Context) {
 		return
 	}
 
-	// TODO: Validate state
+	expectedState, err := c.Cookie("oidc_state")
+	if err != nil || expectedState == "" || expectedState != state {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Invalid OIDC state", nil))
+		return
+	}
+
+	// Clear state cookie after use
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie("oidc_state", "", -1, "/v1/auth/oidc", "", c.Request.TLS != nil, true)
 
 	_, userInfo, err := h.oidcService.ExchangeCode(c.Request.Context(), code)
 	if err != nil {
@@ -392,6 +425,17 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"data": user,
 	})
+}
+
+func generateSecureState(length int) (string, error) {
+	if length <= 0 {
+		length = 32
+	}
+	b := make([]byte, length)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
 // RegisterAuthRoutes registers authentication routes
