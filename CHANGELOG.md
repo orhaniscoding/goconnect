@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.15.0](https://github.com/orhaniscoding/goconnect/compare/v2.14.0...v2.15.0) (2025-11-26)
+
+
+### Features
+
+* **web-ui:** add file attachment support to network chat ([c4c65fb](https://github.com/orhaniscoding/goconnect/commit/c4c65fb899e9f9f49edd169893df8c14df7f5358))
+* **web-ui:** add global navigation bar component ([1294584](https://github.com/orhaniscoding/goconnect/commit/1294584ce66bc201e389618b4655d36ae4206b75))
+
 ## [2.14.0](https://github.com/orhaniscoding/goconnect/compare/v2.13.0...v2.14.0) (2025-11-26)
 
 
