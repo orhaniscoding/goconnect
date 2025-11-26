@@ -8,12 +8,13 @@ import { setTokens, setUser } from '../../../../lib/auth'
 import { useT } from '../../../../lib/i18n-context'
 
 interface RegisterPageProps {
-    params: { locale: string }
+    params: { locale: string } | Promise<{ locale: string }>
 }
 
 export default function Register({ params }: RegisterPageProps) {
     const router = useRouter()
     const t = useT()
+    const locale = (params as any)?.locale ?? 'en'
     const [name, setName] = useState('')
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
@@ -62,7 +63,7 @@ export default function Register({ params }: RegisterPageProps) {
 
             // Redirect to dashboard after 1 second
             setTimeout(() => {
-                router.push(`/${params.locale}/dashboard`)
+                router.push(`/${locale}/dashboard`)
             }, 1000)
         } catch (err: any) {
             console.error('Registration error:', err)
@@ -254,7 +255,7 @@ export default function Register({ params }: RegisterPageProps) {
                 }}>
                     {t('register.haveAccount')}{' '}
                     <a
-                        href={`/${params.locale}/login`}
+                        href={`/${locale}/login`}
                         style={{ color: '#007bff', textDecoration: 'none' }}
                     >
                         {t('register.signIn')}

@@ -8,6 +8,7 @@ import { useDaemon } from '../../../../contexts/DaemonContext'
 import { useT } from '../../../../lib/i18n-context'
 import AuthGuard from '../../../../components/AuthGuard'
 import Footer from '../../../../components/Footer'
+import LoadingSkeleton from '../../../../components/LoadingSkeleton'
 
 export default function Dashboard() {
     const router = useRouter()
@@ -18,6 +19,53 @@ export default function Dashboard() {
     const [user, setUser] = useState<any>(null)
     const [registering, setRegistering] = useState(false)
     const [toggling, setToggling] = useState(false)
+
+    const isStatusLoading = !status && !err
+    const connectionLabel = (() => {
+        if (err) return t('dashboard.status.error')
+        if (!status) return t('dashboard.connection.loading')
+        if (!status.device?.registered) return t('dashboard.device.setupRequired')
+        return status.paused ? t('dashboard.vpn.disconnected') : t('dashboard.vpn.connected')
+    })()
+
+    const connectionColor = (() => {
+        if (!status) return '#6b7280'
+        if (!status.device?.registered) return '#dc2626'
+        return status.paused ? '#f59e0b' : '#10b981'
+    })()
+
+    const statsCards = [
+        {
+            key: 'state',
+            label: t('dashboard.connection.vpnState'),
+            value: connectionLabel,
+            description: status?.device?.device_id ? `ID: ${status.device.device_id.substring(0, 8)}…` : undefined,
+            accent: connectionColor
+        },
+        {
+            key: 'peers',
+            label: t('dashboard.connection.peers'),
+            value: typeof status?.wg?.peers === 'number' ? status.wg.peers : '—',
+            description: t('dashboard.connection.devices'),
+            accent: '#2563eb'
+        },
+        {
+            key: 'data',
+            label: t('dashboard.connection.dataTransfer'),
+            value: `${formatBytes(status?.wg?.total_rx || 0, 1)} / ${formatBytes(status?.wg?.total_tx || 0, 1)}`,
+            description: `${t('dashboard.stats.rx')} / ${t('dashboard.stats.tx')}`,
+            accent: '#8b5cf6'
+        },
+        {
+            key: 'daemon',
+            label: t('dashboard.connection.daemonVersion'),
+            value: status?.version || t('dashboard.connection.unknown'),
+            description: status?.wg?.last_handshake && new Date(status.wg.last_handshake).getFullYear() > 1970
+                ? `${t('dashboard.connection.lastHandshake')}: ${new Date(status.wg.last_handshake).toLocaleTimeString()}`
+                : undefined,
+            accent: '#111827'
+        }
+    ]
 
     useEffect(() => {
         // Get user info
@@ -90,6 +138,50 @@ export default function Dashboard() {
                         </p>
                     </div>
                 )}
+
+                {/* Stats Overview */}
+                <div style={{ marginBottom: 24 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <h3 style={{ margin: 0 }}>Dashboard stats</h3>
+                        {isStatusLoading && (
+                            <span style={{ color: '#6b7280', fontSize: 13 }}>{t('dashboard.connection.loading')}</span>
+                        )}
+                    </div>
+                    {isStatusLoading ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+                            {Array.from({ length: 4 }).map((_, idx) => (
+                                <div key={idx} style={{ padding: 16, backgroundColor: '#fff', borderRadius: 10, border: '1px solid #e5e7eb' }}>
+                                    <LoadingSkeleton width="45%" height={12} style={{ marginBottom: 12 }} />
+                                    <LoadingSkeleton width="70%" height={22} style={{ marginBottom: 10 }} />
+                                    <LoadingSkeleton width="50%" height={10} />
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+                            {statsCards.map(card => (
+                                <div
+                                    key={card.key}
+                                    style={{
+                                        padding: 16,
+                                        backgroundColor: '#fff',
+                                        borderRadius: 10,
+                                        border: '1px solid #e5e7eb',
+                                        boxShadow: '0 4px 10px rgba(0,0,0,0.02)'
+                                    }}
+                                >
+                                    <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 6 }}>{card.label}</div>
+                                    <div style={{ fontSize: 24, fontWeight: 700, color: card.accent, marginBottom: card.description ? 6 : 0 }}>
+                                        {card.value}
+                                    </div>
+                                    {card.description && (
+                                        <div style={{ fontSize: 12, color: '#6b7280' }}>{card.description}</div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
 
                 {/* Device Status Card */}
                 <div style={{
