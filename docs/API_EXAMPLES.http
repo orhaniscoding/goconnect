@@ -288,6 +288,32 @@ Authorization: Bearer {access_token}
 
 ###
 
+### Ban Tenant Member (Admin/Owner)
+# Bans a member from the tenant - they cannot rejoin
+POST http://localhost:8080/v1/tenants/{tenant_id}/members/{member_id}/ban
+Content-Type: application/json
+Authorization: Bearer {access_token}
+
+{
+  "reason": "Violation of community guidelines"
+}
+
+###
+
+### Unban Tenant Member (Admin/Owner)
+# Removes the ban from a member - they can rejoin
+DELETE http://localhost:8080/v1/tenants/{tenant_id}/members/{member_id}/ban
+Authorization: Bearer {access_token}
+
+###
+
+### List Banned Tenant Members (Moderator+)
+# Returns list of all banned members in the tenant
+GET http://localhost:8080/v1/tenants/{tenant_id}/members/banned
+Authorization: Bearer {access_token}
+
+###
+
 ### Create Tenant Invite (Admin)
 POST http://localhost:8080/v1/tenants/{tenant_id}/invites
 Content-Type: application/json

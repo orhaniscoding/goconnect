@@ -335,6 +335,39 @@ func (h *TenantHandler) BanMember(c *gin.Context) {
 	})
 }
 
+// UnbanMember handles DELETE /v1/tenants/:tenantId/members/:memberId/ban
+func (h *TenantHandler) UnbanMember(c *gin.Context) {
+	tenantID := c.Param("tenantId")
+	memberID := c.Param("memberId")
+	actorID := c.GetString("user_id")
+
+	err := h.tenantService.UnbanMember(c.Request.Context(), actorID, tenantID, memberID)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Member unbanned successfully",
+	})
+}
+
+// ListBannedMembers handles GET /v1/tenants/:tenantId/members/banned
+func (h *TenantHandler) ListBannedMembers(c *gin.Context) {
+	tenantID := c.Param("tenantId")
+	userID := c.GetString("user_id")
+
+	members, err := h.tenantService.ListBannedMembers(c.Request.Context(), userID, tenantID)
+	if err != nil {
+		handleServiceError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"members": members,
+	})
+}
+
 // ==================== INVITE ROUTES ====================
 
 // CreateInvite handles POST /v1/tenants/:tenantId/invites
@@ -601,9 +634,11 @@ func (h *TenantHandler) RegisterRoutes(rg *gin.RouterGroup, authMiddleware gin.H
 
 		// Members management
 		tenants.GET("/:tenantId/members", h.GetTenantMembers)
+		tenants.GET("/:tenantId/members/banned", h.ListBannedMembers)
 		tenants.PATCH("/:tenantId/members/:memberId", h.UpdateMemberRole)
 		tenants.DELETE("/:tenantId/members/:memberId", h.RemoveMember)
 		tenants.POST("/:tenantId/members/:memberId/ban", h.BanMember)
+		tenants.DELETE("/:tenantId/members/:memberId/ban", h.UnbanMember)
 
 		// Invites
 		tenants.POST("/:tenantId/invites", h.CreateInvite)

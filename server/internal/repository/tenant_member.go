@@ -31,7 +31,9 @@ type TenantMemberRepository interface {
 
 	// Ban operations
 	Ban(ctx context.Context, id string, bannedBy string) error
+	Unban(ctx context.Context, id string) error
 	IsBanned(ctx context.Context, userID, tenantID string) (bool, error)
+	ListBannedByTenant(ctx context.Context, tenantID string) ([]*domain.TenantMember, error)
 
 	// Bulk delete - used when deleting tenant
 	DeleteAllByTenant(ctx context.Context, tenantID string) error
@@ -225,6 +227,20 @@ func (r *InMemoryTenantMemberRepository) Ban(ctx context.Context, id string, ban
 	return nil
 }
 
+func (r *InMemoryTenantMemberRepository) Unban(ctx context.Context, id string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	member, exists := r.members[id]
+	if !exists {
+		return domain.NewError(domain.ErrNotFound, "Tenant member not found", nil)
+	}
+	member.BannedAt = nil
+	member.BannedBy = ""
+	member.UpdatedAt = time.Now()
+	return nil
+}
+
 func (r *InMemoryTenantMemberRepository) IsBanned(ctx context.Context, userID, tenantID string) (bool, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -235,4 +251,17 @@ func (r *InMemoryTenantMemberRepository) IsBanned(ctx context.Context, userID, t
 		}
 	}
 	return false, nil
+}
+
+func (r *InMemoryTenantMemberRepository) ListBannedByTenant(ctx context.Context, tenantID string) ([]*domain.TenantMember, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var result []*domain.TenantMember
+	for _, m := range r.members {
+		if m.TenantID == tenantID && m.IsBanned() {
+			result = append(result, m)
+		}
+	}
+	return result, nil
 }

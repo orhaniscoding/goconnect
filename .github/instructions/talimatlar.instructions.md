@@ -77,7 +77,7 @@ TENANT (Server/Organization)
 
 ---
 
-# ✅ IMPLEMENTED FEATURES (v2.8.8+)
+# ✅ IMPLEMENTED FEATURES (v2.12.0+)
 
 ## Authentication & Security (COMPLETE)
 - **JWT Authentication**: Access tokens (15min) + Refresh tokens (7d)
@@ -230,10 +230,10 @@ type Membership struct {
 
 ---
 
-# 🔮 PLANNED: TENANT MULTI-MEMBERSHIP SYSTEM
+# ✅ IMPLEMENTED: TENANT MULTI-MEMBERSHIP SYSTEM (v2.12.0)
 
 ## Overview
-Transform single-tenant users to multi-tenant members (Discord-like model).
+Multi-tenant membership system (Discord-like model) - **FULLY IMPLEMENTED**.
 
 ## New Domain Models (TO BE ADDED)
 
@@ -288,6 +288,8 @@ type TenantMember struct {
     Nickname  string     `json:"nickname"`    // tenant-specific display name
     JoinedAt  time.Time  `json:"joined_at"`
     UpdatedAt time.Time  `json:"updated_at"`
+    BannedAt  *time.Time `json:"banned_at"`   // When user was banned
+    BannedBy  string     `json:"banned_by"`   // Who banned the user
 }
 
 // NEW: TenantInvite - tenant-level invitation (like Steam friend codes)
@@ -437,6 +439,7 @@ GET  /api/tenants/{id}/members       # List members
 PATCH /api/tenants/{id}/members/{uid}  # Update member role
 DELETE /api/tenants/{id}/members/{uid} # Remove member
 POST /api/tenants/{id}/members/{uid}/ban # Ban member
+DELETE /api/tenants/{id}/members/{uid}/ban # Unban member
 
 # Tenant Invites
 POST /api/tenants/{id}/invites       # Create invite
@@ -1073,4 +1076,4 @@ Legend: ✅ = Complete, ⏳ = Needs implementation/tests
 
 ---
 
-**Last Updated:** 2025-11-25 | **Version:** v2.9.0+
+**Last Updated:** 2025-11-26 | **Version:** v2.12.0+

@@ -2425,7 +2425,7 @@ paths:
       description: |
         Permanently delete a tenant and all associated data.
         This action is irreversible and can only be performed by the tenant owner.
-        
+
         The following data will be deleted:
         - All chat messages
         - All announcements
@@ -2821,6 +2821,92 @@ paths:
                 $ref: "#/components/schemas/Error"
         "404":
           description: Member not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      summary: Unban member from tenant
+      description: Removes the ban from a tenant member, allowing them to rejoin. Requires admin or owner role.
+      tags: [Tenant Members]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Member unbanned successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          description: Member is not banned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - requires admin permission
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Member not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /v1/tenants/{tenantId}/members/banned:
+    get:
+      summary: List banned members
+      description: Returns a list of all banned members in the tenant. Requires moderator or higher role.
+      tags: [Tenant Members]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenantId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of banned members
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  members:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TenantMember"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Forbidden - requires moderator permission
           content:
             application/json:
               schema:

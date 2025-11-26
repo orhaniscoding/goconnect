@@ -312,6 +312,19 @@ func (r *PostgresTenantMemberRepository) Ban(ctx context.Context, id string, ban
 	return nil
 }
 
+func (r *PostgresTenantMemberRepository) Unban(ctx context.Context, id string) error {
+	query := `UPDATE tenant_members SET banned_at = NULL, banned_by = '', updated_at = $2 WHERE id = $1`
+	result, err := r.db.ExecContext(ctx, query, id, time.Now())
+	if err != nil {
+		return fmt.Errorf("failed to unban member: %w", err)
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return domain.NewError(domain.ErrNotFound, "Tenant member not found", nil)
+	}
+	return nil
+}
+
 func (r *PostgresTenantMemberRepository) IsBanned(ctx context.Context, userID, tenantID string) (bool, error) {
 	query := `SELECT banned_at IS NOT NULL FROM tenant_members WHERE user_id = $1 AND tenant_id = $2`
 	var isBanned bool
@@ -323,6 +336,38 @@ func (r *PostgresTenantMemberRepository) IsBanned(ctx context.Context, userID, t
 		return false, fmt.Errorf("failed to check ban status: %w", err)
 	}
 	return isBanned, nil
+}
+
+func (r *PostgresTenantMemberRepository) ListBannedByTenant(ctx context.Context, tenantID string) ([]*domain.TenantMember, error) {
+	query := `SELECT id, tenant_id, user_id, role, nickname, joined_at, updated_at, banned_at, banned_by 
+              FROM tenant_members WHERE tenant_id = $1 AND banned_at IS NOT NULL ORDER BY banned_at DESC`
+	rows, err := r.db.QueryContext(ctx, query, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list banned members: %w", err)
+	}
+	defer rows.Close()
+
+	var members []*domain.TenantMember
+	for rows.Next() {
+		m := &domain.TenantMember{}
+		var nickname sql.NullString
+		var bannedAt sql.NullTime
+		var bannedBy sql.NullString
+		if err := rows.Scan(&m.ID, &m.TenantID, &m.UserID, &m.Role, &nickname, &m.JoinedAt, &m.UpdatedAt, &bannedAt, &bannedBy); err != nil {
+			return nil, fmt.Errorf("failed to scan banned member: %w", err)
+		}
+		if nickname.Valid {
+			m.Nickname = nickname.String
+		}
+		if bannedAt.Valid {
+			m.BannedAt = &bannedAt.Time
+		}
+		if bannedBy.Valid {
+			m.BannedBy = bannedBy.String
+		}
+		members = append(members, m)
+	}
+	return members, nil
 }
 
 // Helper function for nullable strings

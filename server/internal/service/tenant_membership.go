@@ -555,6 +555,54 @@ func (s *TenantMembershipService) BanMember(ctx context.Context, actorID, tenant
 	return s.memberRepo.Ban(ctx, targetMemberID, actorID)
 }
 
+// UnbanMember removes the ban from a tenant member
+func (s *TenantMembershipService) UnbanMember(ctx context.Context, actorID, tenantID, targetMemberID string) error {
+	// Get actor's role
+	actorRole, err := s.memberRepo.GetUserRole(ctx, actorID, tenantID)
+	if err != nil {
+		return domain.NewError(domain.ErrForbidden, "You are not a member of this tenant", nil)
+	}
+
+	// Need at least admin to unban
+	if !actorRole.HasPermission(domain.TenantRoleAdmin) {
+		return domain.NewError(domain.ErrForbidden, "You need admin permission to unban members", nil)
+	}
+
+	// Get target member
+	targetMember, err := s.memberRepo.GetByID(ctx, targetMemberID)
+	if err != nil {
+		return err
+	}
+
+	// Verify same tenant
+	if targetMember.TenantID != tenantID {
+		return domain.NewError(domain.ErrNotFound, "Member not found in this tenant", nil)
+	}
+
+	// Check if actually banned
+	if !targetMember.IsBanned() {
+		return domain.NewError(domain.ErrValidation, "Member is not banned", nil)
+	}
+
+	return s.memberRepo.Unban(ctx, targetMemberID)
+}
+
+// ListBannedMembers returns all banned members for a tenant
+func (s *TenantMembershipService) ListBannedMembers(ctx context.Context, userID, tenantID string) ([]*domain.TenantMember, error) {
+	// Get actor's role
+	actorRole, err := s.memberRepo.GetUserRole(ctx, userID, tenantID)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrForbidden, "You are not a member of this tenant", nil)
+	}
+
+	// Need at least moderator to list banned members
+	if !actorRole.HasPermission(domain.TenantRoleModerator) {
+		return nil, domain.NewError(domain.ErrForbidden, "You need moderator permission to view banned members", nil)
+	}
+
+	return s.memberRepo.ListBannedByTenant(ctx, tenantID)
+}
+
 func (s *TenantMembershipService) ensureTenantCapacity(ctx context.Context, tenant *domain.Tenant) error {
 	if tenant == nil || tenant.MaxMembers <= 0 {
 		return nil

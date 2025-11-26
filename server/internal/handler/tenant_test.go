@@ -1115,6 +1115,171 @@ func TestTenantHandler_BanMember(t *testing.T) {
 	})
 }
 
+// ==================== UNBAN MEMBER TESTS ====================
+
+func TestTenantHandler_UnbanMember(t *testing.T) {
+	t.Run("Success_AdminUnbansMember", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.DELETE("/v1/tenants/:tenantId/members/:memberId/ban", authMiddleware(mockAuth), handler.UnbanMember)
+
+		// Create tenant as user_dev (token user is owner)
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Add and ban a member
+		memberToBan, err := tenantService.JoinTenant(ctx, "member_to_ban", tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+		err = tenantService.BanMember(ctx, "user_dev", tenant.ID, memberToBan.ID)
+		require.NoError(t, err)
+
+		// Unban the member
+		req := httptest.NewRequest("DELETE", "/v1/tenants/"+tenant.ID+"/members/"+memberToBan.ID+"/ban", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var response map[string]interface{}
+		err = json.Unmarshal(w.Body.Bytes(), &response)
+		require.NoError(t, err)
+		assert.Equal(t, "Member unbanned successfully", response["message"])
+	})
+
+	t.Run("Failure_MemberCannotUnban", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.DELETE("/v1/tenants/:tenantId/members/:memberId/ban", authMiddleware(mockAuth), handler.UnbanMember)
+
+		// Create tenant as different user
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "different_owner", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Add and ban a member
+		memberToBan, err := tenantService.JoinTenant(ctx, "member_to_ban", tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+		err = tenantService.BanMember(ctx, "different_owner", tenant.ID, memberToBan.ID)
+		require.NoError(t, err)
+
+		// Add token user (user_dev) as a regular member
+		_, err = tenantService.JoinTenant(ctx, "user_dev", tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+
+		// Try to unban as regular member
+		req := httptest.NewRequest("DELETE", "/v1/tenants/"+tenant.ID+"/members/"+memberToBan.ID+"/ban", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Regular member should NOT be able to unban
+		assert.Equal(t, http.StatusForbidden, w.Code)
+	})
+
+	t.Run("Failure_UnbanNotBannedMember", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.DELETE("/v1/tenants/:tenantId/members/:memberId/ban", authMiddleware(mockAuth), handler.UnbanMember)
+
+		// Create tenant as user_dev (token user is owner)
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Add a member but don't ban
+		member, err := tenantService.JoinTenant(ctx, "normal_member", tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+
+		// Try to unban a non-banned member
+		req := httptest.NewRequest("DELETE", "/v1/tenants/"+tenant.ID+"/members/"+member.ID+"/ban", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Should fail - member is not banned
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+}
+
+// ==================== LIST BANNED MEMBERS TESTS ====================
+
+func TestTenantHandler_ListBannedMembers(t *testing.T) {
+	t.Run("Success_ModeratorListsBanned", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.GET("/v1/tenants/:tenantId/members/banned", authMiddleware(mockAuth), handler.ListBannedMembers)
+
+		// Create tenant as user_dev (token user is owner)
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Add and ban some members
+		member1, err := tenantService.JoinTenant(ctx, "banned_user_1", tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+		member2, err := tenantService.JoinTenant(ctx, "banned_user_2", tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+
+		err = tenantService.BanMember(ctx, "user_dev", tenant.ID, member1.ID)
+		require.NoError(t, err)
+		err = tenantService.BanMember(ctx, "user_dev", tenant.ID, member2.ID)
+		require.NoError(t, err)
+
+		// List banned members
+		req := httptest.NewRequest("GET", "/v1/tenants/"+tenant.ID+"/members/banned", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var response map[string]interface{}
+		err = json.Unmarshal(w.Body.Bytes(), &response)
+		require.NoError(t, err)
+		members := response["members"].([]interface{})
+		assert.Len(t, members, 2)
+	})
+
+	t.Run("Failure_MemberCannotListBanned", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.GET("/v1/tenants/:tenantId/members/banned", authMiddleware(mockAuth), handler.ListBannedMembers)
+
+		// Create tenant as different user
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "different_owner", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Add token user (user_dev) as a regular member
+		_, err = tenantService.JoinTenant(ctx, "user_dev", tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+
+		// Try to list banned members as regular member
+		req := httptest.NewRequest("GET", "/v1/tenants/"+tenant.ID+"/members/banned", nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Regular member should NOT be able to list banned
+		assert.Equal(t, http.StatusForbidden, w.Code)
+	})
+}
+
 // ==================== INVITE TESTS ====================
 
 func TestTenantHandler_CreateInvite(t *testing.T) {

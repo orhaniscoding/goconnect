@@ -681,13 +681,22 @@
         "promote": "Yükselt",
         "demote": "Düşür",
         "kick": "At",
-        "ban": "Yasakla"
+        "ban": "Yasakla",
+        "unban": "Yasağı Kaldır"
       },
       "banned": "Yasaklandı",
+      "bannedMembers": "Yasaklı Üyeler",
+      "noBannedMembers": "Yasaklı üye yok",
+      "bannedBy": "Yasaklayan",
+      "bannedAt": "Yasaklanma tarihi",
       "banConfirmTitle": "Üyeyi Yasakla?",
       "banConfirmMessage": "Bu üyeyi yasaklamak istediğinizden emin misiniz? Davet koduyla bile sunucuya tekrar katılamayacaklar.",
+      "unbanConfirmTitle": "Yasağı Kaldır?",
+      "unbanConfirmMessage": "Bu üyenin yasağını kaldırmak istediğinizden emin misiniz? Sunucuya tekrar katılabilecekler.",
       "banSuccess": "Üye yasaklandı",
+      "unbanSuccess": "Üyenin yasağı kaldırıldı",
       "banError": "Üye yasaklanamadı",
+      "unbanError": "Yasak kaldırılamadı",
       "roleUpdated": "Rol başarıyla güncellendi",
       "kicked": "Üye sunucudan çıkarıldı"
     },

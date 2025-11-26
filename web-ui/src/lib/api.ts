@@ -1656,6 +1656,28 @@ export async function banTenantMember(tenantId: string, memberId: string, reason
 }
 
 /**
+ * Unban tenant member (auto token)
+ * Removes ban status, allowing the user to rejoin the tenant
+ */
+export async function unbanTenantMember(tenantId: string, memberId: string): Promise<void> {
+  await api(`/v1/tenants/${tenantId}/members/${memberId}/ban`, {
+    method: 'DELETE',
+    headers: getAuthHeader(),
+  })
+}
+
+/**
+ * Get banned tenant members (auto token)
+ * Returns list of all banned members in the tenant
+ */
+export async function getBannedTenantMembers(tenantId: string): Promise<TenantMember[]> {
+  const res = await api(`/v1/tenants/${tenantId}/members/banned`, {
+    headers: getAuthHeader(),
+  })
+  return res.members || []
+}
+
+/**
  * Get tenant invites (auto token)
  */
 export async function getTenantInvites(tenantId: string): Promise<TenantInvite[]> {
