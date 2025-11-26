@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.13.0](https://github.com/orhaniscoding/goconnect/compare/v2.12.0...v2.13.0) (2025-11-26)
+
+
+### Features
+
+* **server,ui:** add tenant member ban functionality ([62a4c30](https://github.com/orhaniscoding/goconnect/commit/62a4c307d2c2d8e8205bc8dfae4e063b0d796250))
+* **server:** add DELETE /v1/tenants/{id} endpoint for tenant deletion ([148badd](https://github.com/orhaniscoding/goconnect/commit/148badd2f4f5d6a7e09d0a3bbfc3697d8616a2f8))
+* **tenant:** add unban member and list banned members functionality ([5c9aeef](https://github.com/orhaniscoding/goconnect/commit/5c9aeefb1a435eb5ad7d127c02a28ea9258e73da))
+* **ui:** implement tenant deletion with confirmation modal ([c3f0762](https://github.com/orhaniscoding/goconnect/commit/c3f07627d7c60b4e62bfadf6f8d40a2412ed1578))
+* **web-ui:** add banned members tab to tenant settings page ([0d79a1c](https://github.com/orhaniscoding/goconnect/commit/0d79a1c2ede2738e1cbf05167ff382855c7e01cb))
+
 ## [2.12.0](https://github.com/orhaniscoding/goconnect/compare/v2.11.0...v2.12.0) (2025-11-25)
 
 
