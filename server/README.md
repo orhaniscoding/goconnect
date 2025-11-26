@@ -56,7 +56,11 @@ go run cmd/server/main.go
 ### Docker Deployment
 
 ```bash
+# Development (build images locally)
 docker compose up -d
+
+# Production (use published images)
+docker compose -f ../docker-compose.yml -f ../docker-compose.prod.yml up -d
 ```
 
 ##  Configuration
