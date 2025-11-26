@@ -817,5 +817,20 @@
         "invite_only": "Davetli"
       }
     }
+  },
+  "network": {
+    "chat": {
+      "title": "Ağ Sohbeti",
+      "members": "{count} üye",
+      "memberList": "Üyeler",
+      "error": {
+        "title": "Erişim Engellendi",
+        "notMember": "Sohbete erişmek için bu ağın üyesi olmalısınız"
+      }
+    }
+  },
+  "loading": "Yükleniyor",
+  "error": {
+    "generic": "Bir hata oluştu"
   }
 }

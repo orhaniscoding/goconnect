@@ -332,6 +332,21 @@ export default function NetworkDetailPage() {
             {joinStatus === 'member' && (
               <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                 <button
+                  onClick={() => router.push(`/${params.locale || 'en'}/networks/${networkId}/chat`)}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#6366f1',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    fontSize: 14,
+                    fontWeight: 500
+                  }}
+                >
+                  💬 Chat
+                </button>
+                <button
                   onClick={handleDownloadConfig}
                   style={{
                     padding: '10px 20px',

@@ -195,11 +195,11 @@ GoConnect, WireGuard tabanlı bir VPN yönetim sistemidir. Proje, planlanan öze
 
 ### 4.2 Dokümantasyon Güncellemeleri
 
-| Doküman                    | Durum                            |
-| -------------------------- | -------------------------------- |
-| talimatlar.instructions.md | ✅ v2.12.0'a güncellendi          |
-| OpenAPI spec               | ✅ Güncel                         |
-| README.md                  | ⚠️ Kontrol edilmeli               |
+| Doküman                    | Durum                             |
+| -------------------------- | --------------------------------- |
+| talimatlar.instructions.md | ✅ v2.12.0'a güncellendi           |
+| OpenAPI spec               | ✅ Güncel                          |
+| README.md                  | ⚠️ Kontrol edilmeli                |
 | API_EXAMPLES.http          | ✅ Ban/Unban endpoint'leri eklendi |
 
 ---
@@ -212,13 +212,13 @@ Planlanan tüm kritik özellikler tamamlanmıştır.
 
 ### 5.2 İyileştirme Fırsatları
 
-| Özellik              | Açıklama                              | Öncelik | Durum |
-| -------------------- | ------------------------------------- | ------- | ----- |
+| Özellik              | Açıklama                               | Öncelik  | Durum        |
+| -------------------- | -------------------------------------- | -------- | ------------ |
 | ~~Unban özelliği~~   | ~~Yasaklı üyelerin yasağını kaldırma~~ | ~~Orta~~ | ✅ Tamamlandı |
-| Audit log UI         | Admin panelinde audit log görüntüleme | Düşük   | ⏳ Bekliyor |
-| E-posta bildirimleri | Invite/announcement bildirimleri      | Düşük   | ⏳ Bekliyor |
-| Mobile app           | React Native / Flutter app            | Gelecek | ⏳ Bekliyor |
-| Prometheus dashboard | Grafana entegrasyonu                  | Düşük   | ⏳ Bekliyor |
+| Audit log UI         | Admin panelinde audit log görüntüleme  | Düşük    | ⏳ Bekliyor   |
+| E-posta bildirimleri | Invite/announcement bildirimleri       | Düşük    | ⏳ Bekliyor   |
+| Mobile app           | React Native / Flutter app             | Gelecek  | ⏳ Bekliyor   |
+| Prometheus dashboard | Grafana entegrasyonu                   | Düşük    | ⏳ Bekliyor   |
 
 ### 5.3 Olası Gelecek Özellikler
 

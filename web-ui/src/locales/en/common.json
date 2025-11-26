@@ -873,5 +873,20 @@
         "invite_only": "Invite Only"
       }
     }
+  },
+  "network": {
+    "chat": {
+      "title": "Network Chat",
+      "members": "{count} members",
+      "memberList": "Members",
+      "error": {
+        "title": "Access Denied",
+        "notMember": "You must be a member of this network to access the chat"
+      }
+    }
+  },
+  "loading": "Loading",
+  "error": {
+    "generic": "An error occurred"
   }
 }
