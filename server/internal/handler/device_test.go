@@ -257,6 +257,29 @@ func TestDeviceHandler_ListDevices(t *testing.T) {
 		devices := response["devices"].([]interface{})
 		assert.Len(t, devices, 1)
 	})
+
+	t.Run("Success - list empty for new user", func(t *testing.T) {
+		r2 := gin.New()
+		r2.GET("/v1/devices", func(c *gin.Context) {
+			c.Set("user_id", "new-user")
+			c.Set("tenant_id", "tenant-1")
+			c.Set("is_admin", false)
+			handler.ListDevices(c)
+		})
+
+		req := httptest.NewRequest("GET", "/v1/devices", nil)
+		w := httptest.NewRecorder()
+
+		r2.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+		if response["devices"] != nil {
+			devices := response["devices"].([]interface{})
+			assert.Len(t, devices, 0)
+		}
+	})
 }
 
 func TestDeviceHandler_GetDevice(t *testing.T) {
@@ -560,6 +583,15 @@ func TestDeviceHandler_DisableDevice(t *testing.T) {
 
 		assert.Equal(t, "disabled", response["status"])
 	})
+
+	t.Run("Not found - invalid device ID", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/v1/devices/non-existent/disable", nil)
+		w := httptest.NewRecorder()
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
 }
 
 func TestDeviceHandler_EnableDevice(t *testing.T) {
@@ -593,5 +625,14 @@ func TestDeviceHandler_EnableDevice(t *testing.T) {
 		json.Unmarshal(w.Body.Bytes(), &response)
 
 		assert.Equal(t, "enabled", response["status"])
+	})
+
+	t.Run("Not found - invalid device ID", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/v1/devices/non-existent/enable", nil)
+		w := httptest.NewRecorder()
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
 }

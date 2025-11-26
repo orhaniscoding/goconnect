@@ -7,12 +7,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/orhaniscoding/goconnect/server/internal/config"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
 	"github.com/orhaniscoding/goconnect/server/internal/service"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func setupTestRouter() (*gin.Engine, *NetworkHandler) {
@@ -249,4 +252,242 @@ func TestListNetworks_NonAdminAll(t *testing.T) {
 	if w.Code != http.StatusForbidden {
 		t.Errorf("Expected status %d, got %d", http.StatusForbidden, w.Code)
 	}
+}
+
+// setupNetworkWithRepos exposes repositories for more detailed scenarios
+func setupNetworkWithRepos() (*gin.Engine, *NetworkHandler, repository.NetworkRepository, repository.MembershipRepository, *service.MembershipService) {
+	gin.SetMode(gin.TestMode)
+
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	idempotencyRepo := repository.NewInMemoryIdempotencyRepository()
+	membershipRepo := repository.NewInMemoryMembershipRepository()
+	joinRepo := repository.NewInMemoryJoinRequestRepository()
+	networkService := service.NewNetworkService(networkRepo, idempotencyRepo)
+	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idempotencyRepo)
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+	peerRepo := repository.NewInMemoryPeerRepository()
+	wgConfig := config.WireGuardConfig{}
+	deviceService := service.NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
+
+	handler := NewNetworkHandler(networkService, membershipService, deviceService, peerRepo, wgConfig)
+	r := gin.New()
+	authSvc := newMockAuthServiceWithTokens()
+	RegisterNetworkRoutes(r, handler, authSvc, membershipRepo)
+
+	return r, handler, networkRepo, membershipRepo, membershipService
+}
+
+func TestCreateNetwork_DuplicateName(t *testing.T) {
+	router, handler, networkRepo, _, _ := setupNetworkWithRepos()
+
+	// Seed a network with the same name
+	existing := &domain.Network{
+		ID:         "net-dup-1",
+		TenantID:   "t1",
+		Name:       "DupNet",
+		Visibility: domain.NetworkVisibilityPublic,
+		JoinPolicy: domain.JoinPolicyOpen,
+		CIDR:       "10.10.0.0/24",
+		CreatedBy:  "seed",
+	}
+	require.NoError(t, networkRepo.Create(context.Background(), existing))
+
+	body := domain.CreateNetworkRequest{
+		Name:       "DupNet",
+		Visibility: domain.NetworkVisibilityPublic,
+		JoinPolicy: domain.JoinPolicyOpen,
+		CIDR:       "10.20.0.0/24",
+	}
+	jsonData, _ := json.Marshal(body)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/v1/networks", bytes.NewBuffer(jsonData))
+	req.Header.Set("Authorization", "Bearer valid-token")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "dup-key")
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code, "duplicate name should be rejected")
+
+	// Ensure original network still present
+	saved, err := handler.networkService.GetNetwork(context.Background(), existing.ID, "user_dev", "t1")
+	require.NoError(t, err)
+	assert.Equal(t, existing.Name, saved.Name)
+}
+
+func TestUpdateNetwork_MissingIdempotencyKey(t *testing.T) {
+	router, _, networkRepo, membershipRepo, _ := setupNetworkWithRepos()
+	// seed network and admin membership for dev
+	net := &domain.Network{ID: "net-up-missing", TenantID: "t1", Name: "Upd", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyOpen, CIDR: "10.30.0.0/24", CreatedBy: "user_dev"}
+	require.NoError(t, networkRepo.Create(context.Background(), net))
+	_, _ = membershipRepo.UpsertApproved(context.Background(), net.ID, "user_dev", domain.RoleOwner, time.Now())
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("PATCH", "/v1/networks/"+net.ID, bytes.NewBuffer([]byte(`{"name":"NewName"}`)))
+	req.Header.Set("Authorization", "Bearer dev")
+	req.Header.Set("Content-Type", "application/json")
+	// Missing Idempotency-Key header
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestDeleteNetwork_MissingIdempotencyKey(t *testing.T) {
+	router, _, networkRepo, membershipRepo, _ := setupNetworkWithRepos()
+	net := &domain.Network{ID: "net-del-missing", TenantID: "t1", Name: "DeleteMe", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyOpen, CIDR: "10.40.0.0/24", CreatedBy: "user_dev"}
+	require.NoError(t, networkRepo.Create(context.Background(), net))
+	_, _ = membershipRepo.UpsertApproved(context.Background(), net.ID, "user_dev", domain.RoleAdmin, time.Now())
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("DELETE", "/v1/networks/"+net.ID, nil)
+	req.Header.Set("Authorization", "Bearer dev")
+	// Missing Idempotency-Key header
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestJoinNetwork_OpenPolicyAndMissingHeader(t *testing.T) {
+	router, _, networkRepo, membershipRepo, membershipService := setupNetworkWithRepos()
+
+	net := &domain.Network{ID: "net-open-join", TenantID: "t1", Name: "OpenNet", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyOpen, CIDR: "10.50.0.0/24", CreatedBy: "seed"}
+	require.NoError(t, networkRepo.Create(context.Background(), net))
+	_, _ = membershipRepo.UpsertApproved(context.Background(), net.ID, "user_dev", domain.RoleMember, time.Now())
+	// ensure open policy results in immediate approval
+	membershipService.SetPeerProvisioning(nil)
+
+	t.Run("success when idempotency provided", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("POST", "/v1/networks/"+net.ID+"/join", nil)
+		req.Header.Set("Authorization", "Bearer dev")
+		req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("missing idempotency yields bad request", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("POST", "/v1/networks/"+net.ID+"/join", nil)
+		req.Header.Set("Authorization", "Bearer dev")
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+}
+
+func TestApproveRequiresAdminMembership(t *testing.T) {
+	router, _, networkRepo, membershipRepo, membershipService := setupNetworkWithRepos()
+
+	net := &domain.Network{ID: "net-approve", TenantID: "t1", Name: "ApproveNet", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyApproval, CIDR: "10.60.0.0/24", CreatedBy: "owner"}
+	require.NoError(t, networkRepo.Create(context.Background(), net))
+	// Seed owner membership for admin_dev and member for user_dev
+	_, _ = membershipRepo.UpsertApproved(context.Background(), net.ID, "admin_dev", domain.RoleOwner, time.Now())
+	_, _ = membershipRepo.UpsertApproved(context.Background(), net.ID, "user_dev", domain.RoleMember, time.Now())
+	// Create pending join request for target user (user_dev2) via service to use shared repos
+	_, _, err := membershipService.JoinNetwork(context.Background(), net.ID, "user_dev2", "t1", domain.GenerateIdempotencyKey())
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	body := bytes.NewBufferString(`{"user_id":"user_dev2"}`)
+	req, _ := http.NewRequest("POST", "/v1/networks/"+net.ID+"/approve", body)
+	req.Header.Set("Authorization", "Bearer dev") // user_dev is only member role (not admin)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code, "non-admin should not approve")
+}
+
+func TestListMembers_TenantIsolation(t *testing.T) {
+	router, _, networkRepo, membershipRepo, _ := setupNetworkWithRepos()
+
+	// network belongs to t2; token tenant is t1 -> should not be found
+	net := &domain.Network{ID: "net-tenant-mismatch", TenantID: "t2", Name: "OtherTenant", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyOpen, CIDR: "10.70.0.0/24", CreatedBy: "owner"}
+	require.NoError(t, networkRepo.Create(context.Background(), net))
+	_, _ = membershipRepo.UpsertApproved(context.Background(), net.ID, "user_dev", domain.RoleOwner, time.Now())
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/v1/networks/"+net.ID+"/members", nil)
+	req.Header.Set("Authorization", "Bearer dev")
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestListJoinRequests_NonAdminDenied(t *testing.T) {
+	router, _, networkRepo, membershipRepo, membershipService := setupNetworkWithRepos()
+
+	net := &domain.Network{ID: "net-joinreq", TenantID: "t1", Name: "JoinReqNet", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyApproval, CIDR: "10.80.0.0/24", CreatedBy: "owner"}
+	require.NoError(t, networkRepo.Create(context.Background(), net))
+	_, _ = membershipRepo.UpsertApproved(context.Background(), net.ID, "user_dev", domain.RoleMember, time.Now())
+	_, _ = membershipRepo.UpsertApproved(context.Background(), net.ID, "admin_dev", domain.RoleOwner, time.Now())
+	// create pending join request for user_dev2
+	joinKey := domain.GenerateIdempotencyKey()
+	_, _, err := membershipService.JoinNetwork(context.Background(), net.ID, "pending_user", "t1", joinKey)
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/v1/networks/"+net.ID+"/join-requests", nil)
+	req.Header.Set("Authorization", "Bearer dev") // non-admin
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+func TestAllocateIP_NotImplementedAndMissingHeaders(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	idemRepo := repository.NewInMemoryIdempotencyRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	ns := service.NewNetworkService(networkRepo, idemRepo)
+	ms := service.NewMembershipService(networkRepo, mrepo, jrepo, idemRepo)
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+	peerRepo := repository.NewInMemoryPeerRepository()
+	wgConfig := config.WireGuardConfig{}
+	ds := service.NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
+	handler := NewNetworkHandler(ns, ms, ds, peerRepo, wgConfig) // IPAM not injected
+	r := gin.New()
+	auth := newMockAuthServiceWithTokens()
+	RegisterNetworkRoutes(r, handler, auth, mrepo)
+
+	// seed network + membership
+	net := &domain.Network{ID: "net-no-ipam", TenantID: "t1", Name: "NoIPAM", Visibility: domain.NetworkVisibilityPublic, JoinPolicy: domain.JoinPolicyOpen, CIDR: "10.90.0.0/24", CreatedBy: "user_dev"}
+	require.NoError(t, networkRepo.Create(context.Background(), net))
+	_, _ = mrepo.UpsertApproved(context.Background(), net.ID, "user_dev", domain.RoleMember, time.Now())
+
+	t.Run("ipam not configured returns not implemented", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("POST", "/v1/networks/"+net.ID+"/ip-allocations", bytes.NewBuffer([]byte("{}")))
+		req.Header.Set("Authorization", "Bearer dev")
+		req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusNotImplemented, w.Code)
+	})
+
+	t.Run("missing idempotency key returns bad request when ipam present", func(t *testing.T) {
+		ipam := service.NewIPAMService(networkRepo, mrepo, repository.NewInMemoryIPAM())
+		handler.WithIPAM(ipam)
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("POST", "/v1/networks/"+net.ID+"/ip-allocations", bytes.NewBuffer([]byte("{}")))
+		req.Header.Set("Authorization", "Bearer dev")
+		// no Idempotency-Key
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
 }
