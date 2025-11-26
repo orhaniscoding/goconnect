@@ -169,6 +169,20 @@ components:
         join_policy:
           type: string
           enum: [open, invite, approval]
+        dns:
+          type: [string, "null"]
+          example: 1.1.1.1
+          description: Custom DNS server (valid IP address)
+        mtu:
+          type: [integer, "null"]
+          minimum: 576
+          maximum: 1500
+          example: 1420
+          description: Maximum transmission unit
+        split_tunnel:
+          type: [boolean, "null"]
+          example: false
+          description: Enable split tunneling
       additionalProperties: false
 
     Membership:

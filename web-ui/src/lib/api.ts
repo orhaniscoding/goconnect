@@ -283,6 +283,9 @@ export async function updateNetwork(
     name?: string
     visibility?: 'public' | 'private'
     join_policy?: 'open' | 'approval' | 'invite'
+    dns?: string | null
+    mtu?: number | null
+    split_tunnel?: boolean | null
   },
   accessToken: string
 ): Promise<{ data: Network }> {

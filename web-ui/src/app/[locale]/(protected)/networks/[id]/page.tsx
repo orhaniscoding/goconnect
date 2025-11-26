@@ -885,9 +885,24 @@ function SettingsTab({ network, onUpdate }: SettingsTabProps) {
   const [name, setName] = useState(network.name)
   const [visibility, setVisibility] = useState<'public' | 'private'>(network.visibility)
   const [joinPolicy, setJoinPolicy] = useState<'open' | 'approval' | 'invite'>(network.join_policy)
+  const [dns, setDns] = useState(network.dns || '')
+  const [mtu, setMtu] = useState(network.mtu?.toString() || '')
+  const [splitTunnel, setSplitTunnel] = useState(network.split_tunnel ?? false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+
+  // Helper to validate IP address
+  const isValidIP = (ip: string): boolean => {
+    if (!ip) return true // empty is valid (will be null)
+    const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/
+    if (!ipv4Regex.test(ip)) return false
+    const parts = ip.split('.')
+    return parts.every(part => {
+      const num = parseInt(part, 10)
+      return num >= 0 && num <= 255
+    })
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -905,6 +920,21 @@ function SettingsTab({ network, onUpdate }: SettingsTabProps) {
       return
     }
 
+    // Validate DNS if provided
+    if (dns && !isValidIP(dns)) {
+      setError('Invalid DNS IP address format')
+      return
+    }
+
+    // Validate MTU if provided
+    if (mtu) {
+      const mtuNum = parseInt(mtu, 10)
+      if (isNaN(mtuNum) || mtuNum < 576 || mtuNum > 1500) {
+        setError('MTU must be a number between 576 and 1500')
+        return
+      }
+    }
+
     setLoading(true)
 
     try {
@@ -919,11 +949,32 @@ function SettingsTab({ network, onUpdate }: SettingsTabProps) {
         name?: string
         visibility?: 'public' | 'private'
         join_policy?: 'open' | 'approval' | 'invite'
+        dns?: string | null
+        mtu?: number | null
+        split_tunnel?: boolean | null
       } = {}
 
       if (name.trim() !== network.name) patch.name = name.trim()
       if (visibility !== network.visibility) patch.visibility = visibility
       if (joinPolicy !== network.join_policy) patch.join_policy = joinPolicy
+
+      // DNS: compare with network.dns, handle empty string as null
+      const currentDns = network.dns || ''
+      if (dns !== currentDns) {
+        patch.dns = dns.trim() || null
+      }
+
+      // MTU: compare with network.mtu, handle empty string as null
+      const currentMtu = network.mtu?.toString() || ''
+      if (mtu !== currentMtu) {
+        patch.mtu = mtu ? parseInt(mtu, 10) : null
+      }
+
+      // Split Tunnel
+      const currentSplitTunnel = network.split_tunnel ?? false
+      if (splitTunnel !== currentSplitTunnel) {
+        patch.split_tunnel = splitTunnel
+      }
 
       // Only send patch if something changed
       if (Object.keys(patch).length === 0) {
@@ -1043,15 +1094,107 @@ function SettingsTab({ network, onUpdate }: SettingsTabProps) {
           </select>
         </div>
 
+        {/* Advanced Network Settings Section */}
+        <div style={{
+          borderTop: '1px solid #e5e7eb',
+          marginTop: 24,
+          paddingTop: 24,
+          marginBottom: 24
+        }}>
+          <h4 style={{ margin: '0 0 16px 0', fontSize: 16, fontWeight: 600, color: '#374151' }}>
+            Advanced Settings
+          </h4>
+
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', marginBottom: 6, fontWeight: 500, fontSize: 14 }}>
+              DNS Server
+            </label>
+            <input
+              type="text"
+              value={dns}
+              onChange={(e) => setDns(e.target.value)}
+              placeholder="e.g., 1.1.1.1 or 8.8.8.8"
+              disabled={loading}
+              style={{
+                width: '100%',
+                padding: 10,
+                border: '1px solid #dee2e6',
+                borderRadius: 6,
+                fontSize: 14,
+                boxSizing: 'border-box',
+                opacity: loading ? 0.6 : 1
+              }}
+            />
+            <small style={{ color: '#666', fontSize: 12 }}>
+              Custom DNS server IP address (optional)
+            </small>
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', marginBottom: 6, fontWeight: 500, fontSize: 14 }}>
+              MTU (Maximum Transmission Unit)
+            </label>
+            <input
+              type="number"
+              value={mtu}
+              onChange={(e) => setMtu(e.target.value)}
+              placeholder="e.g., 1420"
+              min={576}
+              max={1500}
+              disabled={loading}
+              style={{
+                width: '100%',
+                padding: 10,
+                border: '1px solid #dee2e6',
+                borderRadius: 6,
+                fontSize: 14,
+                boxSizing: 'border-box',
+                opacity: loading ? 0.6 : 1
+              }}
+            />
+            <small style={{ color: '#666', fontSize: 12 }}>
+              Value between 576 and 1500 (optional, default: 1420)
+            </small>
+          </div>
+
+          <div style={{ marginBottom: 20 }}>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.6 : 1
+            }}>
+              <input
+                type="checkbox"
+                checked={splitTunnel}
+                onChange={(e) => setSplitTunnel(e.target.checked)}
+                disabled={loading}
+                style={{
+                  width: 18,
+                  height: 18,
+                  cursor: loading ? 'not-allowed' : 'pointer'
+                }}
+              />
+              <span style={{ fontWeight: 500, fontSize: 14 }}>
+                Enable Split Tunnel
+              </span>
+            </label>
+            <small style={{ color: '#666', fontSize: 12, marginTop: 4, display: 'block', marginLeft: 28 }}>
+              When enabled, only network traffic goes through VPN. Other traffic uses default route.
+            </small>
+          </div>
+        </div>
+
         <div style={{
           padding: 16,
-          backgroundColor: '#fff3cd',
+          backgroundColor: '#e0f2fe',
           borderRadius: 6,
           marginBottom: 20,
           fontSize: 13,
-          color: '#856404'
+          color: '#0369a1'
         }}>
-          <strong>Note:</strong> CIDR block cannot be changed after network creation. DNS, MTU, and Split Tunnel settings are not yet editable via UI.
+          <strong>Note:</strong> CIDR block cannot be changed after network creation.
         </div>
 
         <div style={{ display: 'flex', gap: 12 }}>

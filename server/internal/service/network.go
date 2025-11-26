@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
@@ -149,7 +150,7 @@ func (s *NetworkService) GetNetwork(ctx context.Context, id, actor, tenantID str
 	return net, nil
 }
 
-// UpdateNetwork updates mutable fields (name, visibility, join_policy) enforcing uniqueness & simple validation
+// UpdateNetwork updates mutable fields (name, visibility, join_policy, dns, mtu, split_tunnel) enforcing uniqueness & simple validation
 func (s *NetworkService) UpdateNetwork(ctx context.Context, id string, actor, tenantID string, patch map[string]any) (*domain.Network, error) {
 	// First check if network exists and belongs to tenant
 	existing, err := s.networkRepo.GetByID(ctx, id)
@@ -179,6 +180,38 @@ func (s *NetworkService) UpdateNetwork(ctx context.Context, id string, actor, te
 				n.JoinPolicy = domain.JoinPolicy(v)
 			default:
 				return domain.NewError(domain.ErrInvalidRequest, "Invalid join_policy", map[string]string{"field": "join_policy"})
+			}
+		}
+		// DNS field - can be set to a valid IP or cleared (null/empty)
+		if v, exists := patch["dns"]; exists {
+			if v == nil || v == "" {
+				n.DNS = nil
+			} else if dns, ok := v.(string); ok {
+				// Validate DNS IP format
+				if net.ParseIP(dns) == nil {
+					return domain.NewError(domain.ErrInvalidRequest, "Invalid DNS IP address", map[string]string{"field": "dns"})
+				}
+				n.DNS = &dns
+			}
+		}
+		// MTU field - can be set to a valid range or cleared (null)
+		if v, exists := patch["mtu"]; exists {
+			if v == nil {
+				n.MTU = nil
+			} else if mtuFloat, ok := v.(float64); ok {
+				mtu := int(mtuFloat)
+				if mtu < 576 || mtu > 1500 {
+					return domain.NewError(domain.ErrInvalidRequest, "MTU must be between 576 and 1500", map[string]string{"field": "mtu"})
+				}
+				n.MTU = &mtu
+			}
+		}
+		// Split Tunnel field
+		if v, exists := patch["split_tunnel"]; exists {
+			if v == nil {
+				n.SplitTunnel = nil
+			} else if splitTunnel, ok := v.(bool); ok {
+				n.SplitTunnel = &splitTunnel
 			}
 		}
 		return nil
