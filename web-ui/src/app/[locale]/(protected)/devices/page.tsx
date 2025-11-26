@@ -290,13 +290,13 @@ export default function DevicesPage() {
 
   const getPlatformIcon = (platform: string) => {
     const icons: Record<string, string> = {
-      windows: '??',
-      macos: '??',
-      linux: '??',
-      android: '??',
-      ios: '??',
+      windows: '[WIN]',
+      macos: '[MAC]',
+      linux: '[LNX]',
+      android: '[AND]',
+      ios: '[IOS]',
     }
-    return icons[platform] || '??'
+    return icons[platform] || '[DEV]'
   }
 
   const getPlatformColor = (platform: string) => {
@@ -653,17 +653,17 @@ export default function DevicesPage() {
                   </div>
                   {device.hostname && (
                     <div style={{ fontSize: 13, color: '#6b7280' }}>
-                      🖥️ {device.hostname}
+                      Host: {device.hostname}
                     </div>
                   )}
                   {device.last_ip && (
                     <div style={{ fontSize: 13, color: '#6b7280' }}>
-                      🌐 {device.last_ip}
+                      IP: {device.last_ip}
                     </div>
                   )}
                   {device.os_version && (
                     <div style={{ fontSize: 13, color: '#6b7280' }}>
-                      📦 {device.os_version}
+                      OS: {device.os_version}
                     </div>
                   )}
                 </div>
