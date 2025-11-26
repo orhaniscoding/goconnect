@@ -107,7 +107,8 @@ npm run dev
 
 ### Docker Compose (Coming Soon)
 ```bash
-docker-compose up -d
+docker compose up -d                # development (build locally)
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d  # production
 ```
 
 ## 📖 Documentation
@@ -326,6 +327,14 @@ npm run lint
 
 ## 📦 Deployment
 
+### Production Checklist
+- Set secrets: `JWT_SECRET` (32+ chars), `WG_PRIVATE_KEY`, `WG_SERVER_PUBKEY`, `DB_PASSWORD`, `REDIS_PASSWORD` (if used).
+- Configure endpoints: `WG_SERVER_ENDPOINT`, `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_WS_URL`, `CORS_ALLOWED_ORIGINS`.
+- Use compose overrides: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d`.
+- Enable TLS (reverse proxy like Nginx/Caddy) and open ports 80/443 only; keep WireGuard UDP port reachable.
+- Run migrations once: `cd server && go run cmd/server/main.go -migrate` (if not using compose entrypoint).
+- Monitor: `/health`, `/metrics`; set logs to persistent volume.
+
 ### Binary Releases
 
 Download pre-built binaries from [GitHub Releases](https://github.com/orhaniscoding/goconnect/releases):
@@ -355,11 +364,11 @@ cd client-daemon
 make install-systemd
 ```
 
-### Docker (Coming Soon)
+### Docker
 
 ```bash
-docker pull ghcr.io/orhaniscoding/goconnect-server:v0.0.0
-docker run -p 8080:8080 ghcr.io/orhaniscoding/goconnect-server:v0.0.0
+docker compose up -d                # development (local build)
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d  # production
 ```
 
 ## 🤝 Contributing
