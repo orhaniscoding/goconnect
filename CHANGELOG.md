@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.16.0](https://github.com/orhaniscoding/goconnect/compare/v2.15.0...v2.16.0) (2025-11-26)
+
+
+### Features
+
+* **web-ui:** add online status indicators to network chat ([4169d07](https://github.com/orhaniscoding/goconnect/commit/4169d07d728d7edeef3987869776d187fb8f8fa4))
+
 ## [2.15.0](https://github.com/orhaniscoding/goconnect/compare/v2.14.0...v2.15.0) (2025-11-26)
 
 
