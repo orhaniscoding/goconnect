@@ -4,6 +4,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { useT } from '../../../../../lib/i18n-context'
 import { useNotification } from '../../../../../contexts/NotificationContext'
 import { getUser } from '../../../../../lib/auth'
+import { useWebSocket } from '../../../../../lib/websocket'
 import AuthGuard from '../../../../../components/AuthGuard'
 import Footer from '../../../../../components/Footer'
 import {
@@ -60,7 +61,11 @@ export default function TenantDetailPage() {
     const [announcementContent, setAnnouncementContent] = useState('')
     const [announcementPriority, setAnnouncementPriority] = useState<'low' | 'normal' | 'high' | 'urgent'>('normal')
 
+    // Online status tracking
+    const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
+
     const user = getUser()
+    const ws = useWebSocket()
 
     const loadTenantData = useCallback(async () => {
         setLoading(true)
@@ -104,6 +109,34 @@ export default function TenantDetailPage() {
     useEffect(() => {
         loadTenantData()
     }, [loadTenantData])
+
+    // WebSocket presence tracking for tenant members
+    useEffect(() => {
+        if (!ws.isConnected || !myMembership) return
+
+        // Join tenant room for presence updates
+        ws.joinTenantRoom(tenantId)
+
+        // Listen for presence updates
+        const handlePresence = (data: { user_id: string; status: 'online' | 'offline' }) => {
+            setOnlineUsers(prev => {
+                const next = new Set(prev)
+                if (data.status === 'online') {
+                    next.add(data.user_id)
+                } else {
+                    next.delete(data.user_id)
+                }
+                return next
+            })
+        }
+
+        ws.on('presence.update', handlePresence)
+
+        return () => {
+            ws.off('presence.update', handlePresence)
+            ws.leaveTenantRoom(tenantId)
+        }
+    }, [ws.isConnected, myMembership, tenantId, ws])
 
     useEffect(() => {
         if (myMembership && activeTab === 'announcements') {
@@ -608,7 +641,32 @@ export default function TenantDetailPage() {
                                     border: '1px solid #e5e7eb',
                                     overflow: 'hidden'
                                 }}>
-                                    {members.map((member, idx) => (
+                                    {/* Online Members Summary */}
+                                    <div style={{
+                                        padding: '12px 16px',
+                                        backgroundColor: '#f9fafb',
+                                        borderBottom: '1px solid #e5e7eb',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 8
+                                    }}>
+                                        <span style={{
+                                            width: 8,
+                                            height: 8,
+                                            borderRadius: '50%',
+                                            backgroundColor: '#22c55e'
+                                        }} />
+                                        <span style={{ fontSize: 13, color: '#22c55e', fontWeight: 500 }}>
+                                            {onlineUsers.size} {t('chat.status.online')}
+                                        </span>
+                                        <span style={{ color: '#9ca3af' }}>•</span>
+                                        <span style={{ fontSize: 13, color: '#6b7280' }}>
+                                            {members.length} {t('tenants.members')}
+                                        </span>
+                                    </div>
+                                    {members.map((member, idx) => {
+                                        const isOnline = onlineUsers.has(member.user_id)
+                                        return (
                                         <div
                                             key={member.id}
                                             style={{
@@ -630,21 +688,35 @@ export default function TenantDetailPage() {
                                                     alignItems: 'center',
                                                     fontSize: 16,
                                                     fontWeight: 600,
-                                                    color: '#6b7280'
+                                                    color: '#6b7280',
+                                                    position: 'relative'
                                                 }}>
                                                     {(member.user_name || 'U')[0].toUpperCase()}
+                                                    {/* Online Status Indicator */}
+                                                    <span style={{
+                                                        position: 'absolute',
+                                                        bottom: 0,
+                                                        right: 0,
+                                                        width: 12,
+                                                        height: 12,
+                                                        borderRadius: '50%',
+                                                        backgroundColor: isOnline ? '#22c55e' : '#9ca3af',
+                                                        border: '2px solid white'
+                                                    }} />
                                                 </div>
                                                 <div>
-                                                    <div style={{ fontWeight: 500, color: '#1f2937' }}>
+                                                    <div style={{ fontWeight: 500, color: '#1f2937', display: 'flex', alignItems: 'center', gap: 8 }}>
                                                         {member.user_name || 'Unknown User'}
                                                         {member.user_id === user?.id && (
-                                                            <span style={{ color: '#6b7280', fontWeight: 400, marginLeft: 8 }}>
+                                                            <span style={{ color: '#6b7280', fontWeight: 400 }}>
                                                                 ({t('chat.user.you')})
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <div style={{ fontSize: 12, color: '#9ca3af' }}>
-                                                        Joined {new Date(member.created_at).toLocaleDateString()}
+                                                    <div style={{ fontSize: 12, color: isOnline ? '#22c55e' : '#9ca3af', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                        <span>{isOnline ? t('chat.status.online') : t('chat.status.offline')}</span>
+                                                        <span>•</span>
+                                                        <span style={{ color: '#9ca3af' }}>Joined {new Date(member.created_at).toLocaleDateString()}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -727,7 +799,8 @@ export default function TenantDetailPage() {
                                                 )}
                                             </div>
                                         </div>
-                                    ))}
+                                        )
+                                    })}
                                 </div>
                             )}
 

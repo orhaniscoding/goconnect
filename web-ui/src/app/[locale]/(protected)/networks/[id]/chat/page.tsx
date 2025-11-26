@@ -686,71 +686,71 @@ export default function NetworkChatPage() {
                 {members.map((member) => {
                   const isOnline = onlineUsers.has(member.user_id)
                   return (
-                  <div
-                    key={member.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      padding: '8px 16px',
-                      backgroundColor: member.user_id === user?.id ? '#f0f9ff' : 'transparent'
-                    }}
-                  >
-                    <div style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: '50%',
-                      backgroundColor: '#e5e7eb',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 14,
-                      position: 'relative'
-                    }}>
-                      👤
-                      {/* Online Status Indicator */}
-                      <span style={{
-                        position: 'absolute',
-                        bottom: 0,
-                        right: 0,
-                        width: 10,
-                        height: 10,
+                    <div
+                      key={member.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        padding: '8px 16px',
+                        backgroundColor: member.user_id === user?.id ? '#f0f9ff' : 'transparent'
+                      }}
+                    >
+                      <div style={{
+                        width: 32,
+                        height: 32,
                         borderRadius: '50%',
-                        backgroundColor: isOnline ? '#22c55e' : '#9ca3af',
-                        border: '2px solid white'
-                      }} />
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{
-                        fontSize: 13,
-                        fontWeight: 500,
-                        color: '#1f2937',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
+                        backgroundColor: '#e5e7eb',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 6
+                        justifyContent: 'center',
+                        fontSize: 14,
+                        position: 'relative'
                       }}>
-                        User {member.user_id.substring(0, 8)}...
-                        {member.user_id === user?.id && (
-                          <span style={{ color: '#6b7280', fontWeight: 400 }}> ({t('chat.user.you')})</span>
-                        )}
+                        👤
+                        {/* Online Status Indicator */}
+                        <span style={{
+                          position: 'absolute',
+                          bottom: 0,
+                          right: 0,
+                          width: 10,
+                          height: 10,
+                          borderRadius: '50%',
+                          backgroundColor: isOnline ? '#22c55e' : '#9ca3af',
+                          border: '2px solid white'
+                        }} />
                       </div>
-                      <div style={{
-                        fontSize: 11,
-                        color: isOnline ? '#22c55e' : '#6b7280',
-                        textTransform: 'capitalize',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 4
-                      }}>
-                        {member.role}
-                        <span style={{ color: '#9ca3af' }}>•</span>
-                        <span>{isOnline ? t('chat.status.online') : t('chat.status.offline')}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontSize: 13,
+                          fontWeight: 500,
+                          color: '#1f2937',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6
+                        }}>
+                          User {member.user_id.substring(0, 8)}...
+                          {member.user_id === user?.id && (
+                            <span style={{ color: '#6b7280', fontWeight: 400 }}> ({t('chat.user.you')})</span>
+                          )}
+                        </div>
+                        <div style={{
+                          fontSize: 11,
+                          color: isOnline ? '#22c55e' : '#6b7280',
+                          textTransform: 'capitalize',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4
+                        }}>
+                          {member.role}
+                          <span style={{ color: '#9ca3af' }}>•</span>
+                          <span>{isOnline ? t('chat.status.online') : t('chat.status.offline')}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
                   )
                 })}
               </div>
