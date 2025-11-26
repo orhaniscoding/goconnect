@@ -53,8 +53,8 @@ export default function Settings() {
     useEffect(() => {
         if (otpAuthUrl) {
             QRCode.toDataURL(otpAuthUrl)
-                .then(url => setQrCodeUrl(url))
-                .catch(err => console.error(err))
+                .then((url: string) => setQrCodeUrl(url))
+                .catch((err: unknown) => console.error(err))
         }
     }, [otpAuthUrl])
 

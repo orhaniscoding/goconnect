@@ -9,7 +9,7 @@ import { useNotification } from '../../../../contexts/NotificationContext'
 import { useT } from '../../../../lib/i18n-context'
 
 interface LoginPageProps {
-    params: { locale: string }
+    params: { locale: string } | Promise<{ locale: string }>
 }
 
 export default function Login({ params }: LoginPageProps) {
@@ -17,6 +17,7 @@ export default function Login({ params }: LoginPageProps) {
     const searchParams = useSearchParams()
     const notification = useNotification()
     const t = useT()
+    const locale = (params as any)?.locale ?? 'en'
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [code, setCode] = useState('')
@@ -63,7 +64,7 @@ export default function Login({ params }: LoginPageProps) {
             notification.success(t('login.success.title'), t('login.success.msg'))
 
             // Redirect to dashboard
-            router.push(`/${params.locale}/dashboard`)
+            router.push(`/${locale}/dashboard`)
         } catch (err: any) {
             console.error('Login error:', err)
             if (err.message.includes('ERR_2FA_REQUIRED') || err.message.includes('Two-factor authentication required')) {
@@ -252,7 +253,7 @@ export default function Login({ params }: LoginPageProps) {
                 }}>
                     {t('login.noAccount')}{' '}
                     <a
-                        href={`/${params.locale}/register`}
+                        href={`/${locale}/register`}
                         style={{ color: '#007bff', textDecoration: 'none' }}
                     >
                         {t('login.signUp')}

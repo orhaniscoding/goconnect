@@ -14,7 +14,7 @@ import QRCode from 'qrcode'
 export async function generateQRCode(text: string, size: number = 256): Promise<string> {
   try {
     return await QRCode.toDataURL(text, { width: size, margin: 1 })
-  } catch (err) {
+  } catch (err: unknown) {
     console.error('QR Code generation failed:', err)
     // Fallback to empty string or error placeholder
     return ''
@@ -27,7 +27,7 @@ export async function generateQRCode(text: string, size: number = 256): Promise<
  * @param canvasElement - Canvas element to draw on
  */
 export function generateQRCodeOnCanvas(text: string, canvasElement: HTMLCanvasElement): void {
-  QRCode.toCanvas(canvasElement, text, { width: 256, margin: 1 }, (error) => {
+  QRCode.toCanvas(canvasElement, text, { width: 256, margin: 1 }, (error?: Error | null) => {
     if (error) console.error('QR Code canvas generation failed:', error)
   })
 }

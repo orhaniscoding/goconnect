@@ -19,6 +19,7 @@ import { useT } from '../../../../lib/i18n-context'
 import { useNotification } from '../../../../contexts/NotificationContext'
 import AuthGuard from '../../../../components/AuthGuard'
 import Footer from '../../../../components/Footer'
+import EmptyState from '../../../../components/EmptyState'
 import { generateQRCode } from '../../../../lib/qrcode'
 
 type PlatformType = 'windows' | 'macos' | 'linux' | 'android' | 'ios'
@@ -587,10 +588,14 @@ export default function DevicesPage() {
 
         {/* Devices List */}
         {devices.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#6b7280' }}>
-            <p style={{ fontSize: 18, marginBottom: 8 }}>{t('devices.empty.title')}</p>
-            <p style={{ fontSize: 14 }}>{t('devices.empty.subtitle')}</p>
-          </div>
+          <EmptyState
+            title={t('devices.empty.title')}
+            description={t('devices.empty.subtitle')}
+            primaryAction={{
+              label: t('devices.action.add'),
+              onClick: () => setShowAddForm(true)
+            }}
+          />
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 16 }}>
             {devices.map(device => (
