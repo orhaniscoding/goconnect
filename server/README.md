@@ -53,10 +53,10 @@ go run cmd/server/main.go -migrate
 go run cmd/server/main.go
 ```
 
-### Docker Deployment (Coming Soon)
+### Docker Deployment
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 ## ⚙️ Configuration
