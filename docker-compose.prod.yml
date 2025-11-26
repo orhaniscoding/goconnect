@@ -1,0 +1,76 @@
+# =============================================================================
+# GoConnect - Production Override for Docker Compose
+# Use together with docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# =============================================================================
+
+services:
+  server:
+    image: ghcr.io/orhaniscoding/goconnect-server:${VERSION:-latest}
+    environment:
+      - ENVIRONMENT=production
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=${SERVER_PORT:-8080}
+      # Database
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=${DB_NAME:-goconnect}
+      - DB_USER=${DB_USER:-goconnect}
+      - DB_PASSWORD=${DB_PASSWORD:-change-me}
+      - DB_SSLMODE=${DB_SSLMODE:-disable}
+      # Redis (optional)
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      # JWT
+      - JWT_SECRET=${JWT_SECRET:?set-a-32-char-secret}
+      - JWT_ACCESS_TTL=${JWT_ACCESS_TTL:-15m}
+      - JWT_REFRESH_TTL=${JWT_REFRESH_TTL:-168h}
+      # WireGuard
+      - WG_INTERFACE_NAME=${WG_INTERFACE_NAME:-wg0}
+      - WG_SERVER_ENDPOINT=${WG_SERVER_ENDPOINT:-vpn.example.com:51820}
+      - WG_SERVER_PUBKEY=${WG_SERVER_PUBKEY:-}
+      - WG_PRIVATE_KEY=${WG_PRIVATE_KEY:-}
+      - WG_DNS=${WG_DNS:-1.1.1.1,1.0.0.1}
+      # OIDC (optional)
+      - OIDC_ISSUER=${OIDC_ISSUER:-}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET:-}
+      - OIDC_REDIRECT_URL=${OIDC_REDIRECT_URL:-}
+      # CORS
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web-ui:
+    image: ghcr.io/orhaniscoding/goconnect-web-ui:${VERSION:-latest}
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+      - NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-ws://localhost:8080/ws}
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=${DB_NAME:-goconnect}
+      - POSTGRES_USER=${DB_USER:-goconnect}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-change-me}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    restart: unless-stopped
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass ${REDIS_PASSWORD}}
+    restart: unless-stopped
+    volumes:
+      - redis-data:/data
+
+volumes:
+  postgres-data:
+  redis-data:
