@@ -12,9 +12,18 @@ import (
 
 // OIDCService handles OpenID Connect authentication
 type OIDCService struct {
-	provider *oidc.Provider
-	verifier *oidc.IDTokenVerifier
+	provider oidcProvider
+	verifier idTokenVerifier
 	config   oauth2.Config
+}
+
+type oidcProvider interface {
+	UserInfo(ctx context.Context, tokenSource oauth2.TokenSource) (*oidc.UserInfo, error)
+	Verifier(config *oidc.Config) *oidc.IDTokenVerifier
+}
+
+type idTokenVerifier interface {
+	Verify(ctx context.Context, rawIDToken string) (*oidc.IDToken, error)
 }
 
 // NewOIDCService creates a new OIDC service
@@ -49,8 +58,8 @@ func NewOIDCService(ctx context.Context) (*OIDCService, error) {
 	}
 
 	return &OIDCService{
-		provider: provider,
-		verifier: verifier,
+		provider: &realOIDCProvider{provider: provider},
+		verifier: &realVerifier{verifier: verifier},
 		config:   config,
 	}, nil
 }
@@ -62,6 +71,10 @@ func (s *OIDCService) GetLoginURL(state string) string {
 
 // ExchangeCode exchanges the authorization code for a token and extracts user info
 func (s *OIDCService) ExchangeCode(ctx context.Context, code string) (*oidc.IDToken, *UserInfo, error) {
+	if s == nil || s.verifier == nil {
+		return nil, nil, errors.New("oidc not configured")
+	}
+
 	oauth2Token, err := s.config.Exchange(ctx, code)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to exchange token: %w", err)
@@ -95,6 +108,42 @@ func (s *OIDCService) ExchangeCode(ctx context.Context, code string) (*oidc.IDTo
 	}
 
 	return idToken, userInfo, nil
+}
+
+// ValidateToken verifies a raw ID token using the configured verifier.
+func (s *OIDCService) ValidateToken(ctx context.Context, rawIDToken string) (*oidc.IDToken, error) {
+	if s == nil || s.verifier == nil {
+		return nil, errors.New("oidc not configured")
+	}
+	return s.verifier.Verify(ctx, rawIDToken)
+}
+
+// GetUserInfo retrieves user info using the provider's userinfo endpoint.
+func (s *OIDCService) GetUserInfo(ctx context.Context, token *oauth2.Token) (*oidc.UserInfo, error) {
+	if s == nil || s.provider == nil {
+		return nil, errors.New("oidc not configured")
+	}
+	return s.provider.UserInfo(ctx, oauth2.StaticTokenSource(token))
+}
+
+type realOIDCProvider struct {
+	provider *oidc.Provider
+}
+
+func (p *realOIDCProvider) UserInfo(ctx context.Context, tokenSource oauth2.TokenSource) (*oidc.UserInfo, error) {
+	return p.provider.UserInfo(ctx, tokenSource)
+}
+
+func (p *realOIDCProvider) Verifier(config *oidc.Config) *oidc.IDTokenVerifier {
+	return p.provider.Verifier(config)
+}
+
+type realVerifier struct {
+	verifier *oidc.IDTokenVerifier
+}
+
+func (v *realVerifier) Verify(ctx context.Context, rawIDToken string) (*oidc.IDToken, error) {
+	return v.verifier.Verify(ctx, rawIDToken)
 }
 
 // UserInfo holds extracted user information

@@ -142,14 +142,14 @@ func TestWireGuardHandler_GetProfile(t *testing.T) {
 		auditor := &mockAuditor{}
 
 		handler := NewWireGuardHandler(networkRepo, membershipRepo, nil, nil, userRepo, nil, auditor)
-		
+
 		// Custom middleware that sets empty user_id
 		emptyUserMiddleware := func(c *gin.Context) {
 			c.Set("user_id", "")
 			c.Set("tenant_id", "t1")
 			c.Next()
 		}
-		
+
 		r.GET("/v1/networks/:id/wg/profile", emptyUserMiddleware, handler.GetProfile)
 
 		req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1&private_key=pk1", nil)

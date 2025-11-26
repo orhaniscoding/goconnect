@@ -134,6 +134,35 @@ func TestTenantHandler_CreateTenant(t *testing.T) {
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
+
+	t.Run("Duplicate name", func(t *testing.T) {
+		t.Skip("Duplicate name validation not implemented yet")
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.POST("/v1/tenants", authMiddleware(mockAuth), handler.CreateTenant)
+
+		ctx := context.Background()
+		// First successful creation
+		_, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name: "Unique Tenant Name",
+		})
+		require.NoError(t, err)
+
+		body := map[string]interface{}{
+			"name":        "Unique Tenant Name", // Duplicate name
+			"description": "Another test tenant",
+			"visibility":  "public",
+			"access_type": "open",
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("POST", "/v1/tenants", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusConflict, w.Code) // Expect 409 Conflict
+	})
 }
 
 // ==================== GET TENANT TESTS ====================
@@ -389,6 +418,30 @@ func TestTenantHandler_DeleteTenant(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusForbidden, w.Code) // Not found shows as forbidden since user is not a member
+	})
+
+	t.Run("Failure - Delete with active members", func(t *testing.T) {
+		t.Skip("Delete with active members validation not implemented yet")
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.DELETE("/v1/tenants/:tenantId", authMiddleware(mockAuth), handler.DeleteTenant)
+
+		// Create tenant as user_dev
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name: "Tenant with Members",
+		})
+		require.NoError(t, err)
+
+		// Add another member
+		_, err = tenantService.JoinTenant(ctx, "active_member", tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest("DELETE", "/v1/tenants/"+tenant.ID, nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusConflict, w.Code) // Expect 409 Conflict if tenant has members
 	})
 }
 
@@ -959,6 +1012,70 @@ func TestTenantHandler_UpdateMemberRole(t *testing.T) {
 		// Non-admin trying to update role should fail with Forbidden
 		assert.Equal(t, http.StatusForbidden, w.Code)
 	})
+
+	t.Run("Success - Promote member to owner (transfer ownership)", func(t *testing.T) {
+		t.Skip("Owner promotion via UpdateMemberRole not supported - use separate transfer ownership endpoint")
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.PATCH("/v1/tenants/:tenantId/members/:memberId", authMiddleware(mockAuth), handler.UpdateMemberRole)
+
+		ctx := context.Background()
+		// Create tenant as initial_owner
+		initialOwnerID := "initial_owner"
+		tenant, err := tenantService.CreateTenant(ctx, initialOwnerID, &domain.CreateTenantRequest{
+			Name:       "Owner Transfer Tenant",
+			Visibility: domain.TenantVisibilityPrivate,
+			AccessType: domain.TenantAccessOpen,
+		})
+		require.NoError(t, err)
+
+		// Token user ('user_dev') joins as member and is promoted to admin
+		promotedAdminMembership, err := tenantService.JoinTenant(ctx, "user_dev", tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+		err = tenantService.UpdateMemberRole(ctx, initialOwnerID, tenant.ID, promotedAdminMembership.ID, domain.TenantRoleAdmin)
+		require.NoError(t, err)
+
+		// Create target user and make them a member (the one to be promoted to owner)
+		targetUserID := "new_owner_candidate"
+		targetMembership, err := tenantService.JoinTenant(ctx, targetUserID, tenant.ID, &domain.JoinTenantRequest{})
+		require.NoError(t, err)
+
+		// 'user_dev' (admin) tries to promote 'new_owner_candidate' to owner
+		body := map[string]interface{}{
+			"role": domain.TenantRoleOwner, // Promote to owner
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		// 'valid-token' maps to user_dev who was promoted to admin above
+		req := httptest.NewRequest("PATCH", "/v1/tenants/"+tenant.ID+"/members/"+targetMembership.ID, bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+		assert.Equal(t, "Member role updated successfully", response["message"])
+
+		// Verify ownership transfer
+		updatedTenant, err := tenantService.GetTenant(ctx, tenant.ID)
+		require.NoError(t, err)
+		assert.Equal(t, targetUserID, updatedTenant.OwnerID, "New owner ID should match target user")
+
+		// Verify old owner's role is now admin
+		members, _, err := tenantService.GetTenantMembers(ctx, tenant.ID, &domain.ListTenantMembersRequest{Limit: 100})
+		require.NoError(t, err)
+
+		var oldOwnerMember *domain.TenantMember
+		for _, m := range members {
+			if m.UserID == initialOwnerID {
+				oldOwnerMember = m
+				break
+			}
+		}
+		require.NotNil(t, oldOwnerMember, "Old owner's membership should exist")
+		assert.Equal(t, domain.TenantRoleAdmin, oldOwnerMember.Role, "Old owner should be demoted to admin")
+	})
 }
 
 // ==================== REMOVE MEMBER TESTS ====================
@@ -988,6 +1105,40 @@ func TestTenantHandler_RemoveMember(t *testing.T) {
 
 		// Owner should be able to remove member
 		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("Failure - Cannot remove self", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.DELETE("/v1/tenants/:tenantId/members/:memberId", authMiddleware(mockAuth), handler.RemoveMember)
+
+		// Create tenant as user_dev (token user is owner)
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Get owner's membership via GetTenantMembers
+		members, _, err := tenantService.GetTenantMembers(ctx, tenant.ID, &domain.ListTenantMembersRequest{Limit: 100})
+		require.NoError(t, err)
+		var ownerMembershipID string
+		for _, m := range members {
+			if m.UserID == "user_dev" {
+				ownerMembershipID = m.ID
+				break
+			}
+		}
+		require.NotEmpty(t, ownerMembershipID, "Owner membership should exist")
+
+		req := httptest.NewRequest("DELETE", "/v1/tenants/"+tenant.ID+"/members/"+ownerMembershipID, nil)
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Should not be able to remove self, especially if owner
+		assert.Equal(t, http.StatusForbidden, w.Code)
 	})
 }
 

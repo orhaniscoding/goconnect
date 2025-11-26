@@ -339,7 +339,7 @@ func TestAdminService_ListNetworks(t *testing.T) {
 		require.NoError(t, err)
 		// Empty because TenantID filter is empty and repo enforces tenant isolation
 		// networks can be nil or empty slice - both are valid
-		assert.True(t, networks == nil || len(networks) == 0)
+		assert.True(t, len(networks) == 0)
 	})
 
 	t.Run("Empty Result", func(t *testing.T) {

@@ -418,7 +418,7 @@ func TestAdminHandler_ListNetworks(t *testing.T) {
 
 		var response map[string]interface{}
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
-		
+
 		data, ok := response["data"].([]interface{})
 		if ok {
 			assert.Len(t, data, 2)
@@ -448,7 +448,7 @@ func TestAdminHandler_ListNetworks(t *testing.T) {
 
 		var response map[string]interface{}
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
-		
+
 		data, ok := response["data"].([]interface{})
 		if ok && len(data) > 0 {
 			assert.LessOrEqual(t, len(data), 5)
@@ -476,7 +476,7 @@ func TestAdminHandler_ListDevices(t *testing.T) {
 
 		var response map[string]interface{}
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
-		
+
 		data, ok := response["data"].([]interface{})
 		if ok {
 			assert.Len(t, data, 2)
@@ -509,7 +509,7 @@ func TestAdminHandler_ListDevices(t *testing.T) {
 
 		var response map[string]interface{}
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
-		
+
 		data, ok := response["data"].([]interface{})
 		if ok && len(data) > 0 {
 			assert.LessOrEqual(t, len(data), 5)
