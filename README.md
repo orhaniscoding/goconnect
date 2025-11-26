@@ -105,13 +105,9 @@ npm install
 npm run dev
 ```
 
-### Docker Compose
+### Docker Compose (Coming Soon)
 ```bash
-# Development (builds images locally)
-docker compose up -d
-
-# Production (use published images)
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker-compose up -d
 ```
 
 ## 📖 Documentation
