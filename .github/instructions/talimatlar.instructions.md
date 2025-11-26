@@ -1033,10 +1033,15 @@ Legend: ✅ = Complete, ⏳ = Needs implementation/tests
 | `/[locale]/dashboard` | `(protected)/dashboard/page.tsx` | Yes | Network list |
 | `/[locale]/networks/[id]` | `(protected)/networks/[id]/page.tsx` | Yes | Network details |
 | `/[locale]/networks/[id]/chat` | `(protected)/networks/[id]/chat/page.tsx` | Yes | Network chat |
+| `/[locale]/devices` | `(protected)/devices/page.tsx` | Yes | User devices management |
+| `/[locale]/profile` | `(protected)/profile/page.tsx` | Yes | User profile & password |
 | `/[locale]/settings` | `(protected)/settings/page.tsx` | Yes | User settings (2FA, Recovery) |
 | `/[locale]/tenants` | `(protected)/tenants/page.tsx` | Yes | Tenant discovery |
 | `/[locale]/tenants/[id]` | `(protected)/tenants/[id]/page.tsx` | Yes | Tenant details |
 | `/[locale]/tenants/[id]/chat` | `(protected)/tenants/[id]/chat/page.tsx` | Yes | Tenant chat |
+| `/[locale]/tenants/[id]/settings` | `(protected)/tenants/[id]/settings/page.tsx` | Yes | Tenant settings (owner/admin) |
+| `/[locale]/admin` | `(protected)/admin/page.tsx` | Admin | Admin panel (users, tenants, networks, devices) |
+| `/[locale]/admin/audit` | `(protected)/admin/audit/page.tsx` | Admin | Enhanced audit log viewer with filters |
 
 ---
 

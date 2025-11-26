@@ -213,17 +213,18 @@ Planlanan tüm kritik özellikler tamamlanmıştır.
 
 ### 5.2 İyileştirme Fırsatları
 
-| Özellik              | Açıklama                               | Öncelik  | Durum        |
-| -------------------- | -------------------------------------- | -------- | ------------ |
-| ~~Unban özelliği~~   | ~~Yasaklı üyelerin yasağını kaldırma~~ | ~~Orta~~ | ✅ Tamamlandı |
-| Audit log UI         | Admin panelinde audit log görüntüleme  | Düşük    | ⏳ Bekliyor   |
-| E-posta bildirimleri | Invite/announcement bildirimleri       | Düşük    | ⏳ Bekliyor   |
-| Mobile app           | React Native / Flutter app             | Gelecek  | ⏳ Bekliyor   |
-| Prometheus dashboard | Grafana entegrasyonu                   | Düşük    | ⏳ Bekliyor   |
+| Özellik              | Açıklama                               | Öncelik   | Durum        |
+| -------------------- | -------------------------------------- | --------- | ------------ |
+| ~~Unban özelliği~~   | ~~Yasaklı üyelerin yasağını kaldırma~~ | ~~Orta~~  | ✅ Tamamlandı |
+| ~~Audit log UI~~     | ~~Admin panelinde gelişmiş audit log~~ | ~~Düşük~~ | ✅ Tamamlandı |
+| E-posta bildirimleri | Invite/announcement bildirimleri       | Düşük     | ⏳ Bekliyor   |
+| Mobile app           | React Native / Flutter app             | Gelecek   | ⏳ Bekliyor   |
+| Prometheus dashboard | Grafana entegrasyonu                   | Düşük     | ⏳ Bekliyor   |
 
 ### 5.3 Olası Gelecek Özellikler
 
 - ~~Network-level chat~~ ✅ Tamamlandı (v2.13.0)
+- ~~Audit log filters & badges~~ ✅ Tamamlandı (v2.13.0)
 - File sharing in chat
 - Voice/video call entegrasyonu
 - Custom DNS per network
