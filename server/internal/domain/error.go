@@ -78,7 +78,7 @@ func (e *Error) ToHTTPStatus() int {
 		return http.StatusForbidden
 	case ErrRateLimited:
 		return http.StatusTooManyRequests
-	case ErrNotFound, ErrUserNotFound:
+	case ErrNotFound, ErrUserNotFound, ErrTenantNotFound:
 		return http.StatusNotFound
 	case ErrCIDROverlap, ErrIdempotencyConflict, ErrIPExhausted, ErrUserAlreadyExists, ErrEmailAlreadyExists:
 		return http.StatusConflict
