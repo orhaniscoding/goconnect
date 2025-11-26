@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.14.0](https://github.com/orhaniscoding/goconnect/compare/v2.13.0...v2.14.0) (2025-11-26)
+
+
+### Features
+
+* **web-ui:** add network chat page with real-time messaging ([e5bf969](https://github.com/orhaniscoding/goconnect/commit/e5bf96933c590cd2991c4af02da0fc5857936e79))
+* **web-ui:** enhance audit log page with filters and color-coded badges ([2b8109d](https://github.com/orhaniscoding/goconnect/commit/2b8109d755ec613bad9ffc6362798a8b3d443dd8))
+
 ## [2.13.0](https://github.com/orhaniscoding/goconnect/compare/v2.12.0...v2.13.0) (2025-11-26)
 
 
