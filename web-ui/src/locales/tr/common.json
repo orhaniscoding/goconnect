@@ -590,7 +590,9 @@
     "status": {
       "connected": "WebSocket bağlandı",
       "disconnected": "WebSocket bağlantısı kesildi",
-      "unknown": "Bilinmeyen hata"
+      "unknown": "Bilinmeyen hata",
+      "online": "Çevrimiçi",
+      "offline": "Çevrimdışı"
     },
     "message": {
       "redacted": "[SANSÜRLENDİ]",

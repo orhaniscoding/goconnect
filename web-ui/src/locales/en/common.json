@@ -563,7 +563,9 @@
     "status": {
       "connected": "WebSocket connected",
       "disconnected": "WebSocket disconnected",
-      "unknown": "Unknown error"
+      "unknown": "Unknown error",
+      "online": "Online",
+      "offline": "Offline"
     },
     "message": {
       "redacted": "[REDACTED]",

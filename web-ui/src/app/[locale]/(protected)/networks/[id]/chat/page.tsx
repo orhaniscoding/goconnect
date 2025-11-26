@@ -35,6 +35,7 @@ export default function NetworkChatPage() {
   const [message, setMessage] = useState('')
   const [showSidebar, setShowSidebar] = useState(true)
   const [typingUsers, setTypingUsers] = useState<string[]>([])
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set())
 
   // File Upload state
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -156,11 +157,25 @@ export default function NetworkChatPage() {
       }
     }
 
+    // Listen for presence updates (online/offline status)
+    const handlePresence = (data: { user_id: string; status: 'online' | 'offline' }) => {
+      setOnlineUsers(prev => {
+        const next = new Set(prev)
+        if (data.status === 'online') {
+          next.add(data.user_id)
+        } else {
+          next.delete(data.user_id)
+        }
+        return next
+      })
+    }
+
     // Register listeners
     ws.on('chat.message', handleNewMessage)
     ws.on('chat.edited', handleEditedMessage)
     ws.on('chat.deleted', handleDeletedMessage)
     ws.on('chat.typing.user', handleTyping)
+    ws.on('presence.update', handlePresence)
 
     // Cleanup
     return () => {
@@ -168,6 +183,7 @@ export default function NetworkChatPage() {
       ws.off('chat.edited', handleEditedMessage)
       ws.off('chat.deleted', handleDeletedMessage)
       ws.off('chat.typing.user', handleTyping)
+      ws.off('presence.update', handlePresence)
       ws.leaveRoom(roomName)
     }
   }, [networkId, myMembership, ws.isConnected, ws, user?.id])
@@ -644,6 +660,22 @@ export default function NetworkChatPage() {
                 }}>
                   👥 {t('network.chat.memberList')} ({members.length})
                 </h3>
+                <p style={{
+                  margin: '4px 0 0',
+                  fontSize: 12,
+                  color: '#22c55e',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}>
+                  <span style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    backgroundColor: '#22c55e'
+                  }} />
+                  {onlineUsers.size} {t('chat.status.online')}
+                </p>
               </div>
 
               <div style={{
@@ -651,7 +683,9 @@ export default function NetworkChatPage() {
                 overflowY: 'auto',
                 padding: '8px 0'
               }}>
-                {members.map((member) => (
+                {members.map((member) => {
+                  const isOnline = onlineUsers.has(member.user_id)
+                  return (
                   <div
                     key={member.id}
                     style={{
@@ -670,9 +704,21 @@ export default function NetworkChatPage() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: 14
+                      fontSize: 14,
+                      position: 'relative'
                     }}>
                       👤
+                      {/* Online Status Indicator */}
+                      <span style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        right: 0,
+                        width: 10,
+                        height: 10,
+                        borderRadius: '50%',
+                        backgroundColor: isOnline ? '#22c55e' : '#9ca3af',
+                        border: '2px solid white'
+                      }} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{
@@ -681,7 +727,10 @@ export default function NetworkChatPage() {
                         color: '#1f2937',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
+                        whiteSpace: 'nowrap',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6
                       }}>
                         User {member.user_id.substring(0, 8)}...
                         {member.user_id === user?.id && (
@@ -690,14 +739,20 @@ export default function NetworkChatPage() {
                       </div>
                       <div style={{
                         fontSize: 11,
-                        color: '#6b7280',
-                        textTransform: 'capitalize'
+                        color: isOnline ? '#22c55e' : '#6b7280',
+                        textTransform: 'capitalize',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4
                       }}>
                         {member.role}
+                        <span style={{ color: '#9ca3af' }}>•</span>
+                        <span>{isOnline ? t('chat.status.online') : t('chat.status.offline')}</span>
                       </div>
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
