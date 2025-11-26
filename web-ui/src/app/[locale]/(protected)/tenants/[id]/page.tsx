@@ -667,112 +667,96 @@ export default function TenantDetailPage() {
                                     {members.map((member, idx) => {
                                         const isOnline = onlineUsers.has(member.user_id)
                                         return (
-                                        <div
-                                            key={member.id}
-                                            style={{
-                                                padding: 16,
-                                                display: 'flex',
-                                                justifyContent: 'space-between',
-                                                alignItems: 'center',
-                                                borderBottom: idx < members.length - 1 ? '1px solid #f3f4f6' : 'none'
-                                            }}
-                                        >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                                <div style={{
-                                                    width: 40,
-                                                    height: 40,
-                                                    borderRadius: 20,
-                                                    backgroundColor: '#e5e7eb',
+                                            <div
+                                                key={member.id}
+                                                style={{
+                                                    padding: 16,
                                                     display: 'flex',
-                                                    justifyContent: 'center',
+                                                    justifyContent: 'space-between',
                                                     alignItems: 'center',
-                                                    fontSize: 16,
-                                                    fontWeight: 600,
-                                                    color: '#6b7280',
-                                                    position: 'relative'
-                                                }}>
-                                                    {(member.user_name || 'U')[0].toUpperCase()}
-                                                    {/* Online Status Indicator */}
+                                                    borderBottom: idx < members.length - 1 ? '1px solid #f3f4f6' : 'none'
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                    <div style={{
+                                                        width: 40,
+                                                        height: 40,
+                                                        borderRadius: 20,
+                                                        backgroundColor: '#e5e7eb',
+                                                        display: 'flex',
+                                                        justifyContent: 'center',
+                                                        alignItems: 'center',
+                                                        fontSize: 16,
+                                                        fontWeight: 600,
+                                                        color: '#6b7280',
+                                                        position: 'relative'
+                                                    }}>
+                                                        {(member.user_name || 'U')[0].toUpperCase()}
+                                                        {/* Online Status Indicator */}
+                                                        <span style={{
+                                                            position: 'absolute',
+                                                            bottom: 0,
+                                                            right: 0,
+                                                            width: 12,
+                                                            height: 12,
+                                                            borderRadius: '50%',
+                                                            backgroundColor: isOnline ? '#22c55e' : '#9ca3af',
+                                                            border: '2px solid white'
+                                                        }} />
+                                                    </div>
+                                                    <div>
+                                                        <div style={{ fontWeight: 500, color: '#1f2937', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                                            {member.user_name || 'Unknown User'}
+                                                            {member.user_id === user?.id && (
+                                                                <span style={{ color: '#6b7280', fontWeight: 400 }}>
+                                                                    ({t('chat.user.you')})
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div style={{ fontSize: 12, color: isOnline ? '#22c55e' : '#9ca3af', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                                            <span>{isOnline ? t('chat.status.online') : t('chat.status.offline')}</span>
+                                                            <span>•</span>
+                                                            <span style={{ color: '#9ca3af' }}>Joined {new Date(member.created_at).toLocaleDateString()}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                                     <span style={{
-                                                        position: 'absolute',
-                                                        bottom: 0,
-                                                        right: 0,
-                                                        width: 12,
-                                                        height: 12,
-                                                        borderRadius: '50%',
-                                                        backgroundColor: isOnline ? '#22c55e' : '#9ca3af',
-                                                        border: '2px solid white'
-                                                    }} />
-                                                </div>
-                                                <div>
-                                                    <div style={{ fontWeight: 500, color: '#1f2937', display: 'flex', alignItems: 'center', gap: 8 }}>
-                                                        {member.user_name || 'Unknown User'}
-                                                        {member.user_id === user?.id && (
-                                                            <span style={{ color: '#6b7280', fontWeight: 400 }}>
-                                                                ({t('chat.user.you')})
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <div style={{ fontSize: 12, color: isOnline ? '#22c55e' : '#9ca3af', display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                        <span>{isOnline ? t('chat.status.online') : t('chat.status.offline')}</span>
-                                                        <span>•</span>
-                                                        <span style={{ color: '#9ca3af' }}>Joined {new Date(member.created_at).toLocaleDateString()}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                                        padding: '4px 12px',
+                                                        borderRadius: 16,
+                                                        fontSize: 12,
+                                                        fontWeight: 500,
+                                                        backgroundColor: getRoleBadgeStyle(member.role).bg,
+                                                        color: getRoleBadgeStyle(member.role).text
+                                                    }}>
+                                                        {t(`tenant.members.roles.${member.role}`)}
+                                                    </span>
 
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                                <span style={{
-                                                    padding: '4px 12px',
-                                                    borderRadius: 16,
-                                                    fontSize: 12,
-                                                    fontWeight: 500,
-                                                    backgroundColor: getRoleBadgeStyle(member.role).bg,
-                                                    color: getRoleBadgeStyle(member.role).text
-                                                }}>
-                                                    {t(`tenant.members.roles.${member.role}`)}
-                                                </span>
-
-                                                {canManageMembers && member.user_id !== user?.id && member.role !== 'owner' && (
-                                                    <div style={{ display: 'flex', gap: 8 }}>
-                                                        <select
-                                                            value={member.role}
-                                                            onChange={(e) => handleRoleChange(member.id, e.target.value as TenantRole)}
-                                                            style={{
-                                                                padding: '6px 10px',
-                                                                borderRadius: 6,
-                                                                border: '1px solid #e5e7eb',
-                                                                fontSize: 13,
-                                                                cursor: 'pointer'
-                                                            }}
-                                                        >
-                                                            <option value="admin">{t('tenant.members.roles.admin')}</option>
-                                                            <option value="moderator">{t('tenant.members.roles.moderator')}</option>
-                                                            <option value="vip">{t('tenant.members.roles.vip')}</option>
-                                                            <option value="member">{t('tenant.members.roles.member')}</option>
-                                                        </select>
-                                                        <button
-                                                            onClick={() => handleKickMember(member.id)}
-                                                            style={{
-                                                                padding: '6px 12px',
-                                                                backgroundColor: '#fee2e2',
-                                                                color: '#991b1b',
-                                                                border: 'none',
-                                                                borderRadius: 6,
-                                                                cursor: 'pointer',
-                                                                fontSize: 12,
-                                                                fontWeight: 500
-                                                            }}
-                                                        >
-                                                            {t('tenant.members.actions.kick')}
-                                                        </button>
-                                                        {!member.banned_at && (
+                                                    {canManageMembers && member.user_id !== user?.id && member.role !== 'owner' && (
+                                                        <div style={{ display: 'flex', gap: 8 }}>
+                                                            <select
+                                                                value={member.role}
+                                                                onChange={(e) => handleRoleChange(member.id, e.target.value as TenantRole)}
+                                                                style={{
+                                                                    padding: '6px 10px',
+                                                                    borderRadius: 6,
+                                                                    border: '1px solid #e5e7eb',
+                                                                    fontSize: 13,
+                                                                    cursor: 'pointer'
+                                                                }}
+                                                            >
+                                                                <option value="admin">{t('tenant.members.roles.admin')}</option>
+                                                                <option value="moderator">{t('tenant.members.roles.moderator')}</option>
+                                                                <option value="vip">{t('tenant.members.roles.vip')}</option>
+                                                                <option value="member">{t('tenant.members.roles.member')}</option>
+                                                            </select>
                                                             <button
-                                                                onClick={() => handleBanMember(member.id)}
+                                                                onClick={() => handleKickMember(member.id)}
                                                                 style={{
                                                                     padding: '6px 12px',
-                                                                    backgroundColor: '#7f1d1d',
-                                                                    color: 'white',
+                                                                    backgroundColor: '#fee2e2',
+                                                                    color: '#991b1b',
                                                                     border: 'none',
                                                                     borderRadius: 6,
                                                                     cursor: 'pointer',
@@ -780,25 +764,41 @@ export default function TenantDetailPage() {
                                                                     fontWeight: 500
                                                                 }}
                                                             >
-                                                                {t('tenants.members.ban')}
+                                                                {t('tenant.members.actions.kick')}
                                                             </button>
-                                                        )}
-                                                        {member.banned_at && (
-                                                            <span style={{
-                                                                padding: '6px 12px',
-                                                                backgroundColor: '#7f1d1d',
-                                                                color: 'white',
-                                                                borderRadius: 6,
-                                                                fontSize: 12,
-                                                                fontWeight: 500
-                                                            }}>
-                                                                {t('tenants.members.banned')}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                )}
+                                                            {!member.banned_at && (
+                                                                <button
+                                                                    onClick={() => handleBanMember(member.id)}
+                                                                    style={{
+                                                                        padding: '6px 12px',
+                                                                        backgroundColor: '#7f1d1d',
+                                                                        color: 'white',
+                                                                        border: 'none',
+                                                                        borderRadius: 6,
+                                                                        cursor: 'pointer',
+                                                                        fontSize: 12,
+                                                                        fontWeight: 500
+                                                                    }}
+                                                                >
+                                                                    {t('tenants.members.ban')}
+                                                                </button>
+                                                            )}
+                                                            {member.banned_at && (
+                                                                <span style={{
+                                                                    padding: '6px 12px',
+                                                                    backgroundColor: '#7f1d1d',
+                                                                    color: 'white',
+                                                                    borderRadius: 6,
+                                                                    fontSize: 12,
+                                                                    fontWeight: 500
+                                                                }}>
+                                                                    {t('tenants.members.banned')}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
                                         )
                                     })}
                                 </div>

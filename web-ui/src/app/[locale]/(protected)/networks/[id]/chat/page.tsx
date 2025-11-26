@@ -514,9 +514,17 @@ export default function NetworkChatPage() {
                           color: '#9ca3af',
                           marginTop: 4,
                           marginRight: isOwn ? 0 : 'auto',
-                          marginLeft: isOwn ? 'auto' : 12
+                          marginLeft: isOwn ? 'auto' : 12,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4
                         }}>
                           {formatTime(msg.created_at)}
+                          {msg.updated_at && msg.updated_at !== msg.created_at && (
+                            <span style={{ fontStyle: 'italic', color: '#9ca3af' }}>
+                              {t('chat.edited')}
+                            </span>
+                          )}
                         </span>
                       </div>
                     )

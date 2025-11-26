@@ -579,9 +579,17 @@ export default function TenantChatPage() {
                                                     color: '#9ca3af',
                                                     marginTop: 4,
                                                     marginLeft: isOwn ? 0 : 12,
-                                                    marginRight: isOwn ? 12 : 0
+                                                    marginRight: isOwn ? 12 : 0,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 4
                                                 }}>
                                                     {formatTime(msg.created_at)}
+                                                    {msg.updated_at && msg.updated_at !== msg.created_at && (
+                                                        <span style={{ fontStyle: 'italic' }}>
+                                                            {t('chat.edited')}
+                                                        </span>
+                                                    )}
                                                 </span>
                                             </div>
                                         )
