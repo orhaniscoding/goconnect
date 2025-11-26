@@ -177,6 +177,7 @@ func main() {
 	)
 
 	peerProvisioningService := service.NewPeerProvisioningService(peerRepo, deviceRepo, networkRepo, membershipRepo, ipamRepo)
+	peerService := service.NewPeerService(peerRepo, deviceRepo, networkRepo)
 	deviceService := service.NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, cfg.WireGuard)
 	deviceService.SetPeerProvisioning(peerProvisioningService)
 	// Start offline detection (check every 30s, mark offline if unseen for 2m)
@@ -329,6 +330,7 @@ func main() {
 
 	// Initialize handlers
 	networkHandler := handler.NewNetworkHandler(networkService, membershipService, deviceService, peerRepo, cfg.WireGuard).WithIPAM(ipamService)
+	peerHandler := handler.NewPeerHandler(peerService)
 	authHandler := handler.NewAuthHandler(authService, oidcService)
 	deviceHandler := handler.NewDeviceHandler(deviceService)
 	chatHandler := handler.NewChatHandler(chatService)
@@ -399,6 +401,9 @@ func main() {
 
 	// Register device routes
 	handler.RegisterDeviceRoutes(r, deviceHandler, handler.AuthMiddleware(authService))
+
+	// Register peer routes
+	handler.RegisterPeerRoutes(r, peerHandler, handler.AuthMiddleware(authService))
 
 	// Register chat routes with rate limiting
 	chatGroup := r.Group("/v1/chat")

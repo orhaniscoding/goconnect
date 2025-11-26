@@ -77,6 +77,8 @@ pnpm-debug.log*
 # AI / Generated History (optional)
 #############################
 .specstory/
+.git
+AgentWorkflow.md
 
 #############################
 # Misc
@@ -88,3 +90,6 @@ KendimeNotlarim.md
 # Release artifacts
 #############################
 release/
+.aider*
+.gemini/
+gha-creds-*.json
