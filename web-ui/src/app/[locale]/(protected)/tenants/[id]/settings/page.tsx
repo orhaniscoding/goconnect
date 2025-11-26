@@ -272,21 +272,19 @@ export default function TenantSettingsPage() {
             <div className="mt-4 flex border-b border-gray-200 dark:border-gray-700">
               <button
                 onClick={() => setActiveTab('general')}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'general'
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'general'
                     ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                     : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-                }`}
+                  }`}
               >
                 {t('tenant.settings.generalTab')}
               </button>
               <button
                 onClick={() => setActiveTab('banned')}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'banned'
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'banned'
                     ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                     : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-                }`}
+                  }`}
               >
                 {t('servers.members.bannedMembers')}
               </button>
@@ -298,256 +296,256 @@ export default function TenantSettingsPage() {
         <main className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
           {/* General Settings Tab */}
           {activeTab === 'general' && (
-          <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Basic Information */}
-            <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-6">
-                {t('tenant.settings.basicInfo')}
-              </h2>
+            <form onSubmit={handleSubmit} className="space-y-8">
+              {/* Basic Information */}
+              <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-6">
+                  {t('tenant.settings.basicInfo')}
+                </h2>
 
-              <div className="space-y-6">
-                {/* Name */}
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    {t('tenant.name')} <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                    minLength={2}
-                    maxLength={100}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                {/* Description */}
-                <div>
-                  <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    {t('tenant.description')}
-                  </label>
-                  <textarea
-                    id="description"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={4}
-                    maxLength={1000}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                    placeholder={t('tenant.settings.descriptionPlaceholder')}
-                  />
-                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    {description.length}/1000
-                  </p>
-                </div>
-
-                {/* Max Members */}
-                <div>
-                  <label htmlFor="maxMembers" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    {t('tenant.settings.maxMembers')}
-                  </label>
-                  <input
-                    type="number"
-                    id="maxMembers"
-                    value={maxMembers}
-                    onChange={(e) => setMaxMembers(parseInt(e.target.value) || 100)}
-                    min={1}
-                    max={10000}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    {t('tenant.settings.maxMembersHelp')}
-                  </p>
-                </div>
-              </div>
-            </section>
-
-            {/* Privacy Settings */}
-            <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-              <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-6">
-                {t('tenant.settings.privacy')}
-              </h2>
-
-              <div className="space-y-6">
-                {/* Visibility */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                    {t('tenant.visibility')}
-                  </label>
-                  <div className="space-y-3">
-                    <label className="flex items-start gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                      <input
-                        type="radio"
-                        name="visibility"
-                        value="public"
-                        checked={visibility === 'public'}
-                        onChange={() => setVisibility('public')}
-                        className="mt-1"
-                      />
-                      <div>
-                        <span className="block font-medium text-gray-900 dark:text-white">
-                          {t('tenant.visibility.public')}
-                        </span>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                          {t('tenant.visibility.publicDesc')}
-                        </span>
-                      </div>
-                    </label>
-                    <label className="flex items-start gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                      <input
-                        type="radio"
-                        name="visibility"
-                        value="private"
-                        checked={visibility === 'private'}
-                        onChange={() => setVisibility('private')}
-                        className="mt-1"
-                      />
-                      <div>
-                        <span className="block font-medium text-gray-900 dark:text-white">
-                          {t('tenant.visibility.private')}
-                        </span>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                          {t('tenant.visibility.privateDesc')}
-                        </span>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Access Type */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                    {t('tenant.accessType')}
-                  </label>
-                  <div className="space-y-3">
-                    <label className="flex items-start gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                      <input
-                        type="radio"
-                        name="accessType"
-                        value="open"
-                        checked={accessType === 'open'}
-                        onChange={() => setAccessType('open')}
-                        className="mt-1"
-                      />
-                      <div>
-                        <span className="block font-medium text-gray-900 dark:text-white">
-                          {t('tenant.accessType.open')}
-                        </span>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                          {t('tenant.accessType.openDesc')}
-                        </span>
-                      </div>
-                    </label>
-                    <label className="flex items-start gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                      <input
-                        type="radio"
-                        name="accessType"
-                        value="password"
-                        checked={accessType === 'password'}
-                        onChange={() => setAccessType('password')}
-                        className="mt-1"
-                      />
-                      <div>
-                        <span className="block font-medium text-gray-900 dark:text-white">
-                          {t('tenant.accessType.password')}
-                        </span>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                          {t('tenant.accessType.passwordDesc')}
-                        </span>
-                      </div>
-                    </label>
-                    <label className="flex items-start gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                      <input
-                        type="radio"
-                        name="accessType"
-                        value="invite_only"
-                        checked={accessType === 'invite_only'}
-                        onChange={() => setAccessType('invite_only')}
-                        className="mt-1"
-                      />
-                      <div>
-                        <span className="block font-medium text-gray-900 dark:text-white">
-                          {t('tenant.accessType.inviteOnly')}
-                        </span>
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                          {t('tenant.accessType.inviteOnlyDesc')}
-                        </span>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Password Field (shown when password access is selected) */}
-                {accessType === 'password' && (
-                  <div className="animate-in fade-in duration-200">
-                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      {t('tenant.settings.tenantPassword')}
-                      {tenant.access_type !== 'password' && <span className="text-red-500"> *</span>}
+                <div className="space-y-6">
+                  {/* Name */}
+                  <div>
+                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      {t('tenant.name')} <span className="text-red-500">*</span>
                     </label>
                     <input
-                      type="password"
-                      id="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required={tenant.access_type !== 'password'}
+                      type="text"
+                      id="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      minLength={2}
+                      maxLength={100}
                       className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder={tenant.access_type === 'password' ? t('tenant.settings.leaveBlankToKeep') : t('tenant.settings.enterPassword')}
+                    />
+                  </div>
+
+                  {/* Description */}
+                  <div>
+                    <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      {t('tenant.description')}
+                    </label>
+                    <textarea
+                      id="description"
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      rows={4}
+                      maxLength={1000}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                      placeholder={t('tenant.settings.descriptionPlaceholder')}
                     />
                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      {tenant.access_type === 'password'
-                        ? t('tenant.settings.passwordChangeHint')
-                        : t('tenant.settings.passwordRequiredHint')
-                      }
+                      {description.length}/1000
                     </p>
                   </div>
-                )}
-              </div>
-            </section>
 
-            {/* Danger Zone - Only visible to owner */}
-            {isOwner && (
-              <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-red-200 dark:border-red-900/50 p-6">
-                <h2 className="text-lg font-medium text-red-600 dark:text-red-400 mb-4">
-                  {t('tenant.settings.dangerZone')}
-                </h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  {t('tenant.settings.dangerZoneDesc')}
-                </p>
-                <button
-                  type="button"
-                  className="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
-                  onClick={() => setShowDeleteModal(true)}
-                  disabled={deleting}
-                >
-                  {t('tenant.settings.deleteTenant')}
-                </button>
+                  {/* Max Members */}
+                  <div>
+                    <label htmlFor="maxMembers" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      {t('tenant.settings.maxMembers')}
+                    </label>
+                    <input
+                      type="number"
+                      id="maxMembers"
+                      value={maxMembers}
+                      onChange={(e) => setMaxMembers(parseInt(e.target.value) || 100)}
+                      min={1}
+                      max={10000}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                      {t('tenant.settings.maxMembersHelp')}
+                    </p>
+                  </div>
+                </div>
               </section>
-            )}
 
-            {/* Submit Button */}
-            <div className="flex justify-end gap-4">
-              <Link
-                href={`/${locale}/tenants/${tenantId}`}
-                className="px-6 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-              >
-                {t('common.cancel')}
-              </Link>
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {saving && (
-                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                )}
-                {t('common.save')}
-              </button>
-            </div>
-          </form>
+              {/* Privacy Settings */}
+              <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h2 className="text-lg font-medium text-gray-900 dark:text-white mb-6">
+                  {t('tenant.settings.privacy')}
+                </h2>
+
+                <div className="space-y-6">
+                  {/* Visibility */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                      {t('tenant.visibility')}
+                    </label>
+                    <div className="space-y-3">
+                      <label className="flex items-start gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <input
+                          type="radio"
+                          name="visibility"
+                          value="public"
+                          checked={visibility === 'public'}
+                          onChange={() => setVisibility('public')}
+                          className="mt-1"
+                        />
+                        <div>
+                          <span className="block font-medium text-gray-900 dark:text-white">
+                            {t('tenant.visibility.public')}
+                          </span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
+                            {t('tenant.visibility.publicDesc')}
+                          </span>
+                        </div>
+                      </label>
+                      <label className="flex items-start gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <input
+                          type="radio"
+                          name="visibility"
+                          value="private"
+                          checked={visibility === 'private'}
+                          onChange={() => setVisibility('private')}
+                          className="mt-1"
+                        />
+                        <div>
+                          <span className="block font-medium text-gray-900 dark:text-white">
+                            {t('tenant.visibility.private')}
+                          </span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
+                            {t('tenant.visibility.privateDesc')}
+                          </span>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Access Type */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                      {t('tenant.accessType')}
+                    </label>
+                    <div className="space-y-3">
+                      <label className="flex items-start gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <input
+                          type="radio"
+                          name="accessType"
+                          value="open"
+                          checked={accessType === 'open'}
+                          onChange={() => setAccessType('open')}
+                          className="mt-1"
+                        />
+                        <div>
+                          <span className="block font-medium text-gray-900 dark:text-white">
+                            {t('tenant.accessType.open')}
+                          </span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
+                            {t('tenant.accessType.openDesc')}
+                          </span>
+                        </div>
+                      </label>
+                      <label className="flex items-start gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <input
+                          type="radio"
+                          name="accessType"
+                          value="password"
+                          checked={accessType === 'password'}
+                          onChange={() => setAccessType('password')}
+                          className="mt-1"
+                        />
+                        <div>
+                          <span className="block font-medium text-gray-900 dark:text-white">
+                            {t('tenant.accessType.password')}
+                          </span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
+                            {t('tenant.accessType.passwordDesc')}
+                          </span>
+                        </div>
+                      </label>
+                      <label className="flex items-start gap-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <input
+                          type="radio"
+                          name="accessType"
+                          value="invite_only"
+                          checked={accessType === 'invite_only'}
+                          onChange={() => setAccessType('invite_only')}
+                          className="mt-1"
+                        />
+                        <div>
+                          <span className="block font-medium text-gray-900 dark:text-white">
+                            {t('tenant.accessType.inviteOnly')}
+                          </span>
+                          <span className="text-sm text-gray-500 dark:text-gray-400">
+                            {t('tenant.accessType.inviteOnlyDesc')}
+                          </span>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Password Field (shown when password access is selected) */}
+                  {accessType === 'password' && (
+                    <div className="animate-in fade-in duration-200">
+                      <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        {t('tenant.settings.tenantPassword')}
+                        {tenant.access_type !== 'password' && <span className="text-red-500"> *</span>}
+                      </label>
+                      <input
+                        type="password"
+                        id="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required={tenant.access_type !== 'password'}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder={tenant.access_type === 'password' ? t('tenant.settings.leaveBlankToKeep') : t('tenant.settings.enterPassword')}
+                      />
+                      <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        {tenant.access_type === 'password'
+                          ? t('tenant.settings.passwordChangeHint')
+                          : t('tenant.settings.passwordRequiredHint')
+                        }
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {/* Danger Zone - Only visible to owner */}
+              {isOwner && (
+                <section className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-red-200 dark:border-red-900/50 p-6">
+                  <h2 className="text-lg font-medium text-red-600 dark:text-red-400 mb-4">
+                    {t('tenant.settings.dangerZone')}
+                  </h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                    {t('tenant.settings.dangerZoneDesc')}
+                  </p>
+                  <button
+                    type="button"
+                    className="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+                    onClick={() => setShowDeleteModal(true)}
+                    disabled={deleting}
+                  >
+                    {t('tenant.settings.deleteTenant')}
+                  </button>
+                </section>
+              )}
+
+              {/* Submit Button */}
+              <div className="flex justify-end gap-4">
+                <Link
+                  href={`/${locale}/tenants/${tenantId}`}
+                  className="px-6 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                >
+                  {t('common.cancel')}
+                </Link>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {saving && (
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  )}
+                  {t('common.save')}
+                </button>
+              </div>
+            </form>
           )}
 
           {/* Banned Members Tab */}

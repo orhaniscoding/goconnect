@@ -197,10 +197,10 @@ GoConnect, WireGuard tabanlı bir VPN yönetim sistemidir. Proje, planlanan öze
 
 | Doküman                    | Durum                            |
 | -------------------------- | -------------------------------- |
-| talimatlar.instructions.md | ⚠️ v2.9.0'da kaldı, güncellenmeli |
+| talimatlar.instructions.md | ✅ v2.12.0'a güncellendi          |
 | OpenAPI spec               | ✅ Güncel                         |
 | README.md                  | ⚠️ Kontrol edilmeli               |
-| API_EXAMPLES.http          | ⚠️ Yeni endpoint'ler eklenmeli    |
+| API_EXAMPLES.http          | ✅ Ban/Unban endpoint'leri eklendi |
 
 ---
 
@@ -212,13 +212,13 @@ Planlanan tüm kritik özellikler tamamlanmıştır.
 
 ### 5.2 İyileştirme Fırsatları
 
-| Özellik              | Açıklama                              | Öncelik |
-| -------------------- | ------------------------------------- | ------- |
-| Unban özelliği       | Yasaklı üyelerin yasağını kaldırma    | Orta    |
-| Audit log UI         | Admin panelinde audit log görüntüleme | Düşük   |
-| E-posta bildirimleri | Invite/announcement bildirimleri      | Düşük   |
-| Mobile app           | React Native / Flutter app            | Gelecek |
-| Prometheus dashboard | Grafana entegrasyonu                  | Düşük   |
+| Özellik              | Açıklama                              | Öncelik | Durum |
+| -------------------- | ------------------------------------- | ------- | ----- |
+| ~~Unban özelliği~~   | ~~Yasaklı üyelerin yasağını kaldırma~~ | ~~Orta~~ | ✅ Tamamlandı |
+| Audit log UI         | Admin panelinde audit log görüntüleme | Düşük   | ⏳ Bekliyor |
+| E-posta bildirimleri | Invite/announcement bildirimleri      | Düşük   | ⏳ Bekliyor |
+| Mobile app           | React Native / Flutter app            | Gelecek | ⏳ Bekliyor |
+| Prometheus dashboard | Grafana entegrasyonu                  | Düşük   | ⏳ Bekliyor |
 
 ### 5.3 Olası Gelecek Özellikler
 
