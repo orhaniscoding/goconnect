@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.21.0](https://github.com/orhaniscoding/goconnect/compare/v2.20.0...v2.21.0) (2025-11-27)
+
+
+### Features
+
+* **auth:** implement real-time user suspension enforcement ([8cfb664](https://github.com/orhaniscoding/goconnect/commit/8cfb664f5ae9c175b562c77189707802bb213480))
+
 ## [2.20.0](https://github.com/orhaniscoding/goconnect/compare/v2.19.0...v2.20.0) (2025-11-27)
 
 
