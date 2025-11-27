@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.19.0](https://github.com/orhaniscoding/goconnect/compare/v2.18.0...v2.19.0) (2025-11-27)
+
+
+### Features
+
+* **api:** add posts feature and user profile enhancement ([b0491a6](https://github.com/orhaniscoding/goconnect/commit/b0491a6f4d6ef374ad7ef27e18fd4109ccd970b5))
+* **ui:** add VPN dashboard and social media feed UI ([3110cfc](https://github.com/orhaniscoding/goconnect/commit/3110cfc282c5fe35586c567069578592ef3d953f))
+
 ## [2.18.0](https://github.com/orhaniscoding/goconnect/compare/v2.17.0...v2.18.0) (2025-11-26)
 
 
