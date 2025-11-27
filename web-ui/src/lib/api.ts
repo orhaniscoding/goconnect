@@ -1817,3 +1817,141 @@ export async function deleteTenantChatMessageSimple(tenantId: string, messageId:
     headers: getAuthHeader(),
   })
 }
+
+// ========================================
+// Posts API
+// ========================================
+
+export interface Post {
+  id: number
+  user_id: number
+  content: string
+  image_url?: string
+  likes: number
+  created_at: string
+  updated_at: string
+  author?: {
+    id: number
+    username: string
+    email: string
+    full_name?: string
+    bio?: string
+    avatar_url?: string
+  }
+}
+
+export interface CreatePostRequest {
+  content: string
+  image_url?: string
+}
+
+export interface UpdatePostRequest {
+  content: string
+  image_url?: string
+}
+
+/**
+ * Get all posts
+ */
+export async function getPosts(): Promise<Post[]> {
+  const res = await api('/v1/posts', {
+    headers: getAuthHeader(),
+  })
+  return res.data || []
+}
+
+/**
+ * Get a single post by ID
+ */
+export async function getPost(id: number): Promise<Post> {
+  const res = await api(`/v1/posts/${id}`, {
+    headers: getAuthHeader(),
+  })
+  return res.data
+}
+
+/**
+ * Create a new post
+ */
+export async function createPost(data: CreatePostRequest): Promise<Post> {
+  const res = await api('/v1/posts', {
+    method: 'POST',
+    headers: getAuthHeader(),
+    body: JSON.stringify(data),
+  })
+  return res.data
+}
+
+/**
+ * Update an existing post
+ */
+export async function updatePost(id: number, data: UpdatePostRequest): Promise<Post> {
+  const res = await api(`/v1/posts/${id}`, {
+    method: 'PUT',
+    headers: getAuthHeader(),
+    body: JSON.stringify(data),
+  })
+  return res.data
+}
+
+/**
+ * Delete a post
+ */
+export async function deletePost(id: number): Promise<void> {
+  await api(`/v1/posts/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeader(),
+  })
+}
+
+/**
+ * Like a post
+ */
+export async function likePost(id: number): Promise<void> {
+  await api(`/v1/posts/${id}/like`, {
+    method: 'POST',
+    headers: getAuthHeader(),
+  })
+}
+
+/**
+ * Unlike a post
+ */
+export async function unlikePost(id: number): Promise<void> {
+  await api(`/v1/posts/${id}/like`, {
+    method: 'DELETE',
+    headers: getAuthHeader(),
+  })
+}
+
+// ========================================
+// User Profile API
+// ========================================
+
+export interface UpdateProfileRequest {
+  full_name?: string
+  bio?: string
+  avatar_url?: string
+}
+
+/**
+ * Get current user profile
+ */
+export async function getCurrentUser(): Promise<any> {
+  const res = await api('/v1/users/me', {
+    headers: getAuthHeader(),
+  })
+  return res.data
+}
+
+/**
+ * Update user profile
+ */
+export async function updateProfile(data: UpdateProfileRequest): Promise<any> {
+  const res = await api('/v1/users/me', {
+    method: 'PUT',
+    headers: getAuthHeader(),
+    body: JSON.stringify(data),
+  })
+  return res.data
+}
