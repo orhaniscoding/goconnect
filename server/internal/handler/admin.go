@@ -301,7 +301,14 @@ func (h *AdminHandler) SuspendUser(c *gin.Context) {
 
 	// Validate reason
 	if err := req.Validate(); err != nil {
-		errorResponse(c, err)
+		if derr, ok := err.(*domain.Error); ok {
+			errorResponse(c, derr)
+		} else {
+			errorResponse(c, &domain.Error{
+				Code:    domain.ErrInvalidRequest,
+				Message: err.Error(),
+			})
+		}
 		return
 	}
 
