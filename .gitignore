@@ -73,6 +73,9 @@ pnpm-debug.log*
 !.vscode/extensions.json
 !.vscode/settings.json
 
+# User-specific VS Code settings with tokens
+mcp.json
+
 #############################
 # AI / Generated History (optional)
 #############################

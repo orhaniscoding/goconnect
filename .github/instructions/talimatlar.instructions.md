@@ -1084,4 +1084,176 @@ Legend: ✅ = Complete, ⏳ = Needs implementation/tests
 
 ---
 
-**Last Updated:** 2025-11-26 | **Version:** v2.12.0+
+# 25) 🔧 MCP SERVER USAGE RULES
+
+## GitHub MCP Server
+
+**Use GitHub MCP tools whenever interacting with GitHub resources:**
+- Creating, modifying, or reviewing repositories
+- Managing files in GitHub repos (read, write, update, delete)
+- Browsing directories or project structures on GitHub
+- Fetching or analyzing code stored on GitHub
+- Creating branches, commits, or pull requests
+- Reviewing pull requests or providing inline code comments
+- Generating release notes or drafting GitHub releases
+- Managing issues, labels, and milestones
+- Searching the repository for code, issues, pull requests, or discussions
+
+**Automatically call GitHub MCP tools when:**
+- I ask you to fetch a specific file from GitHub ("open file X in the repo")
+- I say "check this branch", "compare this PR", "look at this commit"
+- I request changes to a GitHub repository I have configured for you
+- I ask for new branches, commits, PRs, or release drafts
+- I ask for refactors or code transformations involving files that exist in my repo
+- I ask for repo-wide analysis or dependency inspection
+- I ask for help exploring a repo's structure, tree, or codebase
+
+**Do NOT call GitHub MCP tools when:**
+- The task only involves local, generated code not stored in GitHub
+- I explicitly ask you to avoid using GitHub tools
+- The content I want is not in a configured GitHub repository
+- I am only asking conceptual questions with no repo interaction
+
+**Best practices:**
+- Prefer using GitHub MCP to fetch actual file contents rather than guessing
+- Ensure modifications are applied through commits or PRs
+- Provide clear commit messages following conventional standards
+- Use branches for substantial changes unless I request direct commits
+
+---
+
+## Context7 MCP Server
+
+**Use Context7 tools automatically when:**
+
+1. Performing any form of **code generation** that depends on:
+   - External libraries, frameworks, APIs, SDKs, or language-specific utilities
+
+2. Need **library documentation**, including:
+   - Installation guides, usage examples
+   - Available functions, classes, methods, and their signatures
+   - Version-specific instructions
+
+3. Producing **setup, configuration, or integration steps**, such as:
+   - Initializing a new project
+   - Configuring build systems (npm, pip, go mod, cargo, etc.)
+   - Setting up environment variables or runtime dependencies
+
+4. Must verify:
+   - The correct import paths
+   - Whether a library exists
+   - Compatibility or version requirements
+   - Alternative packages
+
+5. Generating code that relies on external functionality:
+   - Automatically call Context7 to resolve the library ID
+   - Automatically fetch docs for the relevant component
+   - Do NOT wait for me to request it
+
+**Avoid unnecessary calls:**
+- Do NOT use Context7 for tasks that are purely:
+  - Algorithmic, internal code logic, refactoring, style improvement
+  - Writing code unrelated to external libraries
+- Do NOT call Context7 if:
+  - The answer does not require external API or library information
+  - The context is fully available inside the current workspace
+
+**Workflow expectations:**
+- Decide proactively when Context7 can improve correctness or reliability
+- Clearly explain: why you used Context7, which data you retrieved, and how it influenced your generated code
+
+---
+
+## OctoCode MCP Server
+
+**Use OctoCode tools whenever a task requires:**
+- Large-scale code transformations or structural rewrites
+- Refactoring code across multiple files or modules
+- Renaming functions, variables, classes, or components safely
+- Extracting functions, components, or reusable logic
+- Re-organizing code for clarity, architecture, or maintainability
+- Converting codebases to new patterns, frameworks, or architectures
+- Applying consistent conventions across many files
+- Fixing complex code issues that require coordinated multi-file changes
+- Migrating code to new APIs, frameworks, or versions
+
+**Automatically call OctoCode when:**
+- I ask to "refactor", "rewrite", "restructure", "clean up", or "modernize"
+- I ask to apply sweeping changes (rename everywhere, global update, etc.)
+- I request transforming raw code into a different style or pattern
+- I ask for multi-file transformations or system-wide modifications
+- I say "convert this to…" (e.g., TS → JS, class → hooks, or component rewrite)
+- I want consistent formatting, architecture alignment, or code cleanup
+- I ask for breaking a big file into smaller reusable units
+
+**Do NOT call OctoCode when:**
+- The task involves documentation lookup or library/API explanation (use Context7)
+- The change is tiny, local, or can be done inline by the LLM
+- I explicitly request not to use MCP tools
+- The operation affects only single-line or trivial edits
+- The task is about UI component creation (use Shadcn), test automation (Playwright), database ops (DB MCP), or repository operations (GitHub MCP)
+
+**Best practices:**
+- Prefer OctoCode for multi-file safety, precision, and consistency
+- Use it to avoid hallucinated or incomplete refactors
+- Allow OctoCode to validate that changes apply across the entire codebase
+- Use OctoCode as the "refactor engine" after planning steps from SequentialThinking
+
+---
+
+## SequentialThinking MCP Server
+
+**Use SequentialThinking tools whenever a task requires:**
+- Multi-step reasoning or chained decision processes
+- Breaking a complex problem into sequential sub-tasks
+- Generating structured reasoning traces
+- Producing step-by-step plans before writing code or content
+- Evaluating alternative solution paths
+- Running multi-stage workflows (plan → act → verify → finalize)
+- Debugging by reproducing the reasoning chain explicitly
+- Validating logic, consistency, constraints, or strategy choices
+
+**Automatically call SequentialThinking tools when:**
+- I request "think step by step", "plan first", or "reason through the problem"
+- I ask you to design a workflow, roadmap, or multi-phase solution
+- The task involves complex dependencies or multiple layers of logic
+- I explicitly ask for a chain of thought (CoT), tree-of-thought, or multi-step plan
+- You need sequential evaluation before calling another MCP tool
+
+**Do NOT call SequentialThinking when:**
+- The task is simple enough to solve directly
+- I explicitly ask you not to use sequential reasoning tools
+- The problem is purely mechanical (e.g., syntax correction, small edits)
+- The task is about UI, GitHub, Playwright, DB operations, or any tool that requires domain-specific MCP servers
+
+**Best practices:**
+- Prefer generating a structured plan before producing output
+- Keep steps clear, minimal, and well-defined
+- Use SequentialThinking as the "planning layer" before using domain-specific MCP tools
+- Validate or refine reasoning if a solution seems ambiguous, uncertain, or error-prone
+
+---
+
+## Memory Bank MCP Server
+
+**Use Memory Bank tools to:**
+- Store, update, or retrieve long-term project knowledge
+- Summarize and save important context: goals, design decisions, architecture notes, open tasks, progress logs, and key constraints
+- Reload previous context instead of asking me to repeat it
+
+**Before starting or continuing work on a project:**
+- Check the memory bank (list projects/files and read relevant entries)
+- Reload previous context instead of asking me to repeat it
+
+**When you reach a meaningful milestone:**
+- Design agreed, bug root cause found, refactor finished, architecture chosen, etc.
+- Write or update the appropriate memory bank file so future sessions can rely on it
+
+**Best practices:**
+- Keep project memories concise and structured (use headings, bullet points, and dates)
+- Avoid storing secrets, credentials, or large raw logs unless explicitly requested
+- Prefer reading from the Memory Bank instead of re-scanning the entire codebase whenever you need high-level project understanding or past decisions
+
+---
+
+**Last Updated:** 2025-11-27 | **Version:** v2.12.0+
