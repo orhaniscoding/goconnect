@@ -125,7 +125,15 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 		return
 	}
 
-	if err := h.authService.Logout(c.Request.Context(), req.RefreshToken); err != nil {
+	// Extract access token from Authorization header
+	accessToken := ""
+	authHeader := c.GetHeader("Authorization")
+	if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+		accessToken = authHeader[7:]
+	}
+
+	// Call service with both tokens (graceful if access token missing)
+	if err := h.authService.Logout(c.Request.Context(), accessToken, req.RefreshToken); err != nil {
 		if domainErr, ok := err.(*domain.Error); ok {
 			errorResponse(c, domainErr)
 		} else {

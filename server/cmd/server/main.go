@@ -357,7 +357,7 @@ func main() {
 	go hub.Run(ctx)
 
 	// Initialize Admin Service
-	adminService := service.NewAdminService(userRepo, adminRepo, tenantRepo, networkRepo, deviceRepo, chatRepo, aud, hub.GetActiveConnectionCount)
+	adminService := service.NewAdminService(userRepo, adminRepo, tenantRepo, networkRepo, deviceRepo, chatRepo, aud, redisClient, hub.GetActiveConnectionCount)
 	adminHandler := handler.NewAdminHandler(adminService)
 
 	// Initialize WebSocket HTTP handler

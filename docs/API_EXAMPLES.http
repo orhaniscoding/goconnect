@@ -54,9 +54,15 @@ Content-Type: application/json
 ###
 
 ### Logout
-# Replace {access_token} with actual access token
+# Blacklists both access and refresh tokens and clears active sessions
+# Both tokens are required for complete session cleanup
 POST http://localhost:8080/v1/auth/logout
 Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
 
 ###
 

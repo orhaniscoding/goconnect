@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/orhaniscoding/goconnect/server/internal/audit"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
+	"github.com/redis/go-redis/v9"
 )
 
 // AdminService handles admin-related operations
@@ -18,6 +20,7 @@ type AdminService struct {
 	deviceRepo           repository.DeviceRepository
 	chatRepo             repository.ChatRepository
 	auditor              audit.Auditor
+	redisClient          *redis.Client
 	getActiveConnections func() int
 }
 
@@ -30,6 +33,7 @@ func NewAdminService(
 	deviceRepo repository.DeviceRepository,
 	chatRepo repository.ChatRepository,
 	auditor audit.Auditor,
+	redisClient *redis.Client,
 	getActiveConnections func() int,
 ) *AdminService {
 	return &AdminService{
@@ -40,6 +44,7 @@ func NewAdminService(
 		deviceRepo:           deviceRepo,
 		chatRepo:             chatRepo,
 		auditor:              auditor,
+		redisClient:          redisClient,
 		getActiveConnections: getActiveConnections,
 	}
 }
@@ -301,6 +306,22 @@ func (s *AdminService) SuspendUser(ctx context.Context, adminUserID, targetUserI
 	err = s.adminRepo.SuspendUser(ctx, targetUserID, reason, adminUserID)
 	if err != nil {
 		return domain.NewError(domain.ErrInternalServer, "Failed to suspend user", nil)
+	}
+
+	// Blacklist all active sessions (invalidate all tokens immediately)
+	if s.redisClient != nil {
+		sessionKey := fmt.Sprintf("user_sessions:%s", targetUserID)
+		jtis, err := s.redisClient.SMembers(ctx, sessionKey).Result()
+		if err == nil && len(jtis) > 0 {
+			// Blacklist each JTI (access and refresh tokens)
+			for _, jti := range jtis {
+				blacklistKey := fmt.Sprintf("blacklist:%s", jti)
+				// TTL: 7 days (max refresh token lifetime)
+				s.redisClient.Set(ctx, blacklistKey, "suspended", 7*24*time.Hour)
+			}
+			// Clear user sessions set
+			s.redisClient.Del(ctx, sessionKey)
+		}
 	}
 
 	// Log admin action

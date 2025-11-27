@@ -4,24 +4,28 @@ import "time"
 
 // User represents a user in the system
 type User struct {
-	ID            string    `json:"id"`
-	TenantID      string    `json:"tenant_id"`
-	Email         string    `json:"email"`
-	PasswordHash  string    `json:"-"`            // Never expose in JSON
-	Username      *string   `json:"username"`     // Username for display
-	FullName      *string   `json:"full_name"`    // Full name
-	Bio           *string   `json:"bio"`          // Bio/description
-	AvatarURL     *string   `json:"avatar_url"`   // Avatar image URL
-	Locale        string    `json:"locale"`       // "tr" or "en"
-	IsAdmin       bool      `json:"is_admin"`     // Global admin flag
-	IsModerator   bool      `json:"is_moderator"` // Can moderate chat/content
-	TwoFAKey      string    `json:"-"`            // TOTP secret
-	TwoFAEnabled  bool      `json:"two_fa_enabled"`
-	RecoveryCodes []string  `json:"-"`             // Hashed recovery codes (8 codes, one-time use)
-	AuthProvider  string    `json:"auth_provider"` // "local", "google", "github", "oidc"
-	ExternalID    string    `json:"external_id"`   // ID from the provider
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID              string     `json:"id"`
+	TenantID        string     `json:"tenant_id"`
+	Email           string     `json:"email"`
+	PasswordHash    string     `json:"-"`            // Never expose in JSON
+	Username        *string    `json:"username"`     // Username for display
+	FullName        *string    `json:"full_name"`    // Full name
+	Bio             *string    `json:"bio"`          // Bio/description
+	AvatarURL       *string    `json:"avatar_url"`   // Avatar image URL
+	Locale          string     `json:"locale"`       // "tr" or "en"
+	IsAdmin         bool       `json:"is_admin"`     // Global admin flag
+	IsModerator     bool       `json:"is_moderator"` // Can moderate chat/content
+	TwoFAKey        string     `json:"-"`            // TOTP secret
+	TwoFAEnabled    bool       `json:"two_fa_enabled"`
+	RecoveryCodes   []string   `json:"-"`                // Hashed recovery codes (8 codes, one-time use)
+	AuthProvider    string     `json:"auth_provider"`    // "local", "google", "github", "oidc"
+	ExternalID      string     `json:"external_id"`      // ID from the provider
+	Suspended       bool       `json:"suspended"`        // Whether the user account is suspended
+	SuspendedAt     *time.Time `json:"suspended_at"`     // When the user was suspended
+	SuspendedReason *string    `json:"suspended_reason"` // Reason for suspension
+	SuspendedBy     *string    `json:"suspended_by"`     // User ID of the admin who suspended this user
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 // Tenant represents a tenant (organization) in the system

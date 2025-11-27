@@ -310,6 +310,58 @@ export SESSION_DATA_RETENTION_DAYS=30
 
 ---
 
+## 🚫 User Suspension & Session Management
+
+### Real-Time Suspension Enforcement
+
+GoConnect implements **immediate suspension enforcement** to address security incidents in real-time.
+
+**Security Guarantees:**
+- ✅ Suspended users cannot login (even with correct password)
+- ✅ Existing JWT tokens from suspended users are rejected immediately
+- ✅ All active sessions blacklisted within seconds of suspension
+- ✅ Zero grace period for suspension enforcement
+
+**How It Works:**
+1. **At Login:** Suspended users blocked before token generation
+2. **At Token Validation:** Database check rejects suspended users' tokens
+3. **Auto-Blacklist on Suspension:** All active sessions invalidated when admin suspends user
+4. **Session Tracking:** Redis tracks all active JWT IDs for instant revocation
+
+**Implementation:**
+```bash
+# Redis keys:
+user_sessions:{userID}  → Set of active JTIs (JWT IDs)
+blacklist:{JTI}        → "suspended" (TTL: 7 days)
+```
+
+**Admin Endpoints:**
+```http
+### Suspend User
+POST /v1/admin/users/{user_id}/suspend
+Authorization: Bearer {admin_token}
+Content-Type: application/json
+
+{
+  "reason": "Security policy violation"
+}
+
+### Unsuspend User
+POST /v1/admin/users/{user_id}/unsuspend
+Authorization: Bearer {admin_token}
+```
+
+**Graceful Degradation:**
+- If Redis unavailable: suspension still enforced via database queries
+- Performance impact without Redis: ~2-5ms per request
+
+**Best Practices:**
+- Monitor Redis availability for real-time enforcement
+- Review suspension audit logs regularly
+- Document suspension reasons for compliance
+
+---
+
 ## ✅ Security Checklist
 
 ### Pre-Production
@@ -321,6 +373,7 @@ export SESSION_DATA_RETENTION_DAYS=30
 - [ ] Audit logging enabled
 - [ ] Firewall rules applied
 - [ ] Secrets stored securely
+- [ ] Redis configured for session tracking
 
 ### Ongoing
 
@@ -330,6 +383,7 @@ export SESSION_DATA_RETENTION_DAYS=30
 - [ ] Penetration testing (annual)
 - [ ] Backup verification
 - [ ] Incident response drills
+- [ ] Review suspended users weekly
 
 ---
 

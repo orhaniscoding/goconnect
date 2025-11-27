@@ -25,13 +25,17 @@ func setupAdminTest() (*gin.Engine, *AdminHandler, *repository.InMemoryUserRepos
 	networkRepo := repository.NewInMemoryNetworkRepository()
 	deviceRepo := repository.NewInMemoryDeviceRepository()
 	chatRepo := repository.NewInMemoryChatRepository()
+	adminRepo := repository.NewAdminRepository(nil)
 
 	adminService := service.NewAdminService(
 		userRepo,
+		adminRepo,
 		tenantRepo,
 		networkRepo,
 		deviceRepo,
 		chatRepo,
+		nil,                     // No auditor
+		nil,                     // No Redis
 		func() int { return 5 }, // mock active connections
 	)
 

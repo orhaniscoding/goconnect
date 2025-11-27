@@ -133,6 +133,7 @@ func (s *AuthService) VerifyPassword(password, encodedHash string) (bool, error)
 func (s *AuthService) generateJWT(userID, tenantID, email string, isAdmin, isModerator bool, tokenType string, expiryDuration time.Duration) (string, error) {
 	now := time.Now()
 	claims := jwt.MapClaims{
+		"jti":          uuid.New().String(), // Unique token ID for blacklisting and session tracking
 		"user_id":      userID,
 		"tenant_id":    tenantID,
 		"email":        email,
@@ -189,6 +190,7 @@ func (s *AuthService) Register(ctx context.Context, req *domain.RegisterRequest)
 		PasswordHash: hashedPassword,
 		Locale:       locale,
 		TwoFAEnabled: false,
+		Suspended:    false, // New users are never suspended
 		CreatedAt:    time.Now().UTC(),
 		UpdatedAt:    time.Now().UTC(),
 	}
@@ -230,6 +232,11 @@ func (s *AuthService) Login(ctx context.Context, req *domain.LoginRequest) (*dom
 	valid, err := s.VerifyPassword(req.Password, user.PasswordHash)
 	if err != nil || !valid {
 		return nil, domain.NewError(domain.ErrInvalidCredentials, "Invalid email or password", nil)
+	}
+
+	// NEW: Check if user is suspended
+	if user.Suspended {
+		return nil, domain.NewError(domain.ErrForbidden, "Your account has been suspended", nil)
 	}
 
 	// Check 2FA
@@ -514,6 +521,15 @@ func (s *AuthService) ValidateToken(ctx context.Context, tokenString string) (*d
 	exp, _ := claims["exp"].(float64)
 	iat, _ := claims["iat"].(float64)
 
+	// Check if user is suspended (reject valid tokens from suspended users)
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrInvalidToken, "User not found", nil)
+	}
+	if user.Suspended {
+		return nil, domain.NewError(domain.ErrForbidden, "User account is suspended", nil)
+	}
+
 	return &domain.TokenClaims{
 		UserID:      userID,
 		TenantID:    tenantID,
@@ -590,9 +606,39 @@ func (s *AuthService) Refresh(ctx context.Context, req *domain.RefreshRequest) (
 	}, nil
 }
 
-// Logout invalidates a refresh token
-func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
-	return s.addToBlacklist(ctx, refreshToken)
+// Logout invalidates both access and refresh tokens and clears user session
+func (s *AuthService) Logout(ctx context.Context, accessToken, refreshToken string) error {
+	if s.redisClient == nil {
+		return nil // Graceful degradation if Redis not available
+	}
+
+	// Extract JTIs and user ID
+	accessJTI := s.extractJTI(accessToken)
+	refreshJTI := s.extractJTI(refreshToken)
+	userID := s.extractUserID(accessToken)
+
+	if accessJTI != "" {
+		// Blacklist access token (15 min TTL)
+		s.addToBlacklist(ctx, accessToken)
+	}
+
+	if refreshJTI != "" {
+		// Blacklist refresh token (7 days TTL)
+		s.addToBlacklist(ctx, refreshToken)
+	}
+
+	// Remove from user sessions
+	if userID != "" && (accessJTI != "" || refreshJTI != "") {
+		sessionKey := fmt.Sprintf("user_sessions:%s", userID)
+		if accessJTI != "" {
+			s.redisClient.SRem(ctx, sessionKey, accessJTI)
+		}
+		if refreshJTI != "" {
+			s.redisClient.SRem(ctx, sessionKey, refreshJTI)
+		}
+	}
+
+	return nil
 }
 
 // ChangePassword changes the user's password
@@ -778,4 +824,36 @@ func (s *AuthService) checkBlacklist(ctx context.Context, tokenString string) er
 	}
 
 	return nil
+}
+
+// extractJTI extracts the JTI claim from a JWT token
+func (s *AuthService) extractJTI(tokenString string) string {
+	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
+	if err != nil {
+		return ""
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return ""
+	}
+
+	jti, _ := claims["jti"].(string)
+	return jti
+}
+
+// extractUserID extracts the user_id claim from a JWT token
+func (s *AuthService) extractUserID(tokenString string) string {
+	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
+	if err != nil {
+		return ""
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return ""
+	}
+
+	userID, _ := claims["user_id"].(string)
+	return userID
 }

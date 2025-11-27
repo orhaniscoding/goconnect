@@ -18,13 +18,17 @@ func setupAdminServiceTest() (*AdminService, *repository.InMemoryUserRepository,
 	networkRepo := repository.NewInMemoryNetworkRepository()
 	deviceRepo := repository.NewInMemoryDeviceRepository()
 	chatRepo := repository.NewInMemoryChatRepository()
+	adminRepo := repository.NewAdminRepository(nil) // Pass nil for test (in-memory doesn't use DB)
 
 	service := NewAdminService(
 		userRepo,
+		adminRepo,
 		tenantRepo,
 		networkRepo,
 		deviceRepo,
 		chatRepo,
+		nil,                      // No auditor in tests
+		nil,                      // No Redis in tests
 		func() int { return 10 }, // mock active connections
 	)
 
@@ -184,13 +188,17 @@ func TestAdminService_GetSystemStats(t *testing.T) {
 		networkRepo := repository.NewInMemoryNetworkRepository()
 		deviceRepo := repository.NewInMemoryDeviceRepository()
 		chatRepo := repository.NewInMemoryChatRepository()
+		adminRepo := repository.NewAdminRepository(nil)
 
 		svc := NewAdminService(
 			userRepo,
+			adminRepo,
 			tenantRepo,
 			networkRepo,
 			deviceRepo,
 			chatRepo,
+			nil, // No auditor
+			nil, // No Redis
 			nil, // nil callback
 		)
 
