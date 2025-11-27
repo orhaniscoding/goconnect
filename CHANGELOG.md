@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.21.1](https://github.com/orhaniscoding/goconnect/compare/v2.21.0...v2.21.1) (2025-11-27)
+
+
+### Bug Fixes
+
+* **handler:** correct error type assertion in admin SuspendUser handler ([86ec6da](https://github.com/orhaniscoding/goconnect/commit/86ec6da76827c8986a4e0fb6259d8c885e0733ce))
+
 ## [2.21.0](https://github.com/orhaniscoding/goconnect/compare/v2.20.0...v2.21.0) (2025-11-27)
 
 
