@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.22.2](https://github.com/orhaniscoding/goconnect/compare/v2.22.1...v2.22.2) (2025-11-27)
+
+
+### Bug Fixes
+
+* **release:** complete release system audit and fixes ([35e8453](https://github.com/orhaniscoding/goconnect/commit/35e84534e58e25bccdd58bf304798e4a9a596ddb))
+
 ## [2.22.1](https://github.com/orhaniscoding/goconnect/compare/v2.22.0...v2.22.1) (2025-11-27)
 
 
