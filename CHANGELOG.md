@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.20.0](https://github.com/orhaniscoding/goconnect/compare/v2.19.0...v2.20.0) (2025-11-27)
+
+
+### Features
+
+* **admin:** add comprehensive admin user management system ([9f36dba](https://github.com/orhaniscoding/goconnect/commit/9f36dba8f5c42b8d5bcddf9d143d49a816ad55ff))
+
 ## [2.19.0](https://github.com/orhaniscoding/goconnect/compare/v2.18.0...v2.19.0) (2025-11-27)
 
 
