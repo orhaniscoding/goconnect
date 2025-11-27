@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.21.2](https://github.com/orhaniscoding/goconnect/compare/v2.21.1...v2.21.2) (2025-11-27)
+
+
+### Bug Fixes
+
+* **installer:** improve daemon installation experience ([e901c4d](https://github.com/orhaniscoding/goconnect/commit/e901c4d65f786fd718f1bde6e4bd518868fd2074))
+
 ## [2.21.1](https://github.com/orhaniscoding/goconnect/compare/v2.21.0...v2.21.1) (2025-11-27)
 
 
