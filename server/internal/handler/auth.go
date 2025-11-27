@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"context"
+
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-gonic/gin"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
@@ -424,6 +425,40 @@ func (h *AuthHandler) Me(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"data": user,
+	})
+}
+
+// UpdateProfile handles PUT /v1/users/me
+func (h *AuthHandler) UpdateProfile(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		errorResponse(c, domain.NewError(domain.ErrUnauthorized, "Unauthorized", nil))
+		return
+	}
+
+	var req struct {
+		FullName  *string `json:"full_name,omitempty"`
+		Bio       *string `json:"bio,omitempty"`
+		AvatarURL *string `json:"avatar_url,omitempty"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Invalid request: "+err.Error(), nil))
+		return
+	}
+
+	// Update user profile via auth service
+	if err := h.authService.UpdateUserProfile(c.Request.Context(), userID, req.FullName, req.Bio, req.AvatarURL); err != nil {
+		if domainErr, ok := err.(*domain.Error); ok {
+			errorResponse(c, domainErr)
+		} else {
+			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to update profile", nil))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Profile updated successfully",
 	})
 }
 

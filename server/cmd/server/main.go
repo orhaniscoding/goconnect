@@ -196,6 +196,10 @@ func main() {
 	ipRuleRepo := repository.NewInMemoryIPRuleRepository()
 	ipRuleService := service.NewIPRuleService(ipRuleRepo)
 
+	// Initialize Post service
+	postRepo := repository.NewPostRepository(db)
+	postService := service.NewPostService(postRepo, userRepo)
+
 	// Initialize WireGuard Manager & Sync Service
 	var wgManager *wireguard.Manager
 	if cfg.WireGuard.PrivateKey != "" {
@@ -339,6 +343,7 @@ func main() {
 	inviteHandler := handler.NewInviteHandler(inviteService)
 	ipRuleHandler := handler.NewIPRuleHandler(ipRuleService)
 	tenantHandler := handler.NewTenantHandler(tenantMembershipService)
+	postHandler := handler.NewPostHandler(postService)
 
 	// Initialize WebSocket components
 	// Circular dependency resolution: Handler -> Hub -> Handler
@@ -392,6 +397,14 @@ func main() {
 		authProtected.POST("/2fa/disable", authHandler.Disable2FA)
 	}
 
+	// User profile routes
+	usersGroup := r.Group("/v1/users")
+	usersGroup.Use(handler.AuthMiddleware(authService))
+	{
+		usersGroup.GET("/me", authHandler.Me)
+		usersGroup.PUT("/me", authHandler.UpdateProfile)
+	}
+
 	// Register network routes (auth + role middleware applied within)
 	handler.RegisterNetworkRoutes(r, networkHandler, authService, membershipRepo)
 
@@ -417,6 +430,19 @@ func main() {
 		chatGroup.DELETE("/:id", chatHandler.DeleteMessage)
 		chatGroup.GET("/:id/edits", chatHandler.GetEditHistory)
 		chatGroup.POST("/:id/redact", handler.RequireModerator(), chatHandler.RedactMessage)
+	}
+
+	// Register post routes
+	postGroup := r.Group("/v1/posts")
+	postGroup.Use(handler.AuthMiddleware(authService))
+	{
+		postGroup.POST("", postHandler.CreatePost)
+		postGroup.GET("", postHandler.GetPosts)
+		postGroup.GET("/:id", postHandler.GetPost)
+		postGroup.PUT("/:id", postHandler.UpdatePost)
+		postGroup.DELETE("/:id", postHandler.DeletePost)
+		postGroup.POST("/:id/like", postHandler.LikePost)
+		postGroup.DELETE("/:id/like", postHandler.UnlikePost)
 	}
 
 	// Register upload routes

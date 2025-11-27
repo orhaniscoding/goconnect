@@ -8,6 +8,10 @@ type User struct {
 	TenantID      string    `json:"tenant_id"`
 	Email         string    `json:"email"`
 	PasswordHash  string    `json:"-"`            // Never expose in JSON
+	Username      *string   `json:"username"`     // Username for display
+	FullName      *string   `json:"full_name"`    // Full name
+	Bio           *string   `json:"bio"`          // Bio/description
+	AvatarURL     *string   `json:"avatar_url"`   // Avatar image URL
 	Locale        string    `json:"locale"`       // "tr" or "en"
 	IsAdmin       bool      `json:"is_admin"`     // Global admin flag
 	IsModerator   bool      `json:"is_moderator"` // Can moderate chat/content

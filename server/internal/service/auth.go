@@ -471,6 +471,11 @@ func (s *AuthService) Disable2FA(ctx context.Context, userID, code string) error
 
 // ValidateToken validates an access token and returns claims
 func (s *AuthService) ValidateToken(ctx context.Context, tokenString string) (*domain.TokenClaims, error) {
+	// Check blacklist (access tokens can be revoked early)
+	if err := s.checkBlacklist(ctx, tokenString); err != nil {
+		return nil, err
+	}
+
 	// Parse and validate JWT token
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Verify signing method
@@ -700,6 +705,31 @@ func (s *AuthService) LoginOrRegisterOIDC(ctx context.Context, email, externalID
 // GetUserByID retrieves a user by ID
 func (s *AuthService) GetUserByID(ctx context.Context, id string) (*domain.User, error) {
 	return s.userRepo.GetByID(ctx, id)
+}
+
+// UpdateUserProfile updates user profile information
+func (s *AuthService) UpdateUserProfile(ctx context.Context, userID string, fullName, bio, avatarURL *string) error {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return domain.NewError(domain.ErrUserNotFound, "User not found", nil)
+	}
+
+	// Update fields if provided
+	if fullName != nil {
+		user.FullName = fullName
+	}
+	if bio != nil {
+		user.Bio = bio
+	}
+	if avatarURL != nil {
+		user.AvatarURL = avatarURL
+	}
+
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return domain.NewError(domain.ErrInternalServer, "Failed to update profile", nil)
+	}
+
+	return nil
 }
 
 // addToBlacklist adds a token to the blacklist
