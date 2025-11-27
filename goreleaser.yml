@@ -94,14 +94,8 @@ archives:
     files:
       - README.md
       - LICENSE
-      - src: client-daemon/service/linux/*
-        dst: install/linux
-        strip_parent: true
-      - src: client-daemon/service/macos/*
-        dst: install/macos
-        strip_parent: true
-      - src: client-daemon/service/windows/*
-        dst: install/windows
+      - src: client-daemon/service/{{ .Os }}/*
+        dst: .
         strip_parent: true
 
   # NOTE: Bundle removed to reduce asset count. Users can download server + daemon separately.

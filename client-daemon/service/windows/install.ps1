@@ -17,12 +17,9 @@ if (!(Test-Path $InstallDir)) {
 
 # Check if source binary exists
 if (!(Test-Path $SourceBin)) {
-    # Try looking in bin/ folder relative to script if not in same folder
-    $SourceBin = Join-Path $PSScriptRoot "..\..\bin\goconnect-daemon-windows-amd64.exe"
-    if (!(Test-Path $SourceBin)) {
-        Write-Host "Error: Could not find $BinName in script directory or bin folder." -ForegroundColor Red
-        exit 1
-    }
+    Write-Host "Error: Could not find $BinName in the same directory as this script." -ForegroundColor Red
+    Write-Host "Expected location: $SourceBin" -ForegroundColor Yellow
+    exit 1
 }
 
 # Stop existing service if running
@@ -41,19 +38,41 @@ Copy-Item -Path $SourceBin -Destination $TargetBin -Force
 if (!$Service) {
     Write-Host "Creating GoConnectDaemon service..."
     New-Service -Name "GoConnectDaemon" `
-        -BinaryPathName "$TargetBin" `
+        -BinaryPathName "`"$TargetBin`"" `
         -DisplayName "GoConnect Daemon" `
         -Description "GoConnect VPN Client Daemon" `
-        -StartupType Automatic
+        -StartupType Manual
     
     # Set recovery options (restart on failure)
-    sc.exe failure GoConnectDaemon reset= 86400 actions= restart/60000/restart/60000/restart/60000
+    sc.exe failure GoConnectDaemon reset= 86400 actions= restart/60000/restart/60000/restart/60000 | Out-Null
 }
 else {
     Write-Host "Service already exists, updating binary..."
 }
 
+# Test if binary is executable
+Write-Host "Testing binary..."
+$TestResult = & $TargetBin --version 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Warning: Binary test failed. Service may not start correctly." -ForegroundColor Yellow
+    Write-Host "Error: $TestResult" -ForegroundColor Yellow
+}
+
 # Start Service
 Write-Host "Starting service..."
-Start-Service "GoConnectDaemon"
-Write-Host "✅ GoConnect Daemon installed and started successfully!" -ForegroundColor Green
+try {
+    Start-Service "GoConnectDaemon" -ErrorAction Stop
+    Write-Host "✅ GoConnect Daemon installed and started successfully!" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "Service Status:" -ForegroundColor Cyan
+    Get-Service "GoConnectDaemon" | Format-Table -AutoSize
+}
+catch {
+    Write-Host "⚠️  Service installed but failed to start." -ForegroundColor Yellow
+    Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "This is likely because the daemon requires configuration before it can run." -ForegroundColor Yellow
+    Write-Host "Please configure the daemon at: C:\ProgramData\GoConnect\config.yaml" -ForegroundColor Yellow
+    Write-Host "Then start the service with: Start-Service GoConnectDaemon" -ForegroundColor Yellow
+    exit 0
+}
