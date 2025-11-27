@@ -15,8 +15,24 @@ before:
 # BUILDS - Cross-compile for all platforms
 # =============================================================================
 builds:
-  # Server Build
-  - id: server
+  # Server Build - Windows
+  - id: server-windows
+    dir: ./server
+    main: ./cmd/server/main.go
+    binary: goconnect-server
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+      - -X main.builtBy=goreleaser
+    goos:
+      - windows
+    goarch:
+      - amd64
+
+  # Server Build - Linux
+  - id: server-linux
     dir: ./server
     main: ./cmd/server/main.go
     binary: goconnect-server
@@ -28,17 +44,45 @@ builds:
       - -X main.builtBy=goreleaser
     goos:
       - linux
-      - darwin
-      - windows
     goarch:
       - amd64
       - arm64
-    ignore:
-      - goos: windows
-        goarch: arm64 # Windows ARM64 is rare for servers
 
-  # Client Daemon Build
-  - id: daemon
+  # Server Build - macOS
+  - id: server-darwin
+    dir: ./server
+    main: ./cmd/server/main.go
+    binary: goconnect-server
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+      - -X main.builtBy=goreleaser
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+  # Client Daemon Build - Windows
+  - id: daemon-windows
+    dir: ./client-daemon
+    main: ./cmd/daemon/main.go
+    binary: goconnect-daemon
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+      - -X main.builtBy=goreleaser
+    goos:
+      - windows
+    goarch:
+      - amd64
+
+  # Client Daemon Build - Linux
+  - id: daemon-linux
     dir: ./client-daemon
     main: ./cmd/daemon/main.go
     binary: goconnect-daemon
@@ -50,103 +94,138 @@ builds:
       - -X main.builtBy=goreleaser
     goos:
       - linux
-      - darwin
-      - windows
     goarch:
       - amd64
       - arm64
-    ignore:
-      - goos: windows
-        goarch: arm64 # Match server build for archive consistency
+
+  # Client Daemon Build - macOS
+  - id: daemon-darwin
+    dir: ./client-daemon
+    main: ./cmd/daemon/main.go
+    binary: goconnect-daemon
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+      - -X main.builtBy=goreleaser
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
 
 # =============================================================================
-# ARCHIVES - Simple, OS-specific portable packages
+# ARCHIVES - OS-specific packages with only relevant install files
 # =============================================================================
 archives:
-  # Windows Archives
-  - id: server-windows
-    ids:
-      - server
+  # Server Windows
+  - id: server-windows-archive
+    builds:
+      - server-windows
     format: zip
     name_template: "goconnect-server_{{ .Version }}_windows_{{ .Arch }}"
-    builds_info:
-      goos: windows
     files:
       - README.md
       - LICENSE
       - src: server/service/windows/*.ps1
+        dst: .
+        strip_parent: true
       - src: server/service/windows/README.md
+        dst: .
+        strip_parent: true
 
-  - id: daemon-windows
-    ids:
-      - daemon
-    format: zip
-    name_template: "goconnect-daemon_{{ .Version }}_windows_{{ .Arch }}"
-    builds_info:
-      goos: windows
-    files:
-      - README.md
-      - LICENSE
-      - src: client-daemon/service/windows/*.ps1
-      - src: client-daemon/service/windows/README.md
-
-  # Linux Archives
-  - id: server-linux
-    ids:
-      - server
+  # Server Linux
+  - id: server-linux-archive
+    builds:
+      - server-linux
     format: tar.gz
     name_template: "goconnect-server_{{ .Version }}_linux_{{ .Arch }}"
-    builds_info:
-      goos: linux
     files:
       - README.md
       - LICENSE
       - src: server/service/linux/*.sh
+        dst: .
+        strip_parent: true
       - src: server/service/linux/*.service
+        dst: .
+        strip_parent: true
       - src: server/service/linux/README.md
+        dst: .
+        strip_parent: true
 
-  - id: daemon-linux
-    ids:
-      - daemon
-    format: tar.gz
-    name_template: "goconnect-daemon_{{ .Version }}_linux_{{ .Arch }}"
-    builds_info:
-      goos: linux
-    files:
-      - README.md
-      - LICENSE
-      - src: client-daemon/service/linux/*.sh
-      - src: client-daemon/service/linux/*.service
-      - src: client-daemon/service/linux/README.md
-
-  # macOS Archives
-  - id: server-darwin
-    ids:
-      - server
+  # Server macOS
+  - id: server-darwin-archive
+    builds:
+      - server-darwin
     format: tar.gz
     name_template: "goconnect-server_{{ .Version }}_darwin_{{ .Arch }}"
-    builds_info:
-      goos: darwin
     files:
       - README.md
       - LICENSE
       - src: server/service/macos/*.sh
+        dst: .
+        strip_parent: true
       - src: server/service/macos/*.plist
+        dst: .
+        strip_parent: true
       - src: server/service/macos/README.md
+        dst: .
+        strip_parent: true
 
-  - id: daemon-darwin
-    ids:
-      - daemon
+  # Daemon Windows
+  - id: daemon-windows-archive
+    builds:
+      - daemon-windows
+    format: zip
+    name_template: "goconnect-daemon_{{ .Version }}_windows_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+      - src: client-daemon/service/windows/*.ps1
+        dst: .
+        strip_parent: true
+      - src: client-daemon/service/windows/README.md
+        dst: .
+        strip_parent: true
+
+  # Daemon Linux
+  - id: daemon-linux-archive
+    builds:
+      - daemon-linux
+    format: tar.gz
+    name_template: "goconnect-daemon_{{ .Version }}_linux_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+      - src: client-daemon/service/linux/*.sh
+        dst: .
+        strip_parent: true
+      - src: client-daemon/service/linux/*.service
+        dst: .
+        strip_parent: true
+      - src: client-daemon/service/linux/README.md
+        dst: .
+        strip_parent: true
+
+  # Daemon macOS
+  - id: daemon-darwin-archive
+    builds:
+      - daemon-darwin
     format: tar.gz
     name_template: "goconnect-daemon_{{ .Version }}_darwin_{{ .Arch }}"
-    builds_info:
-      goos: darwin
     files:
       - README.md
       - LICENSE
       - src: client-daemon/service/macos/*.sh
+        dst: .
+        strip_parent: true
       - src: client-daemon/service/macos/*.plist
+        dst: .
+        strip_parent: true
       - src: client-daemon/service/macos/README.md
+        dst: .
+        strip_parent: true
 
   # NOTE: Bundle removed to reduce asset count. Users can download server + daemon separately.
 
@@ -157,8 +236,8 @@ nfpms:
   # Server Package
   - id: server-pkg
     package_name: goconnect-server
-    ids:
-      - server
+    builds:
+      - server-linux
     vendor: orhaniscoding
     homepage: https://github.com/orhaniscoding/goconnect
     maintainer: orhaniscoding <orhaniscoding@github.com>
@@ -187,8 +266,8 @@ nfpms:
   # Daemon Package
   - id: daemon-pkg
     package_name: goconnect-daemon
-    ids:
-      - daemon
+    builds:
+      - daemon-linux
     vendor: orhaniscoding
     homepage: https://github.com/orhaniscoding/goconnect
     maintainer: orhaniscoding <orhaniscoding@github.com>
