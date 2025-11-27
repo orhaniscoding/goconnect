@@ -1049,6 +1049,152 @@ export async function deleteUser(
   })
 }
 
+// ====== NEW ADMIN USER MANAGEMENT API ======
+
+export interface UserListItem {
+  id: string
+  email: string
+  username?: string
+  tenant_id: string
+  is_admin: boolean
+  is_moderator: boolean
+  suspended: boolean
+  created_at: string
+  last_seen?: string
+}
+
+export interface UserFilters {
+  role?: 'admin' | 'moderator' | 'user'
+  status?: 'active' | 'suspended'
+  tenant_id?: string
+  q?: string
+}
+
+export interface PaginationParams {
+  page?: number
+  per_page?: number
+}
+
+export interface UserStats {
+  total_users: number
+  total_tenants: number
+  total_networks: number
+  total_devices: number
+  active_peers: number
+  admin_users: number
+  moderator_users: number
+  suspended_users: number
+  last_updated: string
+}
+
+export interface UpdateRoleRequest {
+  is_admin?: boolean
+  is_moderator?: boolean
+}
+
+export interface SuspendRequest {
+  reason: string
+}
+
+export interface User {
+  id: string
+  email: string
+  username?: string
+  full_name?: string
+  bio?: string
+  avatar_url?: string
+  tenant_id: string
+  is_admin: boolean
+  is_moderator: boolean
+  suspended: boolean
+  suspended_at?: string
+  suspended_reason?: string
+  suspended_by?: string
+  created_at: string
+  updated_at: string
+  last_seen?: string
+}
+
+/**
+ * List all users with filters and pagination
+ */
+export async function listAllUsers(
+  filters?: UserFilters,
+  pagination?: PaginationParams
+): Promise<{ data: UserListItem[]; meta: any }> {
+  const params = new URLSearchParams()
+
+  if (filters?.role) params.append('role', filters.role)
+  if (filters?.status) params.append('status', filters.status)
+  if (filters?.tenant_id) params.append('tenant_id', filters.tenant_id)
+  if (filters?.q) params.append('q', filters.q)
+
+  if (pagination?.page) params.append('page', pagination.page.toString())
+  if (pagination?.per_page) params.append('per_page', pagination.per_page.toString())
+
+  return api(`/v1/admin/users/all?${params.toString()}`, {
+    headers: getAuthHeader(),
+  })
+}
+
+/**
+ * Get user statistics
+ */
+export async function getUserStats(): Promise<{ data: UserStats }> {
+  return api('/v1/admin/users/stats', {
+    headers: getAuthHeader(),
+  })
+}
+
+/**
+ * Get user details
+ */
+export async function getUserDetails(userId: string): Promise<{ data: User }> {
+  return api(`/v1/admin/users/${userId}/details`, {
+    headers: getAuthHeader(),
+  })
+}
+
+/**
+ * Update user role
+ */
+export async function updateUserRole(
+  userId: string,
+  roles: UpdateRoleRequest
+): Promise<{ message: string }> {
+  return api(`/v1/admin/users/${userId}/role`, {
+    method: 'PUT',
+    headers: getAuthHeader(),
+    body: JSON.stringify(roles),
+  })
+}
+
+/**
+ * Suspend user
+ */
+export async function suspendUser(
+  userId: string,
+  request: SuspendRequest
+): Promise<{ message: string }> {
+  return api(`/v1/admin/users/${userId}/suspend`, {
+    method: 'POST',
+    headers: getAuthHeader(),
+    body: JSON.stringify(request),
+  })
+}
+
+/**
+ * Unsuspend user
+ */
+export async function unsuspendUser(
+  userId: string
+): Promise<{ message: string }> {
+  return api(`/v1/admin/users/${userId}/suspend`, {
+    method: 'DELETE',
+    headers: getAuthHeader(),
+  })
+}
+
 /**
  * Delete tenant (admin only)
  * @param tenantId - Tenant ID

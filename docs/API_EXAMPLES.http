@@ -720,6 +720,90 @@ Authorization: Bearer {access_token}
 
 ###
 
+# ----------------------------------------
+# Admin User Management
+# ----------------------------------------
+
+### List All Users with Filters (Admin Only)
+GET http://localhost:8080/v1/admin/users/all?page=1&per_page=50
+Authorization: Bearer {access_token}
+
+###
+
+### List Admin Users Only
+GET http://localhost:8080/v1/admin/users/all?role=admin&page=1&per_page=50
+Authorization: Bearer {access_token}
+
+###
+
+### List Suspended Users
+GET http://localhost:8080/v1/admin/users/all?status=suspended&page=1&per_page=50
+Authorization: Bearer {access_token}
+
+###
+
+### Search Users by Email or Username
+GET http://localhost:8080/v1/admin/users/all?q=john@example.com&page=1&per_page=50
+Authorization: Bearer {access_token}
+
+###
+
+### Get User Statistics
+GET http://localhost:8080/v1/admin/users/stats
+Authorization: Bearer {access_token}
+
+###
+
+### Get User Details (Admin Only)
+# Replace {user_id} with actual user ID
+GET http://localhost:8080/v1/admin/users/{user_id}/details
+Authorization: Bearer {access_token}
+
+###
+
+### Update User Role (Admin Only)
+# Replace {user_id} with actual user ID
+PUT http://localhost:8080/v1/admin/users/{user_id}/role
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "is_admin": true,
+  "is_moderator": false
+}
+
+###
+
+### Promote User to Moderator
+PUT http://localhost:8080/v1/admin/users/{user_id}/role
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "is_moderator": true
+}
+
+###
+
+### Suspend User (Admin Only)
+# Replace {user_id} with actual user ID
+POST http://localhost:8080/v1/admin/users/{user_id}/suspend
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
+{
+  "reason": "Violation of terms of service. User posted inappropriate content multiple times."
+}
+
+###
+
+### Unsuspend User (Admin Only)
+# Replace {user_id} with actual user ID
+DELETE http://localhost:8080/v1/admin/users/{user_id}/suspend
+Authorization: Bearer {access_token}
+
+###
+
 # ========================================
 # Tenant Multi-Membership API Examples
 # (Discord-like server membership system)

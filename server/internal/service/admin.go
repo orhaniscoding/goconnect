@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/orhaniscoding/goconnect/server/internal/audit"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
 )
@@ -10,28 +12,34 @@ import (
 // AdminService handles admin-related operations
 type AdminService struct {
 	userRepo             repository.UserRepository
+	adminRepo            *repository.AdminRepository
 	tenantRepo           repository.TenantRepository
 	networkRepo          repository.NetworkRepository
 	deviceRepo           repository.DeviceRepository
 	chatRepo             repository.ChatRepository
+	auditor              audit.Auditor
 	getActiveConnections func() int
 }
 
 // NewAdminService creates a new admin service
 func NewAdminService(
 	userRepo repository.UserRepository,
+	adminRepo *repository.AdminRepository,
 	tenantRepo repository.TenantRepository,
 	networkRepo repository.NetworkRepository,
 	deviceRepo repository.DeviceRepository,
 	chatRepo repository.ChatRepository,
+	auditor audit.Auditor,
 	getActiveConnections func() int,
 ) *AdminService {
 	return &AdminService{
 		userRepo:             userRepo,
+		adminRepo:            adminRepo,
 		tenantRepo:           tenantRepo,
 		networkRepo:          networkRepo,
 		deviceRepo:           deviceRepo,
 		chatRepo:             chatRepo,
+		auditor:              auditor,
 		getActiveConnections: getActiveConnections,
 	}
 }
@@ -149,4 +157,224 @@ func (s *AdminService) ListDevices(ctx context.Context, limit int, cursor, query
 		Cursor:   cursor,
 		Search:   query,
 	})
+}
+
+// ====== NEW ADMIN USER MANAGEMENT METHODS ======
+
+// ListAllUsers retrieves all users with filtering and pagination (admin only)
+func (s *AdminService) ListAllUsers(ctx context.Context, adminUserID string, filters domain.UserFilters, pagination domain.PaginationParams) ([]*domain.UserListItem, int, error) {
+	// Verify admin status
+	admin, err := s.userRepo.GetByID(ctx, adminUserID)
+	if err != nil {
+		return nil, 0, domain.NewError(domain.ErrUnauthorized, "Unauthorized", nil)
+	}
+
+	if !admin.IsAdmin {
+		return nil, 0, domain.NewError(domain.ErrForbidden, "Admin access required", nil)
+	}
+
+	// Set default pagination
+	if pagination.PerPage == 0 {
+		pagination.PerPage = 50
+	}
+	if pagination.PerPage > 100 {
+		pagination.PerPage = 100
+	}
+	if pagination.Page < 1 {
+		pagination.Page = 1
+	}
+
+	// Fetch users
+	users, totalCount, err := s.adminRepo.ListAllUsers(ctx, filters, pagination)
+	if err != nil {
+		return nil, 0, domain.NewError(domain.ErrInternalServer, "Failed to retrieve users", nil)
+	}
+
+	// Log admin action
+	if s.auditor != nil {
+		s.auditor.Event(ctx, admin.TenantID, "LIST_USERS", adminUserID, "users", map[string]any{
+			"filters": fmt.Sprintf("%+v", filters),
+		})
+	}
+
+	return users, totalCount, nil
+}
+
+// GetUserStats retrieves system-wide user statistics (admin only)
+func (s *AdminService) GetUserStats(ctx context.Context, adminUserID string) (*domain.SystemStats, error) {
+	// Verify admin status
+	admin, err := s.userRepo.GetByID(ctx, adminUserID)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrUnauthorized, "Unauthorized", nil)
+	}
+
+	if !admin.IsAdmin {
+		return nil, domain.NewError(domain.ErrForbidden, "Admin access required", nil)
+	}
+
+	// Fetch stats
+	stats, err := s.adminRepo.GetUserStats(ctx)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrInternalServer, "Failed to retrieve stats", nil)
+	}
+
+	return stats, nil
+}
+
+// UpdateUserRole updates a user's admin or moderator status (admin only)
+func (s *AdminService) UpdateUserRole(ctx context.Context, adminUserID, targetUserID string, isAdmin, isModerator *bool) error {
+	// Verify admin status
+	admin, err := s.userRepo.GetByID(ctx, adminUserID)
+	if err != nil {
+		return domain.NewError(domain.ErrUnauthorized, "Unauthorized", nil)
+	}
+
+	if !admin.IsAdmin {
+		return domain.NewError(domain.ErrForbidden, "Admin access required", nil)
+	}
+
+	// Prevent self-demotion
+	if adminUserID == targetUserID {
+		if isAdmin != nil && !*isAdmin {
+			return domain.NewError(domain.ErrInvalidRequest, "Cannot remove your own admin privileges", nil)
+		}
+	}
+
+	// Check if target user exists
+	targetUser, err := s.userRepo.GetByID(ctx, targetUserID)
+	if err != nil {
+		return domain.NewError(domain.ErrNotFound, "User not found", nil)
+	}
+
+	// Update role
+	err = s.adminRepo.UpdateUserRole(ctx, targetUserID, isAdmin, isModerator)
+	if err != nil {
+		return domain.NewError(domain.ErrInternalServer, "Failed to update user role", nil)
+	}
+
+	// Log admin action
+	if s.auditor != nil {
+		auditDetails := map[string]any{
+			"target_email": targetUser.Email,
+		}
+		if isAdmin != nil {
+			auditDetails["is_admin"] = *isAdmin
+		}
+		if isModerator != nil {
+			auditDetails["is_moderator"] = *isModerator
+		}
+		s.auditor.Event(ctx, admin.TenantID, "UPDATE_USER_ROLE", adminUserID, "user:"+targetUserID, auditDetails)
+	}
+
+	return nil
+}
+
+// SuspendUser suspends a user account (admin only)
+func (s *AdminService) SuspendUser(ctx context.Context, adminUserID, targetUserID, reason string) error {
+	// Verify admin status
+	admin, err := s.userRepo.GetByID(ctx, adminUserID)
+	if err != nil {
+		return domain.NewError(domain.ErrUnauthorized, "Unauthorized", nil)
+	}
+
+	if !admin.IsAdmin {
+		return domain.NewError(domain.ErrForbidden, "Admin access required", nil)
+	}
+
+	// Prevent self-suspension
+	if adminUserID == targetUserID {
+		return domain.NewError(domain.ErrInvalidRequest, "Cannot suspend your own account", nil)
+	}
+
+	// Check if target user exists
+	targetUser, err := s.userRepo.GetByID(ctx, targetUserID)
+	if err != nil {
+		return domain.NewError(domain.ErrNotFound, "User not found", nil)
+	}
+
+	// Cannot suspend another admin (only super admin can do that in future)
+	if targetUser.IsAdmin {
+		return domain.NewError(domain.ErrForbidden, "Cannot suspend another admin user", nil)
+	}
+
+	// Suspend user
+	err = s.adminRepo.SuspendUser(ctx, targetUserID, reason, adminUserID)
+	if err != nil {
+		return domain.NewError(domain.ErrInternalServer, "Failed to suspend user", nil)
+	}
+
+	// Log admin action
+	if s.auditor != nil {
+		s.auditor.Event(ctx, admin.TenantID, "SUSPEND_USER", adminUserID, "user:"+targetUserID, map[string]any{
+			"target_email": targetUser.Email,
+			"reason":       reason,
+		})
+	}
+
+	return nil
+}
+
+// UnsuspendUser unsuspends a user account (admin only)
+func (s *AdminService) UnsuspendUser(ctx context.Context, adminUserID, targetUserID string) error {
+	// Verify admin status
+	admin, err := s.userRepo.GetByID(ctx, adminUserID)
+	if err != nil {
+		return domain.NewError(domain.ErrUnauthorized, "Unauthorized", nil)
+	}
+
+	if !admin.IsAdmin {
+		return domain.NewError(domain.ErrForbidden, "Admin access required", nil)
+	}
+
+	// Check if target user exists
+	targetUser, err := s.userRepo.GetByID(ctx, targetUserID)
+	if err != nil {
+		return domain.NewError(domain.ErrNotFound, "User not found", nil)
+	}
+
+	// Unsuspend user
+	err = s.adminRepo.UnsuspendUser(ctx, targetUserID)
+	if err != nil {
+		return domain.NewError(domain.ErrInternalServer, "Failed to unsuspend user", nil)
+	}
+
+	// Log admin action
+	if s.auditor != nil {
+		s.auditor.Event(ctx, admin.TenantID, "UNSUSPEND_USER", adminUserID, "user:"+targetUserID, map[string]any{
+			"target_email": targetUser.Email,
+		})
+	}
+
+	return nil
+}
+
+// GetUserDetails retrieves full details of a user (admin only)
+func (s *AdminService) GetUserDetails(ctx context.Context, adminUserID, targetUserID string) (*domain.User, error) {
+	// Verify admin status
+	admin, err := s.userRepo.GetByID(ctx, adminUserID)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrUnauthorized, "Unauthorized", nil)
+	}
+
+	if !admin.IsAdmin {
+		return nil, domain.NewError(domain.ErrForbidden, "Admin access required", nil)
+	}
+
+	// Get user details
+	user, err := s.adminRepo.GetUserByID(ctx, targetUserID)
+	if err != nil {
+		return nil, domain.NewError(domain.ErrNotFound, "User not found", nil)
+	}
+
+	// Remove sensitive data
+	user.PasswordHash = ""
+	user.TwoFAKey = ""
+	user.RecoveryCodes = nil
+
+	return user, nil
+}
+
+// UpdateLastSeen updates the last seen timestamp for a user
+func (s *AdminService) UpdateLastSeen(ctx context.Context, userID string) error {
+	return s.adminRepo.UpdateLastSeen(ctx, userID)
 }

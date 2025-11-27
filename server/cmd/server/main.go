@@ -106,6 +106,7 @@ func main() {
 	var peerRepo repository.PeerRepository
 	var chatRepo repository.ChatRepository
 	var inviteRepo repository.InviteTokenRepository
+	var adminRepo *repository.AdminRepository
 
 	if *usePostgres && db != nil {
 		// PostgreSQL repositories
@@ -120,6 +121,7 @@ func main() {
 		peerRepo = repository.NewPostgresPeerRepository(db)
 		chatRepo = repository.NewPostgresChatRepository(db)
 		inviteRepo = repository.NewInMemoryInviteTokenRepository() // TODO: Postgres implementation
+		adminRepo = repository.NewAdminRepository(db)
 		// Tenant multi-membership repositories (PostgreSQL)
 		tenantMemberRepo = repository.NewPostgresTenantMemberRepository(db)
 		tenantInviteRepo = repository.NewPostgresTenantInviteRepository(db)
@@ -355,7 +357,7 @@ func main() {
 	go hub.Run(ctx)
 
 	// Initialize Admin Service
-	adminService := service.NewAdminService(userRepo, tenantRepo, networkRepo, deviceRepo, chatRepo, hub.GetActiveConnectionCount)
+	adminService := service.NewAdminService(userRepo, adminRepo, tenantRepo, networkRepo, deviceRepo, chatRepo, aud, hub.GetActiveConnectionCount)
 	adminHandler := handler.NewAdminHandler(adminService)
 
 	// Initialize WebSocket HTTP handler
@@ -478,9 +480,20 @@ func main() {
 	adminGroup.Use(handler.AuthMiddleware(authService))
 	adminGroup.Use(handler.RequireAdmin())
 	{
+		// Legacy routes (keep for backward compatibility)
 		adminGroup.GET("/users", adminHandler.ListUsers)
 		adminGroup.POST("/users/:id/toggle-admin", adminHandler.ToggleUserAdmin)
 		adminGroup.DELETE("/users/:id", adminHandler.DeleteUser)
+
+		// New admin user management routes
+		adminGroup.GET("/users/all", adminHandler.ListAllUsers)             // List all users with filters
+		adminGroup.GET("/users/:id/details", adminHandler.GetUserDetails)   // Get user details
+		adminGroup.PUT("/users/:id/role", adminHandler.UpdateUserRole)      // Update user role
+		adminGroup.POST("/users/:id/suspend", adminHandler.SuspendUser)     // Suspend user
+		adminGroup.DELETE("/users/:id/suspend", adminHandler.UnsuspendUser) // Unsuspend user
+		adminGroup.GET("/users/stats", adminHandler.GetUserStats)           // Get user stats
+
+		// Other admin routes
 		adminGroup.GET("/tenants", adminHandler.ListTenants)
 		adminGroup.DELETE("/tenants/:id", adminHandler.DeleteTenant)
 		adminGroup.GET("/networks", adminHandler.ListNetworks)
