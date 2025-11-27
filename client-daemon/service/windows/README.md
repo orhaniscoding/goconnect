@@ -4,35 +4,46 @@
 
 1. Extract the ZIP file to a temporary location
 2. Right-click `install.ps1` and select "Run as Administrator"
-3. The daemon will be installed as a Windows service
+3. Edit the configuration file: `C:\ProgramData\GoConnect\config.yaml`
+4. Start the service: `Start-Service GoConnectDaemon`
 
 ## What Gets Installed
 
-- Binary: `C:\Program Files\GoConnect\goconnect-daemon.exe`
-- Service: `GoConnectDaemon` (Windows Service)
-- Config: `C:\ProgramData\GoConnect\config.yaml` (you need to create this)
+- **Binary**: `C:\Program Files\GoConnect\goconnect-daemon.exe`
+- **Service**: `GoConnectDaemon` (Windows Service, Manual startup)
+- **Config**: `C:\ProgramData\GoConnect\config.yaml` (auto-created from example)
 
 ## Configuration
 
-Before the service can start, you need to create a configuration file:
+The installer automatically creates a configuration file with defaults.
 
-1. Create directory: `C:\ProgramData\GoConnect\`
-2. Create file: `C:\ProgramData\GoConnect\config.yaml`
-3. Add your server configuration:
+### Required Configuration
+
+Edit `C:\ProgramData\GoConnect\config.yaml` and set your server URL:
 
 ```yaml
-server:
-  url: https://your-vpn-server.com
-  api_key: your-api-key-here
-
-wireguard:
-  interface_name: wg0
-  listen_port: 51820
-
-logging:
-  level: info
-  file: C:\ProgramData\GoConnect\daemon.log
+# REQUIRED: Your GoConnect server URL
+server_url: "https://vpn.example.com:8080"
 ```
+
+### Optional Settings
+
+```yaml
+# Local API port (default: 12345)
+local_port: 12345
+
+# Logging level: debug, info, warn, error (default: info)
+log_level: "info"
+
+# WireGuard interface name (default: wg0)
+interface_name: "wg0"
+
+# Connection settings
+reconnect_interval: 30        # seconds
+health_check_interval: 60     # seconds
+```
+
+See `config.example.yaml` for all available options and detailed documentation.
 
 ## Service Management
 
@@ -51,41 +62,92 @@ Stop-Service GoConnectDaemon
 Get-Service GoConnectDaemon
 ```
 
-### View Logs
-Check `C:\ProgramData\GoConnect\daemon.log`
+### View Service Logs
+```powershell
+# View recent service events
+Get-EventLog -LogName Application -Source GoConnectDaemon -Newest 20
+
+# Or if log_file is configured in config.yaml:
+Get-Content C:\ProgramData\GoConnect\daemon.log -Tail 50 -Wait
+```
 
 ## Uninstall
 
 Run `uninstall.ps1` as Administrator to remove the service and binary.
 
+Configuration files in `C:\ProgramData\GoConnect` are not deleted automatically.
+
 ## Troubleshooting
 
 ### Service won't start
-- Check if config file exists: `C:\ProgramData\GoConnect\config.yaml`
-- Verify config syntax is valid YAML
-- Check logs at: `C:\ProgramData\GoConnect\daemon.log`
-- Run manually to see errors: `& "C:\Program Files\GoConnect\goconnect-daemon.exe"`
 
-### Permission errors
-- Ensure you ran `install.ps1` as Administrator
-- Check Windows Firewall isn't blocking the service
+1. **Check configuration**:
+   ```powershell
+   Test-Path "C:\ProgramData\GoConnect\config.yaml"
+   Get-Content "C:\ProgramData\GoConnect\config.yaml"
+   ```
+
+2. **Verify server URL is set**:
+   ```powershell
+   Select-String -Path "C:\ProgramData\GoConnect\config.yaml" -Pattern "server_url"
+   ```
+
+3. **Check service logs**:
+   ```powershell
+   Get-EventLog -LogName Application -Source GoConnectDaemon -Newest 20
+   ```
+
+4. **Test binary manually**:
+   ```powershell
+   & "C:\Program Files\GoConnect\goconnect-daemon.exe" --version
+   ```
+
+### Connection issues
+
+- Verify server URL is correct and accessible
+- Check Windows Firewall settings
+- Ensure server is running and reachable
 
 ### WireGuard errors
+
 - Install WireGuard for Windows: https://www.wireguard.com/install/
 - Ensure WireGuard kernel driver is installed
+- Check interface name in config matches system
 
 ## Manual Installation
 
 If the script doesn't work:
 
-1. Copy `goconnect-daemon.exe` to `C:\Program Files\GoConnect\`
-2. Create the service:
-```powershell
-New-Service -Name "GoConnectDaemon" `
-    -BinaryPathName "C:\Program Files\GoConnect\goconnect-daemon.exe" `
-    -DisplayName "GoConnect Daemon" `
-    -Description "GoConnect VPN Client Daemon" `
-    -StartupType Manual
-```
-3. Create config file (see Configuration section)
-4. Start service: `Start-Service GoConnectDaemon`
+1. **Copy binary**:
+   ```powershell
+   New-Item -ItemType Directory -Force -Path "C:\Program Files\GoConnect"
+   Copy-Item goconnect-daemon.exe "C:\Program Files\GoConnect\"
+   ```
+
+2. **Create config directory**:
+   ```powershell
+   New-Item -ItemType Directory -Force -Path "C:\ProgramData\GoConnect"
+   Copy-Item config.example.yaml "C:\ProgramData\GoConnect\config.yaml"
+   ```
+
+3. **Create service**:
+   ```powershell
+   New-Service -Name "GoConnectDaemon" `
+       -BinaryPathName '"C:\Program Files\GoConnect\goconnect-daemon.exe"' `
+       -DisplayName "GoConnect Daemon" `
+       -Description "GoConnect VPN Client Daemon" `
+       -StartupType Manual
+   ```
+
+4. **Edit config** and start service:
+   ```powershell
+   notepad "C:\ProgramData\GoConnect\config.yaml"
+   Start-Service GoConnectDaemon
+   ```
+
+## Additional Help
+
+For more detailed configuration information, see:
+- `config.example.yaml` - Configuration file reference
+- `/docs/CONFIGURATION.md` - Complete configuration guide
+- GitHub Issues: https://github.com/orhaniscoding/goconnect/issues

@@ -134,6 +134,9 @@ archives:
       - src: server/service/windows/README.md
         dst: .
         strip_parent: true
+      - src: server/config.example.env
+        dst: .
+        strip_parent: true
 
   # Server Linux
   - id: server-linux-archive
@@ -151,6 +154,9 @@ archives:
         dst: .
         strip_parent: true
       - src: server/service/linux/README.md
+        dst: .
+        strip_parent: true
+      - src: server/config.example.env
         dst: .
         strip_parent: true
 
@@ -172,6 +178,9 @@ archives:
       - src: server/service/macos/README.md
         dst: .
         strip_parent: true
+      - src: server/config.example.env
+        dst: .
+        strip_parent: true
 
   # Daemon Windows
   - id: daemon-windows-archive
@@ -186,6 +195,9 @@ archives:
         dst: .
         strip_parent: true
       - src: client-daemon/service/windows/README.md
+        dst: .
+        strip_parent: true
+      - src: client-daemon/config.example.yaml
         dst: .
         strip_parent: true
 
@@ -207,6 +219,9 @@ archives:
       - src: client-daemon/service/linux/README.md
         dst: .
         strip_parent: true
+      - src: client-daemon/config.example.yaml
+        dst: .
+        strip_parent: true
 
   # Daemon macOS
   - id: daemon-darwin-archive
@@ -224,6 +239,9 @@ archives:
         dst: .
         strip_parent: true
       - src: client-daemon/service/macos/README.md
+        dst: .
+        strip_parent: true
+      - src: client-daemon/config.example.yaml
         dst: .
         strip_parent: true
 

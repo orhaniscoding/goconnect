@@ -34,6 +34,46 @@ if ($Service) {
 Write-Host "Copying binary to $InstallDir..."
 Copy-Item -Path $SourceBin -Destination $TargetBin -Force
 
+# Create configuration directory and example config
+$ConfigDir = "C:\ProgramData\GoConnect"
+$ConfigFile = Join-Path $ConfigDir ".env"
+$ExampleConfig = Join-Path $PSScriptRoot "config.example.env"
+
+if (!(Test-Path $ConfigDir)) {
+  New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
+  Write-Host "Created config directory: $ConfigDir" -ForegroundColor Green
+}
+
+if (!(Test-Path $ConfigFile)) {
+  if (Test-Path $ExampleConfig) {
+    Copy-Item -Path $ExampleConfig -Destination $ConfigFile -Force
+    Write-Host "Created example config: $ConfigFile" -ForegroundColor Green
+    Write-Host "⚠️  IMPORTANT: Edit this file with your database and WireGuard settings!" -ForegroundColor Yellow
+  }
+  else {
+    # Create minimal config if example doesn't exist
+    @"
+# GoConnect Server Configuration
+# Copy to .env and configure before starting
+
+SERVER_PORT=8080
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=goconnect
+DB_USER=goconnect
+DB_PASSWORD=your_secure_password
+JWT_SECRET=your_jwt_secret_min_32_chars
+WG_SERVER_ENDPOINT=vpn.example.com:51820
+WG_SERVER_PUBKEY=your_wireguard_public_key_44_chars
+"@ | Out-File -FilePath $ConfigFile -Encoding UTF8
+    Write-Host "Created minimal config: $ConfigFile" -ForegroundColor Green
+    Write-Host "⚠️  IMPORTANT: Edit this file before starting the service!" -ForegroundColor Yellow
+  }
+}
+else {
+  Write-Host "Config file already exists: $ConfigFile" -ForegroundColor Cyan
+}
+
 # Create Service
 if (!$Service) {
   Write-Host "Creating GoConnectServer service..."
@@ -70,8 +110,13 @@ catch {
   Write-Host "⚠️  Service installed but failed to start." -ForegroundColor Yellow
   Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
   Write-Host ""
-  Write-Host "The server requires configuration before it can run." -ForegroundColor Yellow
-  Write-Host "Please configure at: C:\ProgramData\GoConnect\config.yaml" -ForegroundColor Yellow
-  Write-Host "Then start with: Start-Service GoConnectServer" -ForegroundColor Yellow
+  Write-Host "REQUIRED: Configure before starting:" -ForegroundColor Yellow
+  Write-Host "1. Edit: $ConfigFile" -ForegroundColor Yellow
+  Write-Host "2. Set database credentials (DB_*)" -ForegroundColor Yellow
+  Write-Host "3. Set JWT_SECRET (min 32 chars)" -ForegroundColor Yellow
+  Write-Host "4. Set WireGuard settings (WG_*)" -ForegroundColor Yellow
+  Write-Host "5. Start service: Start-Service GoConnectServer" -ForegroundColor Yellow
+  Write-Host ""
+  Write-Host "See config.example.env for all available options." -ForegroundColor Cyan
   exit 0
 }

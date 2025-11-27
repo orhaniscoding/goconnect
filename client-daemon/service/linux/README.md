@@ -3,33 +3,34 @@
 ## Quick Install
 
 ```bash
+tar -xzf goconnect-daemon_*_linux_*.tar.gz
+cd goconnect-daemon_*_linux_*
 chmod +x install.sh
 sudo ./install.sh
 ```
 
-## What Gets Installed
-
-- Binary: `/usr/local/bin/goconnect-daemon`
-- Service: `goconnect-daemon.service` (systemd)
-- Config: `/etc/goconnect/config.yaml`
+The installer will:
+1. Install binary to `/usr/local/bin/goconnect-daemon`
+2. Create systemd service `goconnect-daemon.service`
+3. Create config directory `/etc/goconnect/`
+4. Create example config `/etc/goconnect/config.yaml`
 
 ## Configuration
 
-Create `/etc/goconnect/config.yaml`:
+**REQUIRED**: Edit the configuration file before starting the service.
+
+```bash
+sudo nano /etc/goconnect/config.yaml
+```
+
+### Minimum Configuration
 
 ```yaml
-server:
-  url: https://your-vpn-server.com
-  api_key: your-api-key-here
-
-wireguard:
-  interface_name: wg0
-  listen_port: 51820
-
-logging:
-  level: info
-  file: /var/log/goconnect-daemon.log
+# REQUIRED: Your GoConnect server URL
+server_url: "https://vpn.example.com:8080"
 ```
+
+See `config.example.yaml` for all available options.
 
 ## Service Management
 
@@ -53,15 +54,32 @@ sudo journalctl -u goconnect-daemon -f
 ## Uninstall
 
 ```bash
-sudo systemctl stop goconnect-daemon
-sudo systemctl disable goconnect-daemon
-sudo rm /usr/local/bin/goconnect-daemon
-sudo rm /etc/systemd/system/goconnect-daemon.service
-sudo systemctl daemon-reload
+sudo ./uninstall.sh
+```
+
+## Troubleshooting
+
+See `/docs/CONFIGURATION.md` for complete troubleshooting guide.
+
+### Quick Checks
+
+```bash
+# Check configuration exists
+ls -l /etc/goconnect/config.yaml
+
+# Verify server URL is set
+grep server_url /etc/goconnect/config.yaml
+
+# Check service logs
+sudo journalctl -u goconnect-daemon -n 50
+
+# Test binary
+/usr/local/bin/goconnect-daemon --version
 ```
 
 ## Requirements
 
 - Linux kernel 5.6+ (for WireGuard)
 - systemd
+- WireGuard tools: `sudo apt install wireguard-tools`
 - Root privileges for installation

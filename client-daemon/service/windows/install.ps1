@@ -34,6 +34,42 @@ if ($Service) {
 Write-Host "Copying binary to $InstallDir..."
 Copy-Item -Path $SourceBin -Destination $TargetBin -Force
 
+# Create configuration directory and example config
+$ConfigDir = "C:\ProgramData\GoConnect"
+$ConfigFile = Join-Path $ConfigDir "config.yaml"
+$ExampleConfig = Join-Path $PSScriptRoot "config.example.yaml"
+
+if (!(Test-Path $ConfigDir)) {
+    New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null
+    Write-Host "Created config directory: $ConfigDir" -ForegroundColor Green
+}
+
+if (!(Test-Path $ConfigFile)) {
+    if (Test-Path $ExampleConfig) {
+        Copy-Item -Path $ExampleConfig -Destination $ConfigFile -Force
+        Write-Host "Created example config: $ConfigFile" -ForegroundColor Green
+        Write-Host "⚠️  IMPORTANT: Edit this file with your server URL before starting the service!" -ForegroundColor Yellow
+    }
+    else {
+        # Create minimal config if example doesn't exist
+        @"
+# GoConnect Daemon Configuration
+# REQUIRED: Set your server URL
+server_url: "https://vpn.example.com:8080"
+
+# Optional settings (defaults shown)
+local_port: 12345
+log_level: "info"
+interface_name: "wg0"
+"@ | Out-File -FilePath $ConfigFile -Encoding UTF8
+        Write-Host "Created minimal config: $ConfigFile" -ForegroundColor Green
+        Write-Host "⚠️  IMPORTANT: Edit this file with your server URL before starting the service!" -ForegroundColor Yellow
+    }
+}
+else {
+    Write-Host "Config file already exists: $ConfigFile" -ForegroundColor Cyan
+}
+
 # Create Service
 if (!$Service) {
     Write-Host "Creating GoConnectDaemon service..."
@@ -71,8 +107,11 @@ catch {
     Write-Host "⚠️  Service installed but failed to start." -ForegroundColor Yellow
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
     Write-Host ""
-    Write-Host "This is likely because the daemon requires configuration before it can run." -ForegroundColor Yellow
-    Write-Host "Please configure the daemon at: C:\ProgramData\GoConnect\config.yaml" -ForegroundColor Yellow
-    Write-Host "Then start the service with: Start-Service GoConnectDaemon" -ForegroundColor Yellow
+    Write-Host "REQUIRED: Configure the daemon before starting:" -ForegroundColor Yellow
+    Write-Host "1. Edit: $ConfigFile" -ForegroundColor Yellow
+    Write-Host "2. Set your server_url" -ForegroundColor Yellow
+    Write-Host "3. Start service: Start-Service GoConnectDaemon" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "See config.example.yaml for all available options." -ForegroundColor Cyan
     exit 0
 }

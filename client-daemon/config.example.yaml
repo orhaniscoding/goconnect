@@ -1,0 +1,55 @@
+# GoConnect Daemon Configuration Example
+# Copy this file to the appropriate location for your OS:
+#   Windows: C:\ProgramData\GoConnect\config.yaml
+#   Linux:   /etc/goconnect/config.yaml
+#   macOS:   /etc/goconnect/config.yaml
+
+# ============================================================================
+# REQUIRED: Server Configuration
+# ============================================================================
+
+# The URL of your GoConnect server
+server_url: "https://vpn.example.com:8080"
+
+# ============================================================================
+# OPTIONAL: Device Configuration
+# ============================================================================
+
+# Local API port for the daemon (default: 12345)
+# This is used by the web UI to communicate with the daemon
+local_port: 12345
+
+# Log level: debug, info, warn, error (default: info)
+log_level: "info"
+
+# Log file path (leave empty to log to stdout)
+# Windows: C:\ProgramData\GoConnect\daemon.log
+# Linux/macOS: /var/log/goconnect/daemon.log
+log_file: ""
+
+# ============================================================================
+# OPTIONAL: WireGuard Configuration
+# ============================================================================
+
+# WireGuard interface name (default: wg0)
+# Change this if you have conflicts with existing interfaces
+interface_name: "wg0"
+
+# ============================================================================
+# OPTIONAL: Connection Settings
+# ============================================================================
+
+# Reconnect interval in seconds (default: 30)
+# How often to retry connection if server is unreachable
+reconnect_interval: 30
+
+# Health check interval in seconds (default: 60)
+# How often to check connection health
+health_check_interval: 60
+# ============================================================================
+# NOTES
+# ============================================================================
+# - The daemon requires at minimum the server_url to be configured
+# - Device identity is automatically generated on first run
+# - All paths support environment variable expansion
+# - Changes to this file require daemon restart
