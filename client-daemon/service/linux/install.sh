@@ -1,53 +1,47 @@
 #!/bin/bash
 set -e
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-NC='\033[0m' # No Color
-
 # Check for root
 if [ "$EUID" -ne 0 ]; then 
-  echo -e "${RED}Please run as root${NC}"
+  echo "Please run as root (sudo)"
   exit 1
 fi
 
+BINARY="goconnect-daemon"
 INSTALL_DIR="/usr/local/bin"
-BINARY_NAME="goconnect-daemon"
-SERVICE_NAME="goconnect-daemon"
 SERVICE_FILE="goconnect-daemon.service"
+SYSTEMD_DIR="/etc/systemd/system"
 
-# Determine script directory
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
-
-# Locate binary
-# Priority: 
-# 1. Environment variable GOCONNECT_BIN
-# 2. ../../bin/goconnect-daemon-linux-amd64 (Cross-compiled standard name)
-# 3. ../../bin/goconnect-daemon (Local build)
-# 4. Current directory
-
-if [ -n "$GOCONNECT_BIN" ]; then
-    SOURCE_BIN="$GOCONNECT_BIN"
-elif [ -f "$PROJECT_ROOT/bin/goconnect-daemon-linux-amd64" ]; then
-    SOURCE_BIN="$PROJECT_ROOT/bin/goconnect-daemon-linux-amd64"
-elif [ -f "$PROJECT_ROOT/bin/goconnect-daemon" ]; then
-    SOURCE_BIN="$PROJECT_ROOT/bin/goconnect-daemon"
-elif [ -f "./$BINARY_NAME" ]; then
-    SOURCE_BIN="./$BINARY_NAME"
-else
-    echo -e "${RED}Error: Could not find binary.$NC"
-    echo "Please build it first with 'make build' or 'make build-all'"
-    exit 1
+# Check if binary exists in current directory
+if [ ! -f "./$BINARY" ]; then
+  echo "Error: $BINARY not found in current directory"
+  exit 1
 fi
 
-echo "Found binary at: $SOURCE_BIN"
-
 # Stop existing service
-if systemctl is-active --quiet $SERVICE_NAME; then
-    echo "Stopping existing service..."
-    systemctl stop $SERVICE_NAME
+if systemctl is-active --quiet goconnect-daemon; then
+  echo "Stopping existing service..."
+  systemctl stop goconnect-daemon
+fi
+
+# Copy binary
+echo "Installing binary to $INSTALL_DIR..."
+cp "./$BINARY" "$INSTALL_DIR/$BINARY"
+chmod +x "$INSTALL_DIR/$BINARY"
+
+# Install systemd service
+if [ -f "./$SERVICE_FILE" ]; then
+  echo "Installing systemd service..."
+  cp "./$SERVICE_FILE" "$SYSTEMD_DIR/$SERVICE_FILE"
+  systemctl daemon-reload
+fi
+
+echo "✅ GoConnect Daemon installed successfully!"
+echo ""
+echo "Next steps:"
+echo "1. Create config: /etc/goconnect/config.yaml"
+echo "2. Start service: sudo systemctl start goconnect-daemon"
+echo "3. Enable on boot: sudo systemctl enable goconnect-daemon"
 fi
 
 # Install Binary

@@ -60,43 +60,93 @@ builds:
         goarch: arm64 # Match server build for archive consistency
 
 # =============================================================================
-# ARCHIVES - Portable versions with installers
+# ARCHIVES - Simple, OS-specific portable packages
 # =============================================================================
 archives:
-  # Server Archive (portable)
-  - id: server-archive
+  # Windows Archives
+  - id: server-windows
     ids:
       - server
-    formats:
-      - tar.gz
-    format_overrides:
-      - goos: windows
-        formats:
-          - zip
-    name_template: "goconnect-server_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format: zip
+    name_template: "goconnect-server_{{ .Version }}_windows_{{ .Arch }}"
+    builds_info:
+      goos: windows
     files:
       - README.md
       - LICENSE
-      - docs/ADMIN_GUIDE.md
-      - docker-compose.yml
+      - src: server/service/windows/*.ps1
+      - src: server/service/windows/README.md
 
-  # Daemon Archive with install scripts (portable + easy install)
-  - id: daemon-archive
+  - id: daemon-windows
     ids:
       - daemon
-    formats:
-      - tar.gz
-    format_overrides:
-      - goos: windows
-        formats:
-          - zip
-    name_template: "goconnect-daemon_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format: zip
+    name_template: "goconnect-daemon_{{ .Version }}_windows_{{ .Arch }}"
+    builds_info:
+      goos: windows
     files:
       - README.md
       - LICENSE
-      - src: client-daemon/service/{{ .Os }}/*
-        dst: .
-        strip_parent: true
+      - src: client-daemon/service/windows/*.ps1
+      - src: client-daemon/service/windows/README.md
+
+  # Linux Archives
+  - id: server-linux
+    ids:
+      - server
+    format: tar.gz
+    name_template: "goconnect-server_{{ .Version }}_linux_{{ .Arch }}"
+    builds_info:
+      goos: linux
+    files:
+      - README.md
+      - LICENSE
+      - src: server/service/linux/*.sh
+      - src: server/service/linux/*.service
+      - src: server/service/linux/README.md
+
+  - id: daemon-linux
+    ids:
+      - daemon
+    format: tar.gz
+    name_template: "goconnect-daemon_{{ .Version }}_linux_{{ .Arch }}"
+    builds_info:
+      goos: linux
+    files:
+      - README.md
+      - LICENSE
+      - src: client-daemon/service/linux/*.sh
+      - src: client-daemon/service/linux/*.service
+      - src: client-daemon/service/linux/README.md
+
+  # macOS Archives
+  - id: server-darwin
+    ids:
+      - server
+    format: tar.gz
+    name_template: "goconnect-server_{{ .Version }}_darwin_{{ .Arch }}"
+    builds_info:
+      goos: darwin
+    files:
+      - README.md
+      - LICENSE
+      - src: server/service/macos/*.sh
+      - src: server/service/macos/*.plist
+      - src: server/service/macos/README.md
+
+  - id: daemon-darwin
+    ids:
+      - daemon
+    format: tar.gz
+    name_template: "goconnect-daemon_{{ .Version }}_darwin_{{ .Arch }}"
+    builds_info:
+      goos: darwin
+    files:
+      - README.md
+      - LICENSE
+      - src: client-daemon/service/macos/*.sh
+      - src: client-daemon/service/macos/*.plist
+      - src: client-daemon/service/macos/README.md
 
   # NOTE: Bundle removed to reduce asset count. Users can download server + daemon separately.
 
