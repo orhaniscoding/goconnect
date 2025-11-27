@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.22.1](https://github.com/orhaniscoding/goconnect/compare/v2.22.0...v2.22.1) (2025-11-27)
+
+
+### Bug Fixes
+
+* **goreleaser:** fix YAML configuration errors ([336fd33](https://github.com/orhaniscoding/goconnect/commit/336fd33152d1c1ebf42576ac94ee3245a7247120))
+
 ## [2.22.0](https://github.com/orhaniscoding/goconnect/compare/v2.21.2...v2.22.0) (2025-11-27)
 
 
