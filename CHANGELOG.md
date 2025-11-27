@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.23.0](https://github.com/orhaniscoding/goconnect/compare/v2.22.2...v2.23.0) (2025-11-27)
+
+
+### Features
+
+* **install:** add automatic config file creation and comprehensive guides ([3609bc1](https://github.com/orhaniscoding/goconnect/commit/3609bc17867febf65baa9611b98379884b6cbd23))
+
 ## [2.22.2](https://github.com/orhaniscoding/goconnect/compare/v2.22.1...v2.22.2) (2025-11-27)
 
 
