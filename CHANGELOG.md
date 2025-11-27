@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.22.0](https://github.com/orhaniscoding/goconnect/compare/v2.21.2...v2.22.0) (2025-11-27)
+
+
+### Features
+
+* **installer:** complete overhaul of installation system ([3d0668f](https://github.com/orhaniscoding/goconnect/commit/3d0668fa992661809908f81e2c4a29ac2396def0))
+
 ## [2.21.2](https://github.com/orhaniscoding/goconnect/compare/v2.21.1...v2.21.2) (2025-11-27)
 
 
