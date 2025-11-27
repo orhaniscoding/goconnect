@@ -255,6 +255,9 @@ nfpms:
       - redis
     bindir: /usr/local/bin
     contents:
+      - src: server/service/linux/goconnect-server.service
+        dst: /usr/lib/systemd/system/goconnect-server.service
+        type: config
       - src: docker-compose.yml
         dst: /etc/goconnect/docker-compose.yml
         type: config
@@ -262,6 +265,13 @@ nfpms:
         type: dir
         file_info:
           mode: 0755
+      - dst: /etc/goconnect
+        type: dir
+        file_info:
+          mode: 0755
+    scripts:
+      postinstall: server/service/linux/postinstall.sh
+      preremove: server/service/linux/preremove.sh
 
   # Daemon Package
   - id: daemon-pkg
@@ -365,7 +375,7 @@ release:
 
     ### 🐧 Linux Server
     ```bash
-    # Debian/Ubuntu
+    # Debian/Ubuntu (Recommended)
     wget https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-server_{{ .Version }}_linux_amd64.deb
     sudo dpkg -i goconnect-server_{{ .Version }}_linux_amd64.deb
     sudo systemctl enable --now goconnect-server
@@ -374,24 +384,32 @@ release:
     wget https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-server_{{ .Version }}_linux_amd64.rpm
     sudo rpm -i goconnect-server_{{ .Version }}_linux_amd64.rpm
     sudo systemctl enable --now goconnect-server
+
+    # Portable (Any Linux)
+    wget https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-server_{{ .Version }}_linux_amd64.tar.gz
+    tar -xzf goconnect-server_*.tar.gz
+    cd goconnect-server_*_linux_*
+    sudo ./install.sh
     ```
 
     ### 🍎 macOS Server
     ```bash
     # Download (Intel or Apple Silicon)
     curl -LO https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-server_{{ .Version }}_darwin_arm64.tar.gz
-    tar -xzf goconnect-server_{{ .Version }}_darwin_arm64.tar.gz
-    sudo cp goconnect-server /usr/local/bin/
-
-    # Run
-    JWT_SECRET=$(openssl rand -base64 32) goconnect-server
+    tar -xzf goconnect-server_*.tar.gz
+    cd goconnect-server_*_darwin_*
+    sudo ./install.sh
     ```
 
     ### 🪟 Windows Server (PowerShell as Admin)
     ```powershell
+    # Download
     Invoke-WebRequest -Uri "https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-server_{{ .Version }}_windows_amd64.zip" -OutFile "server.zip"
-    Expand-Archive -Path "server.zip" -DestinationPath "$env:ProgramFiles\GoConnect"
-    # Run: & "$env:ProgramFiles\GoConnect\goconnect-server.exe"
+
+    # Extract and install
+    Expand-Archive -Path "server.zip" -DestinationPath "goconnect-server"
+    cd goconnect-server
+    .\install.ps1
     ```
 
     ---
@@ -412,10 +430,9 @@ release:
 
     # Portable (Any Linux)
     wget https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-daemon_{{ .Version }}_linux_amd64.tar.gz
-    tar -xzf goconnect-daemon_*.tar.gz && cd goconnect-daemon_*
-    sudo cp goconnect-daemon /usr/local/bin/
-    sudo cp install/linux/goconnect-daemon.service /etc/systemd/system/
-    sudo systemctl enable --now goconnect-daemon
+    tar -xzf goconnect-daemon_*.tar.gz
+    cd goconnect-daemon_*_linux_*
+    sudo ./install.sh
     ```
 
     ### 🍎 macOS Client
@@ -427,17 +444,20 @@ release:
     curl -LO https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-daemon_{{ .Version }}_darwin_arm64.tar.gz
 
     # Install
-    tar -xzf goconnect-daemon_*.tar.gz && cd goconnect-daemon_*
-    sudo cp goconnect-daemon /usr/local/bin/
-    sudo cp install/macos/com.goconnect.daemon.plist /Library/LaunchDaemons/
-    sudo launchctl load /Library/LaunchDaemons/com.goconnect.daemon.plist
+    tar -xzf goconnect-daemon_*.tar.gz
+    cd goconnect-daemon_*_darwin_*
+    sudo ./install.sh
     ```
 
     ### 🪟 Windows Client (PowerShell as Admin)
     ```powershell
+    # Download
     Invoke-WebRequest -Uri "https://github.com/orhaniscoding/goconnect/releases/download/v{{ .Version }}/goconnect-daemon_{{ .Version }}_windows_amd64.zip" -OutFile "daemon.zip"
-    Expand-Archive -Path "daemon.zip" -DestinationPath "$env:ProgramFiles\GoConnect"
-    & "$env:ProgramFiles\GoConnect\install\windows\install.ps1"
+
+    # Extract and install
+    Expand-Archive -Path "daemon.zip" -DestinationPath "goconnect-daemon"
+    cd goconnect-daemon
+    .\install.ps1
     ```
 
     ---
