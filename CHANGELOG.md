@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.26.0](https://github.com/orhaniscoding/goconnect/compare/v2.25.0...v2.26.0) (2025-11-28)
+
+
+### Features
+
+* **daemon:** implement unified service management and keyring integration ([106a214](https://github.com/orhaniscoding/goconnect/commit/106a214340643bdd0bd7297b336a478238c4274d))
+
 ## [2.25.0](https://github.com/orhaniscoding/goconnect/compare/v2.24.0...v2.25.0) (2025-11-28)
 
 
