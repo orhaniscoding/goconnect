@@ -49,7 +49,7 @@ form-action 'self';
 
 ## 2) Teknoloji & Temel İlkeler
 
-* **Go 1.24+**, **Node 20+**, **Postgres 15+**, **Redis 7+**, **Next.js 15+**
+* **Go 1.24+**, **Node 20+**, **Postgres 15+** (Enterprise) / **SQLite (Encrypted)** (Personal), **Redis 7+**, **Next.js 15+**
 * Kimlikler: **ULID**; Zaman: **UTC**; Günlük: **JSON (zap)**
 * İzlenebilirlik: **OpenTelemetry** trace + **Prometheus** metrikleri
 * Şifreleme: **Argon2**; Tokenlar: **JWT** + **JWKS rotation (kid)**

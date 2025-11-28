@@ -1,12 +1,14 @@
-# GoConnect Installation Guide
+# GoConnect Deployment Guide (Enterprise/Production)
 
-Complete installation instructions for all platforms and components.
+This guide covers advanced installation methods for production environments, including Docker, PostgreSQL, and manual service configuration.
+
+For a simple, zero-config setup (Personal Edition), see [Getting Started](GETTING_STARTED.md).
 
 ---
 
 ## 📋 Table of Contents
 
-- [GoConnect Installation Guide](#goconnect-installation-guide)
+- [GoConnect Deployment Guide](#goconnect-deployment-guide)
   - [📋 Table of Contents](#-table-of-contents)
   - [🚀 Quick Start](#-quick-start)
   - [🖥️ Server Installation](#️-server-installation)
@@ -29,22 +31,6 @@ Complete installation instructions for all platforms and components.
     - [Daemon Won't Connect](#daemon-wont-connect)
     - [Permission Denied](#permission-denied)
   - [📚 Next Steps](#-next-steps)
-
----
-
-## 🚀 Quick Start
-
-**Server (Docker - 30 seconds):**
-```bash
-docker run -d --name goconnect -p 8080:8080 ghcr.io/orhaniscoding/goconnect-server:latest
-```
-
-**Client (Linux - 1 minute):**
-```bash
-curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-daemon_linux_amd64.deb
-sudo dpkg -i goconnect-daemon_linux_amd64.deb
-sudo systemctl enable --now goconnect-daemon
-```
 
 ---
 
