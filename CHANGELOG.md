@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.25.0](https://github.com/orhaniscoding/goconnect/compare/v2.24.0...v2.25.0) (2025-11-28)
+
+
+### Features
+
+* **web-ui:** implement zero-config setup wizard ([bb4a137](https://github.com/orhaniscoding/goconnect/commit/bb4a1378808105bbec27639bcca0c295069baea0))
+
+
+### Bug Fixes
+
+* **web-ui:** resolve linting errors and build issues ([2683ec7](https://github.com/orhaniscoding/goconnect/commit/2683ec71bffb5130272ad9db0cfac343eacdbee6))
+
 ## [2.24.0](https://github.com/orhaniscoding/goconnect/compare/v2.23.0...v2.24.0) (2025-11-28)
 
 
