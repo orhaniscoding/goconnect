@@ -5,13 +5,37 @@ The AI must automatically follow these rules in **every** response.
 
 # 🏗️ PROJECT OVERVIEW - GoConnect
 
-GoConnect is a **WireGuard-based VPN management system** with:
-- **Server** (Go): REST API, WebSocket, PostgreSQL/SQLite, Redis
-- **Client Daemon** (Go): System service for VPN connectivity
-- **Web UI** (Next.js 14): React dashboard with i18n support
-- **Docker Images**: ghcr.io/orhaniscoding/goconnect-server, goconnect-webui
+GoConnect is a **modern, user-friendly VPN management system** designed to be as easy to use as Discord or TeamSpeak, but for creating private mesh networks.
+
+- **Core Goal:** Create private, secure networks for gaming (e.g., Minecraft LAN), file sharing, or remote access with zero configuration.
+- **Target Audience:** Gamers, friends, small teams, and non-technical users.
+- **Philosophy:** "If you can join a Discord server, you can join a GoConnect network."
+
+## Components:
+- **Server (Tenant)**: The central hub (like a Discord Server). Hosted by one person or community.
+- **Networks (Channels)**: Virtual LANs within the server (like Voice Channels).
+- **Client Daemon**: The lightweight agent that runs on your PC/Phone to connect you.
+- **Web UI**: The unified dashboard for managing everything.
 
 **Current Version**: Check `.release-please-manifest.json` for latest version
+
+---
+
+# 🌟 PRODUCT PHILOSOPHY & USER EXPERIENCE
+
+**The "Grandma Test":** A user with zero technical knowledge must be able to:
+1.  Download the client.
+2.  Paste a Server URL (or click an Invite Link).
+3.  Login.
+4.  **Be Connected.**
+
+**No** complex config files, **no** terminal commands, **no** manual key generation.
+
+## Key UX Principles:
+1.  **Zero-Config Server:** The server binary must just run. Built-in database (SQLite), built-in UI, auto-generated keys.
+2.  **Unified "App" Feel:** The Web UI isn't just an admin panel; it's the *app*. Users manage their connection, chat with peers, and see who is online right there.
+3.  **Mesh Networking:** Like Hamachi or ZeroTier, but self-hosted and completely private. Devices talk directly to each other (P2P) whenever possible.
+4.  **Visual Feedback:** "Online" green dots, real-time status updates, immediate "Connected" notifications.
 
 ---
 

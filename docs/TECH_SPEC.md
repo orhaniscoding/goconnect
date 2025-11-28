@@ -13,9 +13,17 @@
 goconnect-<name> vX.Y.Z (commit <hash>, build <YYYY-MM-DD>) built by orhaniscoding
 ```
 
-## 0) Ürün Amacı & Kapsam (Hamachi/ZeroTier benzeri; web-first)
+## 0) Ürün Amacı & Kapsam (Hamachi/ZeroTier alternatifi; Discord benzeri kolaylık)
 
-GoConnect, internet üzerindeki cihazları **aynı sanal ağa** dahil eder.
+GoConnect, internet üzerindeki cihazları **aynı sanal ağa** dahil etmeyi sağlayan, **son kullanıcı odaklı** bir platformdur.
+
+**Temel Felsefe:** "Kodlama veya ağ bilgisi olmayan biri bile (Minecraft oynamak için) kendi sunucusunu kurup arkadaşlarıyla bağlanabilmeli."
+
+* **Analoji:**
+    * **Tenant (Sunucu):** Discord Sunucusu gibidir. Bir topluluğu veya grubu temsil eder.
+    * **Network (Ağ):** Discord Ses Kanalı gibidir. Üyeler bu ağa katıldığında (join) birbirlerini görür ve bağlanır.
+    * **Client:** Sadece arkaplanda çalışan ve işi yapan sessiz bir ajandır.
+    * **Web UI:** Tüm deneyimin yaşandığı yerdir.
 
 * **Host (Server)**: Ağların, üyeliklerin, yapılandırmaların, sohbetlerin ve tüm audit/veri durumunun **tek kaynağı**.
 * **Client-Daemon**: Cihazda çalışan hafif ajan; **WireGuard** tünelini uygular, **Localhost Bridge** ile Web UI’ye köprü olur.
