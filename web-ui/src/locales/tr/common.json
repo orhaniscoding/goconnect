@@ -1,12 +1,32 @@
 {
-  "nav.dashboard": "Anasayfa",
+  "nav.dashboard": "Kontrol Paneli",
   "nav.networks": "Ağlar",
   "nav.devices": "Cihazlar",
   "nav.tenants": "Sunucular",
   "nav.profile": "Profil",
   "nav.settings": "Ayarlar",
-  "nav.admin": "Yönetim",
+  "nav.admin": "Yönetici",
   "nav.logout": "Çıkış",
+  "common.back": "Geri",
+  "common.next": "İleri",
+  "setup.title": "GoConnect'e Hoş Geldiniz",
+  "setup.subtitle": "Özel ağınızı sadece birkaç adımda çalışır duruma getirelim.",
+  "setup.choose_mode": "Kurulum modunu seçin",
+  "setup.mode_personal": "Kişisel (Önerilen)",
+  "setup.mode_personal_desc": "Ev kullanımı, oyun ve küçük ekipler için idealdir. Dahili veritabanı kullanır. Ekstra kurulum gerektirmez.",
+  "setup.mode_enterprise": "Kurumsal",
+  "setup.mode_enterprise_desc": "Büyük ölçekli dağıtımlar için. Harici bir PostgreSQL veritabanına bağlanır.",
+  "setup.admin_account": "Yönetici Hesabı Oluştur",
+  "setup.first_network": "İlk Ağı Oluştur",
+  "setup.keys_auto_generated": "Güvenli şifreleme anahtarları sizin için otomatik olarak oluşturulacaktır.",
+  "setup.finish": "Kaydet ve Sunucuyu Başlat",
+  "setup.restarting": "Yapılandırılıyor ve Yeniden Başlatılıyor...",
+  "setup.restarting_desc": "Lütfen ayarlarınızı uygularken ve sunucuyu yeniden başlatırken bekleyin. Otomatik olarak yönlendirileceksiniz.",
+  "setup.error_saving": "Yapılandırma kaydedilemedi.",
+  "setup.error_generic": "Bir hata oluştu. Lütfen tekrar deneyin.",
+  "auth.email": "E-posta",
+  "auth.password": "Şifre",
+  "network.name": "Ağ Adı",
   "footer.brand": "© 2025 GoConnect — orhaniscoding tarafından geliştirildi",
   "footer.daemon.disconnected": "Bağlantı Yok",
   "footer.daemon.connecting": "Bağlanıyor...",
@@ -326,6 +346,114 @@
   "profile.notifications.2fa.disabled": "2FA Devre Dışı Bırakıldı",
   "profile.notifications.2fa.enabledMsg": "İki faktörlü doğrulama etkinleştirildi",
   "profile.notifications.2fa.disabledMsg": "İki faktörlü doğrulama devre dışı bırakıldı",
+  "admin.accessDenied": "Erişim Reddedildi",
+  "admin.accessDeniedMsg": "Bu sayfaya erişmek için yönetici yetkilerine ihtiyacınız var.",
+  "admin.error.loadData": "Yönetici verileri yüklenemedi",
+  "admin.error.toggleAdmin": "Yönetici durumu değiştirilemedi",
+  "admin.error.updateUser": "Kullanıcı güncellenemedi",
+  "admin.error.deleteTenant": "Kiracı silinemedi",
+  "admin.error.deleteUser": "Kullanıcı silinemedi",
+  "admin.error.deleteDevice": "Cihaz silinemedi",
+  "admin.confirm.deleteTenant": "Bu kiracıyı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+  "admin.confirm.deleteUser": "Bu kullanıcıyı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+  "admin.confirm.deleteDevice": "Bu cihazı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+  "admin.title": "Yönetici Paneli",
+  "admin.badge": "YÖNETİCİ ERİŞİMİ",
+  "admin.back": "Geri",
+  "admin.tabs.stats": "İstatistikler",
+  "admin.tabs.users": "Kullanıcılar",
+  "admin.tabs.tenants": "Kiracılar",
+  "admin.tabs.networks": "Ağlar",
+  "admin.tabs.devices": "Cihazlar",
+  "admin.tabs.audit": "Denetim Kayıtları",
+  "admin.loading": "Yükleniyor...",
+  "admin.stats.users": "Toplam Kullanıcı",
+  "admin.stats.tenants": "Toplam Kiracı",
+  "admin.stats.networks": "Toplam Ağ",
+  "admin.stats.devices": "Toplam Cihaz",
+  "admin.stats.connections": "Aktif Bağlantılar",
+  "admin.stats.messages": "Bugünkü Mesajlar",
+  "admin.users.title": "Kullanıcı Yönetimi",
+  "admin.users.searchPlaceholder": "E-posta ile kullanıcı ara...",
+  "admin.users.search": "Ara",
+  "admin.users.table.email": "E-posta",
+  "admin.users.table.role": "Rol",
+  "admin.users.table.provider": "Sağlayıcı",
+  "admin.users.table.tenantId": "Kiracı ID",
+  "admin.users.table.created": "Oluşturuldu",
+  "admin.users.table.actions": "İşlemler",
+  "admin.users.role.admin": "Yönetici",
+  "admin.users.role.moderator": "Moderatör",
+  "admin.users.role.user": "Kullanıcı",
+  "admin.users.provider.sso": "SSO",
+  "admin.users.provider.local": "Yerel",
+  "admin.users.action.revokeAdmin": "Yöneticiliği Kaldır",
+  "admin.users.action.makeAdmin": "Yönetici Yap",
+  "admin.users.action.delete": "Sil",
+  "admin.users.tooltip.selfAdmin": "Kendi yönetici durumunuzu değiştiremezsiniz",
+  "admin.users.tooltip.selfDelete": "Kendinizi silemezsiniz",
+  "admin.tenants.title": "Kiracı Yönetimi",
+  "admin.tenants.searchPlaceholder": "İsim ile kiracı ara...",
+  "admin.tenants.id": "ID",
+  "admin.tenants.created": "Oluşturuldu",
+  "admin.networks.title": "Ağ Yönetimi",
+  "admin.networks.searchPlaceholder": "İsim veya CIDR ile ağ ara...",
+  "admin.networks.table.name": "İsim",
+  "admin.networks.table.cidr": "CIDR",
+  "admin.devices.title": "Cihaz Yönetimi",
+  "admin.devices.searchPlaceholder": "İsim veya IP ile cihaz ara...",
+  "admin.devices.table.ip": "IP Adresi",
+  "admin.devices.table.publicKey": "Açık Anahtar",
+  "admin.devices.table.lastSeen": "Son Görülme",
+  "admin.devices.noDevices": "Cihaz bulunamadı.",
+  "admin.audit.title": "Sistem Denetim Kayıtları",
+  "admin.audit.table.time": "Zaman",
+  "admin.audit.table.action": "İşlem",
+  "admin.audit.table.actor": "Yapan",
+  "admin.audit.table.object": "Nesne",
+  "admin.audit.table.details": "Detaylar",
+  "admin.audit.noLogs": "Denetim kaydı bulunamadı.",
+  "admin.pagination.previous": "Önceki",
+  "admin.pagination.next": "Sonraki",
+  "admin.pagination.nextPage": "Sonraki Sayfa",
+  "audit": {
+    "title": "Sistem Denetim Kayıtları",
+    "subtitle": "{{total}} toplam denetim kaydı",
+    "backToAdmin": "Yönetim Paneline Dön",
+    "refresh": "Yenile",
+    "loading": "Denetim kayıtları yükleniyor...",
+    "noLogs": "Denetim kaydı bulunamadı.",
+    "error": {
+      "load": "Denetim kayıtları yüklenemedi"
+    },
+    "filter": {
+      "category": "Kategori",
+      "allCategories": "Tüm Kategoriler",
+      "network": "Ağ",
+      "membership": "Üyelik",
+      "ip": "IP Tahsisi",
+      "action": "İşlem",
+      "allActions": "Tüm İşlemler",
+      "search": "Ara",
+      "searchPlaceholder": "Yapan, nesne veya detaylarda ara...",
+      "dateFrom": "Başlangıç Tarihi",
+      "dateTo": "Bitiş Tarihi",
+      "clear": "Filtreleri Temizle"
+    },
+    "showing": "{{total}} kayıttan {{count}} tanesi gösteriliyor",
+    "table": {
+      "time": "Zaman",
+      "action": "İşlem",
+      "actor": "Yapan",
+      "object": "Nesne",
+      "details": "Detaylar"
+    },
+    "pagination": {
+      "previous": "Önceki",
+      "next": "Sonraki",
+      "page": "Sayfa {{page}} / {{total}}"
+    }
+  },
   "devices": {
     "title": "Cihazlar",
     "back": "← Panele Dön",
@@ -438,141 +566,6 @@
       }
     }
   },
-  "admin": {
-    "accessDenied": "Erişim Reddedildi",
-    "accessDeniedMsg": "Bu sayfaya erişmek için yönetici yetkilerine ihtiyacınız var.",
-    "error": {
-      "loadData": "Yönetici verileri yüklenemedi",
-      "toggleAdmin": "Yönetici durumu değiştirilemedi",
-      "updateUser": "Kullanıcı güncellenemedi",
-      "deleteTenant": "Kiracı silinemedi",
-      "deleteUser": "Kullanıcı silinemedi",
-      "deleteDevice": "Cihaz silinemedi"
-    },
-    "confirm": {
-      "deleteTenant": "Bu kiracıyı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
-      "deleteUser": "Bu kullanıcıyı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
-      "deleteDevice": "Bu cihazı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
-    },
-    "title": "Yönetici Paneli",
-    "badge": "YÖNETİCİ ERİŞİMİ",
-    "back": "Geri",
-    "tabs": {
-      "stats": "İstatistikler",
-      "users": "Kullanıcılar",
-      "tenants": "Kiracılar",
-      "networks": "Ağlar",
-      "devices": "Cihazlar",
-      "audit": "Denetim Kayıtları"
-    },
-    "loading": "Yükleniyor...",
-    "stats": {
-      "users": "Toplam Kullanıcı",
-      "tenants": "Toplam Kiracı",
-      "networks": "Toplam Ağ",
-      "devices": "Toplam Cihaz",
-      "connections": "Aktif Bağlantılar",
-      "messages": "Bugünkü Mesajlar"
-    },
-    "users": {
-      "title": "Kullanıcı Yönetimi",
-      "searchPlaceholder": "E-posta ile kullanıcı ara...",
-      "search": "Ara",
-      "table": {
-        "email": "E-posta",
-        "role": "Rol",
-        "provider": "Sağlayıcı",
-        "tenantId": "Kiracı ID",
-        "created": "Oluşturuldu",
-        "actions": "İşlemler"
-      },
-      "role": {
-        "admin": "Yönetici",
-        "moderator": "Moderatör",
-        "user": "Kullanıcı"
-      },
-      "provider": {
-        "sso": "SSO",
-        "local": "Yerel"
-      },
-      "action": {
-        "revokeAdmin": "Yöneticiliği Kaldır",
-        "makeAdmin": "Yönetici Yap",
-        "delete": "Sil"
-      },
-      "tooltip": {
-        "selfAdmin": "Kendi yönetici durumunuzu değiştiremezsiniz",
-        "selfDelete": "Kendinizi silemezsiniz"
-      }
-    },
-    "tenants": {
-      "title": "Kiracı Yönetimi",
-      "searchPlaceholder": "İsim ile kiracı ara...",
-      "id": "ID",
-      "created": "Oluşturuldu"
-    },
-    "networks": {
-      "title": "Ağ Yönetimi",
-      "searchPlaceholder": "İsim veya CIDR ile ağ ara...",
-      "table": {
-        "name": "İsim",
-        "cidr": "CIDR"
-      }
-    },
-    "devices": {
-      "title": "Cihaz Yönetimi",
-      "searchPlaceholder": "İsim veya IP ile cihaz ara...",
-      "table": {
-        "ip": "IP Adresi",
-        "publicKey": "Açık Anahtar",
-        "lastSeen": "Son Görülme"
-      },
-      "noDevices": "Cihaz bulunamadı."
-    },
-    "audit": {
-      "title": "Sistem Denetim Kayıtları",
-      "subtitle": "{{total}} toplam denetim kaydı",
-      "backToAdmin": "Yönetim Paneline Dön",
-      "refresh": "Yenile",
-      "loading": "Denetim kayıtları yükleniyor...",
-      "noLogs": "Denetim kaydı bulunamadı.",
-      "error": {
-        "load": "Denetim kayıtları yüklenemedi"
-      },
-      "filter": {
-        "category": "Kategori",
-        "allCategories": "Tüm Kategoriler",
-        "network": "Ağ",
-        "membership": "Üyelik",
-        "ip": "IP Tahsisi",
-        "action": "İşlem",
-        "allActions": "Tüm İşlemler",
-        "search": "Ara",
-        "searchPlaceholder": "Yapan, nesne veya detaylarda ara...",
-        "dateFrom": "Başlangıç Tarihi",
-        "dateTo": "Bitiş Tarihi",
-        "clear": "Filtreleri Temizle"
-      },
-      "showing": "{{total}} kayıttan {{count}} tanesi gösteriliyor",
-      "table": {
-        "time": "Zaman",
-        "action": "İşlem",
-        "actor": "Yapan",
-        "object": "Nesne",
-        "details": "Detaylar"
-      },
-      "pagination": {
-        "previous": "Önceki",
-        "next": "Sonraki",
-        "page": "Sayfa {{page}} / {{total}}"
-      }
-    },
-    "pagination": {
-      "previous": "Önceki",
-      "next": "Sonraki",
-      "nextPage": "Sonraki Sayfa"
-    }
-  },
   "chat": {
     "error": {
       "loadNetworks": "Ağlar yüklenemedi",
@@ -661,7 +654,7 @@
       "disconnected": "Bağlantı kesildi"
     }
   },
-  "tenant": {
+  "tenants": {
     "title": "Ekipler",
     "discover": {
       "title": "Ekipleri Keşfet",

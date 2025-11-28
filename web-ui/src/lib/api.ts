@@ -1,5 +1,77 @@
 import { getAccessToken } from './auth'
 
+// Setup API
+export interface SetupConfig {
+  server: {
+    host: string
+    port: string
+    environment?: string
+  }
+  database: {
+    backend: string
+    sqlite_path?: string
+    host?: string
+    port?: string
+    name?: string
+    user?: string
+    password?: string
+  }
+  jwt: {
+    secret: string
+    access_ttl?: string
+    refresh_ttl?: string
+  }
+  wireguard: {
+    private_key: string
+    server_endpoint: string
+    server_pubkey: string
+    interface_name?: string
+    port?: number
+  }
+}
+
+export interface SetupStatus {
+  status: string
+  message?: string
+  config_path: string
+  config_present: boolean
+  config_valid: boolean
+  validation_error?: string
+  mode?: string
+  completed_steps?: string[]
+  next_step: string
+  steps?: {
+    id: string
+    title: string
+    description: string
+    fields: string[]
+  }[]
+}
+
+export interface SetupResponse {
+  status: string
+  message: string
+  restart_required?: boolean
+}
+
+export async function getSetupStatus(): Promise<SetupStatus> {
+  return api('/setup/status')
+}
+
+export async function validateConfig(config: SetupConfig): Promise<SetupStatus> {
+  return api('/setup/validate', {
+    method: 'POST',
+    body: JSON.stringify({ config }),
+  })
+}
+
+export async function persistConfig(config: SetupConfig, restart: boolean = false): Promise<SetupResponse> {
+  return api('/setup', {
+    method: 'POST',
+    body: JSON.stringify({ config, restart }),
+  })
+}
+
 // Base API client
 export async function api(path: string, init?: RequestInit): Promise<any> {
   const base = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8080'
