@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.24.0](https://github.com/orhaniscoding/goconnect/compare/v2.23.0...v2.24.0) (2025-11-28)
+
+
+### Features
+
+* **server:** add sqlite support and zero-config setup wizard ([e5a66ab](https://github.com/orhaniscoding/goconnect/commit/e5a66ab3e1940f36b0fcd8555d3022bb74b6bcd0))
+
 ## [2.23.0](https://github.com/orhaniscoding/goconnect/compare/v2.22.2...v2.23.0) (2025-11-27)
 
 
