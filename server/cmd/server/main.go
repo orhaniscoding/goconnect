@@ -26,6 +26,7 @@ import (
 	ws "github.com/orhaniscoding/goconnect/server/internal/websocket"
 	"github.com/orhaniscoding/goconnect/server/internal/wireguard"
 	"github.com/redis/go-redis/v9"
+	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -38,7 +39,10 @@ var (
 func main() {
 	showVersion := flag.Bool("version", false, "print version and exit")
 	runMigrations := flag.Bool("migrate", false, "run database migrations and exit")
-	usePostgres := flag.Bool("postgres", true, "use PostgreSQL instead of in-memory storage")
+	usePostgres := flag.Bool("postgres", true, "use PostgreSQL instead of in-memory storage (deprecated, use --db-backend)")
+	dbBackendFlag := flag.String("db-backend", "", "database backend: postgres|sqlite|memory")
+	sqlitePathFlag := flag.String("db-sqlite-path", "", "path to SQLite database file (when --db-backend=sqlite)")
+	setupModeFlag := flag.Bool("setup-mode", false, "start server in setup/wizard mode (experimental)")
 	asyncAudit := flag.Bool("audit-async", true, "enable async audit buffering")
 	auditQueue := flag.Int("audit-queue", 1024, "audit async queue size")
 	auditWorkers := flag.Int("audit-workers", 1, "audit async worker count")
@@ -46,6 +50,8 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), shutdownSignals()...)
 	defer stop()
+
+	configPath := config.DefaultConfigPath()
 
 	// Register metrics early
 	metrics.Register()
@@ -56,18 +62,73 @@ func main() {
 	}
 
 	// Load configuration
-	cfg, err := config.Load()
+	cfg, err := config.LoadFromFileOrEnv(configPath)
+	setupMode := *setupModeFlag
 	if err != nil {
-		log.Printf("Warning: Failed to load full config: %v. Using defaults/env for DB.", err)
-		// We continue because DB config is loaded separately below, but WireGuard config might be missing.
-		// Actually, we should probably fail if we rely on it.
-		// But for now, let's initialize an empty config if it fails, to avoid panic.
-		cfg = &config.Config{}
+		log.Printf("Warning: Failed to load full config: %v. Entering setup mode with defaults.", err)
+		setupMode = true
+		// Minimal defaults to keep HTTP server up; real values will be collected in setup wizard.
+		cfg = &config.Config{
+			Server: config.ServerConfig{Host: "0.0.0.0", Port: "8080"},
+			Database: config.DatabaseConfig{
+				Backend: "memory",
+			},
+		}
+	}
+
+	// Resolve backend selection priority: flag > config > env default
+	dbBackend := "postgres"
+	if cfg != nil && cfg.Database.Backend != "" {
+		dbBackend = cfg.Database.Backend
+	}
+	if *dbBackendFlag != "" {
+		dbBackend = *dbBackendFlag
+	}
+	// legacy compatibility: --postgres=false implies memory unless db-backend explicitly set
+	if !*usePostgres && *dbBackendFlag == "" {
+		dbBackend = "memory"
+	}
+	dbBackend = strings.ToLower(dbBackend)
+
+	// Resolve SQLite path (only used when backend=sqlite)
+	sqlitePath := "data/goconnect.db"
+	if cfg != nil && cfg.Database.SQLitePath != "" {
+		sqlitePath = cfg.Database.SQLitePath
+	}
+	if *sqlitePathFlag != "" {
+		sqlitePath = *sqlitePathFlag
+	}
+
+	// Setup mode toggle (env or flag)
+	if !setupMode {
+		if smEnv := strings.TrimSpace(os.Getenv("SETUP_MODE")); smEnv != "" {
+			if parsed, err := strconv.ParseBool(smEnv); err == nil {
+				setupMode = parsed
+			}
+		}
+	}
+	// If config fell back to memory backend and no explicit override, prefer setup mode to avoid crashy startup.
+	if cfg != nil && cfg.Database.Backend == "memory" && *dbBackendFlag == "" && !*usePostgres {
+		setupMode = true
+	}
+
+	if setupMode {
+		r := gin.New()
+		r.Use(gin.Recovery())
+		r.Use(metrics.GinMiddleware())
+		registerSetupRoutes(r, dbBackend, sqlitePath, configPath, stop)
+		startHTTPServer(ctx, cfg, r)
+		return
 	}
 
 	// Database setup
 	var db *sql.DB
-	if *usePostgres {
+	migrationsPath := getEnvOrDefault("MIGRATIONS_PATH", "./migrations")
+	if dbBackend == "sqlite" {
+		migrationsPath = getEnvOrDefault("MIGRATIONS_SQLITE_PATH", "./migrations_sqlite")
+	}
+	switch dbBackend {
+	case "postgres":
 		dbConfig := database.LoadConfigFromEnv()
 		var err error
 		db, err = database.Connect(dbConfig)
@@ -80,13 +141,31 @@ func main() {
 
 		// Run migrations if requested
 		if *runMigrations {
-			migrationsPath := getEnvOrDefault("MIGRATIONS_PATH", "./migrations")
 			if err := database.RunMigrations(db, migrationsPath); err != nil {
 				log.Fatalf("Failed to run migrations: %v", err)
 			}
 			fmt.Println("Migrations completed successfully")
 			return
 		}
+	case "sqlite":
+		var err error
+		db, err = database.ConnectSQLite(sqlitePath)
+		if err != nil {
+			log.Fatalf("Failed to connect to SQLite: %v", err)
+		}
+		defer db.Close()
+		fmt.Printf("Connected to SQLite (experimental) at %s\n", sqlitePath)
+		if *runMigrations {
+			if err := database.RunSQLiteMigrations(db, migrationsPath); err != nil {
+				log.Fatalf("SQLite migrations failed: %v", err)
+			}
+			fmt.Println("SQLite migrations completed successfully")
+			return
+		}
+	case "memory":
+		// No DB connection required
+	default:
+		log.Fatalf("Unsupported DB backend: %s (use postgres|sqlite|memory)", dbBackend)
 	}
 
 	// Initialize repositories
@@ -95,6 +174,7 @@ func main() {
 	var membershipRepo repository.MembershipRepository
 	var joinRepo repository.JoinRequestRepository
 	var ipamRepo repository.IPAMRepository
+	var ipRuleRepo repository.IPRuleRepository
 	var userRepo repository.UserRepository
 	var tenantRepo repository.TenantRepository
 	var deviceRepo repository.DeviceRepository
@@ -108,7 +188,7 @@ func main() {
 	var inviteRepo repository.InviteTokenRepository
 	var adminRepo *repository.AdminRepository
 
-	if *usePostgres && db != nil {
+	if dbBackend == "postgres" && db != nil {
 		// PostgreSQL repositories
 		networkRepo = repository.NewPostgresNetworkRepository(db)
 		idempotencyRepo = repository.NewPostgresIdempotencyRepository(db)
@@ -128,6 +208,25 @@ func main() {
 		tenantAnnouncementRepo = repository.NewPostgresTenantAnnouncementRepository(db)
 		tenantChatRepo = repository.NewPostgresTenantChatRepository(db)
 		fmt.Println("Using PostgreSQL repositories")
+	} else if dbBackend == "sqlite" {
+		userRepo = repository.NewSQLiteUserRepository(db)
+		tenantRepo = repository.NewSQLiteTenantRepository(db)
+		networkRepo = repository.NewSQLiteNetworkRepository(db)
+		membershipRepo = repository.NewSQLiteMembershipRepository(db)
+		joinRepo = repository.NewSQLiteJoinRequestRepository(db)
+		tenantMemberRepo = repository.NewSQLiteTenantMemberRepository(db)
+		tenantInviteRepo = repository.NewSQLiteTenantInviteRepository(db)
+		tenantAnnouncementRepo = repository.NewSQLiteTenantAnnouncementRepository(db)
+		tenantChatRepo = repository.NewSQLiteTenantChatRepository(db)
+		peerRepo = repository.NewSQLitePeerRepository(db)
+		inviteRepo = repository.NewSQLiteInviteTokenRepository(db)
+		ipRuleRepo = repository.NewSQLiteIPRuleRepository(db)
+		chatRepo = repository.NewSQLiteChatRepository(db)
+		// Other repos still in-memory until SQLite variants are added.
+		log.Println("SQLite backend: sqlite repos for users/tenants/networks/memberships/join_requests/tenant_members/tenant_invites/tenant_announcements/tenant_chat/peers/invite_tokens/ip_rules/chat/ipam/idempotency.")
+		idempotencyRepo = repository.NewInMemoryIdempotencyRepository()
+		ipamRepo = repository.NewSQLiteIPAMRepository(db)
+		deviceRepo = repository.NewSQLiteDeviceRepository(db)
 	} else {
 		// In-memory repositories (fallback)
 		networkRepo = repository.NewInMemoryNetworkRepository()
@@ -135,6 +234,7 @@ func main() {
 		membershipRepo = repository.NewInMemoryMembershipRepository()
 		joinRepo = repository.NewInMemoryJoinRequestRepository()
 		ipamRepo = repository.NewInMemoryIPAM()
+		ipRuleRepo = repository.NewInMemoryIPRuleRepository()
 		userRepo = repository.NewInMemoryUserRepository()
 		tenantRepo = repository.NewInMemoryTenantRepository()
 		deviceRepo = repository.NewInMemoryDeviceRepository()
@@ -195,7 +295,7 @@ func main() {
 	inviteService := service.NewInviteService(inviteRepo, networkRepo, membershipRepo, baseURL)
 
 	// Initialize IP Rule service
-	ipRuleRepo := repository.NewInMemoryIPRuleRepository()
+	ipRuleRepo = repository.NewInMemoryIPRuleRepository()
 	ipRuleService := service.NewIPRuleService(ipRuleRepo)
 
 	// Initialize Post service
@@ -371,6 +471,21 @@ func main() {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(metrics.GinMiddleware())
+
+	if setupMode {
+		r.GET("/setup", func(c *gin.Context) {
+			c.JSON(http.StatusNotImplemented, gin.H{
+				"status":        "setup-mode",
+				"message":       "Setup wizard placeholder; full flow coming soon.",
+				"db_backend":    dbBackend,
+				"sqlite_path":   sqlitePath,
+				"migrations_ok": dbBackend == "postgres",
+			})
+		})
+		r.NoRoute(func(c *gin.Context) {
+			c.Redirect(http.StatusFound, "/setup")
+		})
+	}
 
 	// Register basic routes
 	r.GET("/health", func(c *gin.Context) {
@@ -568,6 +683,283 @@ func serverAddress(cfg *config.Config) string {
 
 func shutdownSignals() []os.Signal {
 	return []os.Signal{os.Interrupt, syscall.Signal(15)}
+}
+
+type setupRequest struct {
+	Config  config.Config `json:"config" binding:"required"`
+	Restart bool          `json:"restart,omitempty"`
+}
+
+type setupStep struct {
+	ID          string   `json:"id"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Fields      []string `json:"fields"`
+}
+
+type setupStatus struct {
+	Status          string      `json:"status"`
+	Message         string      `json:"message,omitempty"`
+	ConfigPath      string      `json:"config_path"`
+	ConfigPresent   bool        `json:"config_present"`
+	ConfigValid     bool        `json:"config_valid"`
+	ValidationError string      `json:"validation_error,omitempty"`
+	Mode            string      `json:"mode,omitempty"`
+	CompletedSteps  []string    `json:"completed_steps,omitempty"`
+	NextStep        string      `json:"next_step"`
+	Steps           []setupStep `json:"steps,omitempty"`
+}
+
+const setupCompletedStep = "completed"
+
+var setupSteps = []setupStep{
+	{
+		ID:          "mode",
+		Title:       "Mode Selection",
+		Description: "Choose Personal (SQLite) or Enterprise (Postgres).",
+		Fields:      []string{"database.backend", "database.sqlite_path", "database.host", "database.port", "database.user", "database.password", "database.dbname"},
+	},
+	{
+		ID:          "admin",
+		Title:       "Admin Creation",
+		Description: "Set JWT secret and WireGuard parameters.",
+		Fields:      []string{"jwt.secret", "wireguard.server_endpoint", "wireguard.server_pubkey"},
+	},
+	{
+		ID:          "finalize",
+		Title:       "Finalize",
+		Description: "Write config and restart server.",
+		Fields:      []string{},
+	},
+}
+
+func registerSetupRoutes(r *gin.Engine, dbBackend string, sqlitePath string, configPath string, stop context.CancelFunc) {
+	r.GET("/setup", func(c *gin.Context) {
+		state := buildSetupStatus(configPath)
+		state.Message = "Setup wizard ready. Complete the steps to persist config and restart."
+		state.Mode = dbBackend
+		state.Steps = setupSteps
+		if state.NextStep == "" {
+			state.NextStep = "mode"
+		}
+		if state.Mode == "" {
+			state.Mode = dbBackend
+		}
+		state.ConfigPresent = state.ConfigPresent || fileExists(configPath)
+		state.ConfigPath = configPath
+		c.JSON(http.StatusOK, state)
+	})
+	r.GET("/setup/status", func(c *gin.Context) {
+		state := buildSetupStatus(configPath)
+		state.Steps = setupSteps
+		c.JSON(http.StatusOK, state)
+	})
+	r.POST("/setup/validate", func(c *gin.Context) {
+		var req setupRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid setup payload", "details": err.Error()})
+			return
+		}
+		if err := req.Config.Validate(); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "validation failed", "details": err.Error()})
+			return
+		}
+		completed, next := evaluateSetupProgress(&req.Config)
+		resp := setupStatus{
+			Status:         "ok",
+			Message:        "config validated",
+			ConfigPath:     configPath,
+			ConfigPresent:  fileExists(configPath),
+			ConfigValid:    true,
+			CompletedSteps: completed,
+			NextStep:       next,
+		}
+		c.JSON(http.StatusOK, resp)
+	})
+	r.POST("/setup", func(c *gin.Context) {
+		var req setupRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid setup payload", "details": err.Error()})
+			return
+		}
+		if err := config.SaveToFile(&req.Config, configPath); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "failed to persist config", "details": err.Error()})
+			return
+		}
+		completed, next := evaluateSetupProgress(&req.Config)
+		resp := setupStatus{
+			Status:         "ok",
+			Message:        "Configuration saved. Restart the server to exit setup mode.",
+			ConfigPath:     configPath,
+			ConfigPresent:  true,
+			ConfigValid:    true,
+			CompletedSteps: completed,
+			NextStep:       next,
+		}
+		body := gin.H{
+			"status":           resp.Status,
+			"message":          resp.Message,
+			"config_path":      resp.ConfigPath,
+			"config_present":   resp.ConfigPresent,
+			"config_valid":     resp.ConfigValid,
+			"completed_steps":  resp.CompletedSteps,
+			"next_step":        resp.NextStep,
+			"restart_required": true,
+		}
+		c.JSON(http.StatusOK, body)
+		if req.Restart && stop != nil {
+			go func() {
+				// Give response time to flush before shutdown.
+				time.Sleep(500 * time.Millisecond)
+				stop()
+			}()
+		}
+	})
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"ok": true, "service": "goconnect-server", "mode": "setup"})
+	})
+	r.NoRoute(func(c *gin.Context) {
+		c.Redirect(http.StatusFound, "/setup")
+	})
+}
+
+func buildSetupStatus(configPath string) setupStatus {
+	state := setupStatus{
+		Status:     "setup-mode",
+		ConfigPath: configPath,
+		NextStep:   "mode",
+	}
+	cfg, present, parseErr, validationErr := loadConfigForStatus(configPath)
+	state.ConfigPresent = present
+	if parseErr != nil {
+		state.ValidationError = parseErr.Error()
+		return state
+	}
+	if cfg != nil {
+		state.Mode = setupBackendOrDefault(cfg.Database)
+		state.CompletedSteps, state.NextStep = evaluateSetupProgress(cfg)
+	}
+	if validationErr == nil && cfg != nil {
+		state.ConfigValid = true
+	} else if validationErr != nil {
+		state.ValidationError = validationErr.Error()
+	}
+	if state.NextStep == "" {
+		state.NextStep = "mode"
+	}
+	return state
+}
+
+func evaluateSetupProgress(cfg *config.Config) ([]string, string) {
+	completed := []string{}
+	next := "mode"
+	if cfg == nil {
+		return completed, next
+	}
+	if isModeStepComplete(cfg) {
+		completed = append(completed, "mode")
+		next = "admin"
+	} else {
+		return completed, next
+	}
+	if isAdminStepComplete(cfg) {
+		completed = append(completed, "admin")
+		next = "finalize"
+	} else {
+		return completed, next
+	}
+	if err := cfg.Validate(); err == nil {
+		completed = append(completed, "finalize")
+		next = setupCompletedStep
+	}
+	return completed, next
+}
+
+func isModeStepComplete(cfg *config.Config) bool {
+	backend := setupBackendOrDefault(cfg.Database)
+	switch backend {
+	case "sqlite":
+		return strings.TrimSpace(cfg.Database.SQLitePath) != ""
+	case "postgres":
+		return strings.TrimSpace(cfg.Database.Host) != "" &&
+			strings.TrimSpace(cfg.Database.Port) != "" &&
+			strings.TrimSpace(cfg.Database.User) != "" &&
+			strings.TrimSpace(cfg.Database.DBName) != ""
+	case "memory":
+		return true
+	default:
+		return false
+	}
+}
+
+func isAdminStepComplete(cfg *config.Config) bool {
+	if len(cfg.JWT.Secret) < 32 {
+		return false
+	}
+	if strings.TrimSpace(cfg.WireGuard.ServerEndpoint) == "" {
+		return false
+	}
+	if len(cfg.WireGuard.ServerPubKey) != 44 {
+		return false
+	}
+	return true
+}
+
+func loadConfigForStatus(path string) (*config.Config, bool, error, error) {
+	stat, err := os.Stat(path)
+	if err != nil || stat.IsDir() {
+		return nil, false, nil, fmt.Errorf("config file not found")
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, true, err, err
+	}
+	cfg := &config.Config{}
+	if err := yaml.Unmarshal(content, cfg); err != nil {
+		return nil, true, err, err
+	}
+	if err := cfg.Validate(); err != nil {
+		return cfg, true, nil, err
+	}
+	return cfg, true, nil, nil
+}
+
+func setupBackendOrDefault(db config.DatabaseConfig) string {
+	if db.Backend == "" {
+		return "postgres"
+	}
+	return strings.ToLower(db.Backend)
+}
+
+func fileExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
+}
+
+func startHTTPServer(ctx context.Context, cfg *config.Config, handler http.Handler) {
+	srv := &http.Server{
+		Addr:              serverAddress(cfg),
+		Handler:           handler,
+		ReadTimeout:       15 * time.Second,
+		ReadHeaderTimeout: 10 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+
+	go func() {
+		<-ctx.Done()
+		fmt.Println("Shutdown signal received. Draining HTTP server...")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil && err != http.ErrServerClosed {
+			fmt.Printf("Error during graceful shutdown: %v\n", err)
+		}
+	}()
+
+	fmt.Printf("GoConnect Server starting on %s...\n", srv.Addr)
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		fmt.Printf("Server failed to start: %v\n", err)
+	}
 }
 
 // getEnvOrDefault gets an environment variable or returns a default value

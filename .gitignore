@@ -94,5 +94,6 @@ KendimeNotlarim.md
 #############################
 release/
 .aider*
-.gemini/
+.gemini*
+.codex*
 gha-creds-*.json

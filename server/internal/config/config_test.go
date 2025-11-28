@@ -2,12 +2,28 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func baseValidConfig() Config {
+	return Config{
+		Server: ServerConfig{Host: "0.0.0.0", Port: "8080"},
+		Database: DatabaseConfig{
+			Backend:    "sqlite",
+			SQLitePath: "/tmp/goconnect.db",
+		},
+		JWT: JWTConfig{Secret: "this_is_a_very_secure_secret_key_with_at_least_32_chars"},
+		WireGuard: WireGuardConfig{
+			ServerEndpoint: "vpn.test.com:51820",
+			ServerPubKey:   "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789ABCDEFG=",
+		},
+	}
+}
 
 func TestLoad(t *testing.T) {
 	// Save original env
@@ -202,4 +218,118 @@ func TestSplitAndTrim(t *testing.T) {
 	assert.Equal(t, "http://localhost:3000", result[0])
 	assert.Equal(t, "http://localhost:5173", result[1])
 	assert.Equal(t, "http://example.com", result[2])
+}
+
+func TestConfigValidate_BackendVariants(t *testing.T) {
+	base := func() *Config {
+		return &Config{
+			Server: ServerConfig{Port: "8080"},
+			Database: DatabaseConfig{
+				Backend:    "postgres",
+				Host:       "localhost",
+				Port:       "5432",
+				User:       "user",
+				DBName:     "db",
+				SSLMode:    "disable",
+				SQLitePath: "data/test.db",
+			},
+			JWT: JWTConfig{Secret: "this_is_a_very_secure_secret_key_with_at_least_32_chars"},
+			WireGuard: WireGuardConfig{
+				ServerEndpoint: "vpn.test.com:51820",
+				ServerPubKey:   "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789ABCDEFG=",
+			},
+		}
+	}
+
+	t.Run("postgres requires host", func(t *testing.T) {
+		cfg := base()
+		cfg.Database.Host = ""
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "DB_HOST")
+	})
+
+	t.Run("sqlite requires path", func(t *testing.T) {
+		cfg := base()
+		cfg.Database.Backend = "sqlite"
+		cfg.Database.SQLitePath = ""
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "DB_SQLITE_PATH")
+	})
+
+	t.Run("memory skips db requirements", func(t *testing.T) {
+		cfg := base()
+		cfg.Database.Backend = "memory"
+		cfg.Database.Host = ""
+		cfg.Database.User = ""
+		cfg.Database.DBName = ""
+		err := cfg.Validate()
+		assert.NoError(t, err)
+	})
+
+	t.Run("invalid backend fails fast", func(t *testing.T) {
+		cfg := base()
+		cfg.Database.Backend = "mongo"
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid DB_BACKEND")
+	})
+}
+
+func TestLoadFromFileOrEnv_WithFileAndEnvOverride(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "goconnect.yaml")
+	yamlContent := `
+server:
+  host: "127.0.0.1"
+  port: "9090"
+database:
+  backend: "sqlite"
+  sqlite_path: "/tmp/test.db"
+jwt:
+  secret: "this_is_a_very_secure_secret_key_with_at_least_32_chars"
+wireguard:
+  server_endpoint: "vpn.test.com:51820"
+  server_pubkey: "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789ABCDEFG="
+`
+	require.NoError(t, os.WriteFile(configPath, []byte(yamlContent), 0o600))
+
+	// Env override for server port
+	os.Setenv("SERVER_PORT", "9999")
+	defer os.Unsetenv("SERVER_PORT")
+
+	cfg, err := LoadFromFileOrEnv(configPath)
+	require.NoError(t, err)
+	assert.Equal(t, "9999", cfg.Server.Port)
+	assert.Equal(t, "127.0.0.1", cfg.Server.Host)
+	assert.Equal(t, "sqlite", cfg.Database.Backend)
+	assert.Equal(t, "/tmp/test.db", cfg.Database.SQLitePath)
+}
+
+func TestSaveToFileAndReload(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "saved.yaml")
+
+	cfg := baseValidConfig()
+	require.NoError(t, SaveToFile(&cfg, configPath))
+
+	reloaded, err := LoadFromFileOrEnv(configPath)
+	require.NoError(t, err)
+	assert.Equal(t, cfg.Database.Backend, reloaded.Database.Backend)
+	assert.Equal(t, cfg.Database.SQLitePath, reloaded.Database.SQLitePath)
+	assert.Equal(t, cfg.WireGuard.ServerPubKey, reloaded.WireGuard.ServerPubKey)
+	assert.Equal(t, cfg.Server.Port, reloaded.Server.Port)
+}
+
+func TestLoadFromFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "onlyfile.yaml")
+	cfg := baseValidConfig()
+	require.NoError(t, SaveToFile(&cfg, configPath))
+
+	loaded, err := LoadFromFile(configPath)
+	require.NoError(t, err)
+	assert.Equal(t, cfg.Database.Backend, loaded.Database.Backend)
+	assert.Equal(t, cfg.Database.SQLitePath, loaded.Database.SQLitePath)
 }

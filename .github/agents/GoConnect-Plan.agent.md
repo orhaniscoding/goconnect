@@ -2,7 +2,7 @@
 name: goconnect-plan
 description: Research and create detailed implementation plans for GoConnect VPN management system
 argument-hint: Describe the feature or task to plan
-tools: ['search', 'runSubagent', 'usages', 'problems', 'changes', 'testFailure', 'fetch', 'githubRepo']
+tools: ['runCommands', 'runTasks', '@allpepper/memory-bank-mcp/*', 'io.github.github/github-mcp-server/*', 'io.github.upstash/context7/*', 'octocode-mcp/*', 'new', 'extensions', 'todos', 'runSubagent']
 handoffs:
   - label: Start Implementation
     agent: goconnect-lead
