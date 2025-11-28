@@ -1,31 +1,39 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
-	"runtime"
-	"time"
 
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/api"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/engine"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/identity"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/system"
+	"github.com/kardianos/service"
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/config"
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/daemon" // Import the new daemon package
 )
 
 var (
-	version = "dev"
+	version = "dev" // This will be set by build flags
 	commit  = "none"
 	date    = "2025-09-22"
 	builtBy = "orhaniscoding"
 )
 
 func main() {
+	// Custom usage for service commands
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s <command>\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Commands:\n")
+		fmt.Fprintf(os.Stderr, "  run        Run the daemon directly (default if no command)\n")
+		fmt.Fprintf(os.Stderr, "  install    Install the daemon as a system service\n")
+		fmt.Fprintf(os.Stderr, "  uninstall  Uninstall the system service\n")
+		fmt.Fprintf(os.Stderr, "  start      Start the system service\n")
+		fmt.Fprintf(os.Stderr, "  stop       Stop the system service\n")
+		fmt.Fprintf(os.Stderr, "  -version   Print version and exit\n")
+		flag.PrintDefaults()
+	}
+
 	showVersion := flag.Bool("version", false, "print version and exit")
-	serverURL := flag.String("server", "http://localhost:8080", "GoConnect server URL")
 	flag.Parse()
 
 	if *showVersion {
@@ -33,146 +41,24 @@ func main() {
 		return
 	}
 
-	// Initialize Identity Manager
-	idMgr, err := identity.NewManager()
+	// Load configuration
+	cfgPath := config.DefaultConfigPath()
+	cfg, err := config.LoadConfig(cfgPath)
 	if err != nil {
-		log.Fatalf("failed to init identity manager: %v", err)
+		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	id, err := idMgr.LoadOrGenerate()
+	// Define platform specific service options
+	svcOptions := make(service.KeyValue)
+	
+	// Example: Set specific options for Windows
+	if service.Platform() == "windows" {
+		svcOptions["StartType"] = "automatic" // Start service automatically on boot
+		// You might add more Windows-specific options here if needed
+	}
+
+	err = daemon.RunDaemon(cfg, version, svcOptions) // Pass version to RunDaemon
 	if err != nil {
-		log.Fatalf("failed to load/generate identity: %v", err)
+		log.Fatalf("GoConnect Daemon failed: %v", err)
 	}
-	log.Printf("Device Identity: %s (Registered: %v)", id.PublicKey, id.DeviceID != "")
-
-	// Initialize API Client
-	apiClient := api.NewClient(*serverURL)
-
-	// Initialize and Start Engine
-	eng := engine.New(idMgr, apiClient, version)
-	eng.Start()
-	defer eng.Stop()
-
-	// Use a fixed port for now to simplify frontend discovery
-	port := 12345
-
-	// Setup Handlers
-	setupHandlers(idMgr, apiClient, eng)
-
-	addr := fmt.Sprintf("127.0.0.1:%d", port)
-	log.Printf("daemon bridge at http://%s", addr)
-	srv := &http.Server{
-		Addr:              addr,
-		ReadTimeout:       10 * time.Second,
-		ReadHeaderTimeout: 5 * time.Second,
-		WriteTimeout:      15 * time.Second,
-		IdleTimeout:       30 * time.Second,
-		Handler:           nil,
-	}
-	log.Fatal(srv.ListenAndServe())
-}
-
-func setupHandlers(idMgr *identity.Manager, apiClient *api.Client, eng *engine.Engine) {
-	// CORS middleware
-	cors := func(next http.HandlerFunc) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Access-Control-Allow-Origin", "*") // Dev only, restrict in prod
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-			if r.Method == "OPTIONS" {
-				w.WriteHeader(http.StatusOK)
-				return
-			}
-			next(w, r)
-		}
-	}
-
-	http.HandleFunc("/status", cors(func(w http.ResponseWriter, _ *http.Request) {
-		id := idMgr.Get()
-		w.Header().Set("Content-Type", "application/json")
-
-		// Get engine status
-		resp := eng.GetStatus()
-
-		// Enrich with identity info
-		resp["device"] = map[string]interface{}{
-			"registered": id.DeviceID != "",
-			"public_key": id.PublicKey,
-			"device_id":  id.DeviceID,
-		}
-
-		_ = json.NewEncoder(w).Encode(resp)
-	}))
-
-	http.HandleFunc("/register", cors(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		var req struct {
-			Token string `json:"token"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid request body", http.StatusBadRequest)
-			return
-		}
-
-		if req.Token == "" {
-			http.Error(w, "Token required", http.StatusBadRequest)
-			return
-		}
-
-		hostname, _ := os.Hostname()
-
-		// Register with server
-		regReq := api.RegisterDeviceRequest{
-			Name:      hostname,
-			Platform:  runtime.GOOS,
-			PubKey:    idMgr.Get().PublicKey,
-			HostName:  hostname,
-			OSVersion: system.GetOSVersion(),
-			DaemonVer: version,
-		}
-
-		resp, err := apiClient.Register(r.Context(), req.Token, regReq)
-		if err != nil {
-			log.Printf("Registration failed: %v", err)
-			http.Error(w, fmt.Sprintf("Registration failed: %v", err), http.StatusInternalServerError)
-			return
-		}
-
-		// Save device ID
-		if err := idMgr.Update(resp.ID, req.Token); err != nil {
-			log.Printf("Failed to save identity: %v", err)
-			http.Error(w, "Failed to save identity", http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{
-			"status":    "success",
-			"device_id": resp.ID,
-		})
-	}))
-
-	http.HandleFunc("/connect", cors(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		eng.Connect()
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "connected"})
-	}))
-
-	http.HandleFunc("/disconnect", cors(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		eng.Disconnect()
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "disconnected"})
-	}))
 }

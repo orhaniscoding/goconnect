@@ -11,32 +11,32 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
-// Manager handles WireGuard interface configuration
-type Manager struct {
+// Client handles WireGuard interface configuration
+type Client struct {
 	interfaceName string
-	client        *wgctrl.Client
+	wgClient      *wgctrl.Client // Renamed to avoid confusion with the package
 }
 
-// NewManager creates a new WireGuard manager
-func NewManager(interfaceName string) (*Manager, error) {
-	client, err := wgctrl.New()
+// NewClient creates a new WireGuard client
+func NewClient(interfaceName string) (*Client, error) {
+	wgClient, err := wgctrl.New()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create wgctrl client: %w", err)
 	}
 
-	return &Manager{
+	return &Client{
 		interfaceName: interfaceName,
-		client:        client,
+		wgClient:      wgClient,
 	}, nil
 }
 
 // Close closes the wgctrl client
-func (m *Manager) Close() error {
-	return m.client.Close()
+func (c *Client) Close() error {
+	return c.wgClient.Close()
 }
 
 // ApplyConfig applies the configuration to the WireGuard interface
-func (m *Manager) ApplyConfig(config *api.DeviceConfig, privateKey string) error {
+func (c *Client) ApplyConfig(config *api.DeviceConfig, privateKey string) error {
 	// Parse private key
 	key, err := wgtypes.ParseKey(privateKey)
 	if err != nil {
@@ -102,7 +102,17 @@ func (m *Manager) ApplyConfig(config *api.DeviceConfig, privateKey string) error
 		ReplacePeers: true,
 	}
 
-	return m.client.ConfigureDevice(m.interfaceName, cfg)
+	return c.wgClient.ConfigureDevice(c.interfaceName, cfg)
+}
+
+// Down brings down the WireGuard interface by removing all peers and resetting interface config
+func (c *Client) Down() error {
+    cfg := wgtypes.Config{
+        Peers:        []wgtypes.PeerConfig{}, // Remove all peers
+        ReplacePeers: true,
+		// Do not set PrivateKey or ListenPort as we only want to remove peers, not reconfigure the interface completely
+    }
+    return c.wgClient.ConfigureDevice(c.interfaceName, cfg)
 }
 
 // Status represents the WireGuard interface status
@@ -117,8 +127,8 @@ type Status struct {
 }
 
 // GetStatus retrieves the current interface status
-func (m *Manager) GetStatus() (*Status, error) {
-	dev, err := m.client.Device(m.interfaceName)
+func (c *Client) GetStatus() (*Status, error) {
+	dev, err := c.wgClient.Device(c.interfaceName)
 	if err != nil {
 		return &Status{Active: false}, nil // Interface likely doesn't exist
 	}

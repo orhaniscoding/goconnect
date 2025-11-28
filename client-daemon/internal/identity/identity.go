@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log" // Using log for now, will replace with service.Logger
 	"os"
 	"path/filepath"
 	"sync"
@@ -17,55 +18,59 @@ type Identity struct {
 	PrivateKey string `json:"private_key"`
 	PublicKey  string `json:"public_key"`
 	DeviceID   string `json:"device_id,omitempty"`
-	Token      string `json:"token,omitempty"` // Token to authenticate with server
+	// Token will now be stored in the OS Keyring, not in the identity file.
 }
 
 // Manager handles identity storage and generation
 type Manager struct {
-	configPath string
+	identityPath string // Path to the identity file
 	identity   *Identity
 	mu         sync.RWMutex
 }
 
-// NewManager creates a new identity manager
-func NewManager() (*Manager, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user home dir: %w", err)
-	}
-
-	configDir := filepath.Join(home, ".goconnect")
-	if err := os.MkdirAll(configDir, 0700); err != nil {
-		return nil, fmt.Errorf("failed to create config dir: %w", err)
-	}
-
+// NewManager creates a new identity manager.
+// It takes the identity file path from the main config.
+func NewManager(identityPath string) *Manager {
 	return &Manager{
-		configPath: filepath.Join(configDir, "device.json"),
-	}, nil
+		identityPath: identityPath,
+	}
 }
 
-// LoadOrGenerate loads the identity from disk or generates a new one
-func (m *Manager) LoadOrGenerate() (*Identity, error) {
+// LoadOrCreateIdentity loads the identity from disk or generates a new one if not found.
+// This function combines Load and Generate logic for simpler startup.
+func (m *Manager) LoadOrCreateIdentity() (*Identity, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Try to load
-	if err := m.load(); err == nil {
-		return m.identity, nil
+	// Ensure the directory for the identity file exists
+	dir := filepath.Dir(m.identityPath)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return nil, fmt.Errorf("failed to create identity directory %s: %w", dir, err)
 	}
 
-	// Generate new
+	// Try to load
+	if err := m.load(); err == nil {
+		log.Printf("Loaded existing device identity from %s", m.identityPath)
+		return m.identity, nil
+	} else if !os.IsNotExist(err) {
+		log.Printf("Failed to load identity from %s: %v", m.identityPath, err)
+	}
+
+	// Generate new if load failed or file didn't exist
+	log.Printf("Generating new device identity.")
 	if err := m.generate(); err != nil {
 		return nil, err
 	}
 
-	// Save
+	// Save the newly generated identity
 	if err := m.save(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to save new identity to %s: %w", m.identityPath, err)
 	}
 
+	log.Printf("Generated and saved new device identity with public key: %s", m.identity.PublicKey)
 	return m.identity, nil
 }
+
 
 // Get returns the current identity
 func (m *Manager) Get() *Identity {
@@ -75,7 +80,8 @@ func (m *Manager) Get() *Identity {
 }
 
 // Update updates the identity with server details and saves
-func (m *Manager) Update(deviceID, token string) error {
+// Token is no longer updated here, it's handled by KeyringStore.
+func (m *Manager) Update(deviceID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -84,13 +90,12 @@ func (m *Manager) Update(deviceID, token string) error {
 	}
 
 	m.identity.DeviceID = deviceID
-	m.identity.Token = token
 
 	return m.save()
 }
 
 func (m *Manager) load() error {
-	data, err := os.ReadFile(m.configPath)
+	data, err := os.ReadFile(m.identityPath)
 	if err != nil {
 		return err
 	}
@@ -114,7 +119,7 @@ func (m *Manager) save() error {
 		return err
 	}
 
-	return os.WriteFile(m.configPath, data, 0600)
+	return os.WriteFile(m.identityPath, data, 0600)
 }
 
 func (m *Manager) generate() error {

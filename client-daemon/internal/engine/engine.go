@@ -2,12 +2,15 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/kardianos/service"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/api"
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/config"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/identity"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/system"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/wireguard"
@@ -15,92 +18,119 @@ import (
 
 // Engine is the main daemon engine
 type Engine struct {
+	config    *config.Config
 	idMgr     *identity.Manager
 	apiClient *api.Client
-	wgMgr     *wireguard.Manager
+	wgClient  *wireguard.Client
 	sysConf   system.Configurator
 	hostsMgr  *system.HostsManager
 	stopChan  chan struct{}
-	version   string
+	logf      service.Logger
 	paused    bool
+	daemonVersion string
 }
 
-// New creates a new engine
-func New(idMgr *identity.Manager, apiClient *api.Client, version string) *Engine {
+// NewEngine creates a new engine
+func NewEngine(cfg *config.Config, idMgr *identity.Manager, wgClient *wireguard.Client, apiClient *api.Client, logger service.Logger) *Engine {
+	if logger == nil {
+		stdLogger := log.New(os.Stderr, "[goconnect-engine] ", log.LstdFlags)
+		logger = &fallbackServiceLogger{stdLogger}
+	}
+	
 	sysConf := system.NewConfigurator()
 	hostsMgr := system.NewHostsManager()
 
-	// Get interface name from env or default to wg0
-	ifaceName := os.Getenv("GOCONNECT_INTERFACE")
-	if ifaceName == "" {
-		ifaceName = "wg0"
-	}
-
-	// Ensure interface exists (Linux only mostly)
-	if err := sysConf.EnsureInterface(ifaceName); err != nil {
-		log.Printf("Warning: Failed to ensure interface %s: %v", ifaceName, err)
-	}
-
-	// Initialize WireGuard manager
-	wgMgr, err := wireguard.NewManager(ifaceName)
-	if err != nil {
-		log.Printf("Warning: Failed to initialize WireGuard manager: %v", err)
-	}
-
 	return &Engine{
+		config:    cfg,
 		idMgr:     idMgr,
 		apiClient: apiClient,
-		wgMgr:     wgMgr,
+		wgClient:  wgClient,
 		sysConf:   sysConf,
 		hostsMgr:  hostsMgr,
 		stopChan:  make(chan struct{}),
-		version:   version,
+		logf:      logger,
+		daemonVersion: "dev", // TODO: Get actual version from build flags
 	}
+}
+
+// fallbackServiceLogger provides a simple implementation of service.Logger using stdlib log.
+type fallbackServiceLogger struct {
+	*log.Logger
+}
+
+func (l *fallbackServiceLogger) Info(v ...interface{}) error {
+	l.Logger.Println("[INFO]", fmt.Sprintln(v...))
+	return nil
+}
+
+func (l *fallbackServiceLogger) Infof(format string, v ...interface{}) error {
+	l.Logger.Printf("[INFO] "+format, v...)
+	return nil
+}
+
+func (l *fallbackServiceLogger) Warning(v ...interface{}) error {
+	l.Logger.Println("[WARNING]", fmt.Sprintln(v...))
+	return nil
+}
+
+func (l *fallbackServiceLogger) Warningf(format string, v ...interface{}) error {
+	l.Logger.Printf("[WARNING] "+format, v...)
+	return nil
+}
+
+func (l *fallbackServiceLogger) Error(v ...interface{}) error {
+	l.Logger.Println("[ERROR]", fmt.Sprintln(v...))
+	return nil
+}
+
+func (l *fallbackServiceLogger) Errorf(format string, v ...interface{}) error {
+	l.Logger.Printf("[ERROR] "+format, v...)
+	return nil
 }
 
 // Start starts the engine
 func (e *Engine) Start() {
-	log.Println("Starting daemon engine...")
+	e.logf.Info("Starting daemon engine...")
 	go e.heartbeatLoop()
 	go e.configLoop()
 }
 
 // Stop stops the engine
 func (e *Engine) Stop() {
+	e.logf.Info("Stopping daemon engine...")
 	close(e.stopChan)
+	if e.wgClient != nil {
+		if err := e.wgClient.Down(); err != nil {
+			e.logf.Error("Failed to bring down WireGuard interface: ", err.Error())
+		}
+	}
+	e.logf.Info("Daemon engine stopped.")
 }
 
 // Connect enables the VPN connection
 func (e *Engine) Connect() {
+	e.logf.Info("Connecting VPN...")
 	e.paused = false
 	go e.syncConfig()
 }
 
 // Disconnect disables the VPN connection
 func (e *Engine) Disconnect() {
+	e.logf.Info("Disconnecting VPN...")
 	e.paused = true
-	// Clear WireGuard config (remove all peers)
-	if e.wgMgr != nil {
-		// Create empty config to clear peers
-		emptyConfig := &api.DeviceConfig{
-			Peers: []api.PeerConfig{},
-			Interface: api.InterfaceConfig{
-				// Keep current listen port or default
-				ListenPort: 51820,
-			},
-		}
-		id := e.idMgr.Get()
-		if err := e.wgMgr.ApplyConfig(emptyConfig, id.PrivateKey); err != nil {
-			log.Printf("Failed to clear WireGuard config: %v", err)
+	if e.wgClient != nil {
+		if err := e.wgClient.Down(); err != nil {
+			e.logf.Error("Failed to clear WireGuard config: ", err.Error())
+		} else {
+			e.logf.Info("WireGuard interface cleared successfully.")
 		}
 	}
 }
 
 func (e *Engine) configLoop() {
-	ticker := time.NewTicker(60 * time.Second)
+	ticker := time.NewTicker(e.config.Daemon.HealthCheckInterval) // Use config value
 	defer ticker.Stop()
 
-	// Initial sync
 	if !e.paused {
 		e.syncConfig()
 	}
@@ -112,6 +142,7 @@ func (e *Engine) configLoop() {
 				e.syncConfig()
 			}
 		case <-e.stopChan:
+			e.logf.Info("Config sync loop stopped.")
 			return
 		}
 	}
@@ -119,53 +150,49 @@ func (e *Engine) configLoop() {
 
 func (e *Engine) syncConfig() {
 	id := e.idMgr.Get()
-	if id.DeviceID == "" || id.Token == "" {
+	if id.DeviceID == "" { // Token is now in keyring, not in identity struct
+		e.logf.Info("Device not registered, skipping config sync.")
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	config, err := e.apiClient.GetConfig(ctx, id.DeviceID, id.Token)
+	config, err := e.apiClient.GetConfig(ctx, id.DeviceID) // No authToken needed here
 	if err != nil {
-		log.Printf("Config sync failed: %v", err)
+		e.logf.Error("Config sync failed: ", err.Error())
 		return
 	}
 
-	log.Printf("Received config: %d peers, %v addresses", len(config.Peers), config.Interface.Addresses)
+	e.logf.Infof("Received config: %d peers, %d addresses", len(config.Peers), len(config.Interface.Addresses))
 
-	if e.wgMgr != nil {
-		if err := e.wgMgr.ApplyConfig(config, id.PrivateKey); err != nil {
-			log.Printf("Failed to apply WireGuard config: %v", err)
+	if e.wgClient != nil {
+		if err := e.wgClient.ApplyConfig(config, id.PrivateKey); err != nil {
+			e.logf.Error("Failed to apply WireGuard config: ", err.Error())
 		} else {
-			log.Println("WireGuard configuration applied successfully")
+			e.logf.Info("WireGuard configuration applied successfully")
 
-			// Apply system network configuration (IPs, MTU)
-			if err := e.sysConf.ConfigureInterface("wg0", config.Interface.Addresses, config.Interface.DNS, config.Interface.MTU); err != nil {
-				log.Printf("Failed to configure network interface: %v", err)
+			if err := e.sysConf.ConfigureInterface(e.config.WireGuard.InterfaceName, config.Interface.Addresses, config.Interface.DNS, config.Interface.MTU); err != nil {
+				e.logf.Error("Failed to configure network interface: ", err.Error())
 			} else {
-				log.Println("Network interface configured successfully")
+				e.logf.Info("Network interface configured successfully")
 			}
 
-			// Apply routes
 			routes := make([]string, 0)
 			for _, peer := range config.Peers {
 				routes = append(routes, peer.AllowedIPs...)
 			}
 			if len(routes) > 0 {
-				if err := e.sysConf.AddRoutes("wg0", routes); err != nil {
-					log.Printf("Failed to add routes: %v", err)
+				if err := e.sysConf.AddRoutes(e.config.WireGuard.InterfaceName, routes); err != nil {
+					e.logf.Error("Failed to add routes: ", err.Error())
 				} else {
-					log.Printf("Added %d routes successfully", len(routes))
+					e.logf.Infof("Added %d routes successfully", len(routes))
 				}
 			}
 
-			// Update hosts file (MagicDNS Lite)
 			hostEntries := make([]system.HostEntry, 0)
 			for _, peer := range config.Peers {
 				if len(peer.AllowedIPs) > 0 {
-					// Use the first allowed IP (usually the device IP)
-					// Strip CIDR mask if present
 					ip := peer.AllowedIPs[0]
 					if idx := strings.Index(ip, "/"); idx != -1 {
 						ip = ip[:idx]
@@ -174,13 +201,13 @@ func (e *Engine) syncConfig() {
 					if peer.Name != "" {
 						hostEntries = append(hostEntries, system.HostEntry{
 							IP:       ip,
-							Hostname: peer.Name, // Use friendly name
+							Hostname: peer.Name,
 						})
 					}
 					if peer.Hostname != "" && peer.Hostname != peer.Name {
 						hostEntries = append(hostEntries, system.HostEntry{
 							IP:       ip,
-							Hostname: peer.Hostname, // Use actual hostname
+							Hostname: peer.Hostname,
 						})
 					}
 				}
@@ -188,9 +215,9 @@ func (e *Engine) syncConfig() {
 
 			if len(hostEntries) > 0 {
 				if err := e.hostsMgr.UpdateHosts(hostEntries); err != nil {
-					log.Printf("Failed to update hosts file: %v", err)
+					e.logf.Error("Failed to update hosts file: ", err.Error())
 				} else {
-					log.Printf("Updated hosts file with %d entries", len(hostEntries))
+					e.logf.Infof("Updated hosts file with %d entries", len(hostEntries))
 				}
 			}
 		}
@@ -201,12 +228,12 @@ func (e *Engine) syncConfig() {
 func (e *Engine) GetStatus() map[string]interface{} {
 	status := map[string]interface{}{
 		"running": true,
-		"version": e.version,
+		"version": e.daemonVersion,
 		"paused":  e.paused,
 	}
 
-	if e.wgMgr != nil {
-		wgStatus, err := e.wgMgr.GetStatus()
+	if e.wgClient != nil {
+		wgStatus, err := e.wgClient.GetStatus()
 		if err == nil {
 			status["wg"] = wgStatus
 		} else {
@@ -220,10 +247,9 @@ func (e *Engine) GetStatus() map[string]interface{} {
 }
 
 func (e *Engine) heartbeatLoop() {
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(e.config.Daemon.HealthCheckInterval)
 	defer ticker.Stop()
 
-	// Initial heartbeat
 	e.sendHeartbeat()
 
 	for {
@@ -231,6 +257,7 @@ func (e *Engine) heartbeatLoop() {
 		case <-ticker.C:
 			e.sendHeartbeat()
 		case <-e.stopChan:
+			e.logf.Info("Heartbeat loop stopped.")
 			return
 		}
 	}
@@ -238,8 +265,7 @@ func (e *Engine) heartbeatLoop() {
 
 func (e *Engine) sendHeartbeat() {
 	id := e.idMgr.Get()
-	if id.DeviceID == "" || id.Token == "" {
-		// Not registered yet, skip
+	if id.DeviceID == "" { // Token is now in keyring, not in identity struct
 		return
 	}
 
@@ -247,11 +273,11 @@ func (e *Engine) sendHeartbeat() {
 	defer cancel()
 
 	req := api.HeartbeatRequest{
-		DaemonVer: e.version,
+		DaemonVer: e.daemonVersion,
 		OSVersion: system.GetOSVersion(),
 	}
 
-	if err := e.apiClient.SendHeartbeat(ctx, id.DeviceID, id.Token, req); err != nil {
-		log.Printf("Heartbeat failed: %v", err)
+	if err := e.apiClient.SendHeartbeat(ctx, id.DeviceID, req); err != nil { // No authToken needed here
+		e.logf.Error("Heartbeat failed: ", err.Error())
 	}
 }

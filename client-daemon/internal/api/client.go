@@ -7,22 +7,39 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/config"
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/storage"
 )
 
 // Client handles communication with the GoConnect server
 type Client struct {
-	baseURL    string
+	config     *config.Config
+	keyring    *storage.KeyringStore
 	httpClient *http.Client
 }
 
 // NewClient creates a new API client
-func NewClient(baseURL string) *Client {
+func NewClient(cfg *config.Config) *Client {
 	return &Client{
-		baseURL: baseURL,
+		config:  cfg,
+		keyring: cfg.Keyring,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
 	}
+}
+
+// getAuthToken retrieves the authentication token from the keyring.
+func (c *Client) getAuthToken() (string, error) {
+	if c.keyring == nil {
+		return "", fmt.Errorf("keyring not initialized")
+	}
+	token, err := c.keyring.RetrieveAuthToken()
+	if err != nil {
+		return "", fmt.Errorf("failed to retrieve auth token: %w", err)
+	}
+	return token, nil
 }
 
 // RegisterDeviceRequest matches the server's request struct
@@ -45,31 +62,38 @@ type RegisterDeviceResponse struct {
 func (c *Client) Register(ctx context.Context, authToken string, req RegisterDeviceRequest) (*RegisterDeviceResponse, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/v1/devices", c.baseURL)
+	url := fmt.Sprintf("%s/v1/devices", c.config.Server.URL)
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(body))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create http request: %w", err)
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+authToken)
+	httpReq.Header.Set("Authorization", "Bearer "+authToken) // authToken is passed here explicitly
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to send http request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
+		// Attempt to read error message from response body
+		var errorBody struct {
+			Message string `json:"message"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&errorBody); err == nil && errorBody.Message != "" {
+			return nil, fmt.Errorf("registration failed: %s (status: %d)", errorBody.Message, resp.StatusCode)
+		}
 		return nil, fmt.Errorf("registration failed with status: %d", resp.StatusCode)
 	}
 
 	var result RegisterDeviceResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
 	return &result, nil
@@ -83,16 +107,21 @@ type HeartbeatRequest struct {
 }
 
 // SendHeartbeat sends a heartbeat to the server
-func (c *Client) SendHeartbeat(ctx context.Context, deviceID, authToken string, req HeartbeatRequest) error {
-	body, err := json.Marshal(req)
+func (c *Client) SendHeartbeat(ctx context.Context, deviceID string, req HeartbeatRequest) error {
+	authToken, err := c.getAuthToken()
 	if err != nil {
-		return err
+		return fmt.Errorf("heartbeat failed: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/v1/devices/%s/heartbeat", c.baseURL, deviceID)
+	body, err := json.Marshal(req)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/v1/devices/%s/heartbeat", c.config.Server.URL, deviceID)
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(body))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create http request: %w", err)
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
@@ -100,11 +129,18 @@ func (c *Client) SendHeartbeat(ctx context.Context, deviceID, authToken string, 
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to send http request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		// Attempt to read error message from response body
+		var errorBody struct {
+			Message string `json:"message"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&errorBody); err == nil && errorBody.Message != "" {
+			return fmt.Errorf("heartbeat failed: %s (status: %d)", errorBody.Message, resp.StatusCode)
+		}
 		return fmt.Errorf("heartbeat failed with status: %d", resp.StatusCode)
 	}
 
@@ -135,10 +171,15 @@ type PeerConfig struct {
 }
 
 // GetConfig retrieves the device configuration
-func (c *Client) GetConfig(ctx context.Context, deviceID, authToken string) (*DeviceConfig, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/v1/devices/%s/config", c.baseURL, deviceID), nil)
+func (c *Client) GetConfig(ctx context.Context, deviceID string) (*DeviceConfig, error) {
+	authToken, err := c.getAuthToken()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get config failed: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/v1/devices/%s/config", c.config.Server.URL, deviceID), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create http request: %w", err)
 	}
 
 	req.Header.Set("Authorization", "Bearer "+authToken)
@@ -146,17 +187,24 @@ func (c *Client) GetConfig(ctx context.Context, deviceID, authToken string) (*De
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to send http request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		// Attempt to read error message from response body
+		var errorBody struct {
+			Message string `json:"message"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&errorBody); err == nil && errorBody.Message != "" {
+			return nil, fmt.Errorf("failed to get config: %s (status: %d)", errorBody.Message, resp.StatusCode)
+		}
 		return nil, fmt.Errorf("server returned status %d", resp.StatusCode)
 	}
 
 	var config DeviceConfig
 	if err := json.NewDecoder(resp.Body).Decode(&config); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
 	return &config, nil
