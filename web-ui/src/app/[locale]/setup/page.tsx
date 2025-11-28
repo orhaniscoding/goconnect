@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react'
+'use client'
+
+import { useState, useEffect, type ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { useT } from '../lib/i18n-context'
-import { Button } from '../components/ui/button'
-import { Input } from '../components/ui/input'
-import { Label } from '../components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '../components/ui/card'
-import { getSetupStatus, persistConfig, type SetupStatus, type SetupConfig } from '../lib/api'
+import { useT } from '@/lib/i18n-context'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card'
+import { getSetupStatus, persistConfig, type SetupStatus, type SetupConfig } from '@/lib/api'
 import { toast } from 'sonner'
 import { Loader2, Check, Server, Shield, Database } from 'lucide-react'
 
@@ -51,8 +53,6 @@ export default function SetupPage() {
     setSaving(true)
     
     // Prepare config object
-    // In a real implementation, we would generate keys here or let the backend do it
-    // For now, we send a minimal config and rely on backend defaults/generation
     const config: SetupConfig = {
       server: {
         host: '0.0.0.0',
@@ -62,18 +62,12 @@ export default function SetupPage() {
       database: {
         backend: mode === 'personal' ? 'sqlite' : 'postgres',
         sqlite_path: 'data/goconnect.db',
-        // Enterprise fields would be collected if mode === 'enterprise'
       },
       jwt: {
-        // In a real app, these would be generated securely on the backend
-        // or we'd request generation. For this simplified wizard, 
-        // we assume the backend handles generation if empty/missing, 
-        // OR we generate a random string here.
         secret: generateRandomString(32),
       },
       wireguard: {
-        // Similarly, these should be auto-generated
-        private_key: 'GENERATE_ME', // Backend should handle this
+        private_key: 'GENERATE_ME',
         server_endpoint: 'auto',
         server_pubkey: 'GENERATE_ME',
         interface_name: 'wg0',
@@ -188,7 +182,7 @@ export default function SetupPage() {
                   id="email" 
                   type="email" 
                   value={adminEmail} 
-                  onChange={(e) => setAdminEmail(e.target.value)} 
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setAdminEmail(e.target.value)} 
                   placeholder="admin@example.com" 
                 />
               </div>
@@ -198,7 +192,7 @@ export default function SetupPage() {
                   id="password" 
                   type="password" 
                   value={adminPassword} 
-                  onChange={(e) => setAdminPassword(e.target.value)} 
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setAdminPassword(e.target.value)} 
                 />
               </div>
             </div>
@@ -212,7 +206,7 @@ export default function SetupPage() {
                 <Input 
                   id="netname" 
                   value={networkName} 
-                  onChange={(e) => setNetworkName(e.target.value)} 
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setNetworkName(e.target.value)} 
                   placeholder="My Private Network" 
                 />
               </div>

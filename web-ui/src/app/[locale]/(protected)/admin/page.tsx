@@ -1,8 +1,8 @@
 'use client'
 import { useEffect, useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { getUser, getAccessToken } from '../../../../lib/auth'
-import { useT } from '../../../../lib/i18n-context'
+import { getUser, getAccessToken } from '@/lib/auth'
+import { useT } from '@/lib/i18n-context'
 import {
   getSystemStats,
   listUsers,
@@ -14,17 +14,18 @@ import {
   deleteUser,
   deleteTenant,
   deleteDevice,
-  SystemStats,
-  AdminUser,
-  Tenant,
-  Network,
-  Device,
-  AuditLog
-} from '../../../../lib/api'
-import AuthGuard from '../../../../components/AuthGuard'
-import Footer from '../../../../components/Footer'
+  type SystemStats,
+  type AdminUser,
+  type Tenant,
+  type Network,
+  type Device,
+  type AuditLog
+} from '@/lib/api'
+import AuthGuard from '@/components/AuthGuard'
+import Footer from '@/components/Footer'
 
 export default function AdminPage() {
+  // ... (rest of the file remains exactly the same, just updating imports)
   const router = useRouter()
   const t = useT()
   const [currentUser, setCurrentUser] = useState<any>(null)
