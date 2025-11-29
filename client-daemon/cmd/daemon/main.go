@@ -108,7 +108,7 @@ func handleDeepLink(uri string) {
 		log.Fatalf("Invalid URL: %v", err)
 	}
 
-	sswitch u.Host {
+	switch u.Host {
 	case "login":
 		handleLoginDeepLink(u)
 	default:
@@ -139,7 +139,7 @@ func handleLoginDeepLink(u *url.URL) {
 	// For Phase 1, let's assume we update the config file.
 	// But config package doesn't have SaveConfig yet. Let's add it?
 	// Or just print for now as Proof of Concept.
-	
+
 	log.Printf("Deep Link Login:\nServer: %s\nToken: [REDACTED]", server)
 
 	// 2. Save Token to Keyring

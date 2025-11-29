@@ -100,10 +100,7 @@ export default function Dashboard() {
                 return
             }
 
-            await bridge('/register', {
-                method: 'POST',
-                body: JSON.stringify({ token })
-            })
+            await bridge.register(token)
 
             notification.success(t('dashboard.register.success'), t('dashboard.register.successMsg'))
             await refresh()
@@ -218,7 +215,7 @@ export default function Dashboard() {
                         {err && <p style={{ color: 'red' }}>{t('dashboard.status.error')}: {err}</p>}
                     </div>
 
-                    {status && !status.device.registered && (
+                    {status && !status.device?.registered && (
                         <button
                             onClick={handleRegister}
                             disabled={registering}
@@ -236,7 +233,7 @@ export default function Dashboard() {
                         </button>
                     )}
 
-                    {status && status.device.registered && (
+                    {status && status.device?.registered && (
                         <button
                             onClick={handleToggleConnection}
                             disabled={toggling}

@@ -1,123 +1,104 @@
-# GoConnect — Self-Hosted WireGuard VPN Management Platform
+# GoConnect — Virtual LAN Platform
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go)](https://go.dev/)
-[![Built with Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org/)
-[![Latest Release](https://img.shields.io/badge/version-v0.0.0-blue)](https://github.com/orhaniscoding/goconnect/releases)
+**GoConnect** is a cross-platform virtual LAN/overlay network system that makes people on the internet appear as if they are on the same local network, with a Discord-like community structure.
 
+> **Vision**: "Discord, but for networks."  
 > **Latest Release:** v0.0.0 · 2025-11-29  
 > **Author:** [@orhaniscoding](https://github.com/orhaniscoding)  
 > **License:** MIT
 
-**GoConnect** is a modern, production-ready WireGuard VPN management platform with multi-tenancy, real-time chat, device management, and comprehensive audit logging. Built with Go, Next.js, and PostgreSQL.
+## 🎯 Product Concept
 
-## ✨ Features
+### Core Architecture
+```
+TENANT (Server/Organization)
+├── Multiple Networks (Virtual LANs)
+├── Member Roles (Owner, Admin, Moderator, Member)
+├── Community Chat
+└── Invite System
 
-### 🔐 Core VPN Management
-- **WireGuard Integration**: Automated peer provisioning and configuration generation
-- **Multi-Network Support**: Create and manage multiple isolated VPN networks
-- **MagicDNS Lite**: Automatic hostname resolution via hosts file management
-- **IPAM (IP Address Management)**: Automatic IP allocation from CIDR ranges with conflict detection
-- **Device Management**: Register and track devices across platforms (Linux, Windows, macOS, iOS, Android)
-- **Peer-to-Peer Mesh**: Full mesh networking with automatic peer discovery
+NETWORK (Virtual LAN)
+├── WireGuard Mesh Networking
+├── IP Address Management
+├── Network Chat
+└── Member Access Control
 
-### 🏢 Multi-Tenancy & Access Control
-- **Complete Tenant Isolation**: Security-first architecture with enforced boundaries
-- **Role-Based Access Control (RBAC)**: Owner, Admin, Moderator, and Member roles
-- **Network Membership**: Flexible join policies (Open, Approval Required, Invite-Only)
-- **Join Request Workflow**: Approve/deny membership requests with audit trail
+CLIENT/DAEMON (User Device)
+├── WireGuard Integration
+├── Auto-connection
+└── Multi-network Support
+```
 
-### 💬 Real-Time Communication
-- **Built-in Chat**: Network-scoped and global chat with WebSocket support
-- **Message Moderation**: Redact, edit, and delete messages with full audit trail
-- **Edit History Tracking**: Complete message history with timestamps
-- **File Attachments**: Share files within chat (supported formats: images, docs, zip)
-- **Online Status**: Real-time online/offline status indicators for network members and chat users
+### User Experience
+- **Zero Configuration**: Paste server URL, login, connect
+- **Gaming Focus**: Perfect for Minecraft LAN, older games, file sharing
+- **Cross-Platform**: Windows, Linux, macOS (mobile later)
+- **Free Core**: Basic networking and tenant/network creation is free
 
-### 🔍 Observability & Security
-- **Comprehensive Audit Logging**: Immutable SQLite-backed audit log with hash chain integrity
-- **Metrics Export**: Prometheus-compatible metrics for monitoring
-- **Health Checks**: Readiness and liveness probes for container orchestration
-- **Rate Limiting**: Per-IP token bucket rate limiting (configurable)
-- **2FA Support**: TOTP-based two-factor authentication
-- **SSO Integration**: OAuth2/OIDC support (Google, GitHub, etc.)
+## 🏗️ Architecture
 
-### 🌐 Modern Tech Stack
-- **Backend**: Go 1.24+ with Gin web framework
+### Components
+1. **Server (Go)**: Central management hub with REST API
+2. **Client Daemon (Go)**: Lightweight agent running on user devices
+3. **Web UI (Next.js)**: Unified dashboard for management and chat
+
+### Technology Stack
+- **Backend**: Go 1.24+ with Gin framework
 - **Frontend**: Next.js 15 with TypeScript and Tailwind CSS
-- **Database**: PostgreSQL 15+ (docker-compose defaults to 15)
-- **Real-time**: WebSocket for live updates
-- **API**: RESTful JSON API with OpenAPI 3.0 specification
-- **i18n**: Multi-language support (English, Turkish)
+- **Database**: PostgreSQL (production), SQLite (development)
+- **Networking**: WireGuard for secure P2P connections
+- **Real-time**: WebSocket for chat and status updates
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- **Go** 1.24 or higher
-- **Node.js** 18+ and npm (for web UI)
-- **PostgreSQL** 15+ (optional, uses in-memory by default)
-- **Make** (optional but recommended)
+- Go 1.24+
+- Node.js 18+ and npm
+- PostgreSQL 15+ (optional)
 
-### Installation
+### Development Setup
 
-#### Using Make (Recommended)
 ```bash
 # Clone repository
 git clone https://github.com/orhaniscoding/goconnect.git
 cd goconnect
 
-# Install development tools
-make install-tools
-
-# Run all tests
-make test
-
 # Start server
-make dev-server
+cd server
+go run ./cmd/server
 
 # Start client daemon
-make dev-daemon
+cd ../client-daemon
+go run ./cmd/daemon
 
 # Start web UI
-make dev-web
-```
-
-#### Manual Setup
-
-**Server:**
-```bash
-cd server
-go mod download
-go run -ldflags "-X main.version=dev" ./cmd/server
-```
-
-**Client Daemon:**
-```bash
-cd client-daemon
-go mod download
-go run -ldflags "-X main.version=dev" ./cmd/daemon
-```
-
-**Web UI:**
-```bash
-cd web-ui
+cd ../web-ui
 npm install
 npm run dev
 ```
 
-### Docker Compose (Coming Soon)
+### Production Deployment
+
 ```bash
-docker-compose up -d
+# Build server
+cd server
+go build -o goconnect-server ./cmd/server
+
+# Build daemon
+cd ../client-daemon
+go build -o goconnect-daemon ./cmd/daemon
+
+# Build web UI
+cd ../web-ui
+npm run build
 ```
 
 ## 📖 Documentation
 
-- **[Technical Specification](docs/TECH_SPEC.md)** - Canonical project specification
-- **[API Examples](docs/API_EXAMPLES.http)** - HTTP request examples for testing
-- **[Contributing Guide](CONTRIBUTING.md)** - Development workflow and guidelines
+- **[Technical Specification](docs/TECH_SPEC.md)** - Complete technical details
+- **[API Documentation](server/openapi/openapi.yaml)** - REST API reference
 - **[Security Policy](docs/SECURITY.md)** - Security best practices
-- **[Configuration Flags](docs/CONFIG_FLAGS.md)** - Environment variables and flags
-- **[OpenAPI Specification](server/openapi/openapi.yaml)** - Complete API documentation
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment
 
 ## 🔧 Configuration
 
@@ -125,30 +106,20 @@ docker-compose up -d
 
 **Server:**
 ```bash
-# Server
 PORT=8080
-
-# Rate Limiting
-RATE_LIMIT_CAPACITY=5       # Requests per window
-RATE_LIMIT_WINDOW=1s        # Time window
-
-# Audit (SQLite)
-AUDIT_SQLITE_DSN=audit.db
-AUDIT_HASH_SECRETS_B64=<base64-secrets>
-AUDIT_MAX_ROWS=10000
-AUDIT_MAX_AGE_SECONDS=2592000  # 30 days
-AUDIT_SIGNING_KEY_ED25519_B64=<base64-key>
+DATABASE_URL=postgresql://user:pass@localhost/goconnect
+WIREGUARD_INTERFACE=wg0
 ```
 
 **Client Daemon:**
 ```bash
-# Daemon Configuration
 GOCONNECT_SERVER_URL=http://localhost:8080
 GOCONNECT_API_TOKEN=<your-token>
 ```
 
-See [CONFIG_FLAGS.md](docs/CONFIG_FLAGS.md) for complete reference.
+## 🏢 License
 
+<<<<<<< HEAD
 ## 🏗️ Architecture
 
 ```
@@ -470,3 +441,10 @@ SOFTWARE.
 ---
 
 **Built with ❤️ by orhaniscoding** | Latest Release: v0.0.0 (2025-11-29)
+=======
+MIT License - see [LICENSE](LICENSE) file for details.
+
+---
+
+**Built with ❤️ for gamers and communities**
+>>>>>>> aeb0c86 (feat: Complete GoConnect architecture cleanup and product-ready implementation)

@@ -73,7 +73,7 @@ export default function DevicesPage() {
 
   const checkLocalDaemon = async () => {
     try {
-      const status = await bridge('/status')
+      const status = await bridge.getStatus()
       setLocalDaemonStatus(status)
     } catch (e) {
       // Daemon not running, ignore
@@ -91,10 +91,7 @@ export default function DevicesPage() {
       }
 
       // Call local bridge to register
-      await bridge('/register', {
-        method: 'POST',
-        body: JSON.stringify({ token })
-      })
+      await bridge.register(token)
 
       notification.success(t('devices.success.registered'), t('devices.success.registeredMsg'))
 

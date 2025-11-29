@@ -5,7 +5,6 @@ package system
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"golang.org/x/sys/windows/registry"
 )
@@ -48,7 +47,7 @@ func (h *windowsProtocolHandler) Register(scheme string, command string) error {
 	}
 
 	// HKCR\goconnect\shell\open\command
-	cmdKey, _, err := registry.CreateKey(key, "shell\open\command", registry.ALL_ACCESS)
+	cmdKey, _, err := registry.CreateKey(key, `shell\open\command`, registry.ALL_ACCESS)
 	if err != nil {
 		return fmt.Errorf("failed to create command key: %w", err)
 	}

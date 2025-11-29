@@ -16,6 +16,10 @@ export interface DaemonStatus {
   wg?: {
     active: boolean
     error?: string
+    peers?: number
+    total_rx?: number
+    total_tx?: number
+    last_handshake?: string
   }
 }
 
@@ -38,11 +42,11 @@ class BridgeClient {
       try {
         const controller = new AbortController()
         const timeoutId = setTimeout(() => controller.abort(), 500) // Fast scan
-        
+
         const res = await fetch(`http://127.0.0.1:${port}/status`, {
           signal: controller.signal
         }).catch(() => null)
-        
+
         clearTimeout(timeoutId)
 
         if (res && res.ok) {

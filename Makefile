@@ -1,164 +1,138 @@
-.PHONY: help dev test test-all test-coverage lint build clean install-tools
+# GoConnect Makefile
 
-## help: Display this help message
+.PHONY: help build test clean dev-server dev-daemon dev-web
+
+# Default target
 help:
-	@echo "GoConnect - Monorepo Management"
+	@echo "GoConnect Development Commands:"
 	@echo ""
-	@echo "Available commands:"
+	@echo "Development:"
+	@echo "  dev-server    Start the GoConnect server"
+	@echo "  dev-daemon    Start the client daemon"
+	@echo "  dev-web       Start the web UI"
+	@echo "  dev           Start all components"
 	@echo ""
-	@sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' | sed -e 's/^/ /'
+	@echo "Building:"
+	@echo "  build         Build all components"
+	@echo "  build-server  Build server binary"
+	@echo "  build-daemon  Build daemon binary"
+	@echo "  build-web     Build web UI"
 	@echo ""
-	@echo "Component-specific commands:"
-	@echo "  make -C server <command>        - Run command in server/"
-	@echo "  make -C client-daemon <command> - Run command in client-daemon/"
-	@echo "  make -C web-ui <command>        - Run command in web-ui/ (if Makefile exists)"
+	@echo "Testing:"
+	@echo "  test          Run all tests"
+	@echo "  test-server   Run server tests"
+	@echo "  test-daemon   Run daemon tests"
+	@echo "  test-web      Run web UI tests"
+	@echo ""
+	@echo "Utilities:"
+	@echo "  clean         Clean build artifacts"
+	@echo "  lint          Run linters"
 
-## dev-server: Run server in development mode
+# Development targets
 dev-server:
-	@echo "Starting GoConnect Server..."
-	$(MAKE) -C server dev
+	@echo "Starting GoConnect server..."
+	cd server && go run ./cmd/server
 
-## dev-daemon: Run client daemon in development mode
 dev-daemon:
-	@echo "Starting GoConnect Client Daemon..."
-	$(MAKE) -C client-daemon dev
+	@echo "Starting client daemon..."
+	cd client-daemon && go run ./cmd/daemon
 
-## dev-web: Run web UI in development mode
 dev-web:
-	@echo "Starting GoConnect Web UI..."
+	@echo "Starting web UI..."
 	cd web-ui && npm run dev
 
-## test: Run tests for all Go components
-test:
-	@echo "Running server tests..."
-	$(MAKE) -C server test
+dev: ## Start all development components
+	@echo "Starting all GoConnect components..."
+	@echo "Note: Run each service in separate terminals for development"
 	@echo ""
-	@echo "Running client-daemon tests..."
-	$(MAKE) -C client-daemon test
+	@echo "Terminal 1: make dev-server"
+	@echo "Terminal 2: make dev-daemon"  
+	@echo "Terminal 3: make dev-web"
 
-## test-race: Run tests with race detector for all Go components
-test-race:
-	@echo "Running server tests with race detector..."
-	$(MAKE) -C server test-race
-	@echo ""
-	@echo "Running client-daemon tests with race detector..."
-	$(MAKE) -C client-daemon test-race
+# Build targets
+build: build-server build-daemon build-web
 
-## test-coverage: Run coverage tests for all components
-test-coverage:
-	@echo "=== Server Coverage ==="
-	$(MAKE) -C server test-coverage
-	@echo ""
-	@echo "=== Client Daemon Coverage ==="
-	$(MAKE) -C client-daemon test-coverage
-	@echo ""
-	@echo "✅ All coverage checks passed!"
-
-## lint: Run linters for all components
-lint:
-	@echo "Linting server..."
-	$(MAKE) -C server lint
-	@echo ""
-	@echo "Linting client-daemon..."
-	$(MAKE) -C client-daemon lint
-	@echo ""
-	@echo "Linting web-ui..."
-	cd web-ui && npm run lint --if-present || echo "No lint script defined"
-
-## vet: Run go vet for all Go components
-vet:
-	@echo "Vetting server..."
-	$(MAKE) -C server vet
-	@echo ""
-	@echo "Vetting client-daemon..."
-	$(MAKE) -C client-daemon vet
-
-## build: Build all components
-build:
+build-server:
 	@echo "Building server..."
-	$(MAKE) -C server build
-	@echo ""
-	@echo "Building client-daemon..."
-	$(MAKE) -C client-daemon build
-	@echo ""
-	@echo "Building web-ui..."
+	cd server && go build -o goconnect-server ./cmd/server
+
+build-daemon:
+	@echo "Building daemon..."
+	cd client-daemon && go build -o goconnect-daemon ./cmd/daemon
+
+build-web:
+	@echo "Building web UI..."
 	cd web-ui && npm run build
-	@echo ""
-	@echo "✅ All components built successfully!"
 
-## build-all: Build binaries for all platforms
-build-all:
-	@echo "Building server..."
-	$(MAKE) -C server build
-	@echo ""
-	@echo "Building client-daemon for all platforms..."
-	$(MAKE) -C client-daemon build-all
-	@echo ""
-	@echo "✅ All platform builds completed!"
+# Test targets
+test: test-server test-daemon test-web
 
-## clean: Clean all build artifacts
+test-server:
+	@echo "Running server tests..."
+	cd server && go test ./...
+
+test-daemon:
+	@echo "Running daemon tests..."
+	cd client-daemon && go test ./...
+
+test-web:
+	@echo "Running web UI tests..."
+	cd web-ui && npm test
+
+# Utility targets
 clean:
-	@echo "Cleaning server..."
-	$(MAKE) -C server clean
-	@echo "Cleaning client-daemon..."
-	$(MAKE) -C client-daemon clean
-	@echo "Cleaning web-ui..."
-	cd web-ui && rm -rf .next out
-	@echo "✅ All artifacts cleaned!"
+	@echo "Cleaning build artifacts..."
+	cd server && rm -f goconnect-server
+	cd client-daemon && rm -f goconnect-daemon
+	cd web-ui && rm -rf .next dist
 
-## install-tools: Install development tools
-install-tools:
-	@echo "Installing server tools..."
-	$(MAKE) -C server install-tools
-	@echo ""
-	@echo "Installing web-ui dependencies..."
-	cd web-ui && npm ci
-	@echo ""
-	@echo "✅ All tools installed!"
+lint:
+	@echo "Running linters..."
+	cd server && golangci-lint run
+	cd client-daemon && golangci-lint run
+	cd web-ui && npm run lint
 
-## ci: Run all CI checks (like GitHub Actions)
-ci: vet test-race test-coverage lint
-	@echo ""
-	@echo "=== CI Pipeline Complete ==="
-	@echo "✅ All checks passed!"
+# Installation targets
+install: build
+	@echo "Installing GoConnect..."
+	sudo cp server/goconnect-server /usr/local/bin/
+	sudo cp client-daemon/goconnect-daemon /usr/local/bin/
 
-## fmt: Format all Go code
-fmt:
-	@echo "Formatting server..."
-	$(MAKE) -C server fmt
-	@echo "Formatting client-daemon..."
-	$(MAKE) -C client-daemon fmt
+# Docker targets
+docker-build:
+	@echo "Building Docker images..."
+	docker build -t goconnect-server ./server
+	docker build -t goconnect-daemon ./client-daemon
 
-## tidy: Tidy all Go modules
-tidy:
-	@echo "Tidying server modules..."
-	$(MAKE) -C server tidy
-	@echo "Tidying client-daemon modules..."
-	$(MAKE) -C client-daemon tidy
-	@echo "Syncing go.work..."
-	go work sync
+docker-run:
+	@echo "Running Docker containers..."
+	docker-compose up -d
 
-## version: Show version information
+# Database targets
+db-migrate:
+	@echo "Running database migrations..."
+	cd server && go run ./cmd/server --migrate
+
+db-reset:
+	@echo "Resetting database..."
+	cd server && rm -f *.db
+	$(MAKE) db-migrate
+
+# Release targets
+release: clean test lint build
+	@echo "Creating release..."
+	@echo "TODO: Add release automation"
+
+# Development setup
+setup:
+	@echo "Setting up development environment..."
+	cd web-ui && npm install
+	cd server && go mod download
+	cd client-daemon && go mod download
+	@echo "Development environment ready!"
+
+# Version info
 version:
-	@echo "GoConnect Version Information:"
-	@echo ""
-	@cd server && go run ./cmd/server --version 2>/dev/null || echo "Server: dev"
-	@cd client-daemon && go run ./cmd/daemon --version 2>/dev/null || echo "Daemon: dev"
-
-## status: Check status of all components
-status:
-	@echo "=== GoConnect Project Status ==="
-	@echo ""
-	@echo "Server:"
-	@cd server && go list -m && go version
-	@echo ""
-	@echo "Client Daemon:"
-	@cd client-daemon && go list -m && go version
-	@echo ""
-	@echo "Web UI:"
-	@cd web-ui && node --version && npm --version
-	@echo ""
-	@echo "Git:"
-	@git branch --show-current
-	@git log -1 --oneline
-
+	@echo "GoConnect Version:"
+	@echo "Server: $$(cd server && go run ./cmd/server --version 2>/dev/null || echo 'dev')"
+	@echo "Daemon: $$(cd client-daemon && go run ./cmd/daemon --version 2>/dev/null || echo 'dev')"

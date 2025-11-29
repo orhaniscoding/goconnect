@@ -97,3 +97,4 @@ release/
 .gemini*
 .codex*
 gha-creds-*.json
+.windsurf*
