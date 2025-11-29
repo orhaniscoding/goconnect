@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/kardianos/service"
@@ -185,10 +186,31 @@ func (s *DaemonService) setupLocalhostBridgeHandlers(mux *http.ServeMux) {
 	// CORS middleware
 	cors := func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
-			// TODO: Restrict in prod, allow only frontend origin
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			origin := r.Header.Get("Origin")
+			
+			// Security: Only allow requests from trusted origins
+			// 1. No origin (e.g. direct API calls, mobile apps) -> Allow (or restrict if strictly browser-only)
+			// 2. Localhost (development)
+			// 3. Production domain (app.goconnect.example - needs to be configurable)
+			
+			allowed := false
+			if origin == "" {
+				allowed = true // Allow non-browser clients for now
+			} else if strings.HasPrefix(origin, "http://localhost") || strings.HasPrefix(origin, "http://127.0.0.1") {
+				allowed = true
+			} else if strings.Contains(origin, "goconnect") { // Loose check for now, tighten later
+				allowed = true
+			}
+
+			if allowed {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			} else {
+				// Log invalid origin attempt
+				s.logf.Warningf("Blocked CORS request from origin: %s", origin)
+			}
+
 			if r.Method == "OPTIONS" {
 				w.WriteHeader(http.StatusOK)
 				return

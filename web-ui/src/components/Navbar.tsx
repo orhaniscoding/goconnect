@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams, usePathname } from 'next/navigation'
 import { getUser, clearAuth } from '../lib/auth'
 import { useT } from '../lib/i18n-context'
+import { useDaemon } from '@/contexts/DaemonContext'
 
 interface NavItem {
   key: string
@@ -32,6 +33,7 @@ export default function Navbar() {
   const pathname = usePathname()
   const t = useT()
   const locale = (params.locale as string) || 'en'
+  const { status: daemonStatus, loading: daemonLoading } = useDaemon()
 
   const [user, setUser] = useState<any>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -141,6 +143,31 @@ export default function Navbar() {
 
         {/* User Menu */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* Daemon Status Indicator */}
+          <div 
+            title={daemonStatus ? `Daemon v${daemonStatus.version}` : "Daemon not detected"}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '4px 8px',
+              backgroundColor: 'rgba(0,0,0,0.2)',
+              borderRadius: 12,
+              fontSize: 12
+            }}
+          >
+            <div style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              backgroundColor: daemonLoading ? '#fca5a5' : (daemonStatus ? '#4ade80' : '#ef4444'),
+              boxShadow: daemonStatus ? '0 0 8px #4ade80' : 'none'
+            }} />
+            <span style={{ color: '#d1d5db', fontSize: 11 }}>
+              {daemonLoading ? t('footer.daemon.connecting') : (daemonStatus ? "Daemon Active" : t('footer.daemon.disconnected'))}
+            </span>
+          </div>
+
           {user && (
             <span style={{ color: '#9ca3af', fontSize: 13 }}>
               {user.name || user.email}

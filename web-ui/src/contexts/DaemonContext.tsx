@@ -1,80 +1,86 @@
 'use client'
-import React, { createContext, useContext, useEffect, useState } from 'react'
-import { bridge } from '../lib/bridge'
 
-interface DaemonStatus {
-    running: boolean
-    version: string
-    paused?: boolean
-    wg: {
-        active: boolean
-        error?: string
-        [key: string]: any
-    }
-    device: {
-        registered: boolean
-        public_key: string
-        device_id: string
-    }
-}
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { bridge, DaemonStatus } from '@/lib/bridge'
 
 interface DaemonContextType {
-    status: DaemonStatus | null
-    error: string | null
-    isLoading: boolean
-    refresh: () => Promise<void>
-    connect: () => Promise<void>
-    disconnect: () => Promise<void>
+  status: DaemonStatus | null
+  loading: boolean
+  error: string | null
+  refresh: () => Promise<void>
+  connect: () => Promise<void>
+  disconnect: () => Promise<void>
+  register: (token: string) => Promise<void>
 }
 
 const DaemonContext = createContext<DaemonContextType | undefined>(undefined)
 
-export function DaemonProvider({ children }: { children: React.ReactNode }) {
-    const [status, setStatus] = useState<DaemonStatus | null>(null)
-    const [error, setError] = useState<string | null>(null)
-    const [isLoading, setIsLoading] = useState(true)
+export function DaemonProvider({ children }: { children: ReactNode }) {
+  const [status, setStatus] = useState<DaemonStatus | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-    const fetchStatus = async () => {
-        try {
-            const data = await bridge('/status')
-            setStatus(data)
-            setError(null)
-        } catch (err) {
-            // console.error('Failed to fetch daemon status:', err)
-            setError('Failed to connect to local daemon')
-            setStatus(null)
-        } finally {
-            setIsLoading(false)
-        }
+  const refresh = async () => {
+    try {
+      const s = await bridge.getStatus()
+      setStatus(s)
+      setError(null)
+    } catch (e) {
+      setStatus(null)
+      // Don't set error string on polling fail to avoid UI spam, just set status null
+    } finally {
+      setLoading(false)
     }
+  }
 
-    const connect = async () => {
-        await bridge('/connect', { method: 'POST' })
-        await fetchStatus()
+  useEffect(() => {
+    refresh()
+    // Poll every 5 seconds
+    const interval = setInterval(refresh, 5000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const connect = async () => {
+    try {
+      await bridge.connect()
+      await refresh()
+    } catch (e: any) {
+      setError(e.message)
+      throw e
     }
+  }
 
-    const disconnect = async () => {
-        await bridge('/disconnect', { method: 'POST' })
-        await fetchStatus()
+  const disconnect = async () => {
+    try {
+      await bridge.disconnect()
+      await refresh()
+    } catch (e: any) {
+      setError(e.message)
+      throw e
     }
+  }
 
-    useEffect(() => {
-        fetchStatus()
-        const interval = setInterval(fetchStatus, 5000)
-        return () => clearInterval(interval)
-    }, [])
+  const register = async (token: string) => {
+    try {
+      await bridge.register(token)
+      await refresh()
+    } catch (e: any) {
+      setError(e.message)
+      throw e
+    }
+  }
 
-    return (
-        <DaemonContext.Provider value={{ status, error, isLoading, refresh: fetchStatus, connect, disconnect }}>
-            {children}
-        </DaemonContext.Provider>
-    )
+  return (
+    <DaemonContext.Provider value={{ status, loading, error, refresh, connect, disconnect, register }}>
+      {children}
+    </DaemonContext.Provider>
+  )
 }
 
 export function useDaemon() {
-    const context = useContext(DaemonContext)
-    if (context === undefined) {
-        throw new Error('useDaemon must be used within a DaemonProvider')
-    }
-    return context
+  const context = useContext(DaemonContext)
+  if (context === undefined) {
+    throw new Error('useDaemon must be used within a DaemonProvider')
+  }
+  return context
 }
