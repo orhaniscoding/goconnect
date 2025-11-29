@@ -5,7 +5,7 @@
 [![Built with Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org/)
 [![Latest Release](https://img.shields.io/badge/version-v0.0.0-blue)](https://github.com/orhaniscoding/goconnect/releases)
 
-> **Latest Release:** v0.0.0 · 2025-11-28  
+> **Latest Release:** v0.0.0 · 2025-11-29  
 > **Author:** [@orhaniscoding](https://github.com/orhaniscoding)  
 > **License:** MIT
 
@@ -298,7 +298,7 @@ go test ./internal/integration -v
 
 ### Code Coverage
 
-Current coverage (as of 2025-11-28):
+Current coverage (as of 2025-11-29):
 - **audit**: 79.7%
 - **config**: 87.7%
 - **handler**: 53.8%
@@ -469,4 +469,4 @@ SOFTWARE.
 
 ---
 
-**Built with ❤️ by orhaniscoding** | Latest Release: v0.0.0 (2025-11-28)
+**Built with ❤️ by orhaniscoding** | Latest Release: v0.0.0 (2025-11-29)
