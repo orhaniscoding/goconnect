@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -13,13 +13,16 @@ concurrency:
 jobs:
   server-daemon:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: ['1.24', '1.25']
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup Go
+      - name: Setup Go ${{ matrix.go-version }}
         uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          go-version: ${{ matrix.go-version }}
           cache-dependency-path: |
             server/go.sum
             client-daemon/go.sum
@@ -35,14 +38,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-server
+          name: coverage-server-${{ matrix.go-version }}
           path: server/coverage.out
           if-no-files-found: ignore
       - name: Upload daemon coverage
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-daemon
+          name: coverage-daemon-${{ matrix.go-version }}
           path: client-daemon/coverage.out
           if-no-files-found: ignore
 
@@ -63,6 +66,54 @@ jobs:
       - name: Typecheck
         run: npm run typecheck --if-present
         working-directory: web-ui
+      - name: Lint
+        run: npm run lint --if-present
+        working-directory: web-ui
       - name: Build
         run: npm run build --if-present
         working-directory: web-ui
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: [server-daemon, web-ui]
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: goconnect_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: server/go.sum
+      - name: Wait for services
+        run: sleep 30
+      - name: Run integration tests
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/goconnect_test?sslmode=disable
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-secret-for-ci
+        run: |
+          go test ./internal/integration -v -timeout=5m
+        working-directory: server
