@@ -6,7 +6,7 @@ GoConnect's desktop application. Create networks (host) or join existing network
 
 - 🌐 **Create Network** - Start your own virtual LAN
 - 🔗 **Join Network** - One-click join via invite link
-- 💬 **Chat** - Discord-like text channels
+- 💬 **Chat** - Built-in text channels
 - 👥 **Member Management** - Invite, kick, ban
 - 🎨 **Modern UI** - Dark theme, user-friendly
 

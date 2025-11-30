@@ -1,6 +1,6 @@
 # 🔗 GoConnect
 
-> **"Discord, but for networks."**
+> **"Virtual LAN made simple."**
 
 GoConnect is a user-friendly virtual LAN platform that makes devices on the internet appear as if they're on the same local network.
 
@@ -32,18 +32,18 @@ GoConnect is a **single application** that lets you:
 
 - 🌐 **Create a network** - Host your own private LAN party
 - 🔗 **Join networks** - Connect with one click via invite link
-- 💬 **Chat** - Discord-like text channels
+- 💬 **Chat** - Modern text channels
 - 🎮 **Play games** - LAN games over the internet
 
-### Discord vs GoConnect
+### What Makes GoConnect Different?
 
-| Discord | GoConnect |
-|---------|-----------|
-| Voice/Video servers | **Network servers** |
-| Voice channels | **Virtual LANs** |
-| Create server | **Create network** |
-| Join server | **Connect to network** |
-| Text channels | **Text channels** ✓ |
+| Traditional VPN | GoConnect |
+|-----------------|-----------|
+| Complex setup | **One-click setup** |
+| Central server bottleneck | **Peer-to-peer** |
+| Technical knowledge required | **User-friendly** |
+| Single network | **Multiple networks** |
+| No built-in chat | **Integrated chat** |
 
 ---
 
@@ -233,7 +233,7 @@ $ goconnect join gc://invite.goconnect.io/abc123
 |---------|-------------|
 | 🌐 **Create Network** | Create your own virtual LAN |
 | 🔗 **Join Network** | One-click join via invite link |
-| 💬 **Text Chat** | Discord-like chat channels |
+| 💬 **Text Chat** | Modern chat channels |
 | 👥 **Member Management** | Invite, kick, ban |
 | 🔒 **Secure Connection** | WireGuard encryption |
 | 🖥️ **Cross-Platform** | Windows, macOS, Linux |
@@ -264,7 +264,7 @@ GoConnect consists of three main components:
 │  │                                                      │    │
 │  │  • Desktop application (Windows/macOS/Linux)        │    │
 │  │  • Can be both host and client                      │    │
-│  │  • Modern Discord-like interface                    │    │
+│  │  • Modern user-friendly interface             │    │
 │  │  • Runs in system tray                              │    │
 │  └─────────────────────────────────────────────────────┘    │
 │                            │                                 │

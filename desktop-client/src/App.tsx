@@ -124,7 +124,7 @@ function App() {
         <div className="bg-gc-dark-800 p-8 rounded-lg shadow-xl w-[400px]">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-white mb-2">GoConnect</h1>
-            <p className="text-gray-400">Discord, but for networks</p>
+            <p className="text-gray-400">Virtual LAN made simple</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -197,7 +197,7 @@ function App() {
     );
   }
 
-  // Main App Screen (Discord-like layout)
+  // Main App Screen
   return (
     <div className="h-screen w-screen flex bg-gc-dark-700">
       {/* Server/Tenant Sidebar (Left) */}
@@ -215,8 +215,8 @@ function App() {
             key={tenant.id}
             onClick={() => handleSelectTenant(tenant)}
             className={`relative w-12 h-12 rounded-2xl hover:rounded-xl transition-all flex items-center justify-center text-2xl ${selectedTenant?.id === tenant.id
-                ? "bg-gc-primary rounded-xl"
-                : "bg-gc-dark-700 hover:bg-gc-primary"
+              ? "bg-gc-primary rounded-xl"
+              : "bg-gc-dark-700 hover:bg-gc-primary"
               }`}
             title={tenant.name}
           >
@@ -264,8 +264,8 @@ function App() {
                   key={network.id}
                   onClick={() => setSelectedNetwork(network)}
                   className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer ${selectedNetwork?.id === network.id
-                      ? "bg-gc-dark-600 text-white"
-                      : "text-gray-400 hover:text-white hover:bg-gc-dark-700"
+                    ? "bg-gc-dark-600 text-white"
+                    : "text-gray-400 hover:text-white hover:bg-gc-dark-700"
                     }`}
                 >
                   <span className={`w-2 h-2 rounded-full ${network.connected ? "bg-gc-green" : "bg-gray-500"
@@ -326,8 +326,8 @@ function App() {
               <button
                 onClick={() => handleToggleConnection(selectedNetwork)}
                 className={`px-4 py-1.5 rounded text-sm font-medium transition ${selectedNetwork.connected
-                    ? "bg-gc-red hover:bg-gc-red/80 text-white"
-                    : "bg-gc-green hover:bg-gc-green/80 text-white"
+                  ? "bg-gc-red hover:bg-gc-red/80 text-white"
+                  : "bg-gc-green hover:bg-gc-green/80 text-white"
                   }`}
               >
                 {selectedNetwork.connected ? "Disconnect" : "Connect"}

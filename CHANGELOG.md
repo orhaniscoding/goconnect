@@ -18,7 +18,7 @@ This release completely redesigns GoConnect. Now with a **single application** y
 * **Unified App:** Single application, both host and client
 * **Desktop Client:** Tauri-based desktop application (Windows, macOS, Linux)
 * **Terminal CLI:** Interactive terminal interface (Bubbletea)
-* **Discord-like UI:** Modern, user-friendly interface
+* **Modern UI:** Clean, user-friendly interface
 * **Simple Installation:** Download → Open → Use
 * **Invite System:** One-click join via `gc://` protocol
 * **Complete Documentation:** Comprehensive guides and docs
