@@ -27,10 +27,10 @@ export interface Network {
     subnet: string;
     connected: boolean;
     myIp?: string;
-    members: Member[];
+    clients: Client[];
 }
 
-export interface Member {
+export interface Client {
     id: string;
     name: string;
     ip: string;
@@ -85,7 +85,7 @@ interface AppState {
 
 export const useAppStore = create<AppState>()(
     persist(
-        (set, get) => ({
+        (set) => ({
             // Initial state
             user: null,
             isLoggedIn: false,

@@ -21,10 +21,10 @@ interface Network {
   subnet: string;
   connected: boolean;
   myIp?: string;
-  members: Member[];
+  clients: Client[];
 }
 
-interface Member {
+interface Client {
   id: string;
   name: string;
   ip: string;
@@ -58,19 +58,19 @@ const mockNetworks: Record<string, Network[]> = {
     {
       id: "n1", serverId: "1", name: "Minecraft LAN", subnet: "10.0.1.0/24",
       connected: true, myIp: "10.0.1.5",
-      members: [
-        { id: "m1", name: "Alice", ip: "10.0.1.1", status: "online", isHost: true },
-        { id: "m2", name: "Bob", ip: "10.0.1.2", status: "online", isHost: false },
-        { id: "m3", name: "You", ip: "10.0.1.5", status: "online", isHost: false },
+      clients: [
+        { id: "c1", name: "Alice", ip: "10.0.1.1", status: "online", isHost: true },
+        { id: "c2", name: "Bob", ip: "10.0.1.2", status: "online", isHost: false },
+        { id: "c3", name: "You", ip: "10.0.1.5", status: "online", isHost: false },
       ]
     },
-    { id: "n2", serverId: "1", name: "Valorant Party", subnet: "10.0.2.0/24", connected: false, members: [] },
+    { id: "n2", serverId: "1", name: "Valorant Party", subnet: "10.0.2.0/24", connected: false, clients: [] },
   ],
   "2": [
-    { id: "n3", serverId: "2", name: "Office VPN", subnet: "10.1.0.0/24", connected: false, members: [] },
+    { id: "n3", serverId: "2", name: "Office VPN", subnet: "10.1.0.0/24", connected: false, clients: [] },
   ],
   "3": [
-    { id: "n4", serverId: "3", name: "Movie Night", subnet: "10.2.0.0/24", connected: false, members: [] },
+    { id: "n4", serverId: "3", name: "Movie Night", subnet: "10.2.0.0/24", connected: false, clients: [] },
   ],
 };
 
@@ -229,7 +229,7 @@ function App() {
       name: newNetworkName.trim(),
       subnet: `10.${Math.floor(Math.random() * 255)}.0.0/24`,
       connected: false,
-      members: [],
+      clients: [],
     };
 
     setNetworks(prev => [...prev, newNetwork]);
@@ -398,7 +398,7 @@ function App() {
                 >
                   <span className={`w-2 h-2 rounded-full ${network.connected ? 'bg-green-500' : 'bg-gray-500'}`} />
                   <span className="flex-1 truncate">{network.name}</span>
-                  <span className="text-xs text-gray-500">{network.members.length}</span>
+                  <span className="text-xs text-gray-500">{network.clients.length}</span>
                 </button>
               ))}
 
@@ -477,31 +477,31 @@ function App() {
                     <div className="text-white font-mono">{selectedNetwork.subnet}</div>
                   </div>
                   <div>
-                    <div className="text-gray-400 text-sm">Members</div>
-                    <div className="text-white">{selectedNetwork.members.length} online</div>
+                    <div className="text-gray-400 text-sm">Clients</div>
+                    <div className="text-white">{selectedNetwork.clients.length} online</div>
                   </div>
                 </div>
               </div>
 
-              {selectedNetwork.connected && selectedNetwork.members.length > 0 && (
+              {selectedNetwork.connected && selectedNetwork.clients.length > 0 && (
                 <div className="bg-gc-dark-800 rounded-lg p-4">
-                  <h3 className="text-white font-medium mb-4">Online Members</h3>
+                  <h3 className="text-white font-medium mb-4">Online Clients</h3>
                   <div className="space-y-2">
-                    {selectedNetwork.members.map((member) => (
-                      <div key={member.id} className="flex items-center gap-3 p-2 rounded hover:bg-gc-dark-700">
+                    {selectedNetwork.clients.map((client) => (
+                      <div key={client.id} className="flex items-center gap-3 p-2 rounded hover:bg-gc-dark-700">
                         <div className="relative">
                           <div className="w-10 h-10 bg-gc-primary rounded-full flex items-center justify-center text-white">
-                            {member.name[0]}
+                            {client.name[0]}
                           </div>
                           <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gc-dark-800
-                            ${member.status === 'online' ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                            ${client.status === 'online' ? 'bg-green-500' : 'bg-yellow-500'}`} />
                         </div>
                         <div className="flex-1">
                           <div className="text-white flex items-center gap-2">
-                            {member.name}
-                            {member.isHost && <span className="text-xs bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded">Host</span>}
+                            {client.name}
+                            {client.isHost && <span className="text-xs bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded">Host</span>}
                           </div>
-                          <div className="text-gray-400 text-sm font-mono">{member.ip}</div>
+                          <div className="text-gray-400 text-sm font-mono">{client.ip}</div>
                         </div>
                         <button className="px-3 py-1 text-sm text-gray-400 hover:text-white hover:bg-gc-dark-600 rounded">Ping</button>
                       </div>
