@@ -99,6 +99,9 @@ function App() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showCreateNetwork, setShowCreateNetwork] = useState(false);
+  const [showServerSettings, setShowServerSettings] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [copiedInvite, setCopiedInvite] = useState(false);
 
   // Create Server form
   const [newServerName, setNewServerName] = useState("");
@@ -235,6 +238,41 @@ function App() {
     setShowCreateNetwork(false);
   };
 
+  // Handle delete server
+  const handleDeleteServer = () => {
+    if (!selectedServer) return;
+    setServers(prev => prev.filter(s => s.id !== selectedServer.id));
+    delete mockNetworks[selectedServer.id];
+    setSelectedServer(null);
+    setNetworks([]);
+    setSelectedNetwork(null);
+    setShowServerSettings(false);
+  };
+
+  // Handle leave server
+  const handleLeaveServer = () => {
+    if (!selectedServer) return;
+    setServers(prev => prev.filter(s => s.id !== selectedServer.id));
+    setSelectedServer(null);
+    setNetworks([]);
+    setSelectedNetwork(null);
+    setShowServerSettings(false);
+  };
+
+  // Generate invite link
+  const getInviteLink = () => {
+    if (!selectedServer) return "";
+    return `gc://join/${selectedServer.id.slice(0, 8)}`;
+  };
+
+  // Copy invite link
+  const handleCopyInvite = async () => {
+    const link = getInviteLink();
+    await navigator.clipboard.writeText(link);
+    setCopiedInvite(true);
+    setTimeout(() => setCopiedInvite(false), 2000);
+  };
+
   // ==========================================================================
   // Login Screen
   // ==========================================================================
@@ -332,13 +370,14 @@ function App() {
 
       {/* Channel Sidebar */}
       <div className="w-60 bg-gc-dark-800 flex flex-col">
-        <div className="h-12 px-4 flex items-center border-b border-gc-dark-900 shadow">
-          <h2 className="font-semibold text-white truncate">
+        <div className="h-12 px-4 flex items-center border-b border-gc-dark-900 shadow cursor-pointer hover:bg-gc-dark-700" onClick={() => selectedServer && setShowServerSettings(true)}>
+          <h2 className="font-semibold text-white truncate flex-1">
             {selectedServer?.name || "Home"}
           </h2>
           {selectedServer?.isOwner && (
             <span className="ml-2 text-xs bg-gc-primary/20 text-gc-primary px-2 py-0.5 rounded">Owner</span>
           )}
+          {selectedServer && <span className="ml-2 text-gray-400">⚙️</span>}
         </div>
 
         <div className="flex-1 overflow-y-auto p-2">
@@ -582,6 +621,99 @@ function App() {
               <button onClick={() => setShowCreateNetwork(false)} className="flex-1 py-2 bg-gc-dark-600 hover:bg-gc-dark-500 text-white rounded">Cancel</button>
               <button onClick={handleCreateNetwork} disabled={!newNetworkName.trim()} className="flex-1 py-2 bg-gc-primary hover:bg-gc-primary/80 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed">Create</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Server Settings Modal */}
+      {showServerSettings && selectedServer && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowServerSettings(false)}>
+          <div className="bg-gc-dark-800 rounded-lg p-6 w-[400px]" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-6">
+              <span className="text-4xl">{selectedServer.icon}</span>
+              <div>
+                <h2 className="text-xl font-bold text-white">{selectedServer.name}</h2>
+                <p className="text-gray-400 text-sm">{selectedServer.memberCount} members</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={() => { setShowServerSettings(false); setShowInviteModal(true); }}
+                className="w-full flex items-center gap-3 px-4 py-3 bg-gc-dark-700 hover:bg-gc-dark-600 rounded text-left"
+              >
+                <span>🔗</span>
+                <div>
+                  <div className="text-white">Invite People</div>
+                  <div className="text-gray-400 text-sm">Share the invite link</div>
+                </div>
+              </button>
+
+              {selectedServer.isOwner ? (
+                <button
+                  onClick={handleDeleteServer}
+                  className="w-full flex items-center gap-3 px-4 py-3 bg-red-500/10 hover:bg-red-500/20 rounded text-left text-red-400"
+                >
+                  <span>🗑️</span>
+                  <div>
+                    <div>Delete Server</div>
+                    <div className="text-red-400/70 text-sm">This cannot be undone</div>
+                  </div>
+                </button>
+              ) : (
+                <button
+                  onClick={handleLeaveServer}
+                  className="w-full flex items-center gap-3 px-4 py-3 bg-red-500/10 hover:bg-red-500/20 rounded text-left text-red-400"
+                >
+                  <span>🚪</span>
+                  <div>
+                    <div>Leave Server</div>
+                    <div className="text-red-400/70 text-sm">You can rejoin with an invite</div>
+                  </div>
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={() => setShowServerSettings(false)}
+              className="w-full mt-4 py-2 bg-gc-dark-600 hover:bg-gc-dark-500 text-white rounded"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Invite Modal */}
+      {showInviteModal && selectedServer && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowInviteModal(false)}>
+          <div className="bg-gc-dark-800 rounded-lg p-6 w-[400px]" onClick={e => e.stopPropagation()}>
+            <h2 className="text-xl font-bold text-white mb-2">Invite Friends</h2>
+            <p className="text-gray-400 mb-4">Share this link to invite people to {selectedServer.name}</p>
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={getInviteLink()}
+                readOnly
+                className="flex-1 px-3 py-2 bg-gc-dark-900 border border-gc-dark-600 rounded text-white font-mono text-sm"
+              />
+              <button
+                onClick={handleCopyInvite}
+                className={`px-4 py-2 rounded font-medium transition ${copiedInvite ? 'bg-green-500 text-white' : 'bg-gc-primary hover:bg-gc-primary/80 text-white'}`}
+              >
+                {copiedInvite ? '✓ Copied' : 'Copy'}
+              </button>
+            </div>
+
+            <p className="text-gray-500 text-xs mt-3">Link expires in 7 days</p>
+
+            <button
+              onClick={() => setShowInviteModal(false)}
+              className="w-full mt-4 py-2 bg-gc-dark-600 hover:bg-gc-dark-500 text-white rounded"
+            >
+              Done
+            </button>
           </div>
         </div>
       )}
