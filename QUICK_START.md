@@ -1,34 +1,34 @@
-# 🚀 GoConnect Hızlı Başlangıç
+# 🚀 GoConnect Quick Start
 
-Bu kılavuz, GoConnect'i 5 dakikada kullanmaya başlamanızı sağlar.
-
----
-
-## 📋 İçindekiler
-
-1. [İndir](#1-i̇ndir)
-2. [Kur](#2-kur)
-3. [Başlat](#3-başlat)
-4. [Ağ Oluştur veya Katıl](#4-ağ-oluştur-veya-katıl)
-5. [Kullan](#5-kullan)
+Get GoConnect running in 5 minutes.
 
 ---
 
-## 1. İndir
+## 📋 Contents
 
-### Masaüstü Uygulaması (Önerilen)
+1. [Download](#1-download)
+2. [Install](#2-install)
+3. [Launch](#3-launch)
+4. [Create or Join Network](#4-create-or-join-network)
+5. [Use](#5-use)
 
-[GitHub Releases](https://github.com/orhaniscoding/goconnect/releases/latest) sayfasından işletim sisteminize uygun dosyayı indirin:
+---
 
-| İşletim Sistemi | Dosya |
-|-----------------|-------|
+## 1. Download
+
+### Desktop Application (Recommended)
+
+Download from [GitHub Releases](https://github.com/orhaniscoding/goconnect/releases/latest):
+
+| Operating System | File |
+|------------------|------|
 | Windows | `GoConnect-Setup.exe` |
 | macOS Intel | `GoConnect-Intel.dmg` |
 | macOS Apple Silicon | `GoConnect-ARM.dmg` |
 | Linux Debian/Ubuntu | `GoConnect.deb` |
-| Linux Diğer | `GoConnect.AppImage` |
+| Linux Other | `GoConnect.AppImage` |
 
-### Terminal Uygulaması
+### Terminal Application
 
 ```bash
 # Linux/macOS
@@ -44,17 +44,17 @@ Invoke-WebRequest -Uri "https://github.com/orhaniscoding/goconnect/releases/late
 
 ---
 
-## 2. Kur
+## 2. Install
 
 ### Windows
-1. `GoConnect-Setup.exe` dosyasını çift tıklayın
-2. Kurulum sihirbazını takip edin
-3. "Finish" butonuna tıklayın
+1. Double-click `GoConnect-Setup.exe`
+2. Follow the installation wizard
+3. Click "Finish"
 
 ### macOS
-1. `.dmg` dosyasını açın
-2. GoConnect ikonunu Applications klasörüne sürükleyin
-3. İlk açılışta "Open Anyway" seçeneğini onaylayın
+1. Open the `.dmg` file
+2. Drag GoConnect to Applications
+3. On first launch, click "Open Anyway" in Security settings
 
 ### Linux (Debian/Ubuntu)
 ```bash
@@ -69,165 +69,165 @@ chmod +x GoConnect.AppImage
 
 ---
 
-## 3. Başlat
+## 3. Launch
 
-### Masaüstü Uygulaması
+### Desktop Application
 
-1. GoConnect uygulamasını başlatın
-2. Karşılama ekranı görünecek:
+1. Start GoConnect
+2. You'll see the welcome screen:
 
 ```
 ┌──────────────────────────────────────┐
-│         🔗 GoConnect'e Hoşgeldiniz   │
+│         🔗 Welcome to GoConnect      │
 │                                      │
 │    "Discord, but for networks."      │
 │                                      │
 │   ┌────────────────────────────┐     │
-│   │     🌐 Ağ Oluştur          │     │
-│   │     Kendi ağını başlat     │     │
+│   │     🌐 Create Network      │     │
+│   │     Start your own         │     │
 │   └────────────────────────────┘     │
 │                                      │
 │   ┌────────────────────────────┐     │
-│   │     🔗 Ağa Katıl           │     │
-│   │     Davet linki ile katıl  │     │
+│   │     🔗 Join Network        │     │
+│   │     Join with invite link  │     │
 │   └────────────────────────────┘     │
 │                                      │
 └──────────────────────────────────────┘
 ```
 
-### Terminal Uygulaması
+### Terminal Application
 
 ```bash
 $ goconnect
 
-  🔗 GoConnect v2.28.2
+  🔗 GoConnect v3.0.0
 
-  ? Ne yapmak istiyorsun?
-  ❯ 🌐 Ağ Oluştur
-    🔗 Ağa Katıl
-    📋 Ağlarım
-    ⚙️  Ayarlar
-    ❌ Çıkış
+  ? What would you like to do?
+  ❯ 🌐 Create Network
+    🔗 Join Network
+    📋 My Networks
+    ⚙️  Settings
+    ❌ Exit
 ```
 
 ---
 
-## 4. Ağ Oluştur veya Katıl
+## 4. Create or Join Network
 
-### Seçenek A: Yeni Ağ Oluştur
+### Option A: Create New Network
 
-**Ne zaman kullanmalı?**
-- Arkadaşlarınla oyun oynamak istiyorsun
-- Kendi özel LAN'ını kurmak istiyorsun
-- Dosya paylaşımı için ağ lazım
+**When to use?**
+- You want to play games with friends
+- You want to set up your own private LAN
+- You need a network for file sharing
 
-**Adımlar:**
+**Steps:**
 
-1. "Ağ Oluştur" seçeneğini seç
-2. Ağ bilgilerini gir:
-   - **Ağ Adı**: `Minecraft Sunucum`
-   - **Açıklama**: `Arkadaşlarla survival dünyası`
-3. "Oluştur" butonuna tıkla
-4. Davet linkini kopyala ve arkadaşlarına gönder!
+1. Select "Create Network"
+2. Enter network details:
+   - **Network Name**: `My Minecraft Server`
+   - **Description**: `Survival world with friends`
+3. Click "Create"
+4. Copy and share the invite link!
 
 ```
-✅ Ağ oluşturuldu!
+✅ Network created!
 
-📋 Davet Linki:
+📋 Invite Link:
    gc://join.goconnect.io/abc123xyz
 
-🔗 Bu linki arkadaşlarınla paylaş!
+🔗 Share this link with your friends!
 ```
 
-### Seçenek B: Mevcut Ağa Katıl
+### Option B: Join Existing Network
 
-**Ne zaman kullanmalı?**
-- Birileri sana davet linki gönderdi
-- Başka birinin ağına katılmak istiyorsun
+**When to use?**
+- Someone sent you an invite link
+- You want to join someone else's network
 
-**Adımlar:**
+**Steps:**
 
-1. "Ağa Katıl" seçeneğini seç
-2. Davet linkini yapıştır: `gc://join.goconnect.io/abc123xyz`
-3. "Bağlan" butonuna tıkla
-4. Bağlantı kurulacak!
+1. Select "Join Network"
+2. Paste invite link: `gc://join.goconnect.io/abc123xyz`
+3. Click "Connect"
+4. You're connected!
 
 ```
-✅ Bağlantı başarılı!
+✅ Connected successfully!
 
-🌐 Ağ: Minecraft Sunucum
-🖥️ IP Adresin: 10.0.1.5
-👥 Çevrimiçi: 3 kişi
+🌐 Network: My Minecraft Server
+🖥️ Your IP: 10.0.1.5
+👥 Online: 3 members
 
-Artık aynı LAN'dasınız!
+You're now on the same LAN!
 ```
 
 ---
 
-## 5. Kullan
+## 5. Use
 
-### Bağlantı Durumunu Kontrol Et
+### Check Connection Status
 
-**Masaüstü:**
-- Sistem tepsisindeki GoConnect ikonuna bak
-- 🟢 Yeşil = Bağlı
-- 🔴 Kırmızı = Bağlı değil
+**Desktop:**
+- Look at the GoConnect icon in system tray
+- 🟢 Green = Connected
+- 🔴 Red = Disconnected
 
 **Terminal:**
 ```bash
 $ goconnect status
 
-🌐 Bağlı Ağlar:
-   • Minecraft Sunucum (10.0.1.0/24)
+🌐 Connected Networks:
+   • My Minecraft Server (10.0.1.0/24)
      IP: 10.0.1.5
-     Çevrimiçi: 3 kişi
+     Online: 3 members
 ```
 
-### Diğer Cihazlara Eriş
+### Access Other Devices
 
-Artık ağdaki diğer cihazlara IP adresleriyle erişebilirsin:
+Now you can reach other devices on the network by IP:
 
 ```bash
-# Ping at
+# Ping
 ping 10.0.1.2
 
-# SSH bağlantısı
+# SSH connection
 ssh user@10.0.1.3
 
-# Dosya paylaşımı
+# File sharing
 \\10.0.1.4\shared  # Windows
 smb://10.0.1.4/shared  # macOS
 ```
 
-### Minecraft LAN Örneği
+### Minecraft LAN Example
 
-1. Minecraft'ı aç
-2. Dünyayı aç → "Open to LAN"
-3. Port numarasını not al (örn: 25565)
-4. Arkadaşların "Direct Connect" ile bağlanır: `10.0.1.1:25565`
+1. Open Minecraft
+2. Open world → "Open to LAN"
+3. Note the port number (e.g., 25565)
+4. Friends connect via "Direct Connect": `10.0.1.1:25565`
 
 ---
 
-## 🎉 Tebrikler!
+## 🎉 Congratulations!
 
-GoConnect'i başarıyla kurdun ve kullanmaya başladın!
+You've successfully set up and started using GoConnect!
 
-### Sonraki Adımlar
+### Next Steps
 
-- 📖 [Tam Kullanım Kılavuzu](docs/USER_GUIDE.md)
-- ⚙️ [Gelişmiş Ayarlar](docs/ADVANCED.md)
-- ❓ [SSS](README.md#-sss)
-- 🐛 [Sorun Bildir](https://github.com/orhaniscoding/goconnect/issues)
+- 📖 [Full User Guide](docs/USER_GUIDE.md)
+- ⚙️ [Advanced Settings](docs/ADVANCED.md)
+- ❓ [FAQ](README.md#-faq)
+- 🐛 [Report Issues](https://github.com/orhaniscoding/goconnect/issues)
 
-### Yardım Gerekiyor mu?
+### Need Help?
 
 - 💬 [GitHub Discussions](https://github.com/orhaniscoding/goconnect/discussions)
-- 📧 Destek: issues sayfasından ulaşın
+- 📧 Support: Open an issue
 
 ---
 
 <div align="center">
 
-**[← Ana Sayfa](README.md)**
+**[← Home](README.md)**
 
 </div>

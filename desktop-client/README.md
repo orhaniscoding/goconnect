@@ -1,84 +1,84 @@
 # 🖥️ GoConnect Desktop
 
-GoConnect'in masaüstü uygulaması. Tek bir uygulama ile hem ağ oluşturun (host) hem de başka ağlara katılın (client).
+GoConnect's desktop application. Create networks (host) or join existing networks (client) with a single app.
 
-## ✨ Özellikler
+## ✨ Features
 
-- 🌐 **Ağ Oluştur** - Kendi sanal LAN'ını başlat
-- 🔗 **Ağa Katıl** - Davet linki ile tek tıkla bağlan
-- 💬 **Sohbet** - Discord benzeri metin kanalları
-- 👥 **Üye Yönetimi** - Davet, çıkarma, yasaklama
-- 🎨 **Modern UI** - Karanlık tema, kullanıcı dostu
+- 🌐 **Create Network** - Start your own virtual LAN
+- 🔗 **Join Network** - One-click join via invite link
+- 💬 **Chat** - Discord-like text channels
+- 👥 **Member Management** - Invite, kick, ban
+- 🎨 **Modern UI** - Dark theme, user-friendly
 
-## 🛠️ Teknolojiler
+## 🛠️ Technologies
 
-| Katman | Teknoloji |
-|--------|-----------|
+| Layer | Technology |
+|-------|------------|
 | Framework | Tauri 2.0 |
 | Frontend | React 19 + TypeScript |
 | Styling | Tailwind CSS |
 | Backend | Rust |
 
-## 📦 Geliştirme
+## 📦 Development
 
-### Gereksinimler
+### Requirements
 
 - Node.js 20+
-- Rust (rustup ile)
-- Platform bağımlılıkları:
-  - **Windows:** WebView2 (genellikle yüklü)
+- Rust (via rustup)
+- Platform dependencies:
+  - **Windows:** WebView2 (usually installed)
   - **macOS:** Xcode Command Line Tools
   - **Linux:** `webkit2gtk`, `libappindicator`
 
-### Kurulum
+### Setup
 
 ```bash
-# Bağımlılıkları yükle
+# Install dependencies
 npm install
 
-# Geliştirme modunda çalıştır
+# Run in development mode
 npm run tauri dev
 
 # Production build
 npm run tauri build
 ```
 
-### Proje Yapısı
+### Project Structure
 
 ```
 desktop-client/
 ├── src/                # React frontend
-│   ├── App.tsx         # Ana uygulama
-│   ├── main.tsx        # Giriş noktası
-│   └── index.css       # Global stiller
+│   ├── App.tsx         # Main application
+│   ├── main.tsx        # Entry point
+│   └── index.css       # Global styles
 ├── src-tauri/          # Rust backend
 │   ├── src/
-│   │   └── main.rs     # Tauri uygulaması
-│   ├── Cargo.toml      # Rust bağımlılıkları
-│   └── tauri.conf.json # Tauri yapılandırma
+│   │   └── main.rs     # Tauri application
+│   ├── Cargo.toml      # Rust dependencies
+│   └── tauri.conf.json # Tauri configuration
 ├── package.json
 ├── tailwind.config.js
 └── vite.config.ts
 ```
 
-## 🎨 UI Yapısı
+## 🎨 UI Structure
 
 ```
 ┌────────────────────────────────────────────────────────────┐
 │  GoConnect                                        ─ □ ✕   │
 ├────┬──────────────┬────────────────────────────────────────┤
-│ 🏠 │  Ağ Adı      │  Ana içerik alanı                     │
-│────│              │                                        │
-│ 🎮 │  AĞLAR       │  Bağlantı durumu, üyeler,             │
-│ 💼 │  • Minecraft │  sohbet vb.                           │
+│ 🏠 │  Network     │  Main content area                     │
+│────│  Name        │                                        │
+│ 🎮 │  NETWORKS    │  Connection status, members,          │
+│ 💼 │  • Minecraft │  chat etc.                            │
 │ 👥 │  • Work VPN  │                                        │
 │    │              │                                        │
-│ +  │  KANALLAR    │                                        │
-│    │  # genel     │                                        │
-│ 👤 │  # duyurular │                                        │
+│ +  │  CHANNELS    │                                        │
+│    │  # general   │                                        │
+│ 👤 │  # announce  │                                        │
 └────┴──────────────┴────────────────────────────────────────┘
 ```
 
-## 📄 Lisans
+## 📄 License
 
-MIT License - Detaylar için [LICENSE](../LICENSE) dosyasına bakın.
+MIT License - See [LICENSE](../LICENSE) for details.

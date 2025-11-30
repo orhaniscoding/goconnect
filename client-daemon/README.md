@@ -1,20 +1,20 @@
 # 💻 GoConnect CLI
 
-GoConnect'in terminal uygulaması. İnteraktif TUI arayüzü ile ağ oluşturun veya mevcut ağlara katılın.
+GoConnect's terminal application. Create networks or join existing ones with an interactive TUI interface.
 
-> **Not:** Bu dizin `goconnect-cli` olarak yeniden adlandırılacak.
+> **Note:** This directory will be renamed to `goconnect-cli`.
 
-## ✨ Özellikler
+## ✨ Features
 
-- 🖥️ **İnteraktif TUI** - Bubbletea ile modern terminal arayüzü
-- 🌐 **Ağ Oluştur** - Terminal'den ağ oluştur ve yönet
-- 🔗 **Ağa Katıl** - Davet linki ile bağlan
-- 📊 **Durum Görüntüle** - Bağlantı durumu, üyeler, IP adresleri
-- 🔧 **Headless Mod** - Sunucularda arka planda çalıştır
+- 🖥️ **Interactive TUI** - Modern terminal interface with Bubbletea
+- 🌐 **Create Network** - Create and manage networks from terminal
+- 🔗 **Join Network** - Connect with invite link
+- 📊 **View Status** - Connection status, members, IP addresses
+- 🔧 **Headless Mode** - Run in background on servers
 
-## 🚀 Hızlı Başlangıç
+## 🚀 Quick Start
 
-### İndirme
+### Download
 
 ```bash
 # Linux
@@ -28,88 +28,88 @@ chmod +x goconnect-cli-darwin-arm64
 sudo mv goconnect-cli-darwin-arm64 /usr/local/bin/goconnect
 ```
 
-### Kullanım
+### Usage
 
 ```bash
-# İnteraktif mod
+# Interactive mode
 goconnect
 
-# Hızlı komutlar
-goconnect create "Ağ Adı"    # Ağ oluştur
-goconnect join <link>        # Ağa katıl
-goconnect list               # Ağları listele
-goconnect status             # Bağlantı durumu
-goconnect disconnect         # Bağlantıyı kes
+# Quick commands
+goconnect create "Network Name"  # Create network
+goconnect join <link>            # Join network
+goconnect list                   # List networks
+goconnect status                 # Connection status
+goconnect disconnect             # Disconnect
 ```
 
-## 🎨 TUI Arayüzü
+## 🎨 TUI Interface
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │                    🔗 GoConnect CLI                          │
 ├──────────────────────────────────────────────────────────────┤
 │                                                              │
-│   ? Ne yapmak istiyorsun?                                    │
+│   ? What would you like to do?                               │
 │                                                              │
-│   ❯ 🌐 Ağ Oluştur                                           │
-│     🔗 Ağa Katıl                                            │
-│     📋 Ağlarım                                              │
-│     ⚙️  Ayarlar                                              │
-│     ❌ Çıkış                                                 │
+│   ❯ 🌐 Create Network                                        │
+│     🔗 Join Network                                          │
+│     📋 My Networks                                           │
+│     ⚙️  Settings                                              │
+│     ❌ Exit                                                   │
 │                                                              │
 ├──────────────────────────────────────────────────────────────┤
-│   ↑/↓: seç  •  Enter: onayla  •  q: çık                     │
+│   ↑/↓: select  •  Enter: confirm  •  q: quit                │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-## 🛠️ Geliştirme
+## 🛠️ Development
 
-### Gereksinimler
+### Requirements
 
 - Go 1.24+
-- WireGuard araçları (`wg`, `wg-quick`)
+- WireGuard tools (`wg`, `wg-quick`)
 
-### Derleme
+### Build
 
 ```bash
-# Tek platform
+# Single platform
 go build -o goconnect ./cmd/daemon
 
-# Tüm platformlar
+# All platforms
 make build-all
 ```
 
-### Proje Yapısı
+### Project Structure
 
 ```
 client-daemon/  (→ goconnect-cli)
 ├── cmd/
 │   └── daemon/
-│       └── main.go         # Giriş noktası
+│       └── main.go         # Entry point
 ├── internal/
 │   ├── tui/                # Terminal UI
-│   │   ├── model.go        # TUI modeli
-│   │   ├── views.go        # Ekranlar
-│   │   └── styles.go       # Stiller
-│   ├── network/            # Ağ yönetimi
-│   ├── wireguard/          # WireGuard entegrasyonu
-│   └── config/             # Yapılandırma
+│   │   ├── model.go        # TUI model
+│   │   ├── views.go        # Screens
+│   │   └── styles.go       # Styles
+│   ├── network/            # Network management
+│   ├── wireguard/          # WireGuard integration
+│   └── config/             # Configuration
 └── go.mod
 ```
 
-## ⚙️ Yapılandırma
+## ⚙️ Configuration
 
-Yapılandırma dosyası konumları:
+Configuration file locations:
 - **Linux:** `~/.config/goconnect/config.yaml`
 - **macOS:** `~/Library/Application Support/GoConnect/config.yaml`
 - **Windows:** `%APPDATA%\GoConnect\config.yaml`
 
-### Örnek Yapılandırma
+### Example Configuration
 
 ```yaml
-# GoConnect CLI Yapılandırma
+# GoConnect CLI Configuration
 server:
-  url: ""  # Boş = yeni ağ oluştur
+  url: ""  # Empty = create new network
 
 wireguard:
   interface_name: goconnect0
@@ -119,7 +119,7 @@ daemon:
   health_check_interval: 30s
 ```
 
-## 🔧 Sistem Servisi
+## 🔧 System Service
 
 ### Linux (systemd)
 
@@ -138,10 +138,10 @@ sudo ./goconnect install
 ### Windows (Windows Service)
 
 ```powershell
-# Admin olarak çalıştır
+# Run as Administrator
 .\goconnect.exe install
 ```
 
-## 📄 Lisans
+## 📄 License
 
-MIT License - Detaylar için [LICENSE](../LICENSE) dosyasına bakın.
+MIT License - See [LICENSE](../LICENSE) for details.

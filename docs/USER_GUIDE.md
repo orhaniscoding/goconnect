@@ -1,97 +1,97 @@
-# 📚 GoConnect Kullanım Kılavuzu
+# 📚 GoConnect User Guide
 
-Bu kılavuz, GoConnect'in tüm özelliklerini detaylı şekilde açıklar.
-
----
-
-## 📋 İçindekiler
-
-1. [Giriş](#1-giriş)
-2. [Kurulum](#2-kurulum)
-3. [İlk Kullanım](#3-i̇lk-kullanım)
-4. [Ağ Yönetimi](#4-ağ-yönetimi)
-5. [Üye Yönetimi](#5-üye-yönetimi)
-6. [Sohbet](#6-sohbet)
-7. [Ayarlar](#7-ayarlar)
-8. [Sorun Giderme](#8-sorun-giderme)
+This guide explains all GoConnect features in detail.
 
 ---
 
-## 1. Giriş
+## 📋 Contents
 
-### GoConnect Nedir?
-
-GoConnect, internetteki cihazları sanki aynı yerel ağdaymış gibi birbirine bağlayan bir platformdur. 
-
-**Temel Kavramlar:**
-
-| Kavram | Açıklama | Örnek |
-|--------|----------|-------|
-| **Ağ (Network)** | Sanal LAN ortamı | "Minecraft Sunucum" |
-| **Host** | Ağı oluşturan kişi | Sunucu sahibi |
-| **Üye (Member)** | Ağa katılan kişi | Oyuncular |
-| **Davet Linki** | Ağa katılım bağlantısı | `gc://join.goconnect.io/abc123` |
-| **IP Adresi** | Ağ içindeki adres | `10.0.1.5` |
-
-### Desteklenen Platformlar
-
-| Platform | Masaüstü App | Terminal App | Durum |
-|----------|--------------|--------------|-------|
-| Windows 10/11 | ✅ | ✅ | Hazır |
-| macOS 11+ | ✅ | ✅ | Hazır |
-| Linux | ✅ | ✅ | Hazır |
-| Android | 📱 | - | Yakında |
-| iOS | 📱 | - | Yakında |
+1. [Introduction](#1-introduction)
+2. [Installation](#2-installation)
+3. [Getting Started](#3-getting-started)
+4. [Network Management](#4-network-management)
+5. [Member Management](#5-member-management)
+6. [Chat](#6-chat)
+7. [Settings](#7-settings)
+8. [Troubleshooting](#8-troubleshooting)
 
 ---
 
-## 2. Kurulum
+## 1. Introduction
 
-### 2.1 Sistem Gereksinimleri
+### What is GoConnect?
+
+GoConnect is a platform that connects devices on the internet as if they're on the same local network.
+
+**Key Concepts:**
+
+| Concept | Description | Example |
+|---------|-------------|---------|
+| **Network** | Virtual LAN environment | "My Minecraft Server" |
+| **Host** | Person who created the network | Server owner |
+| **Member** | Person who joined the network | Players |
+| **Invite Link** | Network join URL | `gc://join.goconnect.io/abc123` |
+| **IP Address** | Address within the network | `10.0.1.5` |
+
+### Supported Platforms
+
+| Platform | Desktop App | Terminal App | Status |
+|----------|-------------|--------------|--------|
+| Windows 10/11 | ✅ | ✅ | Ready |
+| macOS 11+ | ✅ | ✅ | Ready |
+| Linux | ✅ | ✅ | Ready |
+| Android | 📱 | - | Coming Soon |
+| iOS | 📱 | - | Coming Soon |
+
+---
+
+## 2. Installation
+
+### 2.1 System Requirements
 
 **Minimum:**
-- İşlemci: 1 GHz
+- Processor: 1 GHz
 - RAM: 512 MB
 - Disk: 100 MB
-- Ağ: İnternet bağlantısı
+- Network: Internet connection
 
-**Önerilen:**
-- İşlemci: 2+ GHz
+**Recommended:**
+- Processor: 2+ GHz
 - RAM: 2 GB
 - Disk: 500 MB
-- Ağ: 10+ Mbps
+- Network: 10+ Mbps
 
-### 2.2 İndirme
+### 2.2 Download
 
-[GitHub Releases](https://github.com/orhaniscoding/goconnect/releases/latest) sayfasından indirin.
+Download from [GitHub Releases](https://github.com/orhaniscoding/goconnect/releases/latest).
 
-### 2.3 Platform Bazlı Kurulum
+### 2.3 Platform-Specific Installation
 
 #### Windows
 
-1. `GoConnect-Setup.exe` dosyasını çalıştırın
-2. "Next" butonlarıyla ilerleyin
-3. Kurulum konumunu seçin (varsayılan önerilir)
-4. "Install" butonuna tıklayın
-5. "Finish" ile tamamlayın
+1. Run `GoConnect-Setup.exe`
+2. Click "Next" through the wizard
+3. Select installation location (default recommended)
+4. Click "Install"
+5. Click "Finish"
 
-**Not:** Windows Defender uyarısı çıkarsa "More info" → "Run anyway" seçin.
+**Note:** If Windows Defender warns, click "More info" → "Run anyway"
 
 #### macOS
 
-1. `.dmg` dosyasını açın
-2. GoConnect ikonunu Applications'a sürükleyin
-3. İlk açılışta Gatekeeper uyarısı çıkacak
-4. System Preferences → Security → "Open Anyway" tıklayın
+1. Open the `.dmg` file
+2. Drag GoConnect to Applications
+3. Gatekeeper warning will appear on first launch
+4. Go to System Preferences → Security → "Open Anyway"
 
-**Not:** Apple Silicon (M1/M2/M3) için ARM sürümünü indirin.
+**Note:** Download ARM version for Apple Silicon (M1/M2/M3)
 
 #### Linux
 
 **Debian/Ubuntu:**
 ```bash
 sudo dpkg -i goconnect_*.deb
-sudo apt-get install -f  # Bağımlılıkları çöz
+sudo apt-get install -f  # Fix dependencies
 ```
 
 **Fedora/RHEL:**
@@ -99,34 +99,29 @@ sudo apt-get install -f  # Bağımlılıkları çöz
 sudo rpm -i goconnect_*.rpm
 ```
 
-**AppImage (Tüm dağıtımlar):**
+**AppImage (All distros):**
 ```bash
 chmod +x GoConnect-*.AppImage
 ./GoConnect-*.AppImage
 ```
 
-**Snap:**
-```bash
-sudo snap install goconnect
-```
-
 ---
 
-## 3. İlk Kullanım
+## 3. Getting Started
 
-### 3.1 Uygulamayı Başlatma
+### 3.1 Launching the Application
 
-**Masaüstü:**
-- Windows: Başlat menüsünden "GoConnect"
+**Desktop:**
+- Windows: Start menu → "GoConnect"
 - macOS: Applications → GoConnect
-- Linux: Uygulama menüsünden veya `goconnect` komutuyla
+- Linux: Application menu or `goconnect` command
 
 **Terminal:**
 ```bash
 goconnect
 ```
 
-### 3.2 Ana Ekran
+### 3.2 Main Screen
 
 ```
 ┌────────────────────────────────────────────────────────────┐
@@ -135,219 +130,219 @@ goconnect
 │                                                            │
 │  ┌─────────────────────────────────────────────────────┐  │
 │  │                                                     │  │
-│  │            🌐 Hoş Geldiniz!                        │  │
+│  │            🌐 Welcome!                             │  │
 │  │                                                     │  │
-│  │   GoConnect ile arkadaşlarınla aynı ağda ol.       │  │
+│  │   Connect with friends on the same network.        │  │
 │  │                                                     │  │
 │  │   ┌───────────────┐    ┌───────────────┐          │  │
-│  │   │ Ağ Oluştur    │    │  Ağa Katıl    │          │  │
+│  │   │ Create Network│    │ Join Network  │          │  │
 │  │   │     🌐        │    │     🔗        │          │  │
 │  │   └───────────────┘    └───────────────┘          │  │
 │  │                                                     │  │
 │  └─────────────────────────────────────────────────────┘  │
 │                                                            │
 │  ────────────────────────────────────────────────────────  │
-│  📡 Ağlarım (0)                                           │
+│  📡 My Networks (0)                                       │
 │  ────────────────────────────────────────────────────────  │
 │                                                            │
-│  Henüz hiçbir ağa bağlı değilsiniz.                       │
+│  You're not connected to any networks yet.                │
 │                                                            │
 └────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 4. Ağ Yönetimi
+## 4. Network Management
 
-### 4.1 Ağ Oluşturma
+### 4.1 Creating a Network
 
-**Adımlar:**
+**Steps:**
 
-1. "Ağ Oluştur" butonuna tıklayın
-2. Ağ bilgilerini doldurun:
+1. Click "Create Network"
+2. Fill in network details:
 
-| Alan | Zorunlu | Açıklama | Örnek |
-|------|---------|----------|-------|
-| Ağ Adı | ✅ | Ağınızın ismi | "Minecraft Sunucum" |
-| Açıklama | ❌ | Kısa açıklama | "Survival dünyası" |
-| Alt Ağ | ❌ | IP aralığı | `10.0.1.0/24` (otomatik) |
-| Şifre | ❌ | Katılım şifresi | Boş = şifresiz |
+| Field | Required | Description | Example |
+|-------|----------|-------------|---------|
+| Network Name | ✅ | Name of your network | "My Minecraft Server" |
+| Description | ❌ | Short description | "Survival world" |
+| Subnet | ❌ | IP range | `10.0.1.0/24` (auto) |
+| Password | ❌ | Join password | Empty = no password |
 
-3. "Oluştur" butonuna tıklayın
-4. Davet linkini kopyalayın
+3. Click "Create"
+4. Copy the invite link
 
 **Terminal:**
 ```bash
-$ goconnect create "Minecraft Sunucum"
+$ goconnect create "My Minecraft Server"
 
-✅ Ağ oluşturuldu!
+✅ Network created!
 
-📋 Bilgiler:
-   Ağ Adı: Minecraft Sunucum
-   Alt Ağ: 10.0.1.0/24
-   IP Adresin: 10.0.1.1
+📋 Details:
+   Network Name: My Minecraft Server
+   Subnet: 10.0.1.0/24
+   Your IP: 10.0.1.1
 
-🔗 Davet Linki:
+🔗 Invite Link:
    gc://join.goconnect.io/abc123xyz
 
-   Bu linki arkadaşlarınla paylaş!
+   Share this link with your friends!
 ```
 
-### 4.2 Ağa Katılma
+### 4.2 Joining a Network
 
-**Adımlar:**
+**Steps:**
 
-1. "Ağa Katıl" butonuna tıklayın
-2. Davet linkini yapıştırın
-3. Şifre varsa girin
-4. "Bağlan" butonuna tıklayın
+1. Click "Join Network"
+2. Paste the invite link
+3. Enter password if required
+4. Click "Connect"
 
 **Terminal:**
 ```bash
 $ goconnect join gc://join.goconnect.io/abc123xyz
 
-🔗 Bağlanılıyor: Minecraft Sunucum...
+🔗 Connecting to: My Minecraft Server...
 
-✅ Bağlantı başarılı!
+✅ Connected successfully!
 
-📋 Bilgiler:
-   Ağ Adı: Minecraft Sunucum
-   Alt Ağ: 10.0.1.0/24
-   IP Adresin: 10.0.1.5
-   Çevrimiçi: 3 kişi
+📋 Details:
+   Network Name: My Minecraft Server
+   Subnet: 10.0.1.0/24
+   Your IP: 10.0.1.5
+   Online: 3 members
 ```
 
-### 4.3 Bağlantıyı Yönetme
+### 4.3 Managing Connections
 
-**Bağlantıyı Kesme:**
-- Ağ kartındaki "Bağlantıyı Kes" butonuna tıklayın
-- veya `goconnect disconnect`
+**Disconnect:**
+- Click "Disconnect" on the network card
+- Or `goconnect disconnect`
 
-**Yeniden Bağlanma:**
-- Ağ kartındaki "Bağlan" butonuna tıklayın
-- veya `goconnect connect "Ağ Adı"`
+**Reconnect:**
+- Click "Connect" on the network card
+- Or `goconnect connect "Network Name"`
 
-### 4.4 Ağ Ayarları (Host)
+### 4.4 Network Settings (Host)
 
-Host olarak ağ ayarlarını değiştirebilirsiniz:
+As host, you can change network settings:
 
-| Ayar | Açıklama |
-|------|----------|
-| Ağ Adı | İsmi değiştir |
-| Açıklama | Açıklamayı güncelle |
-| Şifre | Katılım şifresi ekle/kaldır |
-| Davet Linki | Yeni link oluştur |
-| Ağı Sil | Kalıcı olarak sil |
+| Setting | Description |
+|---------|-------------|
+| Network Name | Change name |
+| Description | Update description |
+| Password | Add/remove join password |
+| Invite Link | Generate new link |
+| Delete Network | Permanently delete |
 
 ---
 
-## 5. Üye Yönetimi
+## 5. Member Management
 
-### 5.1 Üyeleri Görüntüleme
+### 5.1 Viewing Members
 
-Ağ detay ekranında "Üyeler" sekmesinden tüm üyeleri görebilirsiniz:
+In the network details screen, see all members under "Members" tab:
 
 ```
 ┌─────────────────────────────────────────┐
-│ 👥 Üyeler (5)                           │
+│ 👥 Members (5)                          │
 ├─────────────────────────────────────────┤
-│ 🟢 Ahmet (Host)        10.0.1.1         │
-│ 🟢 Mehmet              10.0.1.2         │
-│ 🟢 Ayşe                10.0.1.3         │
-│ 🟡 Fatma (Boşta)       10.0.1.4         │
-│ ⚫ Ali (Çevrimdışı)    10.0.1.5         │
+│ 🟢 Alice (Host)        10.0.1.1         │
+│ 🟢 Bob                 10.0.1.2         │
+│ 🟢 Charlie             10.0.1.3         │
+│ 🟡 Diana (Idle)        10.0.1.4         │
+│ ⚫ Eve (Offline)       10.0.1.5         │
 └─────────────────────────────────────────┘
 ```
 
-**Durum Göstergeleri:**
-- 🟢 Çevrimiçi
-- 🟡 Boşta (5+ dakika aktivite yok)
-- ⚫ Çevrimdışı
+**Status Indicators:**
+- 🟢 Online
+- 🟡 Idle (5+ minutes inactive)
+- ⚫ Offline
 
-### 5.2 Üye Yönetimi (Host)
+### 5.2 Member Actions (Host)
 
-Host olarak üyeler üzerinde işlem yapabilirsiniz:
+As host, you can manage members:
 
-| İşlem | Açıklama |
-|-------|----------|
-| **Çıkar** | Üyeyi ağdan çıkarır (tekrar katılabilir) |
-| **Yasakla** | Üyeyi kalıcı olarak yasaklar |
-| **Yasağı Kaldır** | Yasaklı üyenin yasağını kaldırır |
+| Action | Description |
+|--------|-------------|
+| **Kick** | Remove from network (can rejoin) |
+| **Ban** | Permanently ban |
+| **Unban** | Remove ban |
 
 ---
 
-## 6. Sohbet
+## 6. Chat
 
-### 6.1 Metin Kanalları
+### 6.1 Text Channels
 
-Her ağda varsayılan sohbet kanalları bulunur:
+Each network has default chat channels:
 
-- **#genel** - Genel sohbet
-- **#duyurular** - Sadece host yazabilir (opsiyonel)
+- **#general** - General chat
+- **#announcements** - Host only (optional)
 
-### 6.2 Mesaj Gönderme
+### 6.2 Sending Messages
 
-1. Kanal listesinden bir kanal seçin
-2. Alt kısımdaki metin kutusuna yazın
-3. Enter'a basın veya "Gönder" butonuna tıklayın
+1. Select a channel from the list
+2. Type in the text box at bottom
+3. Press Enter or click "Send"
 
-**Desteklenen Özellikler:**
-- 📎 Dosya paylaşımı (5 MB'a kadar)
+**Supported Features:**
+- 📎 File sharing (up to 5 MB)
 - 😀 Emoji
-- @mention (kullanıcı etiketleme)
-- Mesaj düzenleme/silme (kendi mesajlarınız)
+- @mention (user tagging)
+- Edit/delete (your own messages)
 
 ---
 
-## 7. Ayarlar
+## 7. Settings
 
-### 7.1 Genel Ayarlar
+### 7.1 General Settings
 
-| Ayar | Açıklama | Varsayılan |
-|------|----------|------------|
-| Başlangıçta çalıştır | Bilgisayar açıldığında başlat | ✅ |
-| Sistem tepsisine küçült | Kapatınca tepsiye git | ✅ |
-| Bildirimler | Masaüstü bildirimleri | ✅ |
-| Dil | Arayüz dili | Türkçe |
-| Tema | Karanlık/Aydınlık | Karanlık |
+| Setting | Description | Default |
+|---------|-------------|---------|
+| Start on boot | Launch on computer start | ✅ |
+| Minimize to tray | Go to tray on close | ✅ |
+| Notifications | Desktop notifications | ✅ |
+| Language | Interface language | English |
+| Theme | Dark/Light | Dark |
 
-### 7.2 Ağ Ayarları
+### 7.2 Network Settings
 
-| Ayar | Açıklama | Varsayılan |
-|------|----------|------------|
-| Otomatik bağlan | Uygulama açıldığında bağlan | ✅ |
-| Yeniden bağlanma | Bağlantı koparsa tekrar dene | ✅ |
-| DNS ayarları | Özel DNS sunucusu | Sistem |
+| Setting | Description | Default |
+|---------|-------------|---------|
+| Auto-connect | Connect on app launch | ✅ |
+| Reconnect | Retry on disconnect | ✅ |
+| DNS settings | Custom DNS server | System |
 
-### 7.3 Gelişmiş Ayarlar
+### 7.3 Advanced Settings
 
-| Ayar | Açıklama |
-|------|----------|
-| WireGuard arayüzü | Ağ arayüzü adı |
-| Loglama seviyesi | Debug/Info/Warning/Error |
-| Veri klasörü | Yapılandırma dosyaları konumu |
+| Setting | Description |
+|---------|-------------|
+| WireGuard interface | Network interface name |
+| Logging level | Debug/Info/Warning/Error |
+| Data folder | Config files location |
 
 ---
 
-## 8. Sorun Giderme
+## 8. Troubleshooting
 
-### 8.1 Sık Karşılaşılan Sorunlar
+### 8.1 Common Issues
 
 <details>
-<summary><b>❌ Bağlantı kurulamıyor</b></summary>
+<summary><b>❌ Cannot connect</b></summary>
 
-**Olası Nedenler:**
-1. İnternet bağlantısı yok
-2. Güvenlik duvarı engelliyor
-3. Host çevrimdışı
+**Possible Causes:**
+1. No internet connection
+2. Firewall blocking
+3. Host is offline
 
-**Çözümler:**
-1. İnternet bağlantınızı kontrol edin
-2. Güvenlik duvarında GoConnect'e izin verin
-3. Host'un çevrimiçi olduğundan emin olun
+**Solutions:**
+1. Check your internet connection
+2. Allow GoConnect in firewall
+3. Ensure host is online
 
 ```bash
-# Windows Güvenlik Duvarı
+# Windows Firewall
 netsh advfirewall firewall add rule name="GoConnect" dir=in action=allow program="C:\Program Files\GoConnect\goconnect.exe"
 
 # Linux UFW
@@ -356,35 +351,35 @@ sudo ufw allow 51820/udp
 </details>
 
 <details>
-<summary><b>❌ Diğer cihazlara ping atamıyorum</b></summary>
+<summary><b>❌ Cannot ping other devices</b></summary>
 
-**Olası Nedenler:**
-1. Hedef cihaz çevrimdışı
-2. Güvenlik duvarı ping'i engelliyor
-3. IP adresi yanlış
+**Possible Causes:**
+1. Target device offline
+2. Firewall blocking ping
+3. Wrong IP address
 
-**Çözümler:**
-1. Hedef cihazın çevrimiçi olduğunu kontrol edin
-2. Her iki tarafta da ICMP'ye izin verin
-3. IP adresini "Üyeler" listesinden doğrulayın
+**Solutions:**
+1. Check if target is online
+2. Allow ICMP on both sides
+3. Verify IP from "Members" list
 </details>
 
 <details>
-<summary><b>❌ Uygulama açılmıyor</b></summary>
+<summary><b>❌ App won't start</b></summary>
 
-**Çözümler:**
-1. Bilgisayarı yeniden başlatın
-2. Uygulamayı yeniden yükleyin
-3. Günlük dosyalarını kontrol edin:
+**Solutions:**
+1. Restart computer
+2. Reinstall application
+3. Check log files:
    - Windows: `%APPDATA%\GoConnect\logs`
    - macOS: `~/Library/Logs/GoConnect`
    - Linux: `~/.local/share/goconnect/logs`
 </details>
 
-### 8.2 Günlükleri Görüntüleme
+### 8.2 Viewing Logs
 
-**Masaüstü:**
-Ayarlar → Gelişmiş → "Günlükleri Aç"
+**Desktop:**
+Settings → Advanced → "Open Logs"
 
 **Terminal:**
 ```bash
@@ -392,16 +387,16 @@ goconnect logs
 goconnect logs --level debug
 ```
 
-### 8.3 Destek Alma
+### 8.3 Getting Support
 
-1. [GitHub Issues](https://github.com/orhaniscoding/goconnect/issues) - Bug raporları
-2. [GitHub Discussions](https://github.com/orhaniscoding/goconnect/discussions) - Sorular
-3. [FAQ](../README.md#-sss) - Sık sorulan sorular
+1. [GitHub Issues](https://github.com/orhaniscoding/goconnect/issues) - Bug reports
+2. [GitHub Discussions](https://github.com/orhaniscoding/goconnect/discussions) - Questions
+3. [FAQ](../README.md#-faq) - Frequently asked questions
 
 ---
 
 <div align="center">
 
-**[← Ana Sayfa](../README.md)** | **[Hızlı Başlangıç →](../QUICK_START.md)**
+**[← Home](../README.md)** | **[Quick Start →](../QUICK_START.md)**
 
 </div>

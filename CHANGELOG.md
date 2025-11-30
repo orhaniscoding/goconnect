@@ -1,41 +1,41 @@
 # Changelog
 
-Tüm önemli değişiklikler bu dosyada belgelenmektedir.
+All notable changes to this project are documented in this file.
 
-Format [Keep a Changelog](https://keepachangelog.com/tr/1.0.0/) standardına,
-versiyon numaraları [Semantic Versioning](https://semver.org/lang/tr/) standardına uymaktadır.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
 ## [3.0.0](https://github.com/orhaniscoding/goconnect/compare/v2.28.0...v3.0.0) (2025-11-30)
 
-### ⚠️ BÜYÜK DEĞİŞİKLİK - Yeni Mimari
+### ⚠️ BREAKING CHANGE - New Architecture
 
-Bu sürüm, GoConnect'i tamamen yeniden tasarlıyor. Artık **tek bir uygulama** ile hem ağ oluşturabilir (host) hem de başka ağlara katılabilirsiniz (client).
+This release completely redesigns GoConnect. Now with a **single application** you can both create networks (host) and join other networks (client).
 
-### ✨ Yenilikler
+### ✨ New Features
 
-* **Unified App:** Tek uygulama, hem host hem client
-* **Desktop Client:** Tauri tabanlı masaüstü uygulaması (Windows, macOS, Linux)
-* **Terminal CLI:** İnteraktif terminal arayüzü (Bubbletea)
-* **Discord Benzeri UI:** Modern, kullanıcı dostu arayüz
-* **Basit Kurulum:** İndir → Aç → Kullan
-* **Davet Sistemi:** `gc://` protokolü ile tek tıkla katılım
-* **Türkçe Dokümantasyon:** Tüm belgeler Türkçe
+* **Unified App:** Single application, both host and client
+* **Desktop Client:** Tauri-based desktop application (Windows, macOS, Linux)
+* **Terminal CLI:** Interactive terminal interface (Bubbletea)
+* **Discord-like UI:** Modern, user-friendly interface
+* **Simple Installation:** Download → Open → Use
+* **Invite System:** One-click join via `gc://` protocol
+* **Complete Documentation:** Comprehensive guides and docs
 
-### 🔄 Değişiklikler
+### 🔄 Changes
 
-* `server` → `goconnect-core` (kütüphane olarak)
-* `client-daemon` → `goconnect-cli` (terminal uygulaması)
-* `web-ui` → `desktop-client` içine entegre
-* Karmaşık kurulum adımları kaldırıldı
+* `server` → `goconnect-core` (as library)
+* `client-daemon` → `goconnect-cli` (terminal application)
+* `web-ui` → Integrated into `desktop-client`
+* Removed complex setup steps
 
-### 📚 Dokümantasyon
+### 📚 Documentation
 
-* README tamamen yeniden yazıldı
-* QUICK_START kılavuzu eklendi
-* USER_GUIDE detaylı kullanım kılavuzu eklendi
-* ARCHITECTURE teknik mimari belgesi güncellendi
+* README completely rewritten
+* QUICK_START guide added
+* USER_GUIDE detailed user manual added
+* ARCHITECTURE technical architecture docs updated
 
 ---
 

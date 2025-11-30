@@ -1,26 +1,26 @@
 # ⚙️ GoConnect Core (Server)
 
-GoConnect'in çekirdek kütüphanesi ve backend sunucusu. Desktop App ve CLI tarafından kullanılır.
+GoConnect's core library and backend server. Used by the Desktop App and CLI.
 
-> **Not:** Bu bileşen, GoConnect uygulamaları tarafından dahili olarak kullanılır. Son kullanıcıların doğrudan bu bileşenle etkileşime girmesi gerekmez. Normal kullanım için [GoConnect Desktop](../desktop-client/) veya [GoConnect CLI](../client-daemon/) kullanın.
-
----
-
-## 🎯 Nedir?
-
-GoConnect Core, aşağıdaki hizmetleri sağlayan backend bileşenidir:
-
-- **Ağ Yönetimi**: Sanal LAN oluşturma ve yönetim
-- **WireGuard Entegrasyonu**: Şifreli tünel yapılandırması
-- **Kullanıcı Yönetimi**: Kimlik doğrulama, yetkilendirme
-- **Sohbet Sistemi**: WebSocket tabanlı gerçek zamanlı mesajlaşma
-- **IP Yönetimi (IPAM)**: Otomatik IP tahsisi
+> **Note:** This component is used internally by GoConnect applications. End users don't need to interact with it directly. For normal usage, see [GoConnect Desktop](../desktop-client/) or [GoConnect CLI](../client-daemon/).
 
 ---
 
-## 🔧 Geliştiriciler İçin
+## 🎯 What is it?
 
-Aşağıdaki bölümler, GoConnect'e katkıda bulunmak isteyen geliştiriciler içindir.
+GoConnect Core is the backend component providing:
+
+- **Network Management**: Virtual LAN creation and management
+- **WireGuard Integration**: Encrypted tunnel configuration
+- **User Management**: Authentication and authorization
+- **Chat System**: WebSocket-based real-time messaging
+- **IP Management (IPAM)**: Automatic IP allocation
+
+---
+
+## 🔧 For Developers
+
+The following sections are for developers who want to contribute to GoConnect.
 
 ##  Features
 
