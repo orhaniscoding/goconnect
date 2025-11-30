@@ -1,219 +1,403 @@
-# GoConnect Architecture
+# 🏗️ GoConnect Mimari Dokümantasyonu
 
-## Overview
+Bu belge, GoConnect'in teknik mimarisini detaylı şekilde açıklar.
 
-GoConnect follows a **Tenant → Network → Client** hierarchy that mirrors Discord's server/channel structure:
+---
+
+## 📋 İçindekiler
+
+1. [Genel Bakış](#1-genel-bakış)
+2. [Bileşenler](#2-bileşenler)
+3. [Veri Akışı](#3-veri-akışı)
+4. [Ağ Mimarisi](#4-ağ-mimarisi)
+5. [Güvenlik](#5-güvenlik)
+6. [Ölçeklenebilirlik](#6-ölçeklenebilirlik)
+
+---
+
+## 1. Genel Bakış
+
+### 1.1 Tasarım Felsefesi
+
+GoConnect, şu ilkeler üzerine kurulmuştur:
+
+| İlke | Açıklama |
+|------|----------|
+| **Basitlik** | Kullanıcı hiçbir teknik bilgiye ihtiyaç duymamalı |
+| **Tek Uygulama** | Hem host hem client aynı uygulamada |
+| **Çapraz Platform** | Windows, macOS, Linux desteği |
+| **P2P Öncelikli** | Mümkünse doğrudan bağlantı, değilse relay |
+| **Güvenlik** | WireGuard ile uçtan uca şifreleme |
+
+### 1.2 Yüksek Seviye Mimari
 
 ```
-TENANT (Organization/Community)
-├── Multiple Networks (Virtual LANs)
-├── Member Roles & Permissions
-├── Community Chat
-└── Invite System
-
-NETWORK (Virtual LAN)
-├── WireGuard Mesh Networking
-├── IP Address Management
-├── Network-Specific Chat
-└── Member Access Control
-
-CLIENT/DAEMON (User Device)
-├── WireGuard Integration
-├── Multi-Network Support
-└── Auto-Connection Management
+┌─────────────────────────────────────────────────────────────────────┐
+│                         KULLANICI CİHAZLARI                         │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐        │
+│   │ GoConnect App │   │ GoConnect App │   │ GoConnect CLI │        │
+│   │   (Host)      │   │   (Client)    │   │   (Client)    │        │
+│   │               │   │               │   │               │        │
+│   │ Windows/Mac   │   │ Windows/Mac   │   │    Linux      │        │
+│   │   /Linux      │   │   /Linux      │   │   Server      │        │
+│   └───────┬───────┘   └───────┬───────┘   └───────┬───────┘        │
+│           │                   │                   │                 │
+│           │ WireGuard         │ WireGuard         │ WireGuard       │
+│           │ Tunnel            │ Tunnel            │ Tunnel          │
+│           │                   │                   │                 │
+│           └─────────┬─────────┴─────────┬─────────┘                 │
+│                     │                   │                           │
+│                     ▼                   ▼                           │
+│           ┌─────────────────────────────────────────┐               │
+│           │           SANAL LAN (10.0.1.0/24)       │               │
+│           │                                         │               │
+│           │   Host: 10.0.1.1                       │               │
+│           │   Client1: 10.0.1.2                    │               │
+│           │   Client2: 10.0.1.3                    │               │
+│           │                                         │               │
+│           └─────────────────────────────────────────┘               │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+                                │
+                                │ Koordinasyon
+                                │ (Signaling)
+                                ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                      GOCONNECT ALTYAPISI                            │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐  │
+│   │ Signaling       │   │ STUN/TURN       │   │ Relay           │  │
+│   │ Server          │   │ Servers         │   │ Servers         │  │
+│   │                 │   │                 │   │                 │  │
+│   │ - Peer keşfi    │   │ - NAT traversal │   │ - Son çare      │  │
+│   │ - Davet linkleri│   │ - Public IP     │   │ - P2P başarısız │  │
+│   │ - Koordinasyon  │   │   keşfi         │   │   olduğunda     │  │
+│   └─────────────────┘   └─────────────────┘   └─────────────────┘  │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-## Core Components
+---
 
-### 1. Server (Go Backend)
-- **Central Management Hub**: Single source of truth for all state
-- **REST API**: `/v1/*` endpoints for all operations
-- **WebSocket**: Real-time chat and status updates
-- **Database**: PostgreSQL (production) / SQLite (development)
-- **Authentication**: JWT-based with role-based access control
+## 2. Bileşenler
 
-### 2. Client Daemon (Go Agent)
-- **Lightweight Agent**: Runs on user devices
-- **WireGuard Integration**: Manages VPN interfaces
-- **Multi-Network Support**: Connect to multiple networks simultaneously
-- **Auto-Reconnection**: Maintains stable connections
-- **Local Bridge**: HTTP server for web UI communication
+### 2.1 GoConnect App (Tauri)
 
-### 3. Web UI (Next.js)
-- **Unified Dashboard**: Single interface for all operations
-- **Real-time Updates**: WebSocket integration
-- **Cross-Platform**: Works on all modern browsers
-- **Responsive Design**: Mobile-friendly interface
+Masaüstü uygulaması, hem host hem client işlevselliği sağlar.
 
-## Data Model
-
-### Entities
-
-#### Tenant
-```go
-type Tenant struct {
-    ID          string    `json:"id"`
-    Name        string    `json:"name"`
-    Description string    `json:"description"`
-    Visibility  string    `json:"visibility"` // public, private
-    Access      string    `json:"access"`     // open, password, invite_only
-    CreatedAt   time.Time `json:"created_at"`
-    UpdatedAt   time.Time `json:"updated_at"`
-}
+```
+desktop-client/
+├── src/                    # React Frontend
+│   ├── components/         # UI bileşenleri
+│   │   ├── Sidebar.tsx     # Sol kenar çubuğu
+│   │   ├── NetworkList.tsx # Ağ listesi
+│   │   ├── MemberList.tsx  # Üye listesi
+│   │   └── Chat.tsx        # Sohbet paneli
+│   ├── pages/              # Sayfalar
+│   │   ├── Home.tsx        # Ana sayfa
+│   │   ├── Create.tsx      # Ağ oluştur
+│   │   └── Join.tsx        # Ağa katıl
+│   ├── lib/                # Yardımcı fonksiyonlar
+│   │   ├── api.ts          # API çağrıları
+│   │   └── wireguard.ts    # WG entegrasyonu
+│   └── App.tsx             # Ana uygulama
+├── src-tauri/              # Rust Backend
+│   ├── src/
+│   │   ├── main.rs         # Giriş noktası
+│   │   ├── commands.rs     # Tauri komutları
+│   │   ├── wireguard.rs    # WireGuard yönetimi
+│   │   └── network.rs      # Ağ işlemleri
+│   └── Cargo.toml
+└── package.json
 ```
 
-#### Network
-```go
-type Network struct {
-    ID           string    `json:"id"`
-    TenantID     string    `json:"tenant_id"`
-    Name         string    `json:"name"`
-    Description  string    `json:"description"`
-    CIDR         string    `json:"cidr"`
-    Visibility   string    `json:"visibility"`   // public, private
-    JoinPolicy   string    `json:"join_policy"`   // open, invite, approval
-    RequiredRole string    `json:"required_role"` // member, admin, owner
-    CreatedAt    time.Time `json:"created_at"`
-    UpdatedAt    time.Time `json:"updated_at"`
-}
+**Teknolojiler:**
+- Frontend: React 19, TypeScript, Tailwind CSS
+- Backend: Rust, Tauri 2.0
+- Paket boyutu: ~15 MB (Electron'un 1/10'u)
+
+### 2.2 GoConnect CLI
+
+Terminal uygulaması, aynı işlevselliği komut satırından sağlar.
+
+```
+goconnect-cli/
+├── cmd/
+│   └── goconnect/
+│       └── main.go         # Giriş noktası
+├── internal/
+│   ├── tui/                # Terminal UI (Bubbletea)
+│   │   ├── model.go        # TUI model
+│   │   ├── views.go        # Ekranlar
+│   │   └── styles.go       # Stiller
+│   ├── network/            # Ağ yönetimi
+│   ├── wireguard/          # WireGuard
+│   └── config/             # Yapılandırma
+└── go.mod
 ```
 
-#### User
-```go
-type User struct {
-    ID        string    `json:"id"`
-    Username  string    `json:"username"`
-    Email     string    `json:"email"`
-    CreatedAt time.Time `json:"created_at"`
-    UpdatedAt time.Time `json:"updated_at"`
-}
+**Teknolojiler:**
+- Dil: Go 1.24+
+- TUI: Bubbletea, Lipgloss
+- Tek binary, bağımlılık yok
+
+### 2.3 GoConnect Core
+
+Ortak iş mantığını içeren Go kütüphanesi.
+
+```
+goconnect-core/
+├── network/
+│   ├── network.go          # Ağ yapısı
+│   ├── host.go             # Host işlevleri
+│   └── client.go           # Client işlevleri
+├── wireguard/
+│   ├── config.go           # WG yapılandırma
+│   ├── interface.go        # Arayüz yönetimi
+│   └── peer.go             # Peer yönetimi
+├── signaling/
+│   ├── client.go           # Sinyal istemcisi
+│   └── protocol.go         # WebSocket protokolü
+├── auth/
+│   ├── token.go            # JWT işlemleri
+│   └── invite.go           # Davet linkleri
+└── go.mod
 ```
 
-#### Membership
-```go
-type Membership struct {
-    ID        string    `json:"id"`
-    TenantID  string    `json:"tenant_id"`
-    NetworkID string    `json:"network_id"`
-    UserID    string    `json:"user_id"`
-    Role      string    `json:"role"` // owner, admin, moderator, member
-    Status    string    `json:"status"` // active, pending, banned
-    JoinedAt  time.Time `json:"joined_at"`
-}
+---
+
+## 3. Veri Akışı
+
+### 3.1 Ağ Oluşturma Akışı
+
+```
+┌──────────┐                              ┌──────────────┐
+│  Host    │                              │  Signaling   │
+│  App     │                              │  Server      │
+└────┬─────┘                              └──────┬───────┘
+     │                                           │
+     │  1. "Ağ Oluştur" tıkla                    │
+     │────────────────────────────────────────▶  │
+     │                                           │
+     │  2. Ağ bilgileri + WG public key          │
+     │────────────────────────────────────────▶  │
+     │                                           │
+     │  3. Ağ ID + Davet linki                   │
+     │◀────────────────────────────────────────  │
+     │                                           │
+     │  4. Yerel WireGuard arayüzü oluştur       │
+     │  ┌─────────────────────────────┐          │
+     │  │ wg0: 10.0.1.1/24            │          │
+     │  │ private key: xxx            │          │
+     │  │ listen port: 51820          │          │
+     │  └─────────────────────────────┘          │
+     │                                           │
+     │  5. WebSocket bağlantısı kur              │
+     │◀────────────────────────────────────────▶ │
+     │     (peer güncellemeleri için)            │
+     │                                           │
 ```
 
-#### Device
-```go
-type Device struct {
-    ID         string    `json:"id"`
-    UserID     string    `json:"user_id"`
-    Name       string    `json:"name"`
-    Platform   string    `json:"platform"` // windows, linux, macos
-    PublicKey  string    `json:"public_key"`
-    LastSeen   time.Time `json:"last_seen"`
-    CreatedAt  time.Time `json:"created_at"`
-}
+### 3.2 Ağa Katılma Akışı
+
+```
+┌──────────┐      ┌──────────────┐      ┌──────────┐
+│  Client  │      │  Signaling   │      │   Host   │
+│  App     │      │  Server      │      │   App    │
+└────┬─────┘      └──────┬───────┘      └────┬─────┘
+     │                   │                   │
+     │ 1. Davet linki    │                   │
+     │   yapıştır        │                   │
+     │                   │                   │
+     │ 2. Join request   │                   │
+     │──────────────────▶│                   │
+     │                   │ 3. Notify host    │
+     │                   │──────────────────▶│
+     │                   │                   │
+     │                   │ 4. Accept/Reject  │
+     │                   │◀──────────────────│
+     │                   │                   │
+     │ 5. Peer bilgileri │                   │
+     │◀──────────────────│                   │
+     │   (host IP,       │                   │
+     │    public key,    │                   │
+     │    endpoint)      │                   │
+     │                   │                   │
+     │ 6. WG tünel kur   │                   │
+     │═══════════════════╪═══════════════════│
+     │     WireGuard P2P Connection          │
+     │═══════════════════╪═══════════════════│
+     │                   │                   │
 ```
 
-## Network Flow
+### 3.3 NAT Traversal Akışı
 
-### 1. User Registration & Login
 ```
-User → Web UI → Server API → JWT Token → Web UI Storage
-```
-
-### 2. Joining a Network
-```
-User → Web UI → Server API → Membership Creation → WireGuard Config → Client Daemon
-```
-
-### 3. Network Connection
-```
-Client Daemon → Server API → WireGuard Profile → Local Interface → P2P Connection
-```
-
-### 4. Real-time Communication
-```
-Client/Server → WebSocket → Real-time Updates → Web UI
-```
-
-## Security Architecture
-
-### Authentication
-- **JWT Tokens**: Stateless authentication with refresh tokens
-- **Role-Based Access Control**: Granular permissions per tenant/network
-- **Multi-Factor Authentication**: TOTP support (optional)
-
-### Network Security
-- **WireGuard Encryption**: End-to-end encrypted tunnels
-- **Key Management**: Automatic key rotation and distribution
-- **NAT Traversal**: UDP hole punching with fallback relays
-
-### Data Security
-- **Tenant Isolation**: Complete data separation between tenants
-- **Audit Logging**: Comprehensive audit trail for all operations
-- **Rate Limiting**: Per-IP and per-user rate limiting
-
-## Scalability Considerations
-
-### Horizontal Scaling
-- **Stateless API**: Multiple server instances behind load balancer
-- **Database Sharding**: Tenant-based data partitioning
-- **CDN Integration**: Static asset distribution
-
-### Performance Optimization
-- **Connection Pooling**: Database connection management
-- **Caching Strategy**: Redis for frequently accessed data
-- **WebSocket Scaling**: Multiple WebSocket servers with pub/sub
-
-## Deployment Architecture
-
-### Development Environment
-```
-Local Machine:
-├── Server (Go) :8080
-├── Client Daemon :12000-13000
-├── Web UI (Next.js) :3000
-└── SQLite Database
+┌──────────┐      ┌──────────────┐      ┌──────────┐
+│  Peer A  │      │  STUN/TURN   │      │  Peer B  │
+│ (NAT ✓)  │      │  Server      │      │ (NAT ✓)  │
+└────┬─────┘      └──────┬───────┘      └────┬─────┘
+     │                   │                   │
+     │ 1. Binding req    │                   │
+     │──────────────────▶│                   │
+     │                   │                   │
+     │ 2. Public IP:Port │                   │
+     │◀──────────────────│                   │
+     │   (203.0.113.1:   │                   │
+     │    54321)         │                   │
+     │                   │                   │
+     │                   │ 3. Binding req    │
+     │                   │◀──────────────────│
+     │                   │                   │
+     │                   │ 4. Public IP:Port │
+     │                   │──────────────────▶│
+     │                   │   (198.51.100.1:  │
+     │                   │    12345)         │
+     │                   │                   │
+     │ 5. Exchange endpoints via Signaling   │
+     │◀─────────────────────────────────────▶│
+     │                   │                   │
+     │ 6. UDP hole punch │                   │
+     │═══════════════════╪═══════════════════│
+     │     Direct P2P Connection             │
+     │═══════════════════╪═══════════════════│
 ```
 
-### Production Environment
+---
+
+## 4. Ağ Mimarisi
+
+### 4.1 WireGuard Yapılandırması
+
+**Host Tarafı:**
+```ini
+[Interface]
+PrivateKey = <host_private_key>
+Address = 10.0.1.1/24
+ListenPort = 51820
+
+[Peer]
+# Client 1
+PublicKey = <client1_public_key>
+AllowedIPs = 10.0.1.2/32
+Endpoint = <client1_endpoint>
+
+[Peer]
+# Client 2
+PublicKey = <client2_public_key>
+AllowedIPs = 10.0.1.3/32
+Endpoint = <client2_endpoint>
 ```
-Cloud Infrastructure:
-├── Load Balancer
-├── Server Cluster (Go)
-├── PostgreSQL Database
-├── Redis Cache
-├── WebSocket Servers
-└── CDN for Static Assets
+
+**Client Tarafı:**
+```ini
+[Interface]
+PrivateKey = <client_private_key>
+Address = 10.0.1.2/24
+
+[Peer]
+# Host
+PublicKey = <host_public_key>
+AllowedIPs = 10.0.1.0/24
+Endpoint = <host_endpoint>
+PersistentKeepalive = 25
 ```
 
-## API Design Principles
+### 4.2 IP Adresleme
 
-### RESTful Design
-- **Resource-Based URLs**: `/v1/tenants/{id}/networks`
-- **HTTP Methods**: Proper GET, POST, PATCH, DELETE usage
-- **Status Codes**: Consistent HTTP status code responses
-- **Error Handling**: Structured error responses
+| Ağ Türü | Alt Ağ | Kullanım |
+|---------|--------|----------|
+| Varsayılan | 10.0.x.0/24 | Normal ağlar |
+| Büyük | 10.0.x.0/16 | 65K+ cihaz |
+| Özel | Kullanıcı tanımlı | İleri düzey |
 
-### Real-time Communication
-- **WebSocket Endpoints**: `/v1/ws` for real-time updates
-- **Event Types**: Chat messages, status changes, network events
-- **Authentication**: JWT-based WebSocket authentication
+**IP Atama:**
+- Host: Her zaman `.1` (örn: 10.0.1.1)
+- Clients: Sırayla `.2`, `.3`, `.4`...
+- Broadcast: `.255` (örn: 10.0.1.255)
 
-## Monitoring & Observability
+---
 
-### Metrics
-- **Application Metrics**: Request rates, response times, error rates
-- **Business Metrics**: Active users, network counts, connection status
-- **Infrastructure Metrics**: CPU, memory, network usage
+## 5. Güvenlik
 
-### Logging
-- **Structured Logging**: JSON-formatted logs with correlation IDs
-- **Log Levels**: Debug, Info, Warn, Error with appropriate filtering
-- **Audit Trail**: Immutable audit logs for security events
+### 5.1 Şifreleme
 
-### Health Checks
-- **Readiness Probes**: Database connectivity, external dependencies
-- **Liveness Probes**: Application health and responsiveness
-- **Dependency Health**: External service availability checks
+| Katman | Protokol | Açıklama |
+|--------|----------|----------|
+| Tünel | WireGuard | ChaCha20-Poly1305 |
+| Anahtar değişimi | Noise Protocol | Curve25519 |
+| Signaling | TLS 1.3 | HTTPS/WSS |
+| Davet linkleri | JWT | HS256 imzalı |
+
+### 5.2 Anahtar Yönetimi
+
+```
+┌─────────────────────────────────────────────────────┐
+│                   Anahtar Yaşam Döngüsü             │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  1. Oluşturma                                       │
+│     └─▶ wg genkey > private.key                    │
+│     └─▶ wg pubkey < private.key > public.key       │
+│                                                     │
+│  2. Saklama                                         │
+│     └─▶ Private key: OS keychain                   │
+│         - Windows: Credential Manager              │
+│         - macOS: Keychain                          │
+│         - Linux: Secret Service                    │
+│                                                     │
+│  3. Değişim                                         │
+│     └─▶ Public key: Signaling server üzerinden     │
+│                                                     │
+│  4. Rotasyon                                        │
+│     └─▶ Her 30 günde bir (opsiyonel)              │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+### 5.3 Tehdit Modeli
+
+| Tehdit | Koruma |
+|--------|--------|
+| Ortadaki adam | WireGuard public key doğrulama |
+| Replay saldırısı | Nonce tabanlı şifreleme |
+| Yetkisiz erişim | Davet linki + onay sistemi |
+| Brute force | Rate limiting + CAPTCHA |
+
+---
+
+## 6. Ölçeklenebilirlik
+
+### 6.1 Tek Ağ Limitleri
+
+| Metrik | Limit | Not |
+|--------|-------|-----|
+| Üye sayısı | 65,534 | /16 subnet |
+| Eşzamanlı bağlantı | ~1,000 | Host kapasitesine bağlı |
+| Bant genişliği | Sınırsız* | P2P, relay hariç |
+
+### 6.2 Federasyon (Gelecek)
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│  GoConnect  │     │  GoConnect  │     │  GoConnect  │
+│  Instance 1 │◀───▶│  Instance 2 │◀───▶│  Instance 3 │
+│  (Türkiye)  │     │   (Avrupa)  │     │  (Amerika)  │
+└─────────────┘     └─────────────┘     └─────────────┘
+       │                   │                   │
+       └───────────────────┴───────────────────┘
+                           │
+                    Federasyon Protokolü
+                    (ActivityPub benzeri)
+```
+
+---
+
+<div align="center">
+
+**[← Ana Sayfa](../README.md)** | **[Teknik Spesifikasyon →](TECH_SPEC.md)**
+
+</div>

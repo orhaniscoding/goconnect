@@ -1,80 +1,147 @@
-# GoConnect Client Daemon
+# 💻 GoConnect CLI
 
-The official client daemon for GoConnect, responsible for managing WireGuard interfaces, synchronizing configuration, and maintaining connectivity with the GoConnect Server.
+GoConnect'in terminal uygulaması. İnteraktif TUI arayüzü ile ağ oluşturun veya mevcut ağlara katılın.
 
-## 🌟 Features
+> **Not:** Bu dizin `goconnect-cli` olarak yeniden adlandırılacak.
 
-- **Automatic Configuration**: Fetches WireGuard configuration (Peers, Keys, Routes) from the server.
-- **Cross-Platform Support**:
-  - **Linux**: Uses `ip` and `wg` tools. Systemd service included.
-  - **Windows**: Uses PowerShell and native Windows networking. Windows Service installer included.
-  - **macOS**: Uses `ifconfig` and `route`. Launchd agent included.
-- **Heartbeat System**: Reports device status, latency, and online/offline state to the server.
-- **Resilient Networking**: Automatically re-applies configuration if the interface is tampered with.
-- **Secure Storage**: Stores device credentials securely on the local filesystem.
+## ✨ Özellikler
 
-## 🚀 Installation
+- 🖥️ **İnteraktif TUI** - Bubbletea ile modern terminal arayüzü
+- 🌐 **Ağ Oluştur** - Terminal'den ağ oluştur ve yönet
+- 🔗 **Ağa Katıl** - Davet linki ile bağlan
+- 📊 **Durum Görüntüle** - Bağlantı durumu, üyeler, IP adresleri
+- 🔧 **Headless Mod** - Sunucularda arka planda çalıştır
 
-### Linux
+## 🚀 Hızlı Başlangıç
 
-1.  **Build**:
-    ```bash
-    go build -o bin/goconnect-daemon ./cmd/daemon
-    ```
-2.  **Install Service**:
-    ```bash
-    sudo cp bin/goconnect-daemon /usr/local/bin/
-    sudo make install-systemd
-    ```
-3.  **Start**:
-    ```bash
-    sudo systemctl start goconnect-daemon
-    ```
-
-### Windows
-
-1.  **Build**:
-    ```powershell
-    go build -o bin/goconnect-daemon-windows-amd64.exe ./cmd/daemon
-    ```
-2.  **Install Service** (Run as Administrator):
-    ```powershell
-    ./service/windows/install.ps1
-    ```
-    This will install the daemon to `C:\Program Files\GoConnect` and start the Windows Service.
-
-### macOS
-
-1.  **Build**:
-    ```bash
-    go build -o bin/goconnect-daemon ./cmd/daemon
-    ```
-2.  **Install Agent**:
-    ```bash
-    make install-launchd
-    ```
-
-## 🔧 Configuration
-
-The daemon uses a configuration file located at:
-- **Linux**: `/etc/goconnect/config.json`
-- **Windows**: `C:\ProgramData\GoConnect\config.json`
-- **macOS**: `~/Library/Application Support/GoConnect/config.json`
-
-### Environment Variables
-
-- `GOCONNECT_SERVER_URL`: URL of the GoConnect Server (default: `http://localhost:8080`)
-- `GOCONNECT_INTERFACE`: Name of the WireGuard interface (default: `wg0`)
-- `GOCONNECT_LOG_LEVEL`: Logging level (`debug`, `info`, `warn`, `error`)
-
-## 🛠️ Development
-
-Run the daemon in development mode (requires Admin/Root privileges for network operations):
+### İndirme
 
 ```bash
-# Linux/macOS
-sudo go run ./cmd/daemon
+# Linux
+curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli-linux-amd64
+chmod +x goconnect-cli-linux-amd64
+sudo mv goconnect-cli-linux-amd64 /usr/local/bin/goconnect
 
-# Windows (Admin PowerShell)
-go run ./cmd/daemon
+# macOS
+curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli-darwin-arm64
+chmod +x goconnect-cli-darwin-arm64
+sudo mv goconnect-cli-darwin-arm64 /usr/local/bin/goconnect
 ```
+
+### Kullanım
+
+```bash
+# İnteraktif mod
+goconnect
+
+# Hızlı komutlar
+goconnect create "Ağ Adı"    # Ağ oluştur
+goconnect join <link>        # Ağa katıl
+goconnect list               # Ağları listele
+goconnect status             # Bağlantı durumu
+goconnect disconnect         # Bağlantıyı kes
+```
+
+## 🎨 TUI Arayüzü
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                    🔗 GoConnect CLI                          │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│   ? Ne yapmak istiyorsun?                                    │
+│                                                              │
+│   ❯ 🌐 Ağ Oluştur                                           │
+│     🔗 Ağa Katıl                                            │
+│     📋 Ağlarım                                              │
+│     ⚙️  Ayarlar                                              │
+│     ❌ Çıkış                                                 │
+│                                                              │
+├──────────────────────────────────────────────────────────────┤
+│   ↑/↓: seç  •  Enter: onayla  •  q: çık                     │
+└──────────────────────────────────────────────────────────────┘
+```
+
+## 🛠️ Geliştirme
+
+### Gereksinimler
+
+- Go 1.24+
+- WireGuard araçları (`wg`, `wg-quick`)
+
+### Derleme
+
+```bash
+# Tek platform
+go build -o goconnect ./cmd/daemon
+
+# Tüm platformlar
+make build-all
+```
+
+### Proje Yapısı
+
+```
+client-daemon/  (→ goconnect-cli)
+├── cmd/
+│   └── daemon/
+│       └── main.go         # Giriş noktası
+├── internal/
+│   ├── tui/                # Terminal UI
+│   │   ├── model.go        # TUI modeli
+│   │   ├── views.go        # Ekranlar
+│   │   └── styles.go       # Stiller
+│   ├── network/            # Ağ yönetimi
+│   ├── wireguard/          # WireGuard entegrasyonu
+│   └── config/             # Yapılandırma
+└── go.mod
+```
+
+## ⚙️ Yapılandırma
+
+Yapılandırma dosyası konumları:
+- **Linux:** `~/.config/goconnect/config.yaml`
+- **macOS:** `~/Library/Application Support/GoConnect/config.yaml`
+- **Windows:** `%APPDATA%\GoConnect\config.yaml`
+
+### Örnek Yapılandırma
+
+```yaml
+# GoConnect CLI Yapılandırma
+server:
+  url: ""  # Boş = yeni ağ oluştur
+
+wireguard:
+  interface_name: goconnect0
+
+daemon:
+  local_port: 12345
+  health_check_interval: 30s
+```
+
+## 🔧 Sistem Servisi
+
+### Linux (systemd)
+
+```bash
+sudo ./goconnect install
+sudo systemctl enable goconnect
+sudo systemctl start goconnect
+```
+
+### macOS (launchd)
+
+```bash
+sudo ./goconnect install
+```
+
+### Windows (Windows Service)
+
+```powershell
+# Admin olarak çalıştır
+.\goconnect.exe install
+```
+
+## 📄 Lisans
+
+MIT License - Detaylar için [LICENSE](../LICENSE) dosyasına bakın.

@@ -1,5 +1,44 @@
 # Changelog
 
+Tüm önemli değişiklikler bu dosyada belgelenmektedir.
+
+Format [Keep a Changelog](https://keepachangelog.com/tr/1.0.0/) standardına,
+versiyon numaraları [Semantic Versioning](https://semver.org/lang/tr/) standardına uymaktadır.
+
+---
+
+## [3.0.0](https://github.com/orhaniscoding/goconnect/compare/v2.28.0...v3.0.0) (2025-11-30)
+
+### ⚠️ BÜYÜK DEĞİŞİKLİK - Yeni Mimari
+
+Bu sürüm, GoConnect'i tamamen yeniden tasarlıyor. Artık **tek bir uygulama** ile hem ağ oluşturabilir (host) hem de başka ağlara katılabilirsiniz (client).
+
+### ✨ Yenilikler
+
+* **Unified App:** Tek uygulama, hem host hem client
+* **Desktop Client:** Tauri tabanlı masaüstü uygulaması (Windows, macOS, Linux)
+* **Terminal CLI:** İnteraktif terminal arayüzü (Bubbletea)
+* **Discord Benzeri UI:** Modern, kullanıcı dostu arayüz
+* **Basit Kurulum:** İndir → Aç → Kullan
+* **Davet Sistemi:** `gc://` protokolü ile tek tıkla katılım
+* **Türkçe Dokümantasyon:** Tüm belgeler Türkçe
+
+### 🔄 Değişiklikler
+
+* `server` → `goconnect-core` (kütüphane olarak)
+* `client-daemon` → `goconnect-cli` (terminal uygulaması)
+* `web-ui` → `desktop-client` içine entegre
+* Karmaşık kurulum adımları kaldırıldı
+
+### 📚 Dokümantasyon
+
+* README tamamen yeniden yazıldı
+* QUICK_START kılavuzu eklendi
+* USER_GUIDE detaylı kullanım kılavuzu eklendi
+* ARCHITECTURE teknik mimari belgesi güncellendi
+
+---
+
 ## [2.28.0](https://github.com/orhaniscoding/goconnect/compare/v2.27.0...v2.28.0) (2025-11-30)
 
 

@@ -1,6 +1,26 @@
-# GoConnect Server
+# ⚙️ GoConnect Core (Server)
 
-Enterprise-grade self-hosted VPN management platform with WireGuard integration, multi-tenancy, and comprehensive audit logging.
+GoConnect'in çekirdek kütüphanesi ve backend sunucusu. Desktop App ve CLI tarafından kullanılır.
+
+> **Not:** Bu bileşen, GoConnect uygulamaları tarafından dahili olarak kullanılır. Son kullanıcıların doğrudan bu bileşenle etkileşime girmesi gerekmez. Normal kullanım için [GoConnect Desktop](../desktop-client/) veya [GoConnect CLI](../client-daemon/) kullanın.
+
+---
+
+## 🎯 Nedir?
+
+GoConnect Core, aşağıdaki hizmetleri sağlayan backend bileşenidir:
+
+- **Ağ Yönetimi**: Sanal LAN oluşturma ve yönetim
+- **WireGuard Entegrasyonu**: Şifreli tünel yapılandırması
+- **Kullanıcı Yönetimi**: Kimlik doğrulama, yetkilendirme
+- **Sohbet Sistemi**: WebSocket tabanlı gerçek zamanlı mesajlaşma
+- **IP Yönetimi (IPAM)**: Otomatik IP tahsisi
+
+---
+
+## 🔧 Geliştiriciler İçin
+
+Aşağıdaki bölümler, GoConnect'e katkıda bulunmak isteyen geliştiriciler içindir.
 
 ##  Features
 

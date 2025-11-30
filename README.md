@@ -1,478 +1,476 @@
-# GoConnect — Virtual LAN Platform
+# 🔗 GoConnect
 
-**GoConnect** is a cross-platform virtual LAN/overlay network system that makes people on the internet appear as if they are on the same local network, with a Discord-like community structure.
+> **"Discord, but for networks."**
 
-> **Vision**: "Discord, but for networks."  
-> **Latest Release:** v2.28.0 · 2025-11-30  
-> **Author:** [@orhaniscoding](https://github.com/orhaniscoding)  
-> **License:** MIT
+GoConnect, internetteki insanların sanki aynı yerel ağdaymış gibi görünmesini sağlayan kullanıcı dostu bir sanal LAN platformudur.
 
-## 🚀 Download and Run
+[![Release](https://img.shields.io/github/v/release/orhaniscoding/goconnect?style=flat-square)](https://github.com/orhaniscoding/goconnect/releases)
+[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+[![Go Version](https://img.shields.io/badge/go-1.24+-00ADD8?style=flat-square&logo=go)](https://go.dev)
 
-### Option 1: Docker (Recommended)
+---
+
+## 📖 İçindekiler
+
+- [GoConnect Nedir?](#-goconnect-nedir)
+- [Kimler İçin?](#-kimler-için)
+- [Nasıl Çalışır?](#-nasıl-çalışır)
+- [Kurulum](#-kurulum)
+- [Kullanım](#-kullanım)
+- [Özellikler](#-özellikler)
+- [Mimari](#-mimari)
+- [Geliştirme](#-geliştirme)
+- [SSS](#-sss)
+- [Katkıda Bulunma](#-katkıda-bulunma)
+- [Lisans](#-lisans)
+
+---
+
+## 🤔 GoConnect Nedir?
+
+GoConnect, **tek bir uygulama** ile:
+
+- 🌐 **Kendi ağını oluştur** - Arkadaşlarınla özel LAN partisi
+- 🔗 **Başka ağlara katıl** - Davet linki ile tek tıkla bağlan
+- 💬 **Sohbet et** - Discord benzeri metin kanalları
+- 🎮 **Oyun oyna** - LAN oyunları internet üzerinden
+
+### Discord ile Karşılaştırma
+
+| Discord | GoConnect |
+|---------|-----------|
+| Ses/Video sunucuları | **Ağ sunucuları** |
+| Ses kanalları | **Sanal LAN'lar** |
+| Sunucu oluştur | **Ağ oluştur** |
+| Sunucuya katıl | **Ağa bağlan** |
+| Metin kanalları | **Metin kanalları** ✓ |
+
+---
+
+## 👥 Kimler İçin?
+
+### 🎮 Oyuncular
+- Minecraft LAN dünyalarını arkadaşlarla paylaş
+- Eski LAN oyunlarını internet üzerinden oyna
+- Düşük gecikmeli oyun deneyimi
+
+### 💼 Uzaktan Çalışanlar
+- Ofis kaynaklarına güvenli erişim
+- Ekip içi dosya paylaşımı
+- Basit VPN alternatifi
+
+### 🏠 Ev Kullanıcıları
+- Evdeki cihazlara dışarıdan erişim
+- Aile ile güvenli dosya paylaşımı
+- NAS'a uzaktan bağlantı
+
+### 👨‍💻 Geliştiriciler
+- Test ortamları oluşturma
+- Mikroservis iletişimi
+- Konteyner ağları
+
+---
+
+## ⚙️ Nasıl Çalışır?
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        GoConnect App                             │
+│                                                                  │
+│  ┌──────────────────┐          ┌──────────────────┐             │
+│  │  Ağ Oluştur 🌐   │          │   Ağa Katıl 🔗   │             │
+│  │                  │          │                  │             │
+│  │ Kendi sunucunu   │          │ Davet linki ile  │             │
+│  │ başlat ve        │          │ başka birisinin  │             │
+│  │ arkadaşlarını    │          │ ağına bağlan     │             │
+│  │ davet et         │          │                  │             │
+│  └────────┬─────────┘          └────────┬─────────┘             │
+│           │                             │                        │
+│           ▼                             ▼                        │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              WireGuard Güvenli Tünel                     │    │
+│  │         (Otomatik yapılandırma - siz bir şey             │    │
+│  │          yapmanıza gerek yok!)                           │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│           │                             │                        │
+│           ▼                             ▼                        │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                    Sanal Yerel Ağ                         │   │
+│  │                                                           │   │
+│  │   👤 Sen          👤 Arkadaş 1      👤 Arkadaş 2         │   │
+│  │   10.0.1.1        10.0.1.2          10.0.1.3             │   │
+│  │                                                           │   │
+│  │   Artık hepiniz aynı LAN'dasınız!                        │   │
+│  └──────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Basit Adımlar
+
+1. **İndir** → GoConnect uygulamasını indir
+2. **Aç** → Uygulamayı çalıştır
+3. **Seç** → "Ağ Oluştur" veya "Ağa Katıl"
+4. **Bağlan** → Tek tıkla bağlan!
+
+---
+
+## 📥 Kurulum
+
+### Seçenek 1: Masaüstü Uygulaması (Önerilen)
+
+En kolay yol! Tek bir uygulama ile her şeyi yapabilirsin.
+
+| Platform | İndir |
+|----------|-------|
+| **Windows** | [GoConnect-Windows.exe](https://github.com/orhaniscoding/goconnect/releases/latest) |
+| **macOS (Intel)** | [GoConnect-macOS-Intel.dmg](https://github.com/orhaniscoding/goconnect/releases/latest) |
+| **macOS (Apple Silicon)** | [GoConnect-macOS-ARM.dmg](https://github.com/orhaniscoding/goconnect/releases/latest) |
+| **Linux (Debian/Ubuntu)** | [GoConnect-Linux.deb](https://github.com/orhaniscoding/goconnect/releases/latest) |
+| **Linux (AppImage)** | [GoConnect-Linux.AppImage](https://github.com/orhaniscoding/goconnect/releases/latest) |
+
+### Seçenek 2: Terminal Uygulaması
+
+Terminal kullanmayı sevenler için interaktif CLI.
+
 ```bash
-# Clone and start
-git clone https://github.com/orhaniscoding/goconnect.git
-cd goconnect
-docker compose up -d
+# Linux/macOS
+curl -fsSL https://get.goconnect.io | sh
 
-# Open browser: http://localhost:8081/setup
-# Follow the setup wizard!
+# veya manuel indirme
+curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli-linux-amd64
+chmod +x goconnect-cli-linux-amd64
+./goconnect-cli-linux-amd64
 ```
 
-### Option 2: Pre-built Binaries
-Download from [GitHub Releases](https://github.com/orhaniscoding/goconnect/releases):
+```powershell
+# Windows (PowerShell)
+irm https://get.goconnect.io/windows | iex
 
-| Platform | Server | Daemon |
-|----------|--------|--------|
-| **Linux (x64)** | `goconnect-server-linux-amd64` | `goconnect-daemon-linux-amd64` |
-| **Linux (ARM64)** | `goconnect-server-linux-arm64` | `goconnect-daemon-linux-arm64` |
-| **Windows** | `goconnect-server-windows-amd64.exe` | `goconnect-daemon-windows-amd64.exe` |
-| **macOS (Intel)** | `goconnect-server-darwin-amd64` | `goconnect-daemon-darwin-amd64` |
-| **macOS (Apple Silicon)** | `goconnect-server-darwin-arm64` | `goconnect-daemon-darwin-arm64` |
+# veya manuel indirme
+Invoke-WebRequest -Uri "https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli-windows-amd64.exe" -OutFile "goconnect.exe"
+.\goconnect.exe
+```
+
+### Seçenek 3: Docker
+
+Sunucu olarak çalıştırmak için.
 
 ```bash
-# Server: Run setup wizard
-./goconnect-server
-# Open http://localhost:8080/setup
-
-# Daemon: Interactive setup
-./goconnect-daemon setup
+docker run -d \
+  --name goconnect \
+  --cap-add NET_ADMIN \
+  -p 8080:8080 \
+  -p 51820:51820/udp \
+  ghcr.io/orhaniscoding/goconnect:latest
 ```
 
-## 🎯 Product Concept
+---
 
-### Core Architecture
+## 🎯 Kullanım
+
+### Ağ Oluşturma (Host)
+
+**Masaüstü Uygulaması:**
+1. GoConnect'i aç
+2. "Ağ Oluştur" butonuna tıkla
+3. Ağ adı gir (örn: "Minecraft Sunucum")
+4. "Oluştur" butonuna tıkla
+5. Davet linkini arkadaşlarınla paylaş!
+
+**Terminal:**
+```bash
+$ goconnect
+
+  🔗 GoConnect - Discord, but for networks
+
+  ? Ne yapmak istiyorsun?
+  ❯ Ağ Oluştur
+    Ağa Katıl
+    Ayarlar
+    Çıkış
+
+# "Ağ Oluştur" seç ve yönergeleri takip et
 ```
-TENANT (Server/Organization)
-├── Multiple Networks (Virtual LANs)
-├── Member Roles (Owner, Admin, Moderator, Member)
-├── Community Chat
-└── Invite System
 
-NETWORK (Virtual LAN)
-├── WireGuard Mesh Networking
-├── IP Address Management
-├── Network Chat
-└── Member Access Control
+### Ağa Katılma (Client)
 
-CLIENT/DAEMON (User Device)
-├── WireGuard Integration
-├── Auto-connection
-└── Multi-network Support
+**Masaüstü Uygulaması:**
+1. GoConnect'i aç
+2. "Ağa Katıl" butonuna tıkla
+3. Davet linkini yapıştır
+4. "Bağlan" butonuna tıkla
+5. Artık ağdasın!
+
+**Terminal:**
+```bash
+$ goconnect join gc://invite.goconnect.io/abc123
+
+✓ Bağlantı başarılı!
+  Ağ: Minecraft Sunucum
+  IP Adresin: 10.0.1.5
+  Çevrimiçi: 3 kişi
 ```
 
-### User Experience
-- **Zero Configuration**: Paste server URL, login, connect
-- **Gaming Focus**: Perfect for Minecraft LAN, older games, file sharing
-- **Cross-Platform**: Windows, Linux, macOS (mobile later)
-- **Free Core**: Basic networking and tenant/network creation is free
+### Hızlı Komutlar (Terminal)
 
-## 🏗️ Architecture
+| Komut | Açıklama |
+|-------|----------|
+| `goconnect` | İnteraktif mod |
+| `goconnect create "Ağ Adı"` | Hızlı ağ oluştur |
+| `goconnect join <link>` | Hızlı katıl |
+| `goconnect list` | Ağlarını listele |
+| `goconnect status` | Bağlantı durumu |
+| `goconnect disconnect` | Bağlantıyı kes |
+| `goconnect help` | Yardım |
 
-### Components
-1. **Server (Go)**: Central management hub with REST API
-2. **Client Daemon (Go)**: Lightweight agent running on user devices
-3. **Web UI (Next.js)**: Unified dashboard for management and chat
+---
 
-### Technology Stack
-- **Backend**: Go 1.24+ with Gin framework
-- **Frontend**: Next.js 15 with TypeScript and Tailwind CSS
-- **Database**: PostgreSQL (production), SQLite (development)
-- **Networking**: WireGuard for secure P2P connections
-- **Real-time**: WebSocket for chat and status updates
+## ✨ Özellikler
 
-## 🚀 Development Setup
+### Temel Özellikler (Ücretsiz)
 
-### Prerequisites
+| Özellik | Açıklama |
+|---------|----------|
+| 🌐 **Ağ Oluşturma** | Kendi sanal LAN'ını oluştur |
+| 🔗 **Ağa Katılma** | Davet linki ile tek tıkla katıl |
+| 💬 **Metin Sohbeti** | Discord benzeri sohbet kanalları |
+| 👥 **Üye Yönetimi** | Davet, çıkarma, yasaklama |
+| 🔒 **Güvenli Bağlantı** | WireGuard şifreleme |
+| 🖥️ **Çoklu Platform** | Windows, macOS, Linux |
+| 📱 **Çoklu Cihaz** | Aynı hesapla birden fazla cihaz |
+
+### Gelecek Özellikler
+
+| Özellik | Durum |
+|---------|-------|
+| 📱 Mobil Uygulama | 🔜 Yakında |
+| 🎤 Sesli Sohbet | 📋 Planlandı |
+| 📹 Görüntülü Görüşme | 📋 Planlandı |
+| 🎮 Oyun Entegrasyonu | 📋 Planlandı |
+
+---
+
+## 🏗️ Mimari
+
+GoConnect üç ana bileşenden oluşur:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     GoConnect Mimarisi                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │              GoConnect App (Tauri)                   │    │
+│  │                                                      │    │
+│  │  • Masaüstü uygulaması (Windows/macOS/Linux)        │    │
+│  │  • Hem host hem client olabilir                     │    │
+│  │  • Modern Discord benzeri arayüz                    │    │
+│  │  • Sistem tepsisinde çalışır                        │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                            │                                 │
+│                            │                                 │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │              GoConnect CLI                           │    │
+│  │                                                      │    │
+│  │  • Terminal uygulaması                              │    │
+│  │  • İnteraktif TUI arayüz                            │    │
+│  │  • Aynı özellikler, terminal'den                    │    │
+│  │  • Sunucu/headless ortamlar için ideal             │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                            │                                 │
+│                            ▼                                 │
+│  ┌─────────────────────────────────────────────────────┐    │
+│  │              GoConnect Core (Go)                     │    │
+│  │                                                      │    │
+│  │  • WireGuard yönetimi                               │    │
+│  │  • Ağ oluşturma ve yönetim                          │    │
+│  │  • Kullanıcı kimlik doğrulama                       │    │
+│  │  • P2P bağlantı koordinasyonu                       │    │
+│  │  • Sohbet ve mesajlaşma                             │    │
+│  └─────────────────────────────────────────────────────┘    │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Teknoloji Yığını
+
+| Katman | Teknoloji | Neden? |
+|--------|-----------|--------|
+| **Desktop App** | Tauri + React | Küçük boyut, native performans |
+| **CLI** | Go + Bubbletea | Çapraz platform, tek binary |
+| **Core** | Go | Hızlı, güvenli, çapraz platform |
+| **Networking** | WireGuard | Modern, hızlı VPN protokolü |
+| **Database** | SQLite/PostgreSQL | Gömülü veya ölçeklenebilir |
+
+---
+
+## 🛠️ Geliştirme
+
+### Gereksinimler
+
 - Go 1.24+
-- Node.js 20+ and npm
-- Docker (optional, for database)
+- Node.js 20+ (Desktop App için)
+- Rust (Desktop App için)
 
-### Quick Start
+### Kaynak Koddan Derleme
 
 ```bash
-# Clone repository
+# Repo'yu klonla
 git clone https://github.com/orhaniscoding/goconnect.git
 cd goconnect
 
-# Option A: Docker Compose (everything)
-docker compose up -d
+# CLI derle
+cd goconnect-cli
+go build -o goconnect ./cmd/goconnect
 
-# Option B: Manual (development)
-cd server && go run ./cmd/server &
-cd ../client-daemon && go run ./cmd/daemon setup
-cd ../web-ui && npm install && npm run dev
+# Desktop App derle
+cd ../desktop-client
+npm install
+npm run tauri build
 ```
 
-### Production Deployment
-
-```bash
-# Build server
-cd server
-go build -o goconnect-server ./cmd/server
-
-# Build daemon
-cd ../client-daemon
-go build -o goconnect-daemon ./cmd/daemon
-
-# Build web UI
-cd ../web-ui
-npm run build
-```
-
-## 📖 Documentation
-
-- **[Technical Specification](docs/TECH_SPEC.md)** - Complete technical details
-- **[API Documentation](server/openapi/openapi.yaml)** - REST API reference
-- **[Security Policy](docs/SECURITY.md)** - Security best practices
-- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment
-
-## 🔧 Configuration
-
-### Environment Variables
-
-**Server:**
-```bash
-PORT=8080
-DATABASE_URL=postgresql://user:pass@localhost/goconnect
-WIREGUARD_INTERFACE=wg0
-```
-
-**Client Daemon:**
-```bash
-GOCONNECT_SERVER_URL=http://localhost:8080
-GOCONNECT_API_TOKEN=<your-token>
-```
-
-## 🏢 License
-
-<<<<<<< HEAD
-## 🏗️ Architecture
+### Proje Yapısı
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                     WEB UI (Next.js)                    │
-│  - Dashboard (network management)                       │
-│  - Chat interface                                       │
-│  - Device/Peer management                               │
-│  Port: 3000 (development)                               │
-└────────────────────────┬────────────────────────────────┘
-                         │
-                         │ REST API (/v1/*)
-                         │ WebSocket (/v1/ws)
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│                  SERVER (Go Backend)                    │
-│  ┌───────────────────────────────────────────────────┐ │
-│  │ REST Handlers (Gin)                               │ │
-│  │ - /v1/networks (CRUD + memberships)               │ │
-│  │ - /v1/auth (register/login)                       │ │
-│  │ - /v1/chat (messages + moderation)                │ │
-│  │ - /v1/devices (device management)                 │ │
-│  │ - /v1/audit/integrity                             │ │
-│  │ - /health, /metrics (Prometheus)                  │ │
-│  └───────────────────────────────────────────────────┘ │
-│  ┌───────────────────────────────────────────────────┐ │
-│  │ Services (Business Logic)                         │ │
-│  │ - NetworkService, MembershipService               │ │
-│  │ - IPAMService, AuthService                        │ │
-│  │ - ChatService, DeviceService                      │ │
-│  │ - PeerProvisioningService                         │ │
-│  └───────────────────────────────────────────────────┘ │
-│  ┌───────────────────────────────────────────────────┐ │
-│  │ Repositories (Data Access)                        │ │
-│  │ - In-Memory (development)                         │ │
-│  │ - PostgreSQL (planned)                            │ │
-│  └───────────────────────────────────────────────────┘ │
-│  Port: 8080                                             │
-└─────────────────────────────────────────────────────────┘
-                         │
-                         │ WireGuard Profile
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│              CLIENT DAEMON (Platform Agent)             │
-│  - Apply WireGuard configuration                        │
-│  - Heartbeat to server                                  │
-│  - Auto-reconnect                                       │
-│  Port: Random (12000-13000)                             │
-└─────────────────────────────────────────────────────────┘
+goconnect/
+├── desktop-client/        # Tauri masaüstü uygulaması
+│   ├── src/               # React frontend
+│   ├── src-tauri/         # Rust backend
+│   └── package.json
+├── goconnect-cli/         # Terminal uygulaması (Go)
+│   ├── cmd/goconnect/     # Ana komut
+│   ├── internal/          # İç paketler
+│   └── go.mod
+├── goconnect-core/        # Ortak kütüphane (Go)
+│   ├── network/           # Ağ yönetimi
+│   ├── wireguard/         # WireGuard entegrasyonu
+│   ├── auth/              # Kimlik doğrulama
+│   └── go.mod
+├── docs/                  # Dokümantasyon
+├── README.md              # Bu dosya
+└── LICENSE                # MIT Lisansı
 ```
 
-### API Endpoints
+---
 
-**Authentication:**
-```
-POST   /v1/auth/register    Register new user
-POST   /v1/auth/login       Login and get tokens
-POST   /v1/auth/refresh     Refresh access token
-POST   /v1/auth/logout      Logout and invalidate token
-```
+## ❓ SSS
 
-**Networks:**
-```
-POST   /v1/networks                Create network
-GET    /v1/networks                List networks
-GET    /v1/networks/:id            Get network details
-PATCH  /v1/networks/:id            Update network
-DELETE /v1/networks/:id            Delete network (soft)
-```
+### Genel Sorular
 
-**Memberships:**
-```
-POST   /v1/networks/:id/join       Join network
-POST   /v1/networks/:id/approve    Approve join request (admin)
-POST   /v1/networks/:id/deny       Deny join request (admin)
-POST   /v1/networks/:id/kick       Kick member (admin)
-POST   /v1/networks/:id/ban        Ban member (admin)
-GET    /v1/networks/:id/members    List members
-```
+<details>
+<summary><b>GoConnect ücretsiz mi?</b></summary>
 
-**IP Allocation:**
-```
-POST   /v1/networks/:id/ip-allocations           Allocate IP
-GET    /v1/networks/:id/ip-allocations           List allocations
-DELETE /v1/networks/:id/ip-allocation            Release own IP
-DELETE /v1/networks/:id/ip-allocations/:user_id  Admin release
-```
+Evet! Temel özellikler tamamen ücretsiz. Gelecekte premium özellikler eklenebilir ama çekirdek işlevsellik her zaman ücretsiz kalacak.
+</details>
 
-**Audit:**
-```
-GET    /v1/audit/integrity    Export integrity snapshot
-```
+<details>
+<summary><b>Hangi platformlarda çalışır?</b></summary>
 
-See [OpenAPI Specification](server/openapi/openapi.yaml) for complete API documentation.
+- ✅ Windows 10/11
+- ✅ macOS 11+ (Intel ve Apple Silicon)
+- ✅ Linux (Ubuntu 20.04+, Debian 11+, Fedora 35+)
+- 🔜 Android (yakında)
+- 🔜 iOS (yakında)
+</details>
 
-## 🧪 Development
+<details>
+<summary><b>VPN ile arasındaki fark nedir?</b></summary>
 
-### Available Make Commands
+GoConnect bir VPN değil, sanal LAN platformudur:
+- **VPN**: Tüm trafiği bir sunucu üzerinden yönlendirir
+- **GoConnect**: Sadece ağdaki cihazlar arasında doğrudan bağlantı kurar
 
-**Root Level:**
-```bash
-make help              # Show all commands
-make test              # Run tests for all components
-make test-race         # Run tests with race detector
-make test-coverage     # Run tests with coverage
-make lint              # Run linters
-make ci                # Run full CI pipeline locally
-make build             # Build all components
-make clean             # Clean build artifacts
-```
+Bu sayede daha düşük gecikme ve daha yüksek hız elde edilir.
+</details>
 
-**Server:**
-```bash
-cd server
-make test-coverage     # Run tests with coverage report
-make test-coverage-html # Generate HTML coverage report
-make lint              # Run golangci-lint
-make build             # Build server binary
-```
+<details>
+<summary><b>Güvenli mi?</b></summary>
 
-**Client Daemon:**
-```bash
-cd client-daemon
-make build-all         # Build for all platforms
-make install-systemd   # Install systemd service (Linux)
-make install-launchd   # Install launchd service (macOS)
-```
+Evet! GoConnect, endüstri standardı WireGuard şifreleme kullanır:
+- ChaCha20 simetrik şifreleme
+- Curve25519 anahtar değişimi
+- Blake2s hash fonksiyonu
+- Poly1305 mesaj kimlik doğrulama
+</details>
 
-### Running Tests
+### Teknik Sorular
 
-```bash
-# All tests with race detector
-make test-race
+<details>
+<summary><b>Port yönlendirme gerekli mi?</b></summary>
 
-# Coverage report
-make test-coverage
+Çoğu durumda hayır! GoConnect, NAT traversal teknikleri kullanır:
+- UDP hole punching
+- STUN/TURN sunucuları
+- Relay sunucuları (son çare)
 
-# Specific package
-cd server
-go test ./internal/handler -v -cover
+Eğer doğrudan bağlantı kurulamazsa otomatik olarak relay kullanılır.
+</details>
 
-# Integration tests
-go test ./internal/integration -v
-```
+<details>
+<summary><b>Bant genişliği limiti var mı?</b></summary>
 
-### Code Coverage
+GoConnect sunucuları üzerinden geçen trafik için limit yoktur çünkü trafik doğrudan cihazlar arasında akar. Relay kullanılması durumunda bazı limitler olabilir.
+</details>
 
-Current coverage (as of 2025-11-29):
-- **audit**: 79.7%
-- **config**: 87.7%
-- **handler**: 53.8%
-- **service**: 67.4%
-- **rbac**: 100%
-- **metrics**: 100%
-- **wireguard**: 90.5%
+<details>
+<summary><b>Kaç cihaz bağlanabilir?</b></summary>
 
-**Target**: ≥60% (enforced in CI)
+Tek bir ağa teorik olarak 65.534 cihaz bağlanabilir (/16 subnet). Pratik limit donanım ve bant genişliğinize bağlıdır.
+</details>
 
-### Linting
+---
 
-```bash
-# Run all linters
-make lint
+## 🤝 Katkıda Bulunma
 
-# Server only
-cd server
-golangci-lint run --timeout=3m
+Katkılarınızı bekliyoruz! 
 
-# Web UI (when configured)
-cd web-ui
-npm run lint
-```
+### Nasıl Katkıda Bulunabilirim?
 
-## 📦 Deployment
+1. **Bug Raporla**: [Issue aç](https://github.com/orhaniscoding/goconnect/issues/new)
+2. **Özellik Öner**: [Discussion başlat](https://github.com/orhaniscoding/goconnect/discussions)
+3. **Kod Katkısı**: Fork → Branch → PR
 
-### Binary Releases
+### Geliştirme Kuralları
 
-Download pre-built binaries from [GitHub Releases](https://github.com/orhaniscoding/goconnect/releases):
+- Conventional Commits kullan (`feat:`, `fix:`, `docs:` vb.)
+- Testleri çalıştır: `make test`
+- Lint kontrolü: `make lint`
 
-```bash
-# Linux (amd64)
-wget https://github.com/orhaniscoding/goconnect/releases/download/v0.0.0/goconnect-server-linux-amd64
-chmod +x goconnect-server-linux-amd64
-./goconnect-server-linux-amd64
+Detaylar için [CONTRIBUTING.md](CONTRIBUTING.md) dosyasına bak.
 
-# macOS (arm64)
-wget https://github.com/orhaniscoding/goconnect/releases/download/v0.0.0/goconnect-server-darwin-arm64
-chmod +x goconnect-server-darwin-arm64
-./goconnect-server-darwin-arm64
-```
+---
 
-### Systemd Service (Linux)
+## 📄 Lisans
 
-```bash
-# Server
-sudo cp server/service/linux/goconnect-server.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now goconnect-server
-
-# Client Daemon
-cd client-daemon
-make install-systemd
-```
-
-### Docker (Coming Soon)
-
-```bash
-docker pull ghcr.io/orhaniscoding/goconnect-server:v0.0.0
-docker run -p 8080:8080 ghcr.io/orhaniscoding/goconnect-server:v0.0.0
-```
-
-## 🤝 Contributing
-
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
-
-**Quick Start:**
-1. Fork the repository
-2. Work directly on `main` branch (no feature branches)
-3. Make changes and add tests
-4. Run checks: `make ci`
-5. Commit with [Conventional Commits](https://www.conventionalcommits.org/): `git commit -S -m "feat(server): add amazing feature"`
-6. Push and open Pull Request
-
-**Development Workflow:**
-- Run `make help` to see all available commands
-- All tests must pass: `make test-race`
-- Coverage must be ≥60%: `make test-coverage`
-- Linters must be clean: `make lint`
-- Follow [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
-
-## 🛣️ Roadmap
-
-### v1.3 (Current)
-- [ ] PostgreSQL migration (replace in-memory)
-- [ ] Complete web UI implementation
-- [ ] Docker & Docker Compose
-- [ ] Kubernetes Helm chart
-
-### v1.4
-- [ ] Real JWT/OIDC authentication
-- [ ] SSO integration (GitHub, Google, Azure AD)
-- [ ] 2FA/MFA support
-- [ ] Email notifications
-
-### v2.0
-- [ ] Relay servers for NAT traversal
-- [ ] Mobile apps (iOS, Android)
-- [ ] Terraform provider
-- [ ] CLI tool for automation
-
-See [GitHub Projects](https://github.com/orhaniscoding/goconnect/projects) for detailed roadmap.
-
-## 🔒 Security
-
-### Current Status
-⚠️ **Development Mode**: The current authentication implementation is a **PLACEHOLDER** for development purposes only. Do not use in production without implementing proper JWT/OIDC authentication.
-
-### Reporting Vulnerabilities
-Please report security vulnerabilities responsibly:
-- **Email**: [security contact] (preferred)
-- **GitHub**: Private security advisory
-- **DO NOT** open public issues for security vulnerabilities
-
-See [SECURITY.md](docs/SECURITY.md) for our security policy.
-
-## 📊 Project Stats
-
-- **Language**: Go 1.24+, TypeScript
-- **Test Coverage**: 60%+ (enforced)
-- **Total Tests**: 200+ (all passing)
-- **Lines of Code**: ~15,000
-- **Documentation**: Comprehensive (14 docs files)
-
-## 📄 License
-
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+Bu proje [MIT Lisansı](LICENSE) altında lisanslanmıştır.
 
 ```
-MIT License
-
-Copyright (c) 2025 orhaniscoding
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+MIT License - Özgürce kullanın, değiştirin, dağıtın!
 ```
 
-## 🙏 Acknowledgments
+---
 
-- [WireGuard](https://www.wireguard.com/) - Fast and modern VPN protocol
-- [Gin Web Framework](https://gin-gonic.com/) - HTTP web framework
-- [Next.js](https://nextjs.org/) - React framework
-- [PostgreSQL](https://www.postgresql.org/) - Relational database
-- All open-source contributors
+## 🙏 Teşekkürler
 
-## 📞 Support
+- [WireGuard](https://www.wireguard.com/) - Modern VPN protokolü
+- [Tauri](https://tauri.app/) - Masaüstü uygulama framework'ü
+- [Bubbletea](https://github.com/charmbracelet/bubbletea) - Terminal UI framework'ü
+- Tüm açık kaynak katkıda bulunanlar
 
-- **Documentation**: [docs/](docs/)
+---
+
+## 📞 İletişim
+
+- **GitHub**: [@orhaniscoding](https://github.com/orhaniscoding)
 - **Issues**: [GitHub Issues](https://github.com/orhaniscoding/goconnect/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/orhaniscoding/goconnect/discussions)
-- **Author**: [@orhaniscoding](https://github.com/orhaniscoding)
 
 ---
 
-**Built with ❤️ by orhaniscoding** | Latest Release: v0.0.0 (2025-11-29)
-=======
-MIT License - see [LICENSE](LICENSE) file for details.
+<div align="center">
 
----
+**[⬆ Başa Dön](#-goconnect)**
 
-**Built with ❤️ for gamers and communities**
->>>>>>> aeb0c86 (feat: Complete GoConnect architecture cleanup and product-ready implementation)
+❤️ ile yapıldı
+
+</div>
