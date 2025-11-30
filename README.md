@@ -321,7 +321,7 @@ cd goconnect
 
 # Build CLI
 cd cli
-go build -o goconnect ./cmd/daemon
+go build -o goconnect ./cmd/goconnect
 
 # Build Desktop App
 cd ../desktop
@@ -338,7 +338,7 @@ goconnect/
 │   ├── src-tauri/         # Rust backend
 │   └── package.json
 ├── cli/                   # Terminal application (Go)
-│   ├── cmd/daemon/        # Main command
+│   ├── cmd/goconnect/     # Main command
 │   ├── internal/          # Internal packages
 │   └── go.mod
 ├── core/                  # Core library (Go)

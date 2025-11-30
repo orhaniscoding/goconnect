@@ -11,7 +11,7 @@ before:
 
 builds:
   - id: daemon
-    main: ./cmd/daemon
+    main: ./cmd/goconnect
     binary: goconnect-daemon
     env:
       - CGO_ENABLED=0

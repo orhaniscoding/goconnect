@@ -43,7 +43,7 @@ jobs:
         working-directory: core
 
       - name: Build Daemon
-        run: go build -o goconnect-daemon ./cmd/daemon
+        run: go build -o goconnect-daemon ./cmd/goconnect
         working-directory: cli
 
       - name: Set up Docker Buildx

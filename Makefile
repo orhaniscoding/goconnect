@@ -37,7 +37,7 @@ dev-core:
 
 dev-cli:
 	@echo "Starting GoConnect CLI..."
-	cd cli && go run ./cmd/daemon
+	cd cli && go run ./cmd/goconnect
 
 dev-desktop:
 	@echo "Starting GoConnect Desktop (dev mode)..."
@@ -55,7 +55,7 @@ build-core:
 
 build-cli:
 	@echo "Building GoConnect CLI..."
-	cd cli && go build -o ../dist/goconnect-cli ./cmd/daemon
+	cd cli && go build -o ../dist/goconnect-cli ./cmd/goconnect
 
 build-desktop:
 	@echo "Building GoConnect Desktop..."
@@ -68,11 +68,11 @@ build-all: build build-desktop
 build-cli-all:
 	@echo "Building CLI for all platforms..."
 	@mkdir -p dist
-	cd cli && GOOS=linux GOARCH=amd64 go build -o ../dist/goconnect-cli-linux-amd64 ./cmd/daemon
-	cd cli && GOOS=linux GOARCH=arm64 go build -o ../dist/goconnect-cli-linux-arm64 ./cmd/daemon
-	cd cli && GOOS=darwin GOARCH=amd64 go build -o ../dist/goconnect-cli-darwin-amd64 ./cmd/daemon
-	cd cli && GOOS=darwin GOARCH=arm64 go build -o ../dist/goconnect-cli-darwin-arm64 ./cmd/daemon
-	cd cli && GOOS=windows GOARCH=amd64 go build -o ../dist/goconnect-cli-windows-amd64.exe ./cmd/daemon
+	cd cli && GOOS=linux GOARCH=amd64 go build -o ../dist/goconnect-cli-linux-amd64 ./cmd/goconnect
+	cd cli && GOOS=linux GOARCH=arm64 go build -o ../dist/goconnect-cli-linux-arm64 ./cmd/goconnect
+	cd cli && GOOS=darwin GOARCH=amd64 go build -o ../dist/goconnect-cli-darwin-amd64 ./cmd/goconnect
+	cd cli && GOOS=darwin GOARCH=arm64 go build -o ../dist/goconnect-cli-darwin-arm64 ./cmd/goconnect
+	cd cli && GOOS=windows GOARCH=amd64 go build -o ../dist/goconnect-cli-windows-amd64.exe ./cmd/goconnect
 
 # =============================================================================
 # Testing

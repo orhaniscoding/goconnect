@@ -71,7 +71,7 @@ goconnect disconnect             # Disconnect
 
 ```bash
 # Single platform
-go build -o goconnect ./cmd/daemon
+go build -o goconnect ./cmd/goconnect
 
 # All platforms
 make build-all
@@ -82,7 +82,7 @@ make build-all
 ```
 cli/
 ├── cmd/
-│   └── daemon/
+│   └── goconnect/
 │       └── main.go         # Entry point
 ├── internal/
 │   ├── tui/                # Terminal UI

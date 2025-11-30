@@ -15,41 +15,36 @@ We welcome contributions to GoConnect! This guide will help you get started.
 git clone https://github.com/orhaniscoding/goconnect.git
 cd goconnect
 
-# Start the server
-cd server
+# Start the core backend
+cd core
 go run ./cmd/server
 
-# Start the client daemon
-cd ../client-daemon
-go run ./cmd/daemon
+# Start the CLI (in another terminal)
+cd cli
+go run ./cmd/goconnect
 
-# Start the web UI
-cd ../web-ui
+# Start the desktop app (in another terminal)
+cd desktop
 npm install
-npm run dev
+npm run tauri dev
 ```
 
 ## Project Structure
 
 ```
 goconnect/
-├── server/                 # Go backend
-│   ├── cmd/               # Application entry points
-│   ├── internal/          # Private application code
-│   │   ├── handler/       # HTTP handlers
-│   │   ├── service/       # Business logic
-│   │   ├── repository/    # Data access layer
-│   │   └── domain/        # Domain models
-│   ├── migrations/        # Database migrations
+├── desktop/               # Tauri desktop app
+│   ├── src/              # React frontend
+│   ├── src-tauri/        # Rust backend
+│   └── package.json
+├── cli/                   # Go CLI application
+│   ├── cmd/goconnect/    # CLI entry point
+│   └── internal/         # Private code
+├── core/                  # Go backend/library
+│   ├── cmd/server/       # Server entry point
+│   ├── internal/         # Business logic
+│   ├── migrations/       # Database migrations
 │   └── openapi/          # API specification
-├── client-daemon/         # Go client agent
-│   ├── cmd/              # Daemon entry point
-│   ├── internal/         # Private application code
-│   └── service/          # Client services
-├── web-ui/               # Next.js frontend
-│   ├── src/              # React components
-│   ├── pages/            # Next.js pages
-│   └── public/           # Static assets
 └── docs/                 # Documentation
 ```
 
@@ -70,11 +65,11 @@ goconnect/
 ### Running Tests
 ```bash
 # Go tests
-cd server && go test ./...
-cd client-daemon && go test ./...
+cd core && go test ./...
+cd cli && go test ./...
 
-# Frontend tests
-cd web-ui && npm test
+# Or use Makefile
+make test
 ```
 
 ### Coverage
