@@ -1,56 +1,59 @@
 // =============================================================================
 // GoConnect API Client
 // =============================================================================
+// Terminology: Server (tenant) > Network > Client (device/member)
 
 const API_BASE = "http://localhost:8081/api/v1";
 
-// Types matching backend domain
+// Types - UI uses Server/Network/Client terminology
 export interface User {
     id: string;
     deviceId: string;
     username: string;
 }
 
-export interface Tenant {
+// Server = Tenant in backend
+export interface Server {
     id: string;
     name: string;
     description?: string;
     icon?: string;
     visibility: "public" | "unlisted" | "private";
-    access_type: "open" | "password" | "invite_only";
-    member_count: number;
-    created_at: string;
-    is_owner?: boolean;
+    accessType: "open" | "password" | "invite_only";
+    memberCount: number;
+    createdAt: string;
+    isOwner?: boolean;
 }
 
 export interface Network {
     id: string;
-    tenant_id: string;
+    serverId: string;
     name: string;
-    cidr: string;
+    subnet: string;
     visibility: "public" | "private";
-    join_policy: "open" | "invite" | "approval";
-    member_count?: number;
+    joinPolicy: "open" | "invite" | "approval";
+    memberCount?: number;
     connected?: boolean;
-    my_ip?: string;
+    myIp?: string;
 }
 
-export interface NetworkMember {
+// Client = Member/Device in backend
+export interface Client {
     id: string;
-    user_id: string;
+    userId: string;
     username: string;
     ip: string;
     status: "online" | "idle" | "offline";
-    is_host: boolean;
-    last_seen: string;
+    isHost: boolean;
+    lastSeen: string;
 }
 
-export interface TenantInvite {
+export interface ServerInvite {
     id: string;
     code: string;
-    max_uses: number;
-    use_count: number;
-    expires_at?: string;
+    maxUses: number;
+    useCount: number;
+    expiresAt?: string;
 }
 
 // API Response wrapper
@@ -124,155 +127,218 @@ export async function heartbeat() {
 }
 
 // =============================================================================
-// Tenants (Servers)
+// Servers (backend: tenants)
 // =============================================================================
 
-export async function listTenants() {
-    return apiFetch<Tenant[]>("/tenants");
+export async function listServers() {
+    const result = await apiFetch<any[]>("/tenants");
+    return { ...result, data: result.data?.map(mapServerFromApi) };
 }
 
-export async function getMyTenants() {
-    return apiFetch<Tenant[]>("/tenants/me");
+export async function getMyServers() {
+    const result = await apiFetch<any[]>("/tenants/me");
+    return { ...result, data: result.data?.map(mapServerFromApi) };
 }
 
-export async function createTenant(data: {
+export async function createServer(data: {
     name: string;
     description?: string;
     icon?: string;
     visibility?: "public" | "unlisted" | "private";
-    access_type?: "open" | "password" | "invite_only";
+    accessType?: "open" | "password" | "invite_only";
 }) {
-    return apiFetch<Tenant>("/tenants", {
+    const result = await apiFetch<any>("/tenants", {
         method: "POST",
         body: JSON.stringify({
             name: data.name,
             description: data.description || "",
             visibility: data.visibility || "private",
-            access_type: data.access_type || "invite_only",
+            access_type: data.accessType || "invite_only",
         }),
     });
+    return { ...result, data: result.data ? mapServerFromApi(result.data) : undefined };
 }
 
-export async function getTenant(tenantId: string) {
-    return apiFetch<Tenant>(`/tenants/${tenantId}`);
+export async function getServer(serverId: string) {
+    const result = await apiFetch<any>(`/tenants/${serverId}`);
+    return { ...result, data: result.data ? mapServerFromApi(result.data) : undefined };
 }
 
-export async function deleteTenant(tenantId: string) {
-    return apiFetch<void>(`/tenants/${tenantId}`, {
+export async function deleteServer(serverId: string) {
+    return apiFetch<void>(`/tenants/${serverId}`, {
         method: "DELETE",
     });
 }
 
-export async function joinTenantByCode(code: string) {
-    return apiFetch<Tenant>("/tenants/join", {
+export async function joinServerByCode(code: string) {
+    const result = await apiFetch<any>("/tenants/join", {
         method: "POST",
         body: JSON.stringify({ code }),
     });
+    return { ...result, data: result.data ? mapServerFromApi(result.data) : undefined };
 }
 
-export async function leaveTenant(tenantId: string) {
-    return apiFetch<void>(`/tenants/${tenantId}/leave`, {
+export async function leaveServer(serverId: string) {
+    return apiFetch<void>(`/tenants/${serverId}/leave`, {
         method: "POST",
     });
 }
 
+// Map backend tenant to UI server
+function mapServerFromApi(data: any): Server {
+    return {
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        icon: data.icon,
+        visibility: data.visibility,
+        accessType: data.access_type,
+        memberCount: data.member_count,
+        createdAt: data.created_at,
+        isOwner: data.is_owner,
+    };
+}
+
 // =============================================================================
-// Tenant Invites
+// Server Invites
 // =============================================================================
 
-export async function createTenantInvite(
-    tenantId: string,
-    data?: { max_uses?: number; expires_in?: number }
+export async function createServerInvite(
+    serverId: string,
+    data?: { maxUses?: number; expiresIn?: number }
 ) {
-    return apiFetch<TenantInvite>(`/tenants/${tenantId}/invites`, {
+    const result = await apiFetch<any>(`/tenants/${serverId}/invites`, {
         method: "POST",
-        body: JSON.stringify(data || {}),
+        body: JSON.stringify({
+            max_uses: data?.maxUses,
+            expires_in: data?.expiresIn,
+        }),
     });
+    return { ...result, data: result.data ? mapInviteFromApi(result.data) : undefined };
 }
 
-export async function listTenantInvites(tenantId: string) {
-    return apiFetch<TenantInvite[]>(`/tenants/${tenantId}/invites`);
+export async function listServerInvites(serverId: string) {
+    const result = await apiFetch<any[]>(`/tenants/${serverId}/invites`);
+    return { ...result, data: result.data?.map(mapInviteFromApi) };
 }
 
-export async function revokeTenantInvite(tenantId: string, inviteId: string) {
-    return apiFetch<void>(`/tenants/${tenantId}/invites/${inviteId}`, {
+export async function revokeServerInvite(serverId: string, inviteId: string) {
+    return apiFetch<void>(`/tenants/${serverId}/invites/${inviteId}`, {
         method: "DELETE",
     });
+}
+
+function mapInviteFromApi(data: any): ServerInvite {
+    return {
+        id: data.id,
+        code: data.code,
+        maxUses: data.max_uses,
+        useCount: data.use_count,
+        expiresAt: data.expires_at,
+    };
 }
 
 // =============================================================================
 // Networks
 // =============================================================================
 
-export async function listNetworks(tenantId: string) {
-    return apiFetch<Network[]>(`/tenants/${tenantId}/networks`);
+export async function listNetworks(serverId: string) {
+    const result = await apiFetch<any[]>(`/tenants/${serverId}/networks`);
+    return { ...result, data: result.data?.map(mapNetworkFromApi) };
 }
 
 export async function createNetwork(
-    tenantId: string,
+    serverId: string,
     data: {
         name: string;
-        cidr?: string;
+        subnet?: string;
         visibility?: "public" | "private";
-        join_policy?: "open" | "invite" | "approval";
+        joinPolicy?: "open" | "invite" | "approval";
     }
 ) {
-    return apiFetch<Network>(`/tenants/${tenantId}/networks`, {
+    const result = await apiFetch<any>(`/tenants/${serverId}/networks`, {
         method: "POST",
         body: JSON.stringify({
             name: data.name,
-            cidr: data.cidr || "10.0.0.0/24",
+            cidr: data.subnet || "10.0.0.0/24",
             visibility: data.visibility || "private",
-            join_policy: data.join_policy || "open",
+            join_policy: data.joinPolicy || "open",
         }),
     });
+    return { ...result, data: result.data ? mapNetworkFromApi(result.data) : undefined };
 }
 
-export async function getNetwork(tenantId: string, networkId: string) {
-    return apiFetch<Network>(`/tenants/${tenantId}/networks/${networkId}`);
+export async function getNetwork(serverId: string, networkId: string) {
+    const result = await apiFetch<any>(`/tenants/${serverId}/networks/${networkId}`);
+    return { ...result, data: result.data ? mapNetworkFromApi(result.data) : undefined };
 }
 
-export async function deleteNetwork(tenantId: string, networkId: string) {
-    return apiFetch<void>(`/tenants/${tenantId}/networks/${networkId}`, {
+export async function deleteNetwork(serverId: string, networkId: string) {
+    return apiFetch<void>(`/tenants/${serverId}/networks/${networkId}`, {
         method: "DELETE",
     });
 }
 
-export async function joinNetwork(tenantId: string, networkId: string) {
-    return apiFetch<{ ip: string }>(`/tenants/${tenantId}/networks/${networkId}/join`, {
+export async function joinNetwork(serverId: string, networkId: string) {
+    return apiFetch<{ ip: string }>(`/tenants/${serverId}/networks/${networkId}/join`, {
         method: "POST",
     });
 }
 
-export async function leaveNetwork(tenantId: string, networkId: string) {
-    return apiFetch<void>(`/tenants/${tenantId}/networks/${networkId}/leave`, {
+export async function leaveNetwork(serverId: string, networkId: string) {
+    return apiFetch<void>(`/tenants/${serverId}/networks/${networkId}/leave`, {
         method: "POST",
     });
 }
 
-export async function listNetworkMembers(tenantId: string, networkId: string) {
-    return apiFetch<NetworkMember[]>(`/tenants/${tenantId}/networks/${networkId}/members`);
+export async function listNetworkClients(serverId: string, networkId: string) {
+    const result = await apiFetch<any[]>(`/tenants/${serverId}/networks/${networkId}/members`);
+    return { ...result, data: result.data?.map(mapClientFromApi) };
+}
+
+function mapNetworkFromApi(data: any): Network {
+    return {
+        id: data.id,
+        serverId: data.tenant_id,
+        name: data.name,
+        subnet: data.cidr,
+        visibility: data.visibility,
+        joinPolicy: data.join_policy,
+        memberCount: data.member_count,
+    };
+}
+
+function mapClientFromApi(data: any): Client {
+    return {
+        id: data.id,
+        userId: data.user_id,
+        username: data.username,
+        ip: data.ip,
+        status: data.status,
+        isHost: data.is_host,
+        lastSeen: data.last_seen,
+    };
 }
 
 // =============================================================================
 // Connection (WireGuard)
 // =============================================================================
 
-export async function getNetworkConfig(tenantId: string, networkId: string) {
+export async function getNetworkConfig(serverId: string, networkId: string) {
     return apiFetch<{
         interface: {
-            private_key?: string;
+            privateKey?: string;
             addresses: string[];
             dns?: string[];
             mtu?: number;
         };
         peers: Array<{
-            public_key: string;
+            publicKey: string;
             endpoint?: string;
-            allowed_ips: string[];
-            persistent_keepalive?: number;
+            allowedIps: string[];
+            persistentKeepalive?: number;
         }>;
-    }>(`/tenants/${tenantId}/networks/${networkId}/config`);
+    }>(`/tenants/${serverId}/networks/${networkId}/config`);
 }
 
 // =============================================================================
