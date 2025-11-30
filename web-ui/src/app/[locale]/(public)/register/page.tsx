@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useState, FormEvent, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Footer from '../../../../components/Footer'
 import { register } from '../../../../lib/api'
@@ -8,13 +8,13 @@ import { setTokens, setUser } from '../../../../lib/auth'
 import { useT } from '../../../../lib/i18n-context'
 
 interface RegisterPageProps {
-    params: { locale: string } | Promise<{ locale: string }>
+    params: Promise<{ locale: string }>
 }
 
 export default function Register({ params }: RegisterPageProps) {
+    const { locale } = use(params)
     const router = useRouter()
     const t = useT()
-    const locale = (params as any)?.locale ?? 'en'
     const [name, setName] = useState('')
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')

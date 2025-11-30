@@ -83,3 +83,12 @@ func LoadConfig(path string) (*Config, error) {
 
 	return cfg, nil
 }
+
+// SaveConfig saves the configuration to a YAML file.
+func SaveConfig(cfg *Config, path string) error {
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0644)
+}

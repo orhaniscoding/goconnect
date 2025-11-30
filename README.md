@@ -3,9 +3,42 @@
 **GoConnect** is a cross-platform virtual LAN/overlay network system that makes people on the internet appear as if they are on the same local network, with a Discord-like community structure.
 
 > **Vision**: "Discord, but for networks."  
-> **Latest Release:** v0.0.0 · 2025-11-29  
+> **Latest Release:** v2.28.0 · 2025-11-30  
 > **Author:** [@orhaniscoding](https://github.com/orhaniscoding)  
 > **License:** MIT
+
+## 🚀 Download and Run
+
+### Option 1: Docker (Recommended)
+```bash
+# Clone and start
+git clone https://github.com/orhaniscoding/goconnect.git
+cd goconnect
+docker compose up -d
+
+# Open browser: http://localhost:8081/setup
+# Follow the setup wizard!
+```
+
+### Option 2: Pre-built Binaries
+Download from [GitHub Releases](https://github.com/orhaniscoding/goconnect/releases):
+
+| Platform | Server | Daemon |
+|----------|--------|--------|
+| **Linux (x64)** | `goconnect-server-linux-amd64` | `goconnect-daemon-linux-amd64` |
+| **Linux (ARM64)** | `goconnect-server-linux-arm64` | `goconnect-daemon-linux-arm64` |
+| **Windows** | `goconnect-server-windows-amd64.exe` | `goconnect-daemon-windows-amd64.exe` |
+| **macOS (Intel)** | `goconnect-server-darwin-amd64` | `goconnect-daemon-darwin-amd64` |
+| **macOS (Apple Silicon)** | `goconnect-server-darwin-arm64` | `goconnect-daemon-darwin-arm64` |
+
+```bash
+# Server: Run setup wizard
+./goconnect-server
+# Open http://localhost:8080/setup
+
+# Daemon: Interactive setup
+./goconnect-daemon setup
+```
 
 ## 🎯 Product Concept
 
@@ -49,32 +82,27 @@ CLIENT/DAEMON (User Device)
 - **Networking**: WireGuard for secure P2P connections
 - **Real-time**: WebSocket for chat and status updates
 
-## 🚀 Quick Start
+## 🚀 Development Setup
 
 ### Prerequisites
 - Go 1.24+
-- Node.js 18+ and npm
-- PostgreSQL 15+ (optional)
+- Node.js 20+ and npm
+- Docker (optional, for database)
 
-### Development Setup
+### Quick Start
 
 ```bash
 # Clone repository
 git clone https://github.com/orhaniscoding/goconnect.git
 cd goconnect
 
-# Start server
-cd server
-go run ./cmd/server
+# Option A: Docker Compose (everything)
+docker compose up -d
 
-# Start client daemon
-cd ../client-daemon
-go run ./cmd/daemon
-
-# Start web UI
-cd ../web-ui
-npm install
-npm run dev
+# Option B: Manual (development)
+cd server && go run ./cmd/server &
+cd ../client-daemon && go run ./cmd/daemon setup
+cd ../web-ui && npm install && npm run dev
 ```
 
 ### Production Deployment

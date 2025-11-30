@@ -98,3 +98,4 @@ release/
 .codex*
 gha-creds-*.json
 .windsurf*
+.agent*

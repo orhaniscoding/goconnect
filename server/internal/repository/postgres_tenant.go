@@ -21,36 +21,12 @@ func NewPostgresTenantRepository(db *sql.DB) *PostgresTenantRepository {
 
 func (r *PostgresTenantRepository) Create(ctx context.Context, tenant *domain.Tenant) error {
 	query := `
-		INSERT INTO tenants (
-			id,
-			name,
-			description,
-			icon_url,
-			visibility,
-			access_type,
-			password_hash,
-			max_members,
-			owner_id,
-			created_at,
-			updated_at
-		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		INSERT INTO tenants (id, name, created_at, updated_at)
+		VALUES ($1, $2, $3, $4)
 	`
-
-	var ownerID interface{}
-	if tenant.OwnerID != "" {
-		ownerID = tenant.OwnerID
-	}
 	_, err := r.db.ExecContext(ctx, query,
 		tenant.ID,
 		tenant.Name,
-		tenant.Description,
-		tenant.IconURL,
-		tenant.Visibility,
-		tenant.AccessType,
-		tenant.PasswordHash,
-		tenant.MaxMembers,
-		ownerID,
 		tenant.CreatedAt,
 		tenant.UpdatedAt,
 	)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, FormEvent, useEffect } from 'react'
+import { useState, FormEvent, useEffect, use } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Footer from '../../../../components/Footer'
 import { login } from '../../../../lib/api'
@@ -9,15 +9,15 @@ import { useNotification } from '../../../../contexts/NotificationContext'
 import { useT } from '../../../../lib/i18n-context'
 
 interface LoginPageProps {
-    params: { locale: string } | Promise<{ locale: string }>
+    params: Promise<{ locale: string }>
 }
 
 export default function Login({ params }: LoginPageProps) {
+    const { locale } = use(params)
     const router = useRouter()
     const searchParams = useSearchParams()
     const notification = useNotification()
     const t = useT()
-    const locale = (params as any)?.locale ?? 'en'
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [code, setCode] = useState('')

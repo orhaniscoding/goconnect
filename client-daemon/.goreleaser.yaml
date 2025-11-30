@@ -1,0 +1,118 @@
+# GoReleaser configuration for GoConnect Daemon
+# Documentation: https://goreleaser.com
+
+version: 2
+
+project_name: goconnect-daemon
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: daemon
+    main: ./cmd/daemon
+    binary: goconnect-daemon
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+      - -X main.builtBy=goreleaser
+
+archives:
+  - id: daemon
+    builds:
+      - daemon
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+
+release:
+  github:
+    owner: orhaniscoding
+    name: goconnect
+  prerelease: auto
+  mode: append
+  header: |
+    ## 💻 GoConnect Daemon {{ .Tag }}
+    
+    **Client daemon for connecting to GoConnect networks.**
+    
+    ### 📋 What's Included
+    - Daemon binaries for Linux, macOS, Windows
+    - SHA256 checksums for verification
+  footer: |
+    ---
+    
+    ### 💻 Client (Daemon) Installation
+    
+    #### 🐧 Linux Client
+    ```bash
+    curl -LO https://github.com/orhaniscoding/goconnect/releases/download/{{ .Tag }}/goconnect-daemon_{{ .Version }}_linux_amd64.tar.gz
+    tar -xzf goconnect-daemon_{{ .Version }}_linux_amd64.tar.gz
+    sudo ./goconnect-daemon install
+    ./goconnect-daemon setup
+    ```
+    
+    #### 🍎 macOS Client
+    ```bash
+    curl -LO https://github.com/orhaniscoding/goconnect/releases/download/{{ .Tag }}/goconnect-daemon_{{ .Version }}_darwin_arm64.tar.gz
+    tar -xzf goconnect-daemon_{{ .Version }}_darwin_arm64.tar.gz
+    sudo ./goconnect-daemon install
+    ./goconnect-daemon setup
+    ```
+    
+    #### 🪟 Windows Client (PowerShell as Admin)
+    ```powershell
+    Invoke-WebRequest -Uri "https://github.com/orhaniscoding/goconnect/releases/download/{{ .Tag }}/goconnect-daemon_{{ .Version }}_windows_amd64.zip" -OutFile "goconnect-daemon.zip"
+    Expand-Archive -Path "goconnect-daemon.zip" -DestinationPath "."
+    .\goconnect-daemon.exe install
+    .\goconnect-daemon.exe setup
+    ```
+    
+    ### 🔐 Verify Downloads
+    ```bash
+    sha256sum -c checksums.txt
+    ```
+    
+    ---
+    Built with ❤️ by [@orhaniscoding](https://github.com/orhaniscoding)

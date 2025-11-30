@@ -44,7 +44,7 @@ type DatabaseConfig struct {
 	MaxOpenConns    int           `yaml:"max_open_conns"`
 	MaxIdleConns    int           `yaml:"max_idle_conns"`
 	ConnMaxLifetime time.Duration `yaml:"conn_max_lifetime"`
-	SQLitePath      string        `yaml:"sqlite_path"`
+	SQLitePath      string        `yaml:"sqlite_path" json:"sqlite_path"`
 }
 
 // JWTConfig holds JWT token configuration
@@ -67,8 +67,8 @@ type RedisConfig struct {
 type WireGuardConfig struct {
 	InterfaceName  string `yaml:"interface_name"`  // Interface name (default: wg0)
 	PrivateKey     string `yaml:"private_key"`     // Server's WireGuard private key
-	ServerEndpoint string `yaml:"server_endpoint"` // Public endpoint (e.g., "vpn.example.com:51820")
-	ServerPubKey   string `yaml:"server_pubkey"`   // Server's WireGuard public key (44 chars base64)
+	ServerEndpoint string `yaml:"server_endpoint" json:"server_endpoint"` // Public endpoint (e.g., "vpn.example.com:51820")
+	ServerPubKey   string `yaml:"server_pubkey" json:"server_pubkey"`   // Server's WireGuard public key (44 chars base64)
 	DNS            string `yaml:"dns"`             // DNS servers for clients (comma-separated)
 	MTU            int    `yaml:"mtu"`             // MTU for the interface
 	Keepalive      int    `yaml:"keepalive"`       // Persistent keepalive in seconds

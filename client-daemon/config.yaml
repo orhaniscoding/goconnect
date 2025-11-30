@@ -1,0 +1,10 @@
+server:
+    url: http://localhost:8081
+daemon:
+    local_port: 12345
+    health_check_interval: 30s
+wireguard:
+    interface_name: goconnect0
+identity_path: ./identity.json
+deviceprivatekey: ""
+devicepublickey: ""

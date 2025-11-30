@@ -9,6 +9,11 @@ ADD COLUMN IF NOT EXISTS suspended_by VARCHAR(255);
 ALTER TABLE users 
 ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP;
 
+-- Add is_moderator and username columns if not exist
+ALTER TABLE users 
+ADD COLUMN IF NOT EXISTS is_moderator BOOLEAN DEFAULT FALSE NOT NULL,
+ADD COLUMN IF NOT EXISTS username VARCHAR(255);
+
 -- Add indexes for admin queries
 CREATE INDEX IF NOT EXISTS idx_users_is_admin ON users(is_admin) WHERE is_admin = TRUE;
 CREATE INDEX IF NOT EXISTS idx_users_is_moderator ON users(is_moderator) WHERE is_moderator = TRUE;

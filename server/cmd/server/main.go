@@ -51,7 +51,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), shutdownSignals()...)
 	defer stop()
 
-	configPath := config.DefaultConfigPath()
+	configPath := "/data/goconnect.yaml"
 
 	// Register metrics early
 	metrics.Register()
@@ -735,6 +735,347 @@ var setupSteps = []setupStep{
 
 func registerSetupRoutes(r *gin.Engine, dbBackend string, sqlitePath string, configPath string, stop context.CancelFunc) {
 	r.GET("/setup", func(c *gin.Context) {
+		// Check if browser wants HTML (Accept header)
+		acceptHeader := c.GetHeader("Accept")
+		if strings.Contains(acceptHeader, "text/html") {
+			// Return HTML setup wizard
+			html := `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoConnect Setup Wizard</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        .container { max-width: 800px; margin: 0 auto; padding: 40px 20px; }
+        .card { background: white; border-radius: 12px; padding: 40px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); }
+        .logo { font-size: 32px; font-weight: bold; color: #667eea; margin-bottom: 10px; }
+        .subtitle { color: #666; margin-bottom: 40px; }
+        .step { display: none; }
+        .step.active { display: block; }
+        .step-number { background: #667eea; color: white; width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-right: 10px; font-weight: bold; }
+        .step-title { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+        .step-desc { color: #666; margin-bottom: 30px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 5px; font-weight: 500; }
+        input, select, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; }
+        button { background: #667eea; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-size: 16px; cursor: pointer; margin-right: 10px; }
+        button:hover { background: #5a6fd8; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .progress { background: #f0f0f0; height: 4px; border-radius: 2px; margin-bottom: 30px; }
+        .progress-bar { background: #667eea; height: 4px; border-radius: 2px; transition: width 0.3s; }
+        .success { color: #28a745; text-align: center; padding: 40px; }
+        .error { color: #dc3545; background: #f8d7da; padding: 10px; border-radius: 6px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="logo">🚀 GoConnect</div>
+            <div class="subtitle">Network Management Platform - Setup Wizard</div>
+            
+            <div class="progress">
+                <div class="progress-bar" id="progress" style="width: 33%"></div>
+            </div>
+            
+            <!-- Step 1: Mode Selection -->
+            <div class="step active" id="step1">
+                <div class="step-title"><span class="step-number">1</span>Choose Setup Mode</div>
+                <div class="step-desc">Select how you want to store your data</div>
+                
+                <div class="form-group">
+                    <label for="mode">Setup Mode</label>
+                    <select id="mode" onchange="updateMode()">
+                        <option value="personal">🏠 Personal (SQLite) - Simple, single computer</option>
+                        <option value="enterprise" selected>🏢 Enterprise (PostgreSQL) - Multi-user, production ready</option>
+                    </select>
+                </div>
+                
+                <div id="personal-fields" style="display: none;">
+                    <div class="form-group">
+                        <label for="sqlite-path">Database File Path</label>
+                        <input type="text" id="sqlite-path" value="./goconnect.db" placeholder="./goconnect.db">
+                        <small><strong>Nedir?</strong> SQLite database dosyasının yolu. <strong>Örnek:</strong> "./goconnect.db" <strong>Neden gerekli?</strong> Tüm verilerin saklanacağı dosya. Personal mod için basit ve tek dosyalı çözüm.</small>
+                    </div>
+                </div>
+                
+                <div id="enterprise-fields">
+                    <div class="form-group">
+                        <label for="db-host">Database Host</label>
+                        <input type="text" id="db-host" value="postgres" placeholder="localhost">
+                        <small><strong>Nedir?</strong> PostgreSQL sunucusunun adresi. <strong>Örnekler:</strong> "localhost", "postgres", "db.mycompany.com" <strong>Neden gerekli?</strong> GoConnect'in veritabanına bağlanması için sunucu adresi.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="db-port">Database Port</label>
+                        <input type="text" id="db-port" value="5432" placeholder="5432">
+                        <small><strong>Nedir?</strong> PostgreSQL sunucusunun portu. <strong>Örnek:</strong> "5432" (PostgreSQL default) <strong>Neden gerekli?</strong> Doğru porta bağlanmak için.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="db-name">Database Name</label>
+                        <input type="text" id="db-name" value="goconnect" placeholder="goconnect">
+                        <small><strong>Nedir?</strong> PostgreSQL database adı. <strong>Örnek:</strong> "goconnect", "my_vpn_db" <strong>Neden gerekli?</strong> GoConnect verilerinin saklanacağı database.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="db-user">Database User</label>
+                        <input type="text" id="db-user" value="goconnect" placeholder="postgres">
+                        <small><strong>Nedir?</strong> PostgreSQL kullanıcı adı. <strong>Örnekler:</strong> "goconnect", "postgres", "vpn_user" <strong>Neden gerekli?</strong> Database'e erişim için kullanıcı kimliği.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="db-password">Database Password</label>
+                        <input type="password" id="db-password" value="goconnect_secret" placeholder="your password">
+                        <small><strong>Nedir?</strong> PostgreSQL şifresi. <strong>Örnek:</strong> "my_secure_password_123" <strong>Neden gerekli?</strong> Database güvenliği için. Production'da güçlü şifre kullanın!</small>
+                    </div>
+                </div>
+                
+                <button onclick="nextStep()">Next →</button>
+            </div>
+            
+            <!-- Step 2: Admin Setup -->
+            <div class="step" id="step2">
+                <div class="step-title"><span class="step-number">2</span>Admin Account & Security</div>
+                <div class="step-desc">Configure your admin account and security settings</div>
+                
+                <div class="form-group">
+                    <label for="jwt-secret">JWT Secret</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="jwt-secret" value="goconnect-super-secret-jwt-key-change-in-production" style="flex: 1;">
+                        <button type="button" onclick="generateJWTSecret()" style="padding: 12px; background: #28a745;">🎲 Random</button>
+                    </div>
+                    <small><strong>Nedir?</strong> JWT (JSON Web Token) authentication için güvenlik anahtarı. <strong>Örnek:</strong> "my-super-secret-jwt-key-1234567890" <strong>Neden gerekli?</strong> Kullanıcı girişi ve API güvenliği için şifreleme anahtarı.</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="wg-endpoint">WireGuard VPN Endpoint</label>
+                    <input type="text" id="wg-endpoint" value="vpn.example.com:51820" placeholder="vpn.example.com:51820">
+                    <small><strong>Nedir?</strong> WireGuard VPN sunucusunun public IP adresi ve portu. <strong>Örnekler:</strong> "123.45.67.89:51820" veya "vpn.mycompany.com:51820" <strong>Neden gerekli?</strong> VPN client'larının sunucuya bağlanması için adres. Development için "localhost:51820" kullanabilirsiniz.</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="wg-pubkey">WireGuard Public Key</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="wg-pubkey" value="auto-generated" readonly style="flex: 1;">
+                        <button type="button" onclick="generateWGPublicKey()" style="padding: 12px; background: #28a745;">🎲 Generate</button>
+                    </div>
+                    <small><strong>Nedir?</strong> WireGuard sunucusunun public anahtarı. <strong>Örnek:</strong> "ABC123xyz789..." <strong>Neden gerekli?</strong> VPN client'larının sunucuyu doğrulaması için. Otomatik olarak oluşturulur.</small>
+                </div>
+                
+                <button onclick="prevStep()">← Previous</button>
+                <button onclick="nextStep()">Next →</button>
+            </div>
+            
+            <!-- Step 3: Complete Setup -->
+            <div class="step" id="step3">
+                <div class="step-title"><span class="step-number">3</span>Complete Setup</div>
+                <div class="step-desc">Review your configuration and start GoConnect</div>
+                
+                <div id="config-review">
+                    <h4>Configuration Summary:</h4>
+                    <div id="summary-content"></div>
+                </div>
+                
+                <div id="setup-status"></div>
+                
+                <button onclick="prevStep()">← Previous</button>
+                <button onclick="completeSetup()" id="complete-btn">🚀 Complete Setup</button>
+            </div>
+            
+            <!-- Success -->
+            <div class="step" id="success">
+                <div class="success">
+                    <div class="logo">🎉</div>
+                    <h2>Setup Complete!</h2>
+                    <p>GoConnect is now configured and ready to use.</p>
+                    <p><strong>Next Steps:</strong></p>
+                    <ol style="text-align: left; max-width: 400px; margin: 0 auto;">
+                        <li>Create your admin account</li>
+                        <li>Create your first network (tenant)</li>
+                        <li>Invite team members</li>
+                        <li>Start connecting!</li>
+                    </ol>
+                    <br>
+                    <button onclick="window.location.href='/'">🚀 Go to GoConnect</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentStep = 1;
+        const totalSteps = 3;
+        
+        function updateProgress() {
+            const progress = (currentStep / totalSteps) * 100;
+            document.getElementById('progress').style.width = progress + '%';
+        }
+        
+        function showStep(step) {
+            document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+            document.getElementById('step' + step).classList.add('active');
+            currentStep = step;
+            updateProgress();
+            
+            if (step === 3) {
+                updateSummary();
+            }
+        }
+        
+        function generateJWTSecret() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+            let secret = '';
+            for (let i = 0; i < 64; i++) {
+                secret += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            document.getElementById('jwt-secret').value = secret;
+        }
+        
+        function generateWGPublicKey() {
+            // Generate a valid WireGuard public key (44 base64 characters ending with =)
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+            let key = '';
+            for (let i = 0; i < 43; i++) {
+                key += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            key += '=';
+            document.getElementById('wg-pubkey').value = key;
+        }
+        
+        function updateMode() {
+            const mode = document.getElementById('mode').value;
+            document.getElementById('personal-fields').style.display = mode === 'personal' ? 'block' : 'none';
+            document.getElementById('enterprise-fields').style.display = mode === 'enterprise' ? 'block' : 'none';
+        }
+        
+        function updateSummary() {
+            const mode = document.getElementById('mode').value;
+            let summary = '<ul>';
+            summary += '<li><strong>Mode:</strong> ' + (mode === 'personal' ? 'Personal (SQLite)' : 'Enterprise (PostgreSQL)') + '</li>';
+            
+            if (mode === 'personal') {
+                summary += '<li><strong>Database:</strong> ' + document.getElementById('sqlite-path').value + '</li>';
+            } else {
+                summary += '<li><strong>Database:</strong> ' + document.getElementById('db-host').value + ':' + document.getElementById('db-port').value + '/' + document.getElementById('db-name').value + '</li>';
+            }
+            
+            summary += '<li><strong>Security:</strong> JWT configured</li>';
+            summary += '<li><strong>VPN Endpoint:</strong> ' + document.getElementById('wg-endpoint').value + '</li>';
+            summary += '</ul>';
+            
+            document.getElementById('summary-content').innerHTML = summary;
+        }
+        
+        function nextStep() {
+            if (currentStep < totalSteps) {
+                showStep(currentStep + 1);
+            }
+        }
+        
+        function prevStep() {
+            if (currentStep > 1) {
+                showStep(currentStep - 1);
+            }
+        }
+        
+        async function completeSetup() {
+            const btn = document.getElementById('complete-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Setting up...';
+            
+            const status = document.getElementById('setup-status');
+            
+            // Validate JWT secret length
+            const jwtSecret = document.getElementById('jwt-secret').value;
+            if (jwtSecret.length < 32) {
+                status.innerHTML = '<div class="error">❌ JWT Secret must be at least 32 characters. Click "🎲 Random" to generate a secure key.</div>';
+                btn.disabled = false;
+                btn.textContent = '🚀 Complete Setup';
+                return;
+            }
+            
+            // Validate SQLite path if personal mode
+            if (mode === 'personal') {
+                const sqlitePath = document.getElementById('sqlite-path').value;
+                if (!sqlitePath || sqlitePath.trim() === '') {
+                    status.innerHTML = '<div class="error">❌ SQLite database path is required for Personal mode. Please specify a file path like "./goconnect.db"</div>';
+                    btn.disabled = false;
+                    btn.textContent = '🚀 Complete Setup';
+                    return;
+                }
+            }
+            
+            // Validate WireGuard public key
+            const wgPubKey = document.getElementById('wg-pubkey').value;
+            if (!wgPubKey || wgPubKey === 'auto-generated' || wgPubKey.trim() === '') {
+                status.innerHTML = '<div class="error">❌ WireGuard Public Key is required. Click "🎲 Generate" to create a key.</div>';
+                btn.disabled = false;
+                btn.textContent = '🚀 Complete Setup';
+                return;
+            }
+            
+            try {
+                const mode = document.getElementById('mode').value;
+                const config = {
+                    server: { host: "0.0.0.0", port: "8080" },
+                    database: {},
+                    jwt: { secret: document.getElementById('jwt-secret').value },
+                    wireguard: { 
+                        server_endpoint: document.getElementById('wg-endpoint').value,
+                        server_pubkey: document.getElementById('wg-pubkey').value
+                    }
+                };
+                
+                if (mode === 'personal') {
+                    config.database = {
+                        backend: "sqlite",
+                        sqlite_path: document.getElementById('sqlite-path').value
+                    };
+                } else {
+                    config.database = {
+                        backend: "postgres",
+                        host: document.getElementById('db-host').value,
+                        port: document.getElementById('db-port').value,
+                        user: document.getElementById('db-user').value,
+                        password: document.getElementById('db-password').value,
+                        dbname: document.getElementById('db-name').value
+                    };
+                }
+                
+                const response = await fetch('/setup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        config, 
+                        restart: true
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    status.innerHTML = '<div class="success">✅ Setup completed! Server is restarting...</div>';
+                    setTimeout(() => showStep(4), 3000);
+                } else {
+                    status.innerHTML = '<div class="error">❌ Setup failed: ' + result.error + '</div>';
+                    btn.disabled = false;
+                    btn.textContent = '🚀 Complete Setup';
+                }
+            } catch (error) {
+                status.innerHTML = '<div class="error">❌ Setup failed: ' + error.message + '</div>';
+                btn.disabled = false;
+                btn.textContent = '🚀 Complete Setup';
+            }
+        }
+        
+        // Initialize
+        updateMode();
+    </script>
+</body>
+</html>`
+			c.Header("Content-Type", "text/html")
+			c.String(http.StatusOK, html)
+			return
+		}
+		
+		// Original JSON response for API calls
 		state := buildSetupStatus(configPath)
 		state.Message = "Setup wizard ready. Complete the steps to persist config and restart."
 		state.Mode = dbBackend
@@ -782,6 +1123,7 @@ func registerSetupRoutes(r *gin.Engine, dbBackend string, sqlitePath string, con
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid setup payload", "details": err.Error()})
 			return
 		}
+		
 		if err := config.SaveToFile(&req.Config, configPath); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "failed to persist config", "details": err.Error()})
 			return

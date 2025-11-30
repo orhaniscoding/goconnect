@@ -1,0 +1,10 @@
+DROP TRIGGER IF EXISTS trigger_update_peers_updated_at ON peers;
+DROP FUNCTION IF EXISTS update_peers_updated_at();
+DROP INDEX IF EXISTS idx_peers_network_device_unique;
+DROP INDEX IF EXISTS idx_peers_last_handshake;
+DROP INDEX IF EXISTS idx_peers_active;
+DROP INDEX IF EXISTS idx_peers_public_key;
+DROP INDEX IF EXISTS idx_peers_tenant_id;
+DROP INDEX IF EXISTS idx_peers_device_id;
+DROP INDEX IF EXISTS idx_peers_network_id;
+DROP TABLE IF EXISTS peers;

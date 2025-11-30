@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.28.0](https://github.com/orhaniscoding/goconnect/compare/v2.27.0...v2.28.0) (2025-11-30)
+
+
+### Features
+
+* **server:** add interactive setup wizard with web UI ([#setup](https://github.com/orhaniscoding/goconnect/issues/setup))
+* **daemon:** add interactive CLI setup command ([#daemon-setup](https://github.com/orhaniscoding/goconnect/issues/daemon-setup))
+* **web-ui:** fix Next.js 15+ params async compatibility ([#webui](https://github.com/orhaniscoding/goconnect/issues/webui))
+
+
+### Bug Fixes
+
+* **migrations:** fix PostgreSQL schema for posts, devices, peers tables
+* **migrations:** add proper up/down migration files for Goose format
+* **server:** simplify tenant CREATE query for registration flow
+* **web-ui:** fix locale params Promise handling in login/register pages
+
+
+### Build
+
+* **ci:** update release workflow to use GoReleaser v2
+* **ci:** add .goreleaser.yaml for server and daemon
+
+
 ## [2.27.0](https://github.com/orhaniscoding/goconnect/compare/v2.26.0...v2.27.0) (2025-11-29)
 
 
