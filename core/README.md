@@ -2,7 +2,7 @@
 
 GoConnect's core library and backend server. Used by the Desktop App and CLI.
 
-> **Note:** This component is used internally by GoConnect applications. End users don't need to interact with it directly. For normal usage, see [GoConnect Desktop](../desktop-client/) or [GoConnect CLI](../client-daemon/).
+> **Note:** This component is used internally by GoConnect applications. End users don't need to interact with it directly. For normal usage, see [GoConnect Desktop](../desktop/) or [GoConnect CLI](../cli/).
 
 ---
 

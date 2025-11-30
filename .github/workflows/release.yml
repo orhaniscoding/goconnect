@@ -25,7 +25,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: server/go.mod
+          go-version-file: core/go.mod
 
       - name: Build Server Binaries
         run: |
@@ -49,13 +49,13 @@ jobs:
           
           # Checksums
           sha256sum * > checksums.txt
-        working-directory: server
+        working-directory: core
 
       - name: Upload Server Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: server-binaries
-          path: server/dist/
+          path: core/dist/
 
   # Build Daemon Binary
   build-daemon:
@@ -69,7 +69,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: client-daemon/go.mod
+          go-version-file: cli/go.mod
 
       - name: Build Daemon Binaries
         run: |
@@ -90,13 +90,13 @@ jobs:
           for f in goconnect-daemon_*_windows_*.exe; do
             zip "${f%.exe}.zip" "$f" && rm "$f"
           done
-        working-directory: client-daemon
+        working-directory: cli
 
       - name: Upload Daemon Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: daemon-binaries
-          path: client-daemon/dist/
+          path: cli/dist/
 
   # Create GitHub Release with detailed documentation
   create-release:
@@ -326,7 +326,7 @@ jobs:
       - name: Build and push Server
         uses: docker/build-push-action@v5
         with:
-          context: ./server
+          context: ./core
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |

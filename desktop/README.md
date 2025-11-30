@@ -46,7 +46,7 @@ npm run tauri build
 ### Project Structure
 
 ```
-desktop-client/
+desktop/
 ├── src/                # React frontend
 │   ├── App.tsx         # Main application
 │   ├── main.tsx        # Entry point

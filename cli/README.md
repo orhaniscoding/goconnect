@@ -2,8 +2,6 @@
 
 GoConnect's terminal application. Create networks or join existing ones with an interactive TUI interface.
 
-> **Note:** This directory will be renamed to `goconnect-cli`.
-
 ## ✨ Features
 
 - 🖥️ **Interactive TUI** - Modern terminal interface with Bubbletea
@@ -82,7 +80,7 @@ make build-all
 ### Project Structure
 
 ```
-client-daemon/  (→ goconnect-cli)
+cli/
 ├── cmd/
 │   └── daemon/
 │       └── main.go         # Entry point

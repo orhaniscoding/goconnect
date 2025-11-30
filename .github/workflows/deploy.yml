@@ -35,16 +35,16 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: server/go.mod
+          go-version-file: core/go.mod
 
 
       - name: Build Server
         run: go build -o goconnect-server ./cmd/server
-        working-directory: server
+        working-directory: core
 
       - name: Build Daemon
         run: go build -o goconnect-daemon ./cmd/daemon
-        working-directory: client-daemon
+        working-directory: cli
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -59,7 +59,7 @@ jobs:
       - name: Build and push staging images
         uses: docker/build-push-action@v5
         with:
-          context: ./server
+          context: ./core
           platforms: linux/amd64
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_SERVER }}:staging
@@ -104,7 +104,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: server/go.mod
+          go-version-file: core/go.mod
 
       - name: Wait for services
         run: sleep 30
@@ -115,7 +115,7 @@ jobs:
           JWT_SECRET: test-secret-for-integration
         run: |
           go test ./internal/integration -v -timeout=5m
-        working-directory: server
+        working-directory: core
 
       - name: Health Check Staging
         run: |
@@ -152,7 +152,7 @@ jobs:
       - name: Build and push production images
         uses: docker/build-push-action@v5
         with:
-          context: ./server
+          context: ./core
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |

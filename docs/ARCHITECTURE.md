@@ -89,7 +89,7 @@ GoConnect is built on these principles:
 Desktop application providing both host and client functionality.
 
 ```
-desktop-client/
+desktop/
 ├── src/                    # React Frontend
 │   ├── components/         # UI components
 │   │   ├── Sidebar.tsx     # Left sidebar
@@ -124,7 +124,7 @@ desktop-client/
 Terminal application with the same functionality.
 
 ```
-client-daemon/
+cli/
 ├── cmd/
 │   └── daemon/
 │       └── main.go         # Entry point
@@ -149,7 +149,7 @@ client-daemon/
 Shared Go library containing business logic.
 
 ```
-server/
+core/
 ├── internal/
 │   ├── network/
 │   │   ├── network.go      # Network structure

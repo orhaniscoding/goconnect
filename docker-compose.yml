@@ -12,7 +12,7 @@ services:
   # ---------------------------------------------------------------------------
   server:
     build:
-      context: ./server
+      context: ./core
       dockerfile: Dockerfile
       args:
         VERSION: ${VERSION:-dev}

@@ -320,11 +320,11 @@ git clone https://github.com/orhaniscoding/goconnect.git
 cd goconnect
 
 # Build CLI
-cd client-daemon
+cd cli
 go build -o goconnect ./cmd/daemon
 
 # Build Desktop App
-cd ../desktop-client
+cd ../desktop
 npm install
 npm run tauri build
 ```
@@ -333,17 +333,17 @@ npm run tauri build
 
 ```
 goconnect/
-├── desktop-client/        # Tauri desktop application
+├── desktop/               # Tauri desktop application
 │   ├── src/               # React frontend
 │   ├── src-tauri/         # Rust backend
 │   └── package.json
-├── client-daemon/         # Terminal application (Go)
+├── cli/                   # Terminal application (Go)
 │   ├── cmd/daemon/        # Main command
 │   ├── internal/          # Internal packages
 │   └── go.mod
-├── server/                # Core library (Go)
+├── core/                  # Core library (Go)
 │   ├── internal/          # Business logic
-│   ├── cmd/server/        # Server entry point
+│   ├── cmd/server/        # Core entry point
 │   └── go.mod
 ├── docs/                  # Documentation
 ├── README.md              # This file
