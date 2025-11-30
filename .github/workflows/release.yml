@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    tags: ['v*']  # v0.1.0, v0.2.0, v1.0.0, etc.
+    tags: ['v*']
 
 permissions:
   contents: write
@@ -14,8 +14,8 @@ env:
   IMAGE_NAME_WEBUI: ${{ github.repository }}-web-ui
 
 jobs:
-  # Build Server with GoReleaser
-  release-server:
+  # Build Server Binary
+  build-server:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -28,20 +28,39 @@ jobs:
         with:
           go-version-file: server/go.mod
 
-      - name: Run GoReleaser for Server
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: '~> v2'
-          args: release --clean
-          workdir: server
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Server Binaries
+        run: |
+          mkdir -p dist
+          VERSION=${{ github.ref_name }}
+          
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X main.version=${VERSION}" -o dist/goconnect-server_${VERSION}_linux_amd64 ./cmd/server
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X main.version=${VERSION}" -o dist/goconnect-server_${VERSION}_linux_arm64 ./cmd/server
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X main.version=${VERSION}" -o dist/goconnect-server_${VERSION}_windows_amd64.exe ./cmd/server
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X main.version=${VERSION}" -o dist/goconnect-server_${VERSION}_darwin_amd64 ./cmd/server
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X main.version=${VERSION}" -o dist/goconnect-server_${VERSION}_darwin_arm64 ./cmd/server
+          
+          # Create archives
+          cd dist
+          for f in goconnect-server_*_linux_* goconnect-server_*_darwin_*; do
+            tar -czvf "${f}.tar.gz" "$f" && rm "$f"
+          done
+          for f in goconnect-server_*_windows_*.exe; do
+            zip "${f%.exe}.zip" "$f" && rm "$f"
+          done
+          
+          # Checksums
+          sha256sum * > checksums-server.txt
+        working-directory: server
 
-  # Build Daemon with GoReleaser
-  release-daemon:
+      - name: Upload Server Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-binaries
+          path: server/dist/
+
+  # Build Daemon Binary
+  build-daemon:
     runs-on: ubuntu-latest
-    needs: release-server
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,15 +72,35 @@ jobs:
         with:
           go-version-file: client-daemon/go.mod
 
-      - name: Run GoReleaser for Daemon
-        uses: goreleaser/goreleaser-action@v6
+      - name: Build Daemon Binaries
+        run: |
+          mkdir -p dist
+          VERSION=${{ github.ref_name }}
+          
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X main.version=${VERSION}" -o dist/goconnect-daemon_${VERSION}_linux_amd64 ./cmd/daemon
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X main.version=${VERSION}" -o dist/goconnect-daemon_${VERSION}_linux_arm64 ./cmd/daemon
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X main.version=${VERSION}" -o dist/goconnect-daemon_${VERSION}_windows_amd64.exe ./cmd/daemon
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X main.version=${VERSION}" -o dist/goconnect-daemon_${VERSION}_darwin_amd64 ./cmd/daemon
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X main.version=${VERSION}" -o dist/goconnect-daemon_${VERSION}_darwin_arm64 ./cmd/daemon
+          
+          # Create archives
+          cd dist
+          for f in goconnect-daemon_*_linux_* goconnect-daemon_*_darwin_*; do
+            tar -czvf "${f}.tar.gz" "$f" && rm "$f"
+          done
+          for f in goconnect-daemon_*_windows_*.exe; do
+            zip "${f%.exe}.zip" "$f" && rm "$f"
+          done
+          
+          # Checksums
+          sha256sum * > checksums-daemon.txt
+        working-directory: client-daemon
+
+      - name: Upload Daemon Artifacts
+        uses: actions/upload-artifact@v4
         with:
-          distribution: goreleaser
-          version: '~> v2'
-          args: release --clean
-          workdir: client-daemon
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: daemon-binaries
+          path: client-daemon/dist/
 
   # Build Web UI
   build-webui:
@@ -77,33 +116,53 @@ jobs:
           cache: "npm"
           cache-dependency-path: web-ui/package-lock.json
 
-      - name: Install dependencies
+      - name: Install and Build
         working-directory: web-ui
-        run: npm ci
+        run: |
+          npm ci
+          npm run build
 
-      - name: Build Web UI
-        working-directory: web-ui
-        run: npm run build
-        env:
-          NEXT_PUBLIC_API_URL: ""
-          NEXT_PUBLIC_WS_URL: ""
-
-      - name: Create Web UI Archive
+      - name: Create Archive
         run: |
           cd web-ui
-          tar -czvf ../goconnect-webui-static.tar.gz .next public
+          tar -czvf ../goconnect-webui_${{ github.ref_name }}.tar.gz .next public
 
-      - name: Upload Web UI to Release
+      - name: Upload WebUI Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: webui-static
+          path: goconnect-webui_*.tar.gz
+
+  # Create GitHub Release
+  create-release:
+    runs-on: ubuntu-latest
+    needs: [build-server, build-daemon, build-webui]
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          cp artifacts/server-binaries/* release/
+          cp artifacts/daemon-binaries/* release/
+          cp artifacts/webui-static/* release/
+
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: goconnect-webui-static.tar.gz
+          name: GoConnect ${{ github.ref_name }}
+          generate_release_notes: true
+          files: release/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Build and Push Docker Images
+  # Build Docker Images
   build-docker:
     runs-on: ubuntu-latest
-    needs: [release-server, release-daemon]
+    needs: [build-server, build-daemon]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -111,45 +170,23 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to GitHub Container Registry
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_SERVER }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=raw,value=latest
-
-      - name: Build and push Server image
+      - name: Build and push Server
         uses: docker/build-push-action@v5
         with:
           context: ./server
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_SERVER }}:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_SERVER }}:latest
           build-args: |
             VERSION=${{ github.ref_name }}
-            COMMIT=${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Build and push Web UI image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./web-ui
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_WEBUI }}:${{ github.ref_name }}
-          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
