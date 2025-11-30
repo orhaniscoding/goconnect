@@ -181,7 +181,7 @@ docker run -d \
 ```bash
 $ goconnect
 
-  🔗 GoConnect - Discord, but for networks
+  🔗 GoConnect - Virtual LAN made simple
 
   ? What would you like to do?
   ❯ Create Network

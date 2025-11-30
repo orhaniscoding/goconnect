@@ -7,7 +7,7 @@ export default {
     theme: {
         extend: {
             colors: {
-                // Discord-like dark theme
+                // GoConnect dark theme
                 'gc-dark': {
                     900: '#202225',
                     800: '#2f3136',

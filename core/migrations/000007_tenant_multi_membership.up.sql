@@ -2,7 +2,7 @@
 -- Version: 7
 -- Author: AI Assistant
 -- Date: 2025-11-25
--- Description: Adds tenant multi-membership system (Discord-like model)
+-- Description: Adds tenant multi-membership system
 
 -- =====================================================
 -- Part 1: Enhance tenants table with new fields

@@ -88,7 +88,7 @@ release:
   header: |
     ## 🚀 GoConnect Server {{ .Tag }}
     
-    **"Discord, but for networks."**
+    **"Virtual LAN made simple."**
     
     ### 📋 What's Included
     - Server binaries for Linux, macOS, Windows
