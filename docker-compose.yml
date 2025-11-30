@@ -144,28 +144,6 @@ services:
     # ports:
     #   - "6379:6379"
 
-  # ---------------------------------------------------------------------------
-  # Web UI (Optional - for development)
-  # ---------------------------------------------------------------------------
-  web-ui:
-    build:
-      context: ./web-ui
-      dockerfile: Dockerfile
-    image: ghcr.io/orhaniscoding/goconnect-web-ui:${VERSION:-latest}
-    container_name: goconnect-web-ui
-    restart: unless-stopped
-    ports:
-      - "${WEB_PORT:-3000}:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8081}
-      - NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-ws://localhost:8081/ws}
-    depends_on:
-      - server
-    networks:
-      - goconnect-net
-    profiles:
-      - full # Only start with: docker compose --profile full up
-
 # =============================================================================
 # Networks
 # =============================================================================

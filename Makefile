@@ -1,114 +1,129 @@
 # GoConnect Makefile
 
-.PHONY: help build test clean dev-server dev-daemon dev-web
+.PHONY: help build test clean dev
 
 # Default target
 help:
 	@echo "GoConnect Development Commands:"
 	@echo ""
 	@echo "Development:"
-	@echo "  dev-server    Start the GoConnect server"
-	@echo "  dev-daemon    Start the client daemon"
-	@echo "  dev-web       Start the web UI"
-	@echo "  dev           Start all components"
+	@echo "  dev-core      Start GoConnect Core (backend)"
+	@echo "  dev-cli       Start GoConnect CLI"
+	@echo "  dev-desktop   Start GoConnect Desktop (dev mode)"
 	@echo ""
 	@echo "Building:"
 	@echo "  build         Build all components"
-	@echo "  build-server  Build server binary"
-	@echo "  build-daemon  Build daemon binary"
-	@echo "  build-web     Build web UI"
+	@echo "  build-core    Build core library"
+	@echo "  build-cli     Build CLI binary"
+	@echo "  build-desktop Build desktop app"
 	@echo ""
 	@echo "Testing:"
 	@echo "  test          Run all tests"
-	@echo "  test-server   Run server tests"
-	@echo "  test-daemon   Run daemon tests"
-	@echo "  test-web      Run web UI tests"
+	@echo "  test-core     Run core tests"
+	@echo "  test-cli      Run CLI tests"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  clean         Clean build artifacts"
 	@echo "  lint          Run linters"
+	@echo "  setup         Setup development environment"
 
-# Development targets
-dev-server:
-	@echo "Starting GoConnect server..."
+# =============================================================================
+# Development
+# =============================================================================
+
+dev-core:
+	@echo "Starting GoConnect Core..."
 	cd server && go run ./cmd/server
 
-dev-daemon:
-	@echo "Starting client daemon..."
+dev-cli:
+	@echo "Starting GoConnect CLI..."
 	cd client-daemon && go run ./cmd/daemon
 
-dev-web:
-	@echo "Starting web UI..."
-	cd web-ui && npm run dev
+dev-desktop:
+	@echo "Starting GoConnect Desktop (dev mode)..."
+	cd desktop-client && npm run tauri dev
 
-dev: ## Start all development components
-	@echo "Starting all GoConnect components..."
-	@echo "Note: Run each service in separate terminals for development"
-	@echo ""
-	@echo "Terminal 1: make dev-server"
-	@echo "Terminal 2: make dev-daemon"  
-	@echo "Terminal 3: make dev-web"
+# =============================================================================
+# Build
+# =============================================================================
 
-# Build targets
-build: build-server build-daemon build-web
+build: build-core build-cli
 
-build-server:
-	@echo "Building server..."
-	cd server && go build -o goconnect-server ./cmd/server
+build-core:
+	@echo "Building GoConnect Core..."
+	cd server && go build -o ../dist/goconnect-core ./cmd/server
 
-build-daemon:
-	@echo "Building daemon..."
-	cd client-daemon && go build -o goconnect-daemon ./cmd/daemon
+build-cli:
+	@echo "Building GoConnect CLI..."
+	cd client-daemon && go build -o ../dist/goconnect-cli ./cmd/daemon
 
-build-web:
-	@echo "Building web UI..."
-	cd web-ui && npm run build
+build-desktop:
+	@echo "Building GoConnect Desktop..."
+	cd desktop-client && npm run tauri build
 
-# Test targets
-test: test-server test-daemon test-web
+build-all: build build-desktop
+	@echo "All builds complete!"
 
-test-server:
-	@echo "Running server tests..."
+# Cross-platform CLI builds
+build-cli-all:
+	@echo "Building CLI for all platforms..."
+	@mkdir -p dist
+	cd client-daemon && GOOS=linux GOARCH=amd64 go build -o ../dist/goconnect-cli-linux-amd64 ./cmd/daemon
+	cd client-daemon && GOOS=linux GOARCH=arm64 go build -o ../dist/goconnect-cli-linux-arm64 ./cmd/daemon
+	cd client-daemon && GOOS=darwin GOARCH=amd64 go build -o ../dist/goconnect-cli-darwin-amd64 ./cmd/daemon
+	cd client-daemon && GOOS=darwin GOARCH=arm64 go build -o ../dist/goconnect-cli-darwin-arm64 ./cmd/daemon
+	cd client-daemon && GOOS=windows GOARCH=amd64 go build -o ../dist/goconnect-cli-windows-amd64.exe ./cmd/daemon
+
+# =============================================================================
+# Testing
+# =============================================================================
+
+test: test-core test-cli
+
+test-core:
+	@echo "Running Core tests..."
 	cd server && go test ./...
 
-test-daemon:
-	@echo "Running daemon tests..."
+test-cli:
+	@echo "Running CLI tests..."
 	cd client-daemon && go test ./...
 
-test-web:
-	@echo "Running web UI tests..."
-	cd web-ui && npm test
+# =============================================================================
+# Utilities
+# =============================================================================
 
-# Utility targets
 clean:
 	@echo "Cleaning build artifacts..."
-	cd server && rm -f goconnect-server
-	cd client-daemon && rm -f goconnect-daemon
-	cd web-ui && rm -rf .next dist
+	rm -rf dist/
+	cd server && rm -f goconnect-core
+	cd client-daemon && rm -f goconnect-cli
+	cd desktop-client && rm -rf src-tauri/target dist
 
 lint:
 	@echo "Running linters..."
 	cd server && golangci-lint run
 	cd client-daemon && golangci-lint run
-	cd web-ui && npm run lint
 
-# Installation targets
-install: build
-	@echo "Installing GoConnect..."
-	sudo cp server/goconnect-server /usr/local/bin/
-	sudo cp client-daemon/goconnect-daemon /usr/local/bin/
+setup:
+	@echo "Setting up development environment..."
+	@echo ""
+	@echo "1. Installing Go dependencies..."
+	cd server && go mod download
+	cd client-daemon && go mod download
+	@echo ""
+	@echo "2. Installing Desktop dependencies..."
+	cd desktop-client && npm install
+	@echo ""
+	@echo "Development environment ready!"
+	@echo ""
+	@echo "Quick start:"
+	@echo "  make dev-desktop  - Start desktop app"
+	@echo "  make dev-cli      - Start CLI app"
 
-# Docker targets
-docker-build:
-	@echo "Building Docker images..."
-	docker build -t goconnect-server ./server
-	docker build -t goconnect-daemon ./client-daemon
+# =============================================================================
+# Database
+# =============================================================================
 
-docker-run:
-	@echo "Running Docker containers..."
-	docker-compose up -d
-
-# Database targets
 db-migrate:
 	@echo "Running database migrations..."
 	cd server && go run ./cmd/server --migrate
@@ -118,21 +133,25 @@ db-reset:
 	cd server && rm -f *.db
 	$(MAKE) db-migrate
 
-# Release targets
-release: clean test lint build
-	@echo "Creating release..."
-	@echo "TODO: Add release automation"
+# =============================================================================
+# Docker
+# =============================================================================
 
-# Development setup
-setup:
-	@echo "Setting up development environment..."
-	cd web-ui && npm install
-	cd server && go mod download
-	cd client-daemon && go mod download
-	@echo "Development environment ready!"
+docker-build:
+	@echo "Building Docker image..."
+	docker build -t goconnect-core ./server
 
-# Version info
+docker-run:
+	@echo "Running Docker container..."
+	docker run -d -p 8080:8080 goconnect-core
+
+# =============================================================================
+# Release
+# =============================================================================
+
+release: clean test lint build-all
+	@echo "Release build complete!"
+	@echo "Artifacts in dist/ directory"
+
 version:
-	@echo "GoConnect Version:"
-	@echo "Server: $$(cd server && go run ./cmd/server --version 2>/dev/null || echo 'dev')"
-	@echo "Daemon: $$(cd client-daemon && go run ./cmd/daemon --version 2>/dev/null || echo 'dev')"
+	@echo "GoConnect v3.0.0"

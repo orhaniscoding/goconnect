@@ -121,7 +121,7 @@ jobs:
           body: |
             # 🚀 GoConnect ${{ github.ref_name }}
             
-            **"Discord, but for networks."** - Secure virtual LAN platform
+            **"Virtual LAN made simple."** - Secure virtual LAN platform
             
             ---
             
@@ -286,8 +286,8 @@ jobs:
             ## 📚 Documentation
             
             - [Quick Start Guide](https://github.com/orhaniscoding/goconnect/blob/main/QUICK_START.md)
-            - [Setup Wizard Guide](https://github.com/orhaniscoding/goconnect/blob/main/SETUP_WIZARD.md)
-            - [Technical Specification](https://github.com/orhaniscoding/goconnect/blob/main/docs/TECH_SPEC.md)
+            - [User Guide](https://github.com/orhaniscoding/goconnect/blob/main/docs/USER_GUIDE.md)
+            - [Architecture](https://github.com/orhaniscoding/goconnect/blob/main/docs/ARCHITECTURE.md)
             - [API Documentation](https://github.com/orhaniscoding/goconnect/blob/main/server/openapi/openapi.yaml)
             
             ---

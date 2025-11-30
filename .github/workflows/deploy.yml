@@ -21,7 +21,6 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME_SERVER: ${{ github.repository }}-server
-  IMAGE_NAME_WEBUI: ${{ github.repository }}-web-ui
 
 jobs:
   # Build and Deploy to Staging
@@ -38,12 +37,6 @@ jobs:
         with:
           go-version-file: server/go.mod
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "npm"
-          cache-dependency-path: web-ui/package-lock.json
 
       - name: Build Server
         run: go build -o goconnect-server ./cmd/server
@@ -52,12 +45,6 @@ jobs:
       - name: Build Daemon
         run: go build -o goconnect-daemon ./cmd/daemon
         working-directory: client-daemon
-
-      - name: Build Web UI
-        working-directory: web-ui
-        run: |
-          npm ci
-          npm run build
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
