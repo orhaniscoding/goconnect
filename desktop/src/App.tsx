@@ -98,6 +98,17 @@ function App() {
   // UI
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [showCreateNetwork, setShowCreateNetwork] = useState(false);
+
+  // Create Server form
+  const [newServerName, setNewServerName] = useState("");
+  const [newServerIcon, setNewServerIcon] = useState("🎮");
+
+  // Join Server form
+  const [inviteLink, setInviteLink] = useState("");
+
+  // Create Network form
+  const [newNetworkName, setNewNetworkName] = useState("");
 
   // Welcome form
   const [username, setUsername] = useState("");
@@ -163,6 +174,65 @@ function App() {
     if (!network.connected) {
       setSelectedNetwork({ ...network, connected: true, myIp: "10.0.1.5" });
     }
+  };
+
+  // Handle create server
+  const handleCreateServer = () => {
+    if (!newServerName.trim()) return;
+
+    const newServer: Server = {
+      id: crypto.randomUUID(),
+      name: newServerName.trim(),
+      icon: newServerIcon,
+      isOwner: true,
+      memberCount: 1,
+    };
+
+    setServers(prev => [...prev, newServer]);
+    mockNetworks[newServer.id] = [];
+    setSelectedServer(newServer);
+    setNetworks([]);
+    setNewServerName("");
+    setNewServerIcon("🎮");
+    setShowCreateModal(false);
+  };
+
+  // Handle join server
+  const handleJoinServer = () => {
+    if (!inviteLink.trim()) return;
+
+    // Mock: Create a joined server
+    const newServer: Server = {
+      id: crypto.randomUUID(),
+      name: "Joined Server",
+      icon: "🔗",
+      isOwner: false,
+      memberCount: 5,
+    };
+
+    setServers(prev => [...prev, newServer]);
+    mockNetworks[newServer.id] = [];
+    setInviteLink("");
+    setShowJoinModal(false);
+  };
+
+  // Handle create network
+  const handleCreateNetwork = () => {
+    if (!newNetworkName.trim() || !selectedServer) return;
+
+    const newNetwork: Network = {
+      id: crypto.randomUUID(),
+      serverId: selectedServer.id,
+      name: newNetworkName.trim(),
+      subnet: `10.${Math.floor(Math.random() * 255)}.0.0/24`,
+      connected: false,
+      members: [],
+    };
+
+    setNetworks(prev => [...prev, newNetwork]);
+    mockNetworks[selectedServer.id] = [...(mockNetworks[selectedServer.id] || []), newNetwork];
+    setNewNetworkName("");
+    setShowCreateNetwork(false);
   };
 
   // ==========================================================================
@@ -274,7 +344,12 @@ function App() {
         <div className="flex-1 overflow-y-auto p-2">
           {selectedServer ? (
             <>
-              <div className="text-xs text-gray-400 uppercase tracking-wide px-2 py-2">Networks</div>
+              <div className="text-xs text-gray-400 uppercase tracking-wide px-2 py-2 flex items-center justify-between">
+                <span>Networks</span>
+                {selectedServer?.isOwner && (
+                  <button onClick={() => setShowCreateNetwork(true)} className="hover:text-white text-lg">+</button>
+                )}
+              </div>
               {networks.map((network) => (
                 <button
                   key={network.id}
@@ -422,26 +497,40 @@ function App() {
 
       {/* Create Server Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-gc-dark-800 rounded-lg p-6 w-[400px]">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCreateModal(false)}>
+          <div className="bg-gc-dark-800 rounded-lg p-6 w-[400px]" onClick={e => e.stopPropagation()}>
             <h2 className="text-xl font-bold text-white mb-4">Create a Server</h2>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm text-gray-300 mb-1">Server Name</label>
-                <input type="text" className="w-full px-3 py-2 bg-gc-dark-900 border border-gc-dark-600 rounded text-white" placeholder="My Server" />
+                <input
+                  type="text"
+                  value={newServerName}
+                  onChange={(e) => setNewServerName(e.target.value)}
+                  className="w-full px-3 py-2 bg-gc-dark-900 border border-gc-dark-600 rounded text-white focus:border-gc-primary focus:outline-none"
+                  placeholder="My Awesome Server"
+                  autoFocus
+                />
               </div>
               <div>
                 <label className="block text-sm text-gray-300 mb-1">Icon</label>
-                <div className="flex gap-2">
-                  {["🎮", "💼", "👥", "🎵", "📚", "⚽"].map((icon) => (
-                    <button key={icon} className="w-10 h-10 bg-gc-dark-700 rounded hover:bg-gc-dark-600 text-xl">{icon}</button>
+                <div className="flex gap-2 flex-wrap">
+                  {["🎮", "💼", "👥", "🎵", "📚", "⚽", "🌐", "💻", "🎬", "🏠"].map((icon) => (
+                    <button
+                      key={icon}
+                      type="button"
+                      onClick={() => setNewServerIcon(icon)}
+                      className={`w-10 h-10 rounded text-xl transition ${newServerIcon === icon ? 'bg-gc-primary' : 'bg-gc-dark-700 hover:bg-gc-dark-600'}`}
+                    >
+                      {icon}
+                    </button>
                   ))}
                 </div>
               </div>
             </div>
             <div className="flex gap-3 mt-6">
               <button onClick={() => setShowCreateModal(false)} className="flex-1 py-2 bg-gc-dark-600 hover:bg-gc-dark-500 text-white rounded">Cancel</button>
-              <button className="flex-1 py-2 bg-gc-primary hover:bg-gc-primary/80 text-white rounded">Create</button>
+              <button onClick={handleCreateServer} disabled={!newServerName.trim()} className="flex-1 py-2 bg-gc-primary hover:bg-gc-primary/80 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed">Create</button>
             </div>
           </div>
         </div>
@@ -449,16 +538,49 @@ function App() {
 
       {/* Join Server Modal */}
       {showJoinModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-gc-dark-800 rounded-lg p-6 w-[400px]">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowJoinModal(false)}>
+          <div className="bg-gc-dark-800 rounded-lg p-6 w-[400px]" onClick={e => e.stopPropagation()}>
             <h2 className="text-xl font-bold text-white mb-4">Join a Server</h2>
             <div>
               <label className="block text-sm text-gray-300 mb-1">Invite Link</label>
-              <input type="text" className="w-full px-3 py-2 bg-gc-dark-900 border border-gc-dark-600 rounded text-white" placeholder="gc://join.goconnect.io/abc123" />
+              <input
+                type="text"
+                value={inviteLink}
+                onChange={(e) => setInviteLink(e.target.value)}
+                className="w-full px-3 py-2 bg-gc-dark-900 border border-gc-dark-600 rounded text-white focus:border-gc-primary focus:outline-none"
+                placeholder="gc://join.goconnect.io/abc123"
+                autoFocus
+              />
             </div>
+            <p className="text-gray-500 text-sm mt-2">Enter an invite link or code to join</p>
             <div className="flex gap-3 mt-6">
               <button onClick={() => setShowJoinModal(false)} className="flex-1 py-2 bg-gc-dark-600 hover:bg-gc-dark-500 text-white rounded">Cancel</button>
-              <button className="flex-1 py-2 bg-gc-primary hover:bg-gc-primary/80 text-white rounded">Join</button>
+              <button onClick={handleJoinServer} disabled={!inviteLink.trim()} className="flex-1 py-2 bg-gc-primary hover:bg-gc-primary/80 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed">Join</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Network Modal */}
+      {showCreateNetwork && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCreateNetwork(false)}>
+          <div className="bg-gc-dark-800 rounded-lg p-6 w-[400px]" onClick={e => e.stopPropagation()}>
+            <h2 className="text-xl font-bold text-white mb-4">Create a Network</h2>
+            <div>
+              <label className="block text-sm text-gray-300 mb-1">Network Name</label>
+              <input
+                type="text"
+                value={newNetworkName}
+                onChange={(e) => setNewNetworkName(e.target.value)}
+                className="w-full px-3 py-2 bg-gc-dark-900 border border-gc-dark-600 rounded text-white focus:border-gc-primary focus:outline-none"
+                placeholder="Gaming LAN, File Share, etc."
+                autoFocus
+              />
+            </div>
+            <p className="text-gray-500 text-sm mt-2">A subnet will be automatically assigned</p>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowCreateNetwork(false)} className="flex-1 py-2 bg-gc-dark-600 hover:bg-gc-dark-500 text-white rounded">Cancel</button>
+              <button onClick={handleCreateNetwork} disabled={!newNetworkName.trim()} className="flex-1 py-2 bg-gc-primary hover:bg-gc-primary/80 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed">Create</button>
             </div>
           </div>
         </div>
