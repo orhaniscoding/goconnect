@@ -1,35 +1,41 @@
 # 💻 GoConnect CLI
 
-GoConnect's terminal application. Create networks or join existing ones with an interactive TUI interface.
+GoConnect's terminal application with an interactive TUI interface. Create networks or join existing ones from the command line.
 
 ## ✨ Features
 
 - 🖥️ **Interactive TUI** - Modern terminal interface with Bubbletea
 - 🌐 **Create Network** - Create and manage networks from terminal
 - 🔗 **Join Network** - Connect with invite link
-- 📊 **View Status** - Connection status, members, IP addresses
-- 🔧 **Headless Mode** - Run in background on servers
+- 💬 **Chat** - Full chat functionality in terminal
+- 📁 **File Transfer** - P2P file sharing between peers
+- 📊 **Status Dashboard** - Connection status, members, IP addresses
+- 🔧 **Daemon Mode** - Run as background service
 
 ## 🚀 Quick Start
 
 ### Download
 
 ```bash
-# Linux
-curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli-linux-amd64
-chmod +x goconnect-cli-linux-amd64
-sudo mv goconnect-cli-linux-amd64 /usr/local/bin/goconnect
+# Linux (x64)
+curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli_linux_amd64.tar.gz
+tar -xzf goconnect-cli_linux_amd64.tar.gz
+sudo mv goconnect-cli /usr/local/bin/goconnect
 
-# macOS
-curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli-darwin-arm64
-chmod +x goconnect-cli-darwin-arm64
-sudo mv goconnect-cli-darwin-arm64 /usr/local/bin/goconnect
+# macOS (Apple Silicon)
+curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli_darwin_arm64.tar.gz
+tar -xzf goconnect-cli_darwin_arm64.tar.gz
+sudo mv goconnect-cli /usr/local/bin/goconnect
+
+# Windows (PowerShell)
+Invoke-WebRequest -Uri "https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli_windows_amd64.zip" -OutFile "goconnect-cli.zip"
+Expand-Archive -Path "goconnect-cli.zip" -DestinationPath "."
 ```
 
 ### Usage
 
 ```bash
-# Interactive mode
+# Interactive mode (TUI)
 goconnect
 
 # Quick commands
@@ -37,6 +43,7 @@ goconnect create "Network Name"  # Create network
 goconnect join <link>            # Join network
 goconnect list                   # List networks
 goconnect status                 # Connection status
+goconnect chat                   # Open chat
 goconnect disconnect             # Disconnect
 ```
 
@@ -44,7 +51,7 @@ goconnect disconnect             # Disconnect
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                    🔗 GoConnect CLI                          │
+│                    🔗 GoConnect CLI v3.0.0                   │
 ├──────────────────────────────────────────────────────────────┤
 │                                                              │
 │   ? What would you like to do?                               │
@@ -52,6 +59,8 @@ goconnect disconnect             # Disconnect
 │   ❯ 🌐 Create Network                                        │
 │     🔗 Join Network                                          │
 │     📋 My Networks                                           │
+│     💬 Chat                                                  │
+│     📁 File Transfer                                         │
 │     ⚙️  Settings                                              │
 │     ❌ Exit                                                   │
 │                                                              │
@@ -60,84 +69,90 @@ goconnect disconnect             # Disconnect
 └──────────────────────────────────────────────────────────────┘
 ```
 
+## 🏗️ Architecture
+
+```
+cli/
+├── cmd/
+│   └── goconnect/
+│       └── main.go           # Entry point
+├── internal/
+│   ├── tui/                  # Terminal UI (Bubbletea)
+│   │   ├── model.go          # TUI model
+│   │   ├── views.go          # Screens
+│   │   └── styles.go         # Lipgloss styles
+│   ├── daemon/               # Background service
+│   │   ├── server.go         # gRPC server
+│   │   ├── ipc_unix.go       # Unix socket IPC
+│   │   └── ipc_windows.go    # Named Pipes IPC
+│   ├── chat/                 # Chat functionality
+│   │   ├── manager.go        # Chat manager
+│   │   └── storage.go        # SQLite persistence
+│   ├── transfer/             # File transfer
+│   │   ├── manager.go        # Transfer manager
+│   │   └── types.go          # Transfer types
+│   ├── p2p/                  # Peer-to-peer networking
+│   ├── wireguard/            # WireGuard integration
+│   └── config/               # Configuration
+└── go.mod
+```
+
 ## 🛠️ Development
 
 ### Requirements
 
 - Go 1.24+
 - WireGuard tools (`wg`, `wg-quick`)
+- protoc (Protocol Buffers compiler)
 
 ### Build
 
 ```bash
-# Single platform
+# Development build
 go build -o goconnect ./cmd/goconnect
 
-# All platforms
-make build-all
+# Production build with version
+VERSION=v3.0.0
+go build -ldflags="-s -w -X main.version=${VERSION}" -o goconnect ./cmd/goconnect
+
+# Cross-compile
+GOOS=linux GOARCH=amd64 go build -o goconnect-linux ./cmd/goconnect
+GOOS=darwin GOARCH=arm64 go build -o goconnect-macos ./cmd/goconnect
+GOOS=windows GOARCH=amd64 go build -o goconnect.exe ./cmd/goconnect
 ```
 
-### Project Structure
+### Testing
 
-```
-cli/
-├── cmd/
-│   └── goconnect/
-│       └── main.go         # Entry point
-├── internal/
-│   ├── tui/                # Terminal UI
-│   │   ├── model.go        # TUI model
-│   │   ├── views.go        # Screens
-│   │   └── styles.go       # Styles
-│   ├── network/            # Network management
-│   ├── wireguard/          # WireGuard integration
-│   └── config/             # Configuration
-└── go.mod
+```bash
+# Run all tests
+go test ./...
+
+# Run with coverage
+go test -cover ./...
+
+# Run specific package tests
+go test ./internal/daemon/...
+go test ./internal/chat/...
 ```
 
 ## ⚙️ Configuration
 
-Configuration file locations:
-- **Linux:** `~/.config/goconnect/config.yaml`
-- **macOS:** `~/Library/Application Support/GoConnect/config.yaml`
-- **Windows:** `%APPDATA%\GoConnect\config.yaml`
-
-### Example Configuration
+Configuration file location:
+- **Linux/macOS**: `~/.config/goconnect/config.yaml`
+- **Windows**: `%APPDATA%\goconnect\config.yaml`
 
 ```yaml
-# GoConnect CLI Configuration
+# config.yaml
 server:
-  url: ""  # Empty = create new network
-
-wireguard:
-  interface_name: goconnect0
-
+  url: "https://api.goconnect.io"
+  
 daemon:
-  local_port: 12345
-  health_check_interval: 30s
-```
+  socket_path: "/tmp/goconnect.sock"  # Unix
+  pipe_name: "goconnect"              # Windows
 
-## 🔧 System Service
-
-### Linux (systemd)
-
-```bash
-sudo ./goconnect install
-sudo systemctl enable goconnect
-sudo systemctl start goconnect
-```
-
-### macOS (launchd)
-
-```bash
-sudo ./goconnect install
-```
-
-### Windows (Windows Service)
-
-```powershell
-# Run as Administrator
-.\goconnect.exe install
+logging:
+  level: "info"
+  file: "~/.config/goconnect/goconnect.log"
 ```
 
 ## 📄 License

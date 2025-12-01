@@ -122,46 +122,54 @@ The easiest way! Do everything with a single app.
 
 | Platform | Download |
 |----------|----------|
-| **Windows** | [GoConnect-Windows.exe](https://github.com/orhaniscoding/goconnect/releases/latest) |
-| **macOS (Intel)** | [GoConnect-macOS-Intel.dmg](https://github.com/orhaniscoding/goconnect/releases/latest) |
-| **macOS (Apple Silicon)** | [GoConnect-macOS-ARM.dmg](https://github.com/orhaniscoding/goconnect/releases/latest) |
-| **Linux (Debian/Ubuntu)** | [GoConnect-Linux.deb](https://github.com/orhaniscoding/goconnect/releases/latest) |
-| **Linux (AppImage)** | [GoConnect-Linux.AppImage](https://github.com/orhaniscoding/goconnect/releases/latest) |
+| **Windows** | [GoConnect-Setup.exe](https://github.com/orhaniscoding/goconnect/releases/latest) |
+| **macOS (Apple Silicon)** | [GoConnect-aarch64.dmg](https://github.com/orhaniscoding/goconnect/releases/latest) |
+| **macOS (Intel)** | [GoConnect-x64.dmg](https://github.com/orhaniscoding/goconnect/releases/latest) |
+| **Linux (Debian/Ubuntu)** | [GoConnect.deb](https://github.com/orhaniscoding/goconnect/releases/latest) |
+| **Linux (AppImage)** | [GoConnect.AppImage](https://github.com/orhaniscoding/goconnect/releases/latest) |
 
-### Option 2: Terminal Application
+### Option 2: Terminal Application (CLI)
 
-For those who prefer the command line.
+For those who prefer the command line. Interactive TUI with Bubbletea.
 
 ```bash
-# Linux/macOS
-curl -fsSL https://get.goconnect.io | sh
+# Linux (x64)
+curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli_linux_amd64.tar.gz
+tar -xzf goconnect-cli_linux_amd64.tar.gz
+sudo mv goconnect-cli /usr/local/bin/goconnect
+goconnect
 
-# Or manual download
-curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli-linux-amd64
-chmod +x goconnect-cli-linux-amd64
-./goconnect-cli-linux-amd64
+# macOS (Apple Silicon)
+curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli_darwin_arm64.tar.gz
+tar -xzf goconnect-cli_darwin_arm64.tar.gz
+sudo mv goconnect-cli /usr/local/bin/goconnect
+goconnect
 ```
 
 ```powershell
 # Windows (PowerShell)
-irm https://get.goconnect.io/windows | iex
-
-# Or manual download
-Invoke-WebRequest -Uri "https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli-windows-amd64.exe" -OutFile "goconnect.exe"
-.\goconnect.exe
+Invoke-WebRequest -Uri "https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli_windows_amd64.zip" -OutFile "goconnect-cli.zip"
+Expand-Archive -Path "goconnect-cli.zip" -DestinationPath "."
+.\goconnect-cli.exe
 ```
 
-### Option 3: Docker
+### Option 3: Self-Hosted Server
 
-For running as a server.
+For running your own GoConnect infrastructure.
 
 ```bash
+# Docker (Recommended)
 docker run -d \
-  --name goconnect \
+  --name goconnect-server \
   --cap-add NET_ADMIN \
   -p 8080:8080 \
   -p 51820:51820/udp \
-  ghcr.io/orhaniscoding/goconnect:latest
+  ghcr.io/orhaniscoding/goconnect-server:latest
+
+# Or download binary
+curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-server_linux_amd64.tar.gz
+tar -xzf goconnect-server_linux_amd64.tar.gz
+./goconnect-server
 ```
 
 ---
@@ -260,33 +268,30 @@ GoConnect consists of three main components:
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
 │  ┌─────────────────────────────────────────────────────┐    │
-│  │              GoConnect App (Tauri)                   │    │
+│  │              Desktop App (Tauri)                     │    │
 │  │                                                      │    │
-│  │  • Desktop application (Windows/macOS/Linux)        │    │
-│  │  • Can be both host and client                      │    │
-│  │  • Modern user-friendly interface             │    │
-│  │  • Runs in system tray                              │    │
+│  │  • GUI application (Windows/macOS/Linux)            │    │
+│  │  • Create networks or join existing ones            │    │
+│  │  • Built-in chat and member management              │    │
+│  │  • System tray with quick actions                   │    │
 │  └─────────────────────────────────────────────────────┘    │
-│                            │                                 │
-│                            │                                 │
+│                                                              │
 │  ┌─────────────────────────────────────────────────────┐    │
-│  │              GoConnect CLI                           │    │
+│  │              CLI (Terminal TUI)                      │    │
 │  │                                                      │    │
-│  │  • Terminal application                             │    │
-│  │  • Interactive TUI interface                        │    │
-│  │  • Same features, from terminal                     │    │
-│  │  • Ideal for servers/headless environments          │    │
+│  │  • Interactive terminal interface                   │    │
+│  │  • Same features as desktop app                     │    │
+│  │  • Perfect for servers and headless systems         │    │
+│  │  • Bubbletea-powered modern TUI                     │    │
 │  └─────────────────────────────────────────────────────┘    │
-│                            │                                 │
-│                            ▼                                 │
+│                                                              │
 │  ┌─────────────────────────────────────────────────────┐    │
-│  │              GoConnect Core (Go)                     │    │
+│  │              Server (Self-Hosted)                    │    │
 │  │                                                      │    │
-│  │  • WireGuard management                             │    │
-│  │  • Network creation and management                  │    │
-│  │  • User authentication                              │    │
-│  │  • P2P connection coordination                      │    │
-│  │  • Chat and messaging                               │    │
+│  │  • Run your own GoConnect infrastructure            │    │
+│  │  • User management and authentication               │    │
+│  │  • Network coordination and signaling               │    │
+│  │  • PostgreSQL/SQLite database support               │    │
 │  └─────────────────────────────────────────────────────┘    │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
@@ -294,13 +299,39 @@ GoConnect consists of three main components:
 
 ### Technology Stack
 
-| Layer | Technology | Why? |
-|-------|------------|------|
-| **Desktop App** | Tauri + React | Small size, native performance |
+| Component | Technology | Why? |
+|-----------|------------|------|
+| **Desktop App** | Tauri 2.0 + React | Small size (~15MB), native performance |
 | **CLI** | Go + Bubbletea | Cross-platform, single binary |
-| **Core** | Go | Fast, secure, cross-platform |
-| **Networking** | WireGuard | Modern, fast VPN protocol |
+| **Server** | Go | Fast, secure, low resource usage |
+| **Networking** | WireGuard | Modern, fast, secure VPN protocol |
 | **Database** | SQLite/PostgreSQL | Embedded or scalable |
+
+### Project Structure
+
+```
+goconnect/
+├── desktop/               # Tauri desktop application
+│   ├── src/               # React frontend (TypeScript)
+│   ├── src-tauri/         # Rust backend
+│   └── package.json
+├── cli/                   # Terminal application (Go)
+│   ├── cmd/goconnect/     # Entry point
+│   └── internal/          # Business logic
+│       ├── tui/           # Terminal UI (Bubbletea)
+│       ├── daemon/        # Background service
+│       ├── chat/          # Chat functionality
+│       └── transfer/      # File transfer
+├── core/                  # Server backend (Go)
+│   ├── cmd/server/        # Server entry point
+│   └── internal/          # Business logic
+│       ├── handler/       # HTTP handlers
+│       ├── service/       # Business services
+│       ├── repository/    # Database layer
+│       └── websocket/     # Real-time communication
+├── docs/                  # Documentation
+└── .github/workflows/     # CI/CD
+```
 
 ---
 
@@ -311,6 +342,7 @@ GoConnect consists of three main components:
 - Go 1.24+
 - Node.js 20+ (for Desktop App)
 - Rust (for Desktop App)
+- protoc (Protocol Buffers compiler)
 
 ### Building from Source
 
@@ -319,14 +351,15 @@ GoConnect consists of three main components:
 git clone https://github.com/orhaniscoding/goconnect.git
 cd goconnect
 
-# Build Core (Server)
-cd core
-go build -o goconnect-server ./cmd/server
+# Build CLI
+cd cli
+go build -o goconnect-cli ./cmd/goconnect
+./goconnect-cli
 
-# Build CLI (Daemon)
-cd ../cli
-# Inject version at build time
-go build -ldflags "-X main.version=v1.0.0 -X github.com/orhaniscoding/goconnect/client-daemon/internal/engine.Version=v1.0.0" -o goconnect ./cmd/goconnect
+# Build Server
+cd ../core
+go build -o goconnect-server ./cmd/server
+./goconnect-server
 
 # Build Desktop App
 cd ../desktop
@@ -334,25 +367,17 @@ npm install
 npm run tauri build
 ```
 
-### Project Structure
+### Running Tests
 
-```
-goconnect/
-├── desktop/               # Tauri desktop application
-│   ├── src/               # React frontend
-│   ├── src-tauri/         # Rust backend
-│   └── package.json
-├── cli/                   # Terminal application (Go)
-│   ├── cmd/goconnect/     # Main command
-│   ├── internal/          # Internal packages
-│   └── go.mod
-├── core/                  # Core library (Go)
-│   ├── internal/          # Business logic
-│   ├── cmd/server/        # Core entry point
-│   └── go.mod
-├── docs/                  # Documentation
-├── README.md              # This file
-└── LICENSE                # MIT License
+```bash
+# CLI tests
+cd cli && go test ./...
+
+# Server tests
+cd core && go test ./...
+
+# All tests
+make test
 ```
 
 ---

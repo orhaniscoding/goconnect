@@ -22,24 +22,32 @@ Download from [GitHub Releases](https://github.com/orhaniscoding/goconnect/relea
 
 | Operating System | File |
 |------------------|------|
-| Windows | `GoConnect-Setup.exe` |
-| macOS Intel | `GoConnect-Intel.dmg` |
-| macOS Apple Silicon | `GoConnect-ARM.dmg` |
-| Linux Debian/Ubuntu | `GoConnect.deb` |
-| Linux Other | `GoConnect.AppImage` |
+| Windows | `GoConnect_*_x64-setup.exe` |
+| macOS (Apple Silicon) | `GoConnect_*_aarch64.dmg` |
+| macOS (Intel) | `GoConnect_*_x64.dmg` |
+| Linux (Debian/Ubuntu) | `GoConnect_*_amd64.deb` |
+| Linux (Other) | `GoConnect_*_amd64.AppImage` |
 
-### Terminal Application
+### Terminal Application (CLI)
+
+For command-line users and servers:
 
 ```bash
-# Linux/macOS
-curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli-$(uname -s)-$(uname -m)
-chmod +x goconnect-cli-*
-sudo mv goconnect-cli-* /usr/local/bin/goconnect
+# Linux (x64)
+curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli_v3.0.0_linux_amd64.tar.gz
+tar -xzf goconnect-cli_v3.0.0_linux_amd64.tar.gz
+sudo mv goconnect-cli_v3.0.0_linux_amd64 /usr/local/bin/goconnect
+
+# macOS (Apple Silicon)
+curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli_v3.0.0_darwin_arm64.tar.gz
+tar -xzf goconnect-cli_v3.0.0_darwin_arm64.tar.gz
+sudo mv goconnect-cli_v3.0.0_darwin_arm64 /usr/local/bin/goconnect
 ```
 
 ```powershell
 # Windows PowerShell
-Invoke-WebRequest -Uri "https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli-windows-amd64.exe" -OutFile "$env:LOCALAPPDATA\goconnect.exe"
+Invoke-WebRequest -Uri "https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli_v3.0.0_windows_amd64.zip" -OutFile "goconnect-cli.zip"
+Expand-Archive -Path "goconnect-cli.zip" -DestinationPath "."
 ```
 
 ---
@@ -47,24 +55,24 @@ Invoke-WebRequest -Uri "https://github.com/orhaniscoding/goconnect/releases/late
 ## 2. Install
 
 ### Windows
-1. Double-click `GoConnect-Setup.exe`
+1. Double-click `GoConnect_*_x64-setup.exe`
 2. Follow the installation wizard
 3. Click "Finish"
 
 ### macOS
 1. Open the `.dmg` file
 2. Drag GoConnect to Applications
-3. On first launch, click "Open Anyway" in Security settings
+3. On first launch, right-click → "Open" (or allow in Security settings)
 
 ### Linux (Debian/Ubuntu)
 ```bash
-sudo dpkg -i GoConnect.deb
+sudo dpkg -i GoConnect_*_amd64.deb
 ```
 
 ### Linux (AppImage)
 ```bash
-chmod +x GoConnect.AppImage
-./GoConnect.AppImage
+chmod +x GoConnect_*_amd64.AppImage
+./GoConnect_*_amd64.AppImage
 ```
 
 ---
@@ -73,7 +81,7 @@ chmod +x GoConnect.AppImage
 
 ### Desktop Application
 
-1. Start GoConnect
+1. Start GoConnect from your applications menu
 2. You'll see the welcome screen:
 
 ```
@@ -95,7 +103,7 @@ chmod +x GoConnect.AppImage
 └──────────────────────────────────────┘
 ```
 
-### Terminal Application
+### Terminal Application (CLI)
 
 ```bash
 $ goconnect
@@ -214,20 +222,20 @@ You've successfully set up and started using GoConnect!
 
 ### Next Steps
 
-- 📖 [Full User Guide](docs/USER_GUIDE.md)
-- ⚙️ [Advanced Settings](docs/ADVANCED.md)
+- 📖 [Full Documentation](README.md)
+- 🏗️ [Architecture Overview](docs/ARCHITECTURE.md)
 - ❓ [FAQ](README.md#-faq)
 - 🐛 [Report Issues](https://github.com/orhaniscoding/goconnect/issues)
 
 ### Need Help?
 
 - 💬 [GitHub Discussions](https://github.com/orhaniscoding/goconnect/discussions)
-- 📧 Support: Open an issue
+- 📧 Support: Open an issue on GitHub
 
 ---
 
 <div align="center">
 
-**[← Home](README.md)**
+**[← Back to README](README.md)**
 
 </div>
