@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: core/go.mod
+          cache-dependency-path: core/go.sum
+      - name: Go test server (race, cover)
+        run: go test ./... -race -cover -coverprofile=coverage.out
+        working-directory: core
+      - name: Upload server coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-server
+          path: core/coverage.out
+          if-no-files-found: ignore
+
+  daemon:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/go.mod
+          cache-dependency-path: cli/go.sum
+      - name: Go test daemon (race, cover)
+        run: go test ./... -race -cover -coverprofile=coverage.out
+        working-directory: cli
+      - name: Upload daemon coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-daemon
+          path: cli/coverage.out
+          if-no-files-found: ignore
+
+  desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+        working-directory: desktop
+      - name: TypeScript check
+        run: npm run build
+        working-directory: desktop
