@@ -1,0 +1,15 @@
+# Project Rules Configuration
+
+This project uses specific rules defined in the `.agent/rules/` directory.
+Please read and follow these rules when working on the project:
+
+1. **Security Rules**: `.agent/rules/security.md`
+   - Follow security best practices defined here.
+
+2. **Memory Bank & Context**: `.agent/rules/memorybank.md`
+   - Maintain project context and memory as described.
+
+3. **MCP Servers**: `.agent/rules/mcpservers.md`
+   - Guidelines for using MCP servers.
+
+Always prioritize these rules over general knowledge.

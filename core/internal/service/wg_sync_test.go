@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,9 +19,12 @@ type fakeWGManager struct {
 	received []wgtypes.PeerConfig
 	err      error
 	calls    int
+	mu       sync.Mutex
 }
 
 func (f *fakeWGManager) SyncPeers(peers []wgtypes.PeerConfig) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.received = peers
 	f.calls++
 	return f.err
@@ -109,5 +113,8 @@ func TestWireGuardSyncService_StartSyncLoop(t *testing.T) {
 	time.Sleep(30 * time.Millisecond)
 	cancel()
 
-	assert.GreaterOrEqual(t, manager.calls, 1)
+	manager.mu.Lock()
+	calls := manager.calls
+	manager.mu.Unlock()
+	assert.GreaterOrEqual(t, calls, 1)
 }

@@ -319,9 +319,14 @@ GoConnect consists of three main components:
 git clone https://github.com/orhaniscoding/goconnect.git
 cd goconnect
 
-# Build CLI
-cd cli
-go build -o goconnect ./cmd/goconnect
+# Build Core (Server)
+cd core
+go build -o goconnect-server ./cmd/server
+
+# Build CLI (Daemon)
+cd ../cli
+# Inject version at build time
+go build -ldflags "-X main.version=v1.0.0 -X github.com/orhaniscoding/goconnect/client-daemon/internal/engine.Version=v1.0.0" -o goconnect ./cmd/goconnect
 
 # Build Desktop App
 cd ../desktop

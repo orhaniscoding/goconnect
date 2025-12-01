@@ -1,4 +1,4 @@
-.PHONY: dev test test-race test-coverage build clean help install-systemd install-launchd install-windows
+.PHONY: dev test test-race test-coverage build clean help install-systemd install-launchd install-windows proto
 
 # Build variables
 VERSION ?= dev
@@ -10,11 +10,23 @@ LDFLAGS := -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DA
 # Coverage threshold
 COVERAGE_THRESHOLD := 60
 
+# Proto paths
+PROTO_DIR := ../core/proto
+PROTO_OUT := internal/proto
+
 ## help: Display this help message
 help:
 	@echo "GoConnect Client Daemon - Available Commands:"
 	@echo ""
 	@sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' | sed -e 's/^/ /'
+
+## proto: Generate Go code from proto files
+proto:
+	@echo "Generating Go code from proto files..."
+	protoc --go_out=$(PROTO_OUT) --go_opt=paths=source_relative \
+		--go-grpc_out=$(PROTO_OUT) --go-grpc_opt=paths=source_relative \
+		-I $(PROTO_DIR) $(PROTO_DIR)/daemon.proto
+	@echo "✅ Proto generation complete!"
 
 ## dev: Run daemon in development mode
 dev:

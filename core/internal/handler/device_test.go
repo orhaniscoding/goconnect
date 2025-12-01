@@ -157,7 +157,7 @@ func TestDeviceHandler_RegisterDevice(t *testing.T) {
 
 	// Verify device was saved
 	t.Run("Verify device saved", func(t *testing.T) {
-		devices, _, err := deviceService.ListDevices(context.TODO(), "user-123", "tenant-1", false, domain.DeviceFilter{Limit: 10})
+		devices, _, err := deviceService.ListDevices(context.Background(), "user-123", "tenant-1", false, domain.DeviceFilter{Limit: 10})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, len(devices), 1)
 	})
@@ -167,7 +167,7 @@ func TestDeviceHandler_ListDevices(t *testing.T) {
 	r, handler, deviceService, _ := setupDeviceTest()
 
 	// Create test devices
-	ctx := context.TODO()
+	ctx := context.Background()
 	deviceService.RegisterDevice(ctx, "user-123", "tenant-1", &domain.RegisterDeviceRequest{
 		Name:     "Linux Laptop",
 		Platform: "linux",
@@ -286,7 +286,7 @@ func TestDeviceHandler_GetDevice(t *testing.T) {
 	r, handler, deviceService, _ := setupDeviceTest()
 
 	// Create test device
-	ctx := context.TODO()
+	ctx := context.Background()
 	device, _ := deviceService.RegisterDevice(ctx, "user-123", "tenant-1", &domain.RegisterDeviceRequest{
 		Name:     "Test Device",
 		Platform: "linux",
@@ -346,7 +346,7 @@ func TestDeviceHandler_UpdateDevice(t *testing.T) {
 	r, handler, deviceService, _ := setupDeviceTest()
 
 	// Create test device
-	ctx := context.TODO()
+	ctx := context.Background()
 	device, _ := deviceService.RegisterDevice(ctx, "user-123", "tenant-1", &domain.RegisterDeviceRequest{
 		Name:     "Old Name",
 		Platform: "linux",
@@ -441,7 +441,7 @@ func TestDeviceHandler_DeleteDevice(t *testing.T) {
 	})
 
 	t.Run("Success - delete own device", func(t *testing.T) {
-		ctx := context.TODO()
+		ctx := context.Background()
 		device, _ := deviceService.RegisterDevice(ctx, "user-123", "tenant-1", &domain.RegisterDeviceRequest{
 			Name:     "To Delete",
 			Platform: "linux",
@@ -471,7 +471,7 @@ func TestDeviceHandler_DeleteDevice(t *testing.T) {
 			handler.DeleteDevice(c)
 		})
 
-		ctx := context.TODO()
+		ctx := context.Background()
 		device, _ := deviceService.RegisterDevice(ctx, "user-123", "tenant-1", &domain.RegisterDeviceRequest{
 			Name:     "Test",
 			Platform: "linux",
@@ -500,7 +500,7 @@ func TestDeviceHandler_Heartbeat(t *testing.T) {
 	r, handler, deviceService, _ := setupDeviceTest()
 
 	// Create test device
-	ctx := context.TODO()
+	ctx := context.Background()
 	device, _ := deviceService.RegisterDevice(ctx, "user-123", "tenant-1", &domain.RegisterDeviceRequest{
 		Name:     "Test Device",
 		Platform: "linux",
@@ -556,7 +556,7 @@ func TestDeviceHandler_DisableDevice(t *testing.T) {
 	r, handler, deviceService, _ := setupDeviceTest()
 
 	// Create test device
-	ctx := context.TODO()
+	ctx := context.Background()
 	device, _ := deviceService.RegisterDevice(ctx, "user-123", "tenant-1", &domain.RegisterDeviceRequest{
 		Name:     "Test Device",
 		Platform: "linux",
@@ -598,7 +598,7 @@ func TestDeviceHandler_EnableDevice(t *testing.T) {
 	r, handler, deviceService, _ := setupDeviceTest()
 
 	// Create and disable test device
-	ctx := context.TODO()
+	ctx := context.Background()
 	device, _ := deviceService.RegisterDevice(ctx, "user-123", "tenant-1", &domain.RegisterDeviceRequest{
 		Name:     "Test Device",
 		Platform: "linux",

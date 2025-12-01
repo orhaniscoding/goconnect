@@ -3,10 +3,11 @@ package config
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
-	"gopkg.in/yaml.v3"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/storage"
+	"gopkg.in/yaml.v3"
 )
 
 // Config holds all daemon configuration.
@@ -15,80 +16,119 @@ type Config struct {
 		URL string `yaml:"url"`
 	} `yaml:"server"`
 	Daemon struct {
+		ListenAddr          string        `yaml:"listen_addr"`
 		LocalPort           int           `yaml:"local_port"`
 		HealthCheckInterval time.Duration `yaml:"health_check_interval"`
 	} `yaml:"daemon"`
 	WireGuard struct {
 		InterfaceName string `yaml:"interface_name"`
 	} `yaml:"wireguard"`
-	IdentityPath string `yaml:"identity_path"` // Path to store device identity
+	Identity struct {
+		Path string `yaml:"path"`
+	} `yaml:"identity"`
+	P2P struct {
+		Enabled    bool   `yaml:"enabled"`
+		StunServer string `yaml:"stun_server"`
+	} `yaml:"p2p"`
+	// User-configurable settings
+	Settings struct {
+		AutoConnect          bool   `yaml:"auto_connect"`
+		NotificationsEnabled bool   `yaml:"notifications_enabled"`
+		DownloadPath         string `yaml:"download_path"`
+		LogLevel             string `yaml:"log_level"`
+	} `yaml:"settings"`
 
-	// Device keys are dynamic and not stored in config file
-	DevicePrivateKey string
-	DevicePublicKey  string
-
-	// Keyring store for sensitive data like auth tokens
-	Keyring *storage.KeyringStore `yaml:"-"` // Ignore in YAML marshalling
+	// Runtime fields
+	DevicePrivateKey string                `yaml:"-"`
+	DevicePublicKey  string                `yaml:"-"`
+	IdentityPath     string                `yaml:"-"`
+	Keyring          *storage.KeyringStore `yaml:"-"`
+	ConfigPath       string                `yaml:"-"` // Path to config file for saving
 }
 
-// DefaultConfigPath returns the default path for the daemon config file.
+// DefaultConfigPath returns the default path for the configuration file.
 func DefaultConfigPath() string {
-	// TODO: Platform specific paths
-	return "./config.yaml"
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "config.yaml"
+	}
+	return filepath.Join(home, ".goconnect", "config.yaml")
 }
 
-// LoadConfig loads configuration from a YAML file or sets defaults.
+// LoadConfig loads the configuration from the given path.
 func LoadConfig(path string) (*Config, error) {
-	cfg := &Config{
-		Server: struct {
-			URL string `yaml:"url"`
-		}{
-			URL: "http://localhost:8080", // Default server URL
-		},
-		Daemon: struct {
-			LocalPort           int           `yaml:"local_port"`
-			HealthCheckInterval time.Duration `yaml:"health_check_interval"`
-		}{
-			LocalPort:           12345,
-			HealthCheckInterval: 30 * time.Second,
-		},
-		WireGuard: struct {
-			InterfaceName string `yaml:"interface_name"`
-		}{
-			InterfaceName: "goconnect0", // Default interface name
-		},
-		IdentityPath: "./identity.json", // Default identity path
-	}
-
 	data, err := os.ReadFile(path)
 	if err != nil {
+		// Return default config if file not found
 		if os.IsNotExist(err) {
-			log.Printf("Config file not found at %s, using defaults.", path)
-			return cfg, nil
+			return &Config{
+				Daemon: struct {
+					ListenAddr          string        `yaml:"listen_addr"`
+					LocalPort           int           `yaml:"local_port"`
+					HealthCheckInterval time.Duration `yaml:"health_check_interval"`
+				}{
+					LocalPort: 34100, // Default port
+				},
+			}, nil
 		}
 		return nil, err
 	}
 
-	if err := yaml.Unmarshal(data, cfg); err != nil {
+	var cfg Config
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, err
 	}
 
-	// Initialize keyring store
-	kr, err := storage.NewKeyringStore()
+	// Initialize Keyring
+	keyring, err := storage.NewKeyringStore()
 	if err != nil {
-		log.Printf("Failed to initialize keyring store: %v. Sensitive data will not be persistently stored.", err)
-		// Don't return error, allow daemon to run without keyring if it fails
+		log.Printf("Warning: Failed to initialize keyring: %v", err)
 	}
-	cfg.Keyring = kr
+	cfg.Keyring = keyring
 
-	return cfg, nil
+	// Set defaults if missing
+	if cfg.Daemon.LocalPort == 0 {
+		cfg.Daemon.LocalPort = 34100
+	}
+	if cfg.Identity.Path != "" {
+		cfg.IdentityPath = cfg.Identity.Path
+	} else {
+		// Default identity path
+		home, _ := os.UserHomeDir()
+		cfg.IdentityPath = filepath.Join(home, ".goconnect", "identity.json")
+	}
+	// Set default settings
+	if cfg.Settings.LogLevel == "" {
+		cfg.Settings.LogLevel = "info"
+	}
+	if cfg.Settings.DownloadPath == "" {
+		home, _ := os.UserHomeDir()
+		cfg.Settings.DownloadPath = filepath.Join(home, "Downloads")
+	}
+	cfg.Settings.NotificationsEnabled = true // Default to enabled
+	cfg.ConfigPath = path
+
+	return &cfg, nil
 }
 
-// SaveConfig saves the configuration to a YAML file.
-func SaveConfig(cfg *Config, path string) error {
-	data, err := yaml.Marshal(cfg)
+// Save saves the configuration to the given path.
+func (c *Config) Save(path string) error {
+	// Sync runtime fields back to YAML fields if needed
+	c.Identity.Path = c.IdentityPath
+
+	data, err := yaml.Marshal(c)
 	if err != nil {
 		return err
 	}
+	// Ensure directory exists
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
 	return os.WriteFile(path, data, 0644)
+}
+
+// SaveConfig saves the configuration to the given path.
+func SaveConfig(c *Config, path string) error {
+	return c.Save(path)
 }

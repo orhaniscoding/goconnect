@@ -25,8 +25,9 @@ func setupGDPRTest() (*gin.Engine, *GDPRHandler, *repository.InMemoryUserReposit
 	deviceRepo := repository.NewInMemoryDeviceRepository()
 	networkRepo := repository.NewInMemoryNetworkRepository()
 	membershipRepo := repository.NewInMemoryMembershipRepository()
+	deletionRepo := repository.NewInMemoryDeletionRequestRepository()
 
-	gdprService := service.NewGDPRService(userRepo, deviceRepo, networkRepo, membershipRepo)
+	gdprService := service.NewGDPRService(userRepo, deviceRepo, networkRepo, membershipRepo, deletionRepo)
 	handler := NewGDPRHandler(gdprService, nil) // nil auditor for tests
 
 	r := gin.New()

@@ -16,8 +16,9 @@ func TestGDPRService_ExportUserData(t *testing.T) {
 	deviceRepo := repository.NewInMemoryDeviceRepository()
 	networkRepo := repository.NewInMemoryNetworkRepository()
 	membershipRepo := repository.NewInMemoryMembershipRepository()
+	deletionRepo := repository.NewInMemoryDeletionRequestRepository()
 
-	svc := NewGDPRService(userRepo, deviceRepo, networkRepo, membershipRepo)
+	svc := NewGDPRService(userRepo, deviceRepo, networkRepo, membershipRepo, deletionRepo)
 	ctx := context.Background()
 
 	// Create test user
@@ -139,8 +140,9 @@ func TestGDPRService_DeleteUserData(t *testing.T) {
 	deviceRepo := repository.NewInMemoryDeviceRepository()
 	networkRepo := repository.NewInMemoryNetworkRepository()
 	membershipRepo := repository.NewInMemoryMembershipRepository()
+	deletionRepo := repository.NewInMemoryDeletionRequestRepository()
 
-	svc := NewGDPRService(userRepo, deviceRepo, networkRepo, membershipRepo)
+	svc := NewGDPRService(userRepo, deviceRepo, networkRepo, membershipRepo, deletionRepo)
 	ctx := context.Background()
 
 	// Create test user
@@ -164,12 +166,21 @@ func TestGDPRService_DeleteUserData(t *testing.T) {
 			t.Fatal("expected deletion request to be returned")
 		}
 
-		if req.Status != "pending" {
+		if req.Status != domain.DeletionRequestStatusPending {
 			t.Errorf("expected status pending, got %s", req.Status)
 		}
 
 		if req.UserID != "user-delete-1" {
 			t.Errorf("expected userID user-delete-1, got %s", req.UserID)
+		}
+
+		// Verify it's in the repo
+		stored, err := deletionRepo.Get(ctx, req.ID)
+		if err != nil {
+			t.Fatalf("failed to get request from repo: %v", err)
+		}
+		if stored.Status != domain.DeletionRequestStatusPending {
+			t.Errorf("expected stored status pending, got %s", stored.Status)
 		}
 	})
 
@@ -187,8 +198,9 @@ func TestGDPRService_ExportUserData_EmptyData(t *testing.T) {
 	deviceRepo := repository.NewInMemoryDeviceRepository()
 	networkRepo := repository.NewInMemoryNetworkRepository()
 	membershipRepo := repository.NewInMemoryMembershipRepository()
+	deletionRepo := repository.NewInMemoryDeletionRequestRepository()
 
-	svc := NewGDPRService(userRepo, deviceRepo, networkRepo, membershipRepo)
+	svc := NewGDPRService(userRepo, deviceRepo, networkRepo, membershipRepo, deletionRepo)
 	ctx := context.Background()
 
 	// Create user with no devices/networks

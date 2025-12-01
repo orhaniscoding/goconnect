@@ -1,0 +1,9 @@
+Package: goconnect
+Version: 1.0.0
+Section: net
+Priority: optional
+Architecture: amd64
+Depends: libwebkit2gtk-4.0-37, libgtk-3-0, libappindicator3-1
+Maintainer: Orhan <orhan@example.com>
+Description: Virtual LAN made simple.
+ GoConnect is a user-friendly virtual LAN platform that makes devices on the internet appear as if they're on the same local network.

@@ -67,6 +67,7 @@ type InterfaceConfig struct {
 
 // PeerConfig represents a remote WireGuard peer
 type PeerConfig struct {
+	ID                  string   `json:"id"` // Device ID of the peer (for signaling)
 	PublicKey           string   `json:"public_key"`
 	Endpoint            string   `json:"endpoint,omitempty"`
 	AllowedIPs          []string `json:"allowed_ips"`

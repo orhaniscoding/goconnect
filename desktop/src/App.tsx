@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
-
-// =============================================================================
-// Types
-// =============================================================================
+import { useState } from 'react';
+import * as api from './lib/api';
+import { SettingsModal } from './components/SettingsModal';
+import { PeerList } from './components/PeerList';
+import { useToast, Toaster } from './components/Toast';
 
 interface Server {
   id: string;
@@ -43,239 +43,181 @@ interface User {
   username: string;
 }
 
-// =============================================================================
-// Mock Data
-// =============================================================================
-
-const mockServers: Server[] = [
-  { id: "1", name: "Gaming Squad", icon: "🎮", isOwner: true, memberCount: 12, unread: 3 },
-  { id: "2", name: "Work Team", icon: "💼", isOwner: false, memberCount: 8 },
-  { id: "3", name: "Friends", icon: "👥", isOwner: false, memberCount: 5, unread: 1 },
-];
-
-const mockNetworks: Record<string, Network[]> = {
-  "1": [
-    {
-      id: "n1", serverId: "1", name: "Minecraft LAN", subnet: "10.0.1.0/24",
-      connected: true, myIp: "10.0.1.5",
-      clients: [
-        { id: "c1", name: "Alice", ip: "10.0.1.1", status: "online", isHost: true },
-        { id: "c2", name: "Bob", ip: "10.0.1.2", status: "online", isHost: false },
-        { id: "c3", name: "You", ip: "10.0.1.5", status: "online", isHost: false },
-      ]
-    },
-    { id: "n2", serverId: "1", name: "Valorant Party", subnet: "10.0.2.0/24", connected: false, clients: [] },
-  ],
-  "2": [
-    { id: "n3", serverId: "2", name: "Office VPN", subnet: "10.1.0.0/24", connected: false, clients: [] },
-  ],
-  "3": [
-    { id: "n4", serverId: "3", name: "Movie Night", subnet: "10.2.0.0/24", connected: false, clients: [] },
-  ],
-};
-
-const mockChannels: Channel[] = [
-  { id: "c1", name: "general", unread: 2 },
-  { id: "c2", name: "announcements" },
-];
-
-// =============================================================================
-// App Component
-// =============================================================================
-
 function App() {
-  // Auth
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [username, setUsername] = useState("");
+  const [usernameError, setUsernameError] = useState("");
   const [user, setUser] = useState<User | null>(null);
 
-  // Data
   const [servers, setServers] = useState<Server[]>([]);
-  const [selectedServer, setSelectedServer] = useState<Server | null>(null);
   const [networks, setNetworks] = useState<Network[]>([]);
-  const [selectedNetwork, setSelectedNetwork] = useState<Network | null>(null);
-  const [channels] = useState<Channel[]>(mockChannels);
+  const [channels, setChannels] = useState<Channel[]>([]);
 
-  // UI
+  const [selectedServer, setSelectedServer] = useState<Server | null>(null);
+  const [selectedNetwork, setSelectedNetwork] = useState<Network | null>(null);
+
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showCreateNetwork, setShowCreateNetwork] = useState(false);
   const [showServerSettings, setShowServerSettings] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [copiedInvite, setCopiedInvite] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
-  // Create Server form
   const [newServerName, setNewServerName] = useState("");
   const [newServerIcon, setNewServerIcon] = useState("🎮");
-
-  // Join Server form
   const [inviteLink, setInviteLink] = useState("");
-
-  // Create Network form
   const [newNetworkName, setNewNetworkName] = useState("");
+  const [copiedInvite, setCopiedInvite] = useState(false);
 
-  // Welcome form
-  const [username, setUsername] = useState("");
-  const [usernameError, setUsernameError] = useState("");
+  const toast = useToast();
 
-  // Auto-restore session on mount
-  useEffect(() => {
-    const savedUsername = localStorage.getItem("gc_username");
-    const savedDeviceId = localStorage.getItem("gc_device_id");
-
-    if (savedUsername && savedDeviceId) {
-      setUser({ deviceId: savedDeviceId, username: savedUsername });
-      setServers(mockServers);
-      setIsLoggedIn(true);
-    }
-  }, []);
-
-  // Generate or get device ID
-  const getDeviceId = (): string => {
-    let deviceId = localStorage.getItem("gc_device_id");
-    if (!deviceId) {
-      deviceId = crypto.randomUUID();
-      localStorage.setItem("gc_device_id", deviceId);
-    }
-    return deviceId;
-  };
-
-  // Handle start
-  const handleStart = (e: React.FormEvent) => {
+  const handleStart = async (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = username.trim();
-
-    if (trimmed.length < 2) {
-      setUsernameError("Username must be at least 2 characters");
-      return;
-    }
-    if (trimmed.length > 20) {
-      setUsernameError("Username must be less than 20 characters");
+    if (!username.trim()) {
+      setUsernameError("Username is required");
       return;
     }
 
-    const deviceId = getDeviceId();
-    setUser({ deviceId, username: trimmed });
-    localStorage.setItem("gc_username", trimmed);
-    setServers(mockServers);
-    setIsLoggedIn(true);
+    // Simulate device ID generation
+    const deviceId = "dev_" + Math.random().toString(36).substr(2, 9);
+
+    try {
+      const res = await api.registerDevice(username, deviceId);
+      if (res.error) {
+        setUsernameError(res.error);
+      } else if (res.data) {
+        setUser({ username: res.data.username, deviceId: res.data.deviceId });
+        setIsLoggedIn(true);
+        loadServers();
+      }
+    } catch (err) {
+      setUsernameError("Failed to login");
+    }
   };
 
-  // Handle server selection
-  const handleSelectServer = (server: Server) => {
+  const loadServers = async () => {
+    const res = await api.getMyServers();
+    if (res.data) {
+      setServers(res.data.map(s => ({
+        id: s.id,
+        name: s.name,
+        icon: s.icon || "🎮",
+        description: s.description,
+        isOwner: !!s.isOwner,
+        memberCount: s.memberCount,
+        unread: 0
+      })));
+    }
+  };
+
+  const handleSelectServer = async (server: Server) => {
     setSelectedServer(server);
-    setNetworks(mockNetworks[server.id] || []);
     setSelectedNetwork(null);
-  };
 
-  // Handle network toggle
-  const handleToggleNetwork = (network: Network) => {
-    setNetworks(prev => prev.map(n =>
-      n.id === network.id
-        ? { ...n, connected: !n.connected, myIp: !n.connected ? "10.0.1.5" : undefined }
-        : n
-    ));
-    if (!network.connected) {
-      setSelectedNetwork({ ...network, connected: true, myIp: "10.0.1.5" });
+    // Load networks
+    const res = await api.listNetworks(server.id);
+    if (res.data) {
+      setNetworks(res.data.map(n => ({
+        id: n.id,
+        serverId: n.serverId,
+        name: n.name,
+        subnet: n.subnet,
+        connected: !!n.connected,
+        myIp: n.myIp,
+        clients: [] // Clients loaded separately when network selected
+      })));
     }
+
+    // Mock channels for now
+    setChannels([
+      { id: "1", name: "general" },
+      { id: "2", name: "gaming" }
+    ]);
   };
 
-  // Handle create server
-  const handleCreateServer = () => {
+  const handleCreateServer = async () => {
     if (!newServerName.trim()) return;
 
-    const newServer: Server = {
-      id: crypto.randomUUID(),
-      name: newServerName.trim(),
-      icon: newServerIcon,
-      isOwner: true,
-      memberCount: 1,
-    };
+    const res = await api.createServer({
+      name: newServerName,
+      icon: newServerIcon
+    });
 
-    setServers(prev => [...prev, newServer]);
-    mockNetworks[newServer.id] = [];
-    setSelectedServer(newServer);
-    setNetworks([]);
-    setNewServerName("");
-    setNewServerIcon("🎮");
-    setShowCreateModal(false);
+    if (res.data) {
+      setShowCreateModal(false);
+      setNewServerName("");
+      loadServers();
+      toast.success("Server created!");
+    } else {
+      toast.error(res.error || "Failed to create server");
+    }
   };
 
-  // Handle join server
-  const handleJoinServer = () => {
+  const handleJoinServer = async () => {
     if (!inviteLink.trim()) return;
 
-    // Mock: Create a joined server
-    const newServer: Server = {
-      id: crypto.randomUUID(),
-      name: "Joined Server",
-      icon: "🔗",
-      isOwner: false,
-      memberCount: 5,
-    };
+    // Extract code from link if needed
+    const code = inviteLink.split('/').pop() || inviteLink;
 
-    setServers(prev => [...prev, newServer]);
-    mockNetworks[newServer.id] = [];
-    setInviteLink("");
-    setShowJoinModal(false);
+    const res = await api.joinServerByCode(code);
+    if (res.data) {
+      setShowJoinModal(false);
+      setInviteLink("");
+      loadServers();
+      toast.success("Joined server!");
+    } else {
+      toast.error(res.error || "Failed to join server");
+    }
   };
 
-  // Handle create network
-  const handleCreateNetwork = () => {
-    if (!newNetworkName.trim() || !selectedServer) return;
+  const handleCreateNetwork = async () => {
+    if (!selectedServer || !newNetworkName.trim()) return;
 
-    const newNetwork: Network = {
-      id: crypto.randomUUID(),
-      serverId: selectedServer.id,
-      name: newNetworkName.trim(),
-      subnet: `10.${Math.floor(Math.random() * 255)}.0.0/24`,
-      connected: false,
-      clients: [],
-    };
+    const res = await api.createNetwork(selectedServer.id, {
+      name: newNetworkName
+    });
 
-    setNetworks(prev => [...prev, newNetwork]);
-    mockNetworks[selectedServer.id] = [...(mockNetworks[selectedServer.id] || []), newNetwork];
-    setNewNetworkName("");
-    setShowCreateNetwork(false);
+    if (res.data) {
+      setShowCreateNetwork(false);
+      setNewNetworkName("");
+      handleSelectServer(selectedServer); // Reload networks
+      toast.success("Network created!");
+    } else {
+      toast.error(res.error || "Failed to create network");
+    }
   };
 
-  // Handle delete server
-  const handleDeleteServer = () => {
+  const handleDeleteServer = async () => {
     if (!selectedServer) return;
-    setServers(prev => prev.filter(s => s.id !== selectedServer.id));
-    delete mockNetworks[selectedServer.id];
-    setSelectedServer(null);
-    setNetworks([]);
-    setSelectedNetwork(null);
-    setShowServerSettings(false);
+    if (confirm("Are you sure you want to delete this server?")) {
+      await api.deleteServer(selectedServer.id);
+      setSelectedServer(null);
+      loadServers();
+      setShowServerSettings(false);
+    }
   };
 
-  // Handle leave server
-  const handleLeaveServer = () => {
+  const handleLeaveServer = async () => {
     if (!selectedServer) return;
-    setServers(prev => prev.filter(s => s.id !== selectedServer.id));
-    setSelectedServer(null);
-    setNetworks([]);
-    setSelectedNetwork(null);
-    setShowServerSettings(false);
+    if (confirm("Are you sure you want to leave this server?")) {
+      await api.leaveServer(selectedServer.id);
+      setSelectedServer(null);
+      loadServers();
+      setShowServerSettings(false);
+    }
   };
 
-  // Generate invite link
   const getInviteLink = () => {
-    if (!selectedServer) return "";
-    return `gc://join/${selectedServer.id.slice(0, 8)}`;
+    // Mock link
+    return `gc://join/${selectedServer?.id}`;
   };
 
-  // Copy invite link
   const handleCopyInvite = async () => {
     const link = getInviteLink();
     await navigator.clipboard.writeText(link);
     setCopiedInvite(true);
     setTimeout(() => setCopiedInvite(false), 2000);
   };
-
-  // ==========================================================================
-  // Login Screen
-  // ==========================================================================
 
   if (!isLoggedIn) {
     return (
@@ -309,19 +251,11 @@ function App() {
             >
               Get Started
             </button>
-
-            <p className="text-center text-gray-500 text-xs">
-              Your device ID is stored locally for identification
-            </p>
           </form>
         </div>
       </div>
     );
   }
-
-  // ==========================================================================
-  // Main App
-  // ==========================================================================
 
   return (
     <div className="h-screen w-screen flex bg-gc-dark-700">
@@ -346,47 +280,37 @@ function App() {
             title={server.name}
           >
             {server.icon}
-            {server.unread && (
+            {server.unread ? (
               <span className="absolute -bottom-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
                 {server.unread}
               </span>
-            )}
+            ) : null}
           </button>
         ))}
 
         <button
           onClick={() => setShowCreateModal(true)}
-          className="w-12 h-12 bg-gc-dark-700 rounded-2xl hover:rounded-xl hover:bg-green-600 transition-all flex items-center justify-center text-green-500 hover:text-white text-2xl"
+          className="w-12 h-12 bg-gc-dark-700 hover:bg-green-600 text-green-500 hover:text-white rounded-3xl hover:rounded-xl transition-all flex items-center justify-center text-2xl"
         >
           +
         </button>
-
-        <div className="flex-1" />
-
-        <button className="w-12 h-12 bg-gc-dark-700 rounded-full flex items-center justify-center text-xl">
-          👤
-        </button>
       </div>
 
-      {/* Channel Sidebar */}
-      <div className="w-60 bg-gc-dark-800 flex flex-col">
-        <div className="h-12 px-4 flex items-center border-b border-gc-dark-900 shadow cursor-pointer hover:bg-gc-dark-700" onClick={() => selectedServer && setShowServerSettings(true)}>
-          <h2 className="font-semibold text-white truncate flex-1">
-            {selectedServer?.name || "Home"}
-          </h2>
-          {selectedServer?.isOwner && (
-            <span className="ml-2 text-xs bg-gc-primary/20 text-gc-primary px-2 py-0.5 rounded">Owner</span>
-          )}
-          {selectedServer && <span className="ml-2 text-gray-400">⚙️</span>}
-        </div>
+      {/* Network/Channel Sidebar */}
+      <div className="w-60 bg-gc-dark-800 flex flex-col border-r border-gc-dark-900">
+        {selectedServer ? (
+          <>
+            <div className="h-12 px-4 flex items-center justify-between shadow-sm cursor-pointer hover:bg-gc-dark-700 transition"
+              onClick={() => setShowServerSettings(true)}>
+              <h2 className="font-bold text-white truncate">{selectedServer.name}</h2>
+              <span className="text-gray-400">▼</span>
+            </div>
 
-        <div className="flex-1 overflow-y-auto p-2">
-          {selectedServer ? (
-            <>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
               <div className="text-xs text-gray-400 uppercase tracking-wide px-2 py-2 flex items-center justify-between">
                 <span>Networks</span>
-                {selectedServer?.isOwner && (
-                  <button onClick={() => setShowCreateNetwork(true)} className="hover:text-white text-lg">+</button>
+                {selectedServer.isOwner && (
+                  <button onClick={(e) => { e.stopPropagation(); setShowCreateNetwork(true); }} className="hover:text-white text-lg">+</button>
                 )}
               </div>
               {networks.map((network) => (
@@ -412,14 +336,15 @@ function App() {
                   <span className="flex-1">{channel.name}</span>
                 </button>
               ))}
-            </>
-          ) : (
-            <div className="text-center text-gray-500 mt-8 px-4">
-              <p>Select a server</p>
             </div>
-          )}
-        </div>
+          </>
+        ) : (
+          <div className="text-center text-gray-500 mt-8 px-4">
+            <p>Select a server</p>
+          </div>
+        )}
 
+        {/* User Bar */}
         <div className="h-14 bg-gc-dark-900 px-2 flex items-center gap-2">
           <div className="w-8 h-8 bg-gc-primary rounded-full flex items-center justify-center text-white">
             {user?.username?.[0]?.toUpperCase() || "U"}
@@ -428,6 +353,9 @@ function App() {
             <div className="text-sm text-white truncate">{user?.username}</div>
             <div className="text-xs text-gray-400">Online</div>
           </div>
+          <button onClick={() => setShowSettingsModal(true)} className="text-gray-400 hover:text-white p-1">
+            ⚙️
+          </button>
           <button onClick={() => { setIsLoggedIn(false); setUser(null); setServers([]); }} className="text-gray-400 hover:text-white p-1">
             🚪
           </button>
@@ -438,78 +366,49 @@ function App() {
       <div className="flex-1 flex flex-col">
         <div className="h-12 px-4 flex items-center border-b border-gc-dark-900 bg-gc-dark-700">
           {selectedNetwork ? (
-            <>
+            <div className="flex items-center">
               <span className="text-white font-medium">{selectedNetwork.name}</span>
               <span className="mx-2 text-gray-500">|</span>
               <span className="text-gray-400 text-sm font-mono">{selectedNetwork.subnet}</span>
-              <div className="flex-1" />
-              <button
-                onClick={() => handleToggleNetwork(selectedNetwork)}
-                className={`px-4 py-1.5 rounded text-sm font-medium transition
-                  ${selectedNetwork.connected ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'} text-white`}
-              >
-                {selectedNetwork.connected ? "Disconnect" : "Connect"}
-              </button>
-            </>
+            </div>
           ) : (
-            <span className="text-gray-400">{selectedServer ? "Select a network" : "Welcome to GoConnect"}</span>
+            <div className="text-white font-medium">Dashboard</div>
           )}
+          <div className="flex-1" />
         </div>
 
         <div className="flex-1 p-6 overflow-y-auto">
           {selectedNetwork ? (
-            <div className="space-y-6 max-w-3xl">
+            selectedNetwork.connected && selectedNetwork.clients.length > 0 ? (
               <div className="bg-gc-dark-800 rounded-lg p-4">
-                <h3 className="text-white font-medium mb-4">Connection Status</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <div className="text-gray-400 text-sm">Status</div>
-                    <div className={selectedNetwork.connected ? 'text-green-400' : 'text-gray-500'}>
-                      {selectedNetwork.connected ? '🟢 Connected' : '⚪ Disconnected'}
+                <h3 className="text-white font-medium mb-4">Online Clients</h3>
+                <div className="space-y-2">
+                  {selectedNetwork.clients.map((client) => (
+                    <div key={client.id} className="flex items-center gap-3 p-2 rounded hover:bg-gc-dark-700">
+                      <div className="relative">
+                        <div className="w-10 h-10 bg-gc-primary rounded-full flex items-center justify-center text-white">
+                          {client.name[0]}
+                        </div>
+                        <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gc-dark-800
+                            ${client.status === 'online' ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-white flex items-center gap-2">
+                          {client.name}
+                          {client.isHost && <span className="text-xs bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded">Host</span>}
+                        </div>
+                        <div className="text-gray-400 text-sm font-mono">{client.ip}</div>
+                      </div>
+                      <button className="px-3 py-1 text-sm text-gray-400 hover:text-white hover:bg-gc-dark-600 rounded">Ping</button>
                     </div>
-                  </div>
-                  <div>
-                    <div className="text-gray-400 text-sm">Your IP</div>
-                    <div className="text-white font-mono">{selectedNetwork.myIp || '-'}</div>
-                  </div>
-                  <div>
-                    <div className="text-gray-400 text-sm">Subnet</div>
-                    <div className="text-white font-mono">{selectedNetwork.subnet}</div>
-                  </div>
-                  <div>
-                    <div className="text-gray-400 text-sm">Clients</div>
-                    <div className="text-white">{selectedNetwork.clients.length} online</div>
-                  </div>
+                  ))}
                 </div>
               </div>
-
-              {selectedNetwork.connected && selectedNetwork.clients.length > 0 && (
-                <div className="bg-gc-dark-800 rounded-lg p-4">
-                  <h3 className="text-white font-medium mb-4">Online Clients</h3>
-                  <div className="space-y-2">
-                    {selectedNetwork.clients.map((client) => (
-                      <div key={client.id} className="flex items-center gap-3 p-2 rounded hover:bg-gc-dark-700">
-                        <div className="relative">
-                          <div className="w-10 h-10 bg-gc-primary rounded-full flex items-center justify-center text-white">
-                            {client.name[0]}
-                          </div>
-                          <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-gc-dark-800
-                            ${client.status === 'online' ? 'bg-green-500' : 'bg-yellow-500'}`} />
-                        </div>
-                        <div className="flex-1">
-                          <div className="text-white flex items-center gap-2">
-                            {client.name}
-                            {client.isHost && <span className="text-xs bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded">Host</span>}
-                          </div>
-                          <div className="text-gray-400 text-sm font-mono">{client.ip}</div>
-                        </div>
-                        <button className="px-3 py-1 text-sm text-gray-400 hover:text-white hover:bg-gc-dark-600 rounded">Ping</button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            ) : (
+              <div className="text-center text-gray-500 mt-20">
+                <p>No clients connected</p>
+              </div>
+            )
           ) : selectedServer ? (
             <div className="text-center text-gray-400 mt-20">
               <div className="text-6xl mb-4">🌐</div>
@@ -517,24 +416,31 @@ function App() {
               <p>Select a network from the sidebar</p>
             </div>
           ) : (
-            <div className="text-center text-gray-400 mt-20">
-              <div className="text-6xl mb-4">👋</div>
-              <h3 className="text-xl text-white mb-2">Welcome to GoConnect</h3>
-              <p className="mb-8">Create or join a server to get started</p>
-              <div className="flex gap-4 justify-center">
-                <button onClick={() => setShowCreateModal(true)} className="px-6 py-3 bg-gc-primary hover:bg-gc-primary/80 text-white rounded-lg font-medium">
-                  Create Server
-                </button>
-                <button onClick={() => setShowJoinModal(true)} className="px-6 py-3 bg-gc-dark-600 hover:bg-gc-dark-500 text-white rounded-lg font-medium">
-                  Join Server
-                </button>
+            <div className="space-y-6">
+              <div className="text-center text-gray-400 mt-10">
+                <div className="text-6xl mb-4">👋</div>
+                <h3 className="text-xl text-white mb-2">Welcome to GoConnect</h3>
+                <p className="mb-8">Create or join a server to get started</p>
+                <div className="flex gap-4 justify-center">
+                  <button onClick={() => setShowCreateModal(true)} className="px-6 py-3 bg-gc-primary hover:bg-gc-primary/80 text-white rounded-lg font-medium">
+                    Create Server
+                  </button>
+                  <button onClick={() => setShowJoinModal(true)} className="px-6 py-3 bg-gc-dark-600 hover:bg-gc-dark-500 text-white rounded-lg font-medium">
+                    Join Server
+                  </button>
+                </div>
+              </div>
+
+              {/* P2P Status Section */}
+              <div className="max-w-2xl mx-auto">
+                <PeerList />
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Create Server Modal */}
+      {/* Modals */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCreateModal(false)}>
           <div className="bg-gc-dark-800 rounded-lg p-6 w-[400px]" onClick={e => e.stopPropagation()}>
@@ -575,7 +481,6 @@ function App() {
         </div>
       )}
 
-      {/* Join Server Modal */}
       {showJoinModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowJoinModal(false)}>
           <div className="bg-gc-dark-800 rounded-lg p-6 w-[400px]" onClick={e => e.stopPropagation()}>
@@ -600,7 +505,6 @@ function App() {
         </div>
       )}
 
-      {/* Create Network Modal */}
       {showCreateNetwork && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowCreateNetwork(false)}>
           <div className="bg-gc-dark-800 rounded-lg p-6 w-[400px]" onClick={e => e.stopPropagation()}>
@@ -625,7 +529,6 @@ function App() {
         </div>
       )}
 
-      {/* Server Settings Modal */}
       {showServerSettings && selectedServer && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowServerSettings(false)}>
           <div className="bg-gc-dark-800 rounded-lg p-6 w-[400px]" onClick={e => e.stopPropagation()}>
@@ -684,7 +587,6 @@ function App() {
         </div>
       )}
 
-      {/* Invite Modal */}
       {showInviteModal && selectedServer && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowInviteModal(false)}>
           <div className="bg-gc-dark-800 rounded-lg p-6 w-[400px]" onClick={e => e.stopPropagation()}>
@@ -717,6 +619,9 @@ function App() {
           </div>
         </div>
       )}
+
+      <SettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} />
+      <Toaster />
     </div>
   );
 }

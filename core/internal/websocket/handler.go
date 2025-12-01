@@ -922,8 +922,10 @@ func (h *DefaultMessageHandler) handleTenantJoin(ctx context.Context, client *Cl
 		return fmt.Errorf("tenant_id is required")
 	}
 
-	// TODO: Verify user is a member of the tenant before allowing join
-	// For now, allow all authenticated users
+	// Verify user is a member of the tenant before allowing join
+	if client.tenantID != data.TenantID {
+		return fmt.Errorf("access denied: user does not belong to tenant %s", data.TenantID)
+	}
 
 	room := "tenant:" + data.TenantID
 	client.JoinRoom(room)

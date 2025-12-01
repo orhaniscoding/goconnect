@@ -187,6 +187,7 @@ func main() {
 	var chatRepo repository.ChatRepository
 	var inviteRepo repository.InviteTokenRepository
 	var adminRepo *repository.AdminRepository
+	var deletionRepo repository.DeletionRequestRepository
 
 	if dbBackend == "postgres" && db != nil {
 		// PostgreSQL repositories
@@ -200,13 +201,15 @@ func main() {
 		deviceRepo = repository.NewPostgresDeviceRepository(db)
 		peerRepo = repository.NewPostgresPeerRepository(db)
 		chatRepo = repository.NewPostgresChatRepository(db)
-		inviteRepo = repository.NewInMemoryInviteTokenRepository() // TODO: Postgres implementation
+		inviteRepo = repository.NewPostgresInviteTokenRepository(db)
 		adminRepo = repository.NewAdminRepository(db)
 		// Tenant multi-membership repositories (PostgreSQL)
 		tenantMemberRepo = repository.NewPostgresTenantMemberRepository(db)
 		tenantInviteRepo = repository.NewPostgresTenantInviteRepository(db)
 		tenantAnnouncementRepo = repository.NewPostgresTenantAnnouncementRepository(db)
 		tenantChatRepo = repository.NewPostgresTenantChatRepository(db)
+		// TODO: Implement PostgresDeletionRequestRepository
+		deletionRepo = repository.NewInMemoryDeletionRequestRepository()
 		fmt.Println("Using PostgreSQL repositories")
 	} else if dbBackend == "sqlite" {
 		userRepo = repository.NewSQLiteUserRepository(db)
@@ -227,6 +230,7 @@ func main() {
 		idempotencyRepo = repository.NewInMemoryIdempotencyRepository()
 		ipamRepo = repository.NewSQLiteIPAMRepository(db)
 		deviceRepo = repository.NewSQLiteDeviceRepository(db)
+		deletionRepo = repository.NewSQLiteDeletionRequestRepository(db)
 	} else {
 		// In-memory repositories (fallback)
 		networkRepo = repository.NewInMemoryNetworkRepository()
@@ -246,6 +250,7 @@ func main() {
 		tenantInviteRepo = repository.NewInMemoryTenantInviteRepository()
 		tenantAnnouncementRepo = repository.NewInMemoryTenantAnnouncementRepository()
 		tenantChatRepo = repository.NewInMemoryTenantChatRepository()
+		deletionRepo = repository.NewInMemoryDeletionRequestRepository()
 		fmt.Println("Using in-memory repositories (no data persistence)")
 	}
 
@@ -288,7 +293,9 @@ func main() {
 	chatService := service.NewChatService(chatRepo, userRepo)
 
 	// Initialize GDPR service
-	gdprService := service.NewGDPRService(userRepo, deviceRepo, networkRepo, membershipRepo)
+	gdprService := service.NewGDPRService(userRepo, deviceRepo, networkRepo, membershipRepo, deletionRepo)
+	// Start GDPR deletion worker
+	gdprService.StartWorker(ctx, 1*time.Minute)
 
 	// Initialize Invite service
 	baseURL := getEnvOrDefault("APP_BASE_URL", "https://app.goconnect.example")
@@ -1074,7 +1081,7 @@ func registerSetupRoutes(r *gin.Engine, dbBackend string, sqlitePath string, con
 			c.String(http.StatusOK, html)
 			return
 		}
-		
+
 		// Original JSON response for API calls
 		state := buildSetupStatus(configPath)
 		state.Message = "Setup wizard ready. Complete the steps to persist config and restart."
@@ -1123,7 +1130,7 @@ func registerSetupRoutes(r *gin.Engine, dbBackend string, sqlitePath string, con
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid setup payload", "details": err.Error()})
 			return
 		}
-		
+
 		if err := config.SaveToFile(&req.Config, configPath); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "failed to persist config", "details": err.Error()})
 			return

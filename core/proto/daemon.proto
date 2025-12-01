@@ -1,0 +1,446 @@
+syntax = "proto3";
+
+package daemon;
+
+option go_package = "github.com/orhaniscoding/goconnect/daemon/proto";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// =============================================================================
+// DAEMON SERVICE - Core daemon control and status
+// =============================================================================
+service DaemonService {
+  // GetStatus returns the current status of the daemon and connection.
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+  
+  // GetVersion returns daemon version info.
+  rpc GetVersion(google.protobuf.Empty) returns (VersionResponse);
+  
+  // Shutdown gracefully stops the daemon.
+  rpc Shutdown(google.protobuf.Empty) returns (google.protobuf.Empty);
+  
+  // Subscribe to real-time events (status changes, notifications).
+  rpc Subscribe(SubscribeRequest) returns (stream DaemonEvent);
+}
+
+// =============================================================================
+// NETWORK SERVICE - Network creation, joining, and management
+// =============================================================================
+service NetworkService {
+  // CreateNetwork creates a new virtual network.
+  rpc CreateNetwork(CreateNetworkRequest) returns (CreateNetworkResponse);
+  
+  // JoinNetwork joins an existing network via invite code.
+  rpc JoinNetwork(JoinNetworkRequest) returns (JoinNetworkResponse);
+  
+  // LeaveNetwork disconnects from a network.
+  rpc LeaveNetwork(LeaveNetworkRequest) returns (LeaveNetworkResponse);
+  
+  // ListNetworks returns all networks the user is part of.
+  rpc ListNetworks(google.protobuf.Empty) returns (ListNetworksResponse);
+  
+  // GetNetwork returns details of a specific network.
+  rpc GetNetwork(GetNetworkRequest) returns (Network);
+  
+  // DeleteNetwork deletes a network (owner only).
+  rpc DeleteNetwork(DeleteNetworkRequest) returns (google.protobuf.Empty);
+  
+  // GenerateInvite creates an invite code for a network.
+  rpc GenerateInvite(GenerateInviteRequest) returns (GenerateInviteResponse);
+}
+
+// =============================================================================
+// PEER SERVICE - Peer connection and management
+// =============================================================================
+service PeerService {
+  // GetPeers returns all peers in the current network.
+  rpc GetPeers(GetPeersRequest) returns (GetPeersResponse);
+  
+  // GetPeer returns details of a specific peer.
+  rpc GetPeer(GetPeerRequest) returns (Peer);
+  
+  // KickPeer removes a peer from the network (host only).
+  rpc KickPeer(KickPeerRequest) returns (google.protobuf.Empty);
+  
+  // BanPeer permanently bans a peer from the network (host only).
+  rpc BanPeer(BanPeerRequest) returns (google.protobuf.Empty);
+  
+  // UnbanPeer removes a ban (host only).
+  rpc UnbanPeer(UnbanPeerRequest) returns (google.protobuf.Empty);
+}
+
+// =============================================================================
+// CHAT SERVICE - Text messaging between peers
+// =============================================================================
+service ChatService {
+  // SendMessage sends a chat message to a peer or network.
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  
+  // GetMessages retrieves chat history.
+  rpc GetMessages(GetMessagesRequest) returns (GetMessagesResponse);
+  
+  // SubscribeMessages streams incoming messages in real-time.
+  rpc SubscribeMessages(SubscribeMessagesRequest) returns (stream ChatMessage);
+}
+
+// =============================================================================
+// TRANSFER SERVICE - File transfer between peers
+// =============================================================================
+service TransferService {
+  // SendFile initiates a file transfer to a peer.
+  rpc SendFile(SendFileRequest) returns (SendFileResponse);
+  
+  // AcceptTransfer accepts an incoming file transfer request.
+  rpc AcceptTransfer(AcceptTransferRequest) returns (google.protobuf.Empty);
+  
+  // RejectTransfer rejects an incoming file transfer request.
+  rpc RejectTransfer(RejectTransferRequest) returns (google.protobuf.Empty);
+  
+  // CancelTransfer cancels an ongoing transfer.
+  rpc CancelTransfer(CancelTransferRequest) returns (google.protobuf.Empty);
+  
+  // ListTransfers returns all active/recent transfers.
+  rpc ListTransfers(google.protobuf.Empty) returns (ListTransfersResponse);
+  
+  // SubscribeTransfers streams transfer progress updates.
+  rpc SubscribeTransfers(google.protobuf.Empty) returns (stream TransferEvent);
+}
+
+// =============================================================================
+// SETTINGS SERVICE - Configuration management
+// =============================================================================
+service SettingsService {
+  // GetSettings returns the current daemon settings.
+  rpc GetSettings(google.protobuf.Empty) returns (Settings);
+  
+  // UpdateSettings updates daemon settings.
+  rpc UpdateSettings(UpdateSettingsRequest) returns (Settings);
+  
+  // ResetSettings resets settings to defaults.
+  rpc ResetSettings(google.protobuf.Empty) returns (Settings);
+}
+
+// =============================================================================
+// COMMON ENUMS
+// =============================================================================
+
+enum ConnectionStatus {
+  CONNECTION_STATUS_UNSPECIFIED = 0;
+  CONNECTION_STATUS_DISCONNECTED = 1;
+  CONNECTION_STATUS_CONNECTING = 2;
+  CONNECTION_STATUS_CONNECTED = 3;
+  CONNECTION_STATUS_FAILED = 4;
+}
+
+enum ConnectionType {
+  CONNECTION_TYPE_UNSPECIFIED = 0;
+  CONNECTION_TYPE_DIRECT = 1;  // P2P direct connection
+  CONNECTION_TYPE_RELAY = 2;   // Via relay server
+}
+
+enum NetworkRole {
+  NETWORK_ROLE_UNSPECIFIED = 0;
+  NETWORK_ROLE_OWNER = 1;
+  NETWORK_ROLE_ADMIN = 2;
+  NETWORK_ROLE_MEMBER = 3;
+}
+
+enum TransferStatus {
+  TRANSFER_STATUS_UNSPECIFIED = 0;
+  TRANSFER_STATUS_PENDING = 1;
+  TRANSFER_STATUS_IN_PROGRESS = 2;
+  TRANSFER_STATUS_COMPLETED = 3;
+  TRANSFER_STATUS_FAILED = 4;
+  TRANSFER_STATUS_CANCELLED = 5;
+}
+
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  EVENT_TYPE_STATUS_CHANGED = 1;
+  EVENT_TYPE_PEER_JOINED = 2;
+  EVENT_TYPE_PEER_LEFT = 3;
+  EVENT_TYPE_CHAT_MESSAGE = 4;
+  EVENT_TYPE_TRANSFER_REQUEST = 5;
+  EVENT_TYPE_TRANSFER_PROGRESS = 6;
+  EVENT_TYPE_NOTIFICATION = 7;
+}
+
+// =============================================================================
+// COMMON MESSAGES
+// =============================================================================
+
+message Peer {
+  string id = 1;
+  string name = 2;
+  string display_name = 3;
+  string virtual_ip = 4;
+  ConnectionStatus status = 5;
+  ConnectionType connection_type = 6;
+  google.protobuf.Timestamp last_seen = 7;
+  int64 latency_ms = 8;
+  NetworkRole role = 9;
+  bool is_self = 10;
+}
+
+message Network {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  string invite_code = 4;
+  NetworkRole my_role = 5;
+  int32 peer_count = 6;
+  int32 online_count = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp joined_at = 9;
+  bool is_connected = 10;
+}
+
+message ChatMessage {
+  string id = 1;
+  string network_id = 2;
+  string sender_id = 3;
+  string sender_name = 4;
+  string content = 5;
+  google.protobuf.Timestamp sent_at = 6;
+  bool is_system = 7;
+}
+
+message FileTransfer {
+  string id = 1;
+  string peer_id = 2;
+  string peer_name = 3;
+  string filename = 4;
+  int64 size_bytes = 5;
+  int64 transferred_bytes = 6;
+  TransferStatus status = 7;
+  bool is_incoming = 8;
+  string error_message = 9;
+  google.protobuf.Timestamp started_at = 10;
+}
+
+message Settings {
+  bool auto_connect = 1;
+  bool start_minimized = 2;
+  bool notifications_enabled = 3;
+  bool auto_accept_files = 4;
+  string download_path = 5;
+  int32 max_upload_speed_kbps = 6;
+  int32 max_download_speed_kbps = 7;
+  string theme = 8;
+  string language = 9;
+}
+
+message DaemonEvent {
+  EventType type = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  oneof payload {
+    StatusChangedEvent status_changed = 10;
+    PeerEvent peer_event = 11;
+    ChatMessage chat_message = 12;
+    TransferEvent transfer_event = 13;
+    Notification notification = 14;
+  }
+}
+
+message StatusChangedEvent {
+  ConnectionStatus old_status = 1;
+  ConnectionStatus new_status = 2;
+  string network_id = 3;
+}
+
+message PeerEvent {
+  Peer peer = 1;
+  bool joined = 2; // true = joined, false = left
+}
+
+message TransferEvent {
+  FileTransfer transfer = 1;
+}
+
+message Notification {
+  string title = 1;
+  string message = 2;
+  string action = 3;
+}
+
+// =============================================================================
+// DAEMON SERVICE MESSAGES
+// =============================================================================
+
+message GetStatusRequest {}
+
+message GetStatusResponse {
+  ConnectionStatus status = 1;
+  string virtual_ip = 2;
+  int32 active_peers = 3;
+  string current_network_id = 4;
+  string current_network_name = 5;
+}
+
+message VersionResponse {
+  string version = 1;
+  string build_date = 2;
+  string commit = 3;
+  string go_version = 4;
+  string os = 5;
+  string arch = 6;
+}
+
+message SubscribeRequest {
+  repeated EventType event_types = 1; // Empty = all events
+}
+
+// =============================================================================
+// NETWORK SERVICE MESSAGES
+// =============================================================================
+
+message CreateNetworkRequest {
+  string name = 1;
+  string description = 2;
+}
+
+message CreateNetworkResponse {
+  Network network = 1;
+  string invite_code = 2;
+}
+
+message JoinNetworkRequest {
+  string invite_code = 1;
+}
+
+message JoinNetworkResponse {
+  Network network = 1;
+}
+
+message LeaveNetworkRequest {
+  string network_id = 1;
+}
+
+message LeaveNetworkResponse {
+  bool success = 1;
+}
+
+message GetNetworkRequest {
+  string network_id = 1;
+}
+
+message DeleteNetworkRequest {
+  string network_id = 1;
+}
+
+message GenerateInviteRequest {
+  string network_id = 1;
+  int32 max_uses = 2;
+  int32 expires_hours = 3;
+}
+
+message GenerateInviteResponse {
+  string invite_code = 1;
+  string invite_url = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+message ListNetworksResponse {
+  repeated Network networks = 1;
+}
+
+// =============================================================================
+// PEER SERVICE MESSAGES
+// =============================================================================
+
+message GetPeersRequest {
+  string network_id = 1;
+}
+
+message GetPeersResponse {
+  repeated Peer peers = 1;
+}
+
+message GetPeerRequest {
+  string peer_id = 1;
+}
+
+message KickPeerRequest {
+  string network_id = 1;
+  string peer_id = 2;
+  string reason = 3;
+}
+
+message BanPeerRequest {
+  string network_id = 1;
+  string peer_id = 2;
+  string reason = 3;
+}
+
+message UnbanPeerRequest {
+  string network_id = 1;
+  string peer_id = 2;
+}
+
+// =============================================================================
+// CHAT SERVICE MESSAGES
+// =============================================================================
+
+message SendMessageRequest {
+  string network_id = 1;
+  string content = 2;
+  string recipient_id = 3; // Empty = broadcast to network
+}
+
+message SendMessageResponse {
+  ChatMessage message = 1;
+}
+
+message GetMessagesRequest {
+  string network_id = 1;
+  int32 limit = 2;
+  string before_id = 3; // For pagination
+}
+
+message GetMessagesResponse {
+  repeated ChatMessage messages = 1;
+  bool has_more = 2;
+}
+
+message SubscribeMessagesRequest {
+  string network_id = 1;
+}
+
+// =============================================================================
+// TRANSFER SERVICE MESSAGES
+// =============================================================================
+
+message SendFileRequest {
+  string peer_id = 1;
+  string file_path = 2;
+}
+
+message SendFileResponse {
+  string transfer_id = 1;
+}
+
+message AcceptTransferRequest {
+  string transfer_id = 1;
+  string save_path = 2;
+}
+
+message RejectTransferRequest {
+  string transfer_id = 1;
+}
+
+message CancelTransferRequest {
+  string transfer_id = 1;
+}
+
+message ListTransfersResponse {
+  repeated FileTransfer transfers = 1;
+}
+
+// =============================================================================
+// SETTINGS SERVICE MESSAGES
+// =============================================================================
+
+message UpdateSettingsRequest {
+  Settings settings = 1;
+}

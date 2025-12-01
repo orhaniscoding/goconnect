@@ -32,7 +32,7 @@ func TestProfileGenerator_GenerateClientConfig(t *testing.T) {
 			IncludeHostScope: false,
 		}
 
-		config, err := generator.GenerateClientConfig(context.TODO(), req)
+		config, err := generator.GenerateClientConfig(context.Background(), req)
 
 		require.NoError(t, err)
 		assert.Contains(t, config, "[Interface]")
@@ -65,7 +65,7 @@ func TestProfileGenerator_GenerateClientConfig(t *testing.T) {
 			IncludeHostScope: true, // Route all traffic
 		}
 
-		config, err := generator.GenerateClientConfig(context.TODO(), req)
+		config, err := generator.GenerateClientConfig(context.Background(), req)
 
 		require.NoError(t, err)
 		assert.Contains(t, config, "AllowedIPs = 0.0.0.0/0, ::/0") // Full tunnel
@@ -80,7 +80,7 @@ func TestProfileGenerator_GenerateClientConfig(t *testing.T) {
 			PrefixLen:        24,
 		}
 
-		_, err := generator.GenerateClientConfig(context.TODO(), req)
+		_, err := generator.GenerateClientConfig(context.Background(), req)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "network_id is required")
@@ -95,7 +95,7 @@ func TestProfileGenerator_GenerateClientConfig(t *testing.T) {
 			PrefixLen:        24,
 		}
 
-		_, err := generator.GenerateClientConfig(context.TODO(), req)
+		_, err := generator.GenerateClientConfig(context.Background(), req)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "device_id is required")
@@ -111,7 +111,7 @@ func TestProfileGenerator_GenerateClientConfig(t *testing.T) {
 			PrefixLen:        24,
 		}
 
-		_, err := generator.GenerateClientConfig(context.TODO(), req)
+		_, err := generator.GenerateClientConfig(context.Background(), req)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "Invalid network CIDR")
@@ -127,7 +127,7 @@ func TestProfileGenerator_GenerateClientConfig(t *testing.T) {
 			PrefixLen:        24,
 		}
 
-		_, err := generator.GenerateClientConfig(context.TODO(), req)
+		_, err := generator.GenerateClientConfig(context.Background(), req)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "Invalid device IP address")
@@ -143,7 +143,7 @@ func TestProfileGenerator_GenerateClientConfig(t *testing.T) {
 			PrefixLen:        24,
 		}
 
-		_, err := generator.GenerateClientConfig(context.TODO(), req)
+		_, err := generator.GenerateClientConfig(context.Background(), req)
 
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "Invalid WireGuard private key format")

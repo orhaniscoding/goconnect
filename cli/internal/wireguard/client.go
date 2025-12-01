@@ -105,24 +105,50 @@ func (c *Client) ApplyConfig(config *api.DeviceConfig, privateKey string) error 
 	return c.wgClient.ConfigureDevice(c.interfaceName, cfg)
 }
 
+// UpdatePeerEndpoint updates the endpoint for a specific peer
+func (c *Client) UpdatePeerEndpoint(publicKey string, endpoint string) error {
+	pubKey, err := wgtypes.ParseKey(publicKey)
+	if err != nil {
+		return fmt.Errorf("invalid public key: %w", err)
+	}
+
+	addr, err := net.ResolveUDPAddr("udp", endpoint)
+	if err != nil {
+		return fmt.Errorf("invalid endpoint: %w", err)
+	}
+
+	peerConfig := wgtypes.PeerConfig{
+		PublicKey:         pubKey,
+		UpdateOnly:        true,
+		Endpoint:          addr,
+		ReplaceAllowedIPs: false,
+	}
+
+	cfg := wgtypes.Config{
+		Peers: []wgtypes.PeerConfig{peerConfig},
+	}
+
+	return c.wgClient.ConfigureDevice(c.interfaceName, cfg)
+}
+
 // Down brings down the WireGuard interface by removing all peers and resetting interface config
 func (c *Client) Down() error {
-    cfg := wgtypes.Config{
-        Peers:        []wgtypes.PeerConfig{}, // Remove all peers
-        ReplacePeers: true,
+	cfg := wgtypes.Config{
+		Peers:        []wgtypes.PeerConfig{}, // Remove all peers
+		ReplacePeers: true,
 		// Do not set PrivateKey or ListenPort as we only want to remove peers, not reconfigure the interface completely
-    }
-    return c.wgClient.ConfigureDevice(c.interfaceName, cfg)
+	}
+	return c.wgClient.ConfigureDevice(c.interfaceName, cfg)
 }
 
 // Status represents the WireGuard interface status
 type Status struct {
-	Active      bool      `json:"active"`
-	PublicKey   string    `json:"public_key"`
-	ListenPort  int       `json:"listen_port"`
-	Peers       int       `json:"peers"`
-	TotalRx     int64     `json:"total_rx"`
-	TotalTx     int64     `json:"total_tx"`
+	Active        bool      `json:"active"`
+	PublicKey     string    `json:"public_key"`
+	ListenPort    int       `json:"listen_port"`
+	Peers         int       `json:"peers"`
+	TotalRx       int64     `json:"total_rx"`
+	TotalTx       int64     `json:"total_tx"`
 	LastHandshake time.Time `json:"last_handshake"`
 }
 

@@ -3,6 +3,8 @@
 // =============================================================================
 // Terminology: Server (tenant) > Network > Client (device/member)
 
+import { platform } from '@tauri-apps/plugin-os';
+
 const API_BASE = "http://localhost:8081/api/v1";
 
 // Types - UI uses Server/Network/Client terminology
@@ -114,7 +116,7 @@ export async function registerDevice(username: string, deviceId: string) {
         body: JSON.stringify({
             device_id: deviceId,
             username,
-            platform: "windows", // TODO: detect platform
+            platform: platform(),
             hostname: "Desktop",
         }),
     });
@@ -344,6 +346,190 @@ export async function getNetworkConfig(serverId: string, networkId: string) {
 // =============================================================================
 // Utility
 // =============================================================================
+
+// =============================================================================
+// Local Daemon Client (P2P Control)
+// =============================================================================
+
+const DAEMON_BASE = "http://localhost:12345";
+
+export interface DaemonStatus {
+    device: {
+        registered: boolean;
+        public_key: string;
+        device_id: string;
+    };
+    peers: Record<string, PeerStatus>;
+    wireguard: {
+        public_key: string;
+        peers_configured: number;
+    };
+}
+
+export interface PeerStatus {
+    endpoint: string;
+    last_handshake: string; // Time string or "Never"
+    allowed_ips: string[];
+    latency_ms?: number;
+    connection_state?: string; // "checking" | "connected" | "failed" | "disconnected" | "closed"
+    connected?: boolean;
+}
+
+export async function getDaemonStatus() {
+    try {
+        const response = await fetch(`${DAEMON_BASE}/status`);
+        if (!response.ok) throw new Error("Daemon unreachable");
+        return await response.json() as DaemonStatus;
+    } catch (error) {
+        console.error("Daemon status check failed:", error);
+        return null;
+    }
+}
+
+export async function manualP2PConnect(peerId: string) {
+    try {
+        const response = await fetch(`${DAEMON_BASE}/p2p/connect`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ peer_id: peerId }),
+        });
+        if (!response.ok) {
+            const err = await response.text();
+            throw new Error(err || "Connection failed");
+        }
+        return await response.json();
+    } catch (error) {
+        return { error: error instanceof Error ? error.message : "Network error" };
+    }
+}
+
+export interface DaemonConfig {
+    server: {
+        url: string;
+    };
+    daemon: {
+        listen_addr: string;
+        local_port: number;
+        health_check_interval: number;
+    };
+    wireguard: {
+        interface_name: string;
+    };
+    identity: {
+        path: string;
+    };
+    p2p: {
+        enabled: boolean;
+        stun_server: string;
+    };
+}
+
+export async function getDaemonConfig() {
+    try {
+        const response = await fetch(`${DAEMON_BASE}/config`);
+        if (!response.ok) throw new Error("Failed to fetch config");
+        return await response.json() as DaemonConfig;
+    } catch (error) {
+        console.error("Get config failed:", error);
+        return null;
+    }
+}
+
+export async function updateDaemonConfig(config: { p2p_enabled?: boolean; stun_server?: string }) {
+    try {
+        const response = await fetch(`${DAEMON_BASE}/config`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(config),
+        });
+        if (!response.ok) throw new Error("Failed to update config");
+        return await response.json();
+    } catch (error) {
+        return { error: error instanceof Error ? error.message : "Network error" };
+    }
+}
+
+export async function sendChatMessage(peerId: string, content: string) {
+    try {
+        const response = await fetch(`${DAEMON_BASE}/chat/send`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ peer_id: peerId, content }),
+        });
+        if (!response.ok) throw new Error("Failed to send message");
+        return await response.json();
+    } catch (error) {
+        return { error: error instanceof Error ? error.message : "Network error" };
+    }
+}
+
+export interface FileTransferRequest {
+    id: string;
+    file_name: string;
+    file_size: number;
+}
+
+export interface FileTransferSession {
+    id: string;
+    peer_id: string;
+    file_path: string;
+    file_name: string;
+    file_size: number;
+    sent_bytes: number;
+    status: "pending" | "in_progress" | "completed" | "failed" | "cancelled";
+    is_sender: boolean;
+    error?: string;
+}
+
+export async function sendFileRequest(peerId: string, filePath: string) {
+    try {
+        const response = await fetch(`${DAEMON_BASE}/file/send`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ peer_id: peerId, file_path: filePath }),
+        });
+        if (!response.ok) throw new Error("Failed to send file request");
+        return await response.json() as FileTransferSession;
+    } catch (error) {
+        return { error: error instanceof Error ? error.message : "Network error" };
+    }
+}
+
+export async function acceptFileRequest(request: FileTransferRequest, peerId: string, savePath: string) {
+    try {
+        const response = await fetch(`${DAEMON_BASE}/file/accept`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ request, peer_id: peerId, save_path: savePath }),
+        });
+        if (!response.ok) throw new Error("Failed to accept file");
+        return await response.json();
+    } catch (error) {
+        return { error: error instanceof Error ? error.message : "Network error" };
+    }
+}
+
+export function subscribeToEvents(onMessage: (event: any) => void) {
+    const eventSource = new EventSource(`${DAEMON_BASE}/events`);
+
+    eventSource.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            onMessage(data);
+        } catch (e) {
+            console.error("Failed to parse SSE message:", e);
+        }
+    };
+
+    eventSource.onerror = (err) => {
+        console.error("EventSource failed:", err);
+        // EventSource automatically retries, but we might want to handle specific errors
+    };
+
+    return () => {
+        eventSource.close();
+    };
+}
 
 export function isApiAvailable(): Promise<boolean> {
     return fetch(`${API_BASE}/health`)

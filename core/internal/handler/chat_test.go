@@ -151,7 +151,7 @@ func TestChatHandler_SendMessage(t *testing.T) {
 
 	// Verify message was actually saved
 	t.Run("Verify message saved", func(t *testing.T) {
-		messages, _, err := chatService.ListMessages(context.TODO(), domain.ChatMessageFilter{
+		messages, _, err := chatService.ListMessages(context.Background(), domain.ChatMessageFilter{
 			Scope:    "host",
 			TenantID: "tenant-1",
 			Limit:    10,
@@ -165,7 +165,7 @@ func TestChatHandler_GetMessage(t *testing.T) {
 	r, handler, chatService, _ := setupChatTest()
 
 	// Create test message
-	msg, _ := chatService.SendMessage(context.TODO(),
+	msg, _ := chatService.SendMessage(context.Background(),
 		"user-123", "tenant-1", "host", "Test message", nil, "")
 
 	r.GET("/v1/chat/:id", func(c *gin.Context) {
@@ -202,7 +202,7 @@ func TestChatHandler_ListMessages(t *testing.T) {
 	r, handler, chatService, _ := setupChatTest()
 
 	// Create test messages
-	ctx := context.TODO()
+	ctx := context.Background()
 	chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Message 1", nil, "")
 	time.Sleep(10 * time.Millisecond)
 	chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Message 2", nil, "")
@@ -289,7 +289,7 @@ func TestChatHandler_EditMessage(t *testing.T) {
 	r, handler, chatService, _ := setupChatTest()
 
 	// Create test message
-	ctx := context.TODO()
+	ctx := context.Background()
 	msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Original text", nil, "")
 
 	r.PATCH("/v1/chat/:id", func(c *gin.Context) {
@@ -385,7 +385,7 @@ func TestChatHandler_DeleteMessage(t *testing.T) {
 	})
 
 	t.Run("Success - soft delete by owner", func(t *testing.T) {
-		ctx := context.TODO()
+		ctx := context.Background()
 		msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Message to delete", nil, "")
 
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/v1/chat/%s?mode=soft", msg.ID), nil)
@@ -403,7 +403,7 @@ func TestChatHandler_DeleteMessage(t *testing.T) {
 	})
 
 	t.Run("Success - hard delete by owner", func(t *testing.T) {
-		ctx := context.TODO()
+		ctx := context.Background()
 		msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Message to delete", nil, "")
 
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/v1/chat/%s?mode=hard", msg.ID), nil)
@@ -424,7 +424,7 @@ func TestChatHandler_DeleteMessage(t *testing.T) {
 			handler.DeleteMessage(c)
 		})
 
-		ctx := context.TODO()
+		ctx := context.Background()
 		msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Message to delete", nil, "")
 
 		req := httptest.NewRequest("DELETE", fmt.Sprintf("/v1/chat/%s?mode=soft", msg.ID), nil)
@@ -457,7 +457,7 @@ func TestChatHandler_RedactMessage(t *testing.T) {
 	})
 
 	t.Run("Success - moderator redacts message", func(t *testing.T) {
-		ctx := context.TODO()
+		ctx := context.Background()
 		msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Message to redact", nil, "")
 
 		body := map[string]interface{}{
@@ -490,7 +490,7 @@ func TestChatHandler_RedactMessage(t *testing.T) {
 			handler.RedactMessage(c)
 		})
 
-		ctx := context.TODO()
+		ctx := context.Background()
 		msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Message to redact", nil, "")
 
 		body := map[string]interface{}{
@@ -508,7 +508,7 @@ func TestChatHandler_RedactMessage(t *testing.T) {
 	})
 
 	t.Run("Validation - missing reason", func(t *testing.T) {
-		ctx := context.TODO()
+		ctx := context.Background()
 		msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Message to redact", nil, "")
 
 		body := map[string]interface{}{} // Missing reason
@@ -528,7 +528,7 @@ func TestChatHandler_GetEditHistory(t *testing.T) {
 	r, handler, chatService, _ := setupChatTest()
 
 	// Create and edit message
-	ctx := context.TODO()
+	ctx := context.Background()
 	msg, _ := chatService.SendMessage(ctx, "user-123", "tenant-1", "host", "Original", nil, "")
 	chatService.EditMessage(ctx, msg.ID, "user-123", "tenant-1", "Edited v1", false)
 	chatService.EditMessage(ctx, msg.ID, "user-123", "tenant-1", "Edited v2", false)

@@ -11,10 +11,12 @@ import (
 	"strings"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/kardianos/service"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/config"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/daemon"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/system"
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/tui"
 )
 
 var (
@@ -59,7 +61,8 @@ func main() {
 	cfgPath := config.DefaultConfigPath()
 	cfg, err := config.LoadConfig(cfgPath)
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		// If config fails, we might still want to run TUI to help user setup
+		log.Printf("Warning: Failed to load config: %v", err)
 	}
 
 	svcOptions := make(service.KeyValue)
@@ -67,7 +70,7 @@ func main() {
 		svcOptions["StartType"] = "automatic"
 	}
 
-	// Handle commands that involve protocol registration
+	// Handle commands
 	if len(os.Args) > 1 {
 		cmd := os.Args[1]
 		protoHandler := system.NewProtocolHandler()
@@ -99,13 +102,53 @@ func main() {
 				fmt.Println("Protocol handler unregistered.")
 			}
 			return
+
+		case "run", "start", "stop":
+			// Pass control to daemon service logic
+			err = daemon.RunDaemon(cfg, version, svcOptions)
+			if err != nil {
+				log.Fatalf("GoConnect Daemon failed: %v", err)
+			}
+			return
+
+		case "create":
+			// TODO: Launch TUI directly to create screen
+			fmt.Println("Launching TUI (Create Mode)...")
+			runTUI()
+			return
+
+		case "join":
+			// TODO: Launch TUI directly to join screen
+			fmt.Println("Launching TUI (Join Mode)...")
+			runTUI()
+			return
 		}
 	}
 
-	// Pass control to daemon service logic for other commands (start, stop, run)
-	err = daemon.RunDaemon(cfg, version, svcOptions)
-	if err != nil {
-		log.Fatalf("GoConnect Daemon failed: %v", err)
+	// No arguments provided
+	// 1. Check if we are running as a service (this is tricky, usually service manager passes args)
+	//    But kardianos/service usually handles "run" automatically if configured.
+	//    However, if user just types "goconnect", they expect the UI.
+
+	// 2. Check if daemon is running
+	client := tui.NewClient()
+	if client.CheckDaemonStatus() {
+		// Daemon is running, launch TUI
+		runTUI()
+	} else {
+		// Daemon not running
+		fmt.Println("GoConnect Daemon is not running.")
+		fmt.Println("Run 'goconnect setup' to configure, or 'goconnect run' to start the daemon.")
+		// Optionally launch TUI in "Offline Mode" or Setup Wizard
+		runSetupWizard()
+	}
+}
+
+func runTUI() {
+	p := tea.NewProgram(tui.NewModel(), tea.WithAltScreen())
+	if _, err := p.Run(); err != nil {
+		fmt.Printf("Alas, there's been an error: %v", err)
+		os.Exit(1)
 	}
 }
 
@@ -161,8 +204,25 @@ func handleLoginDeepLink(u *url.URL) {
 	}
 
 	// 3. Restart Service (if needed) or Notify Daemon
-	// In a real implementation, we might want to signal the running service via localhost bridge.
-	// TODO: Call http://127.0.0.1:12345/refresh-config if running
+	if err := notifyDaemonConnect(); err != nil {
+		log.Printf("Warning: Could not notify daemon to connect: %v", err)
+		log.Println("You may need to restart the goconnect-daemon service manually.")
+	} else {
+		fmt.Println("Daemon notified to connect.")
+	}
+}
+
+func notifyDaemonConnect() error {
+	client := &http.Client{Timeout: 2 * time.Second}
+	resp, err := client.Post("http://127.0.0.1:12345/connect", "application/json", nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("daemon returned status %d", resp.StatusCode)
+	}
+	return nil
 }
 
 // runSetupWizard runs an interactive setup wizard for first-time configuration
