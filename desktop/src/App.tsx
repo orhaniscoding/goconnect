@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import * as api from './lib/api';
 import { SettingsModal } from './components/SettingsModal';
 import { PeerList } from './components/PeerList';
@@ -71,6 +71,13 @@ function App() {
 
   const toast = useToast();
 
+  // Load invite link when modal opens
+  useEffect(() => {
+    if (showInviteModal && selectedServer && !inviteLinkValue) {
+      loadInviteLink();
+    }
+  }, [showInviteModal, selectedServer]);
+
   const handleStart = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim()) {
@@ -128,11 +135,31 @@ function App() {
       })));
     }
 
-    // Mock channels for now
-    setChannels([
-      { id: "1", name: "general" },
-      { id: "2", name: "gaming" }
-    ]);
+    // Channels are not yet implemented in the API
+    // Will be added when chat feature is fully implemented
+    setChannels([]);
+  };
+
+  const handleSelectNetwork = async (network: Network) => {
+    setSelectedNetwork(network);
+    
+    // Load clients for the selected network
+    if (selectedServer) {
+      const clientsRes = await api.listNetworkClients(selectedServer.id, network.id);
+      if (clientsRes.data) {
+        const mappedClients: Client[] = clientsRes.data.map(c => ({
+          id: c.id,
+          name: c.username,
+          ip: c.ip,
+          status: c.status,
+          isHost: c.isHost
+        }));
+        
+        setNetworks(prev => prev.map(n => 
+          n.id === network.id ? { ...n, clients: mappedClients } : n
+        ));
+      }
+    }
   };
 
   const handleCreateServer = async () => {
@@ -207,14 +234,33 @@ function App() {
     }
   };
 
-  const getInviteLink = () => {
-    // Mock link
-    return `gc://join/${selectedServer?.id}`;
+  const [inviteLinkValue, setInviteLinkValue] = useState("");
+
+  const loadInviteLink = async () => {
+    if (!selectedServer) {
+      setInviteLinkValue("");
+      return;
+    }
+    
+    try {
+      // Create or get server invite
+      const inviteRes = await api.createServerInvite(selectedServer.id);
+      if (inviteRes.data) {
+        setInviteLinkValue(`gc://join.goconnect.io/${inviteRes.data.code}`);
+      } else {
+        setInviteLinkValue(`gc://join.goconnect.io/${selectedServer.id}`);
+      }
+    } catch (error) {
+      console.error("Failed to get invite link:", error);
+      setInviteLinkValue(`gc://join.goconnect.io/${selectedServer.id}`);
+    }
   };
 
   const handleCopyInvite = async () => {
-    const link = getInviteLink();
-    await navigator.clipboard.writeText(link);
+    if (!inviteLinkValue) {
+      await loadInviteLink();
+    }
+    await navigator.clipboard.writeText(inviteLinkValue);
     setCopiedInvite(true);
     setTimeout(() => setCopiedInvite(false), 2000);
   };
@@ -316,7 +362,7 @@ function App() {
               {networks.map((network) => (
                 <button
                   key={network.id}
-                  onClick={() => setSelectedNetwork(network)}
+                  onClick={() => handleSelectNetwork(network)}
                   className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-left
                     ${selectedNetwork?.id === network.id ? 'bg-gc-dark-600 text-white' : 'text-gray-400 hover:text-white hover:bg-gc-dark-700'}`}
                 >
@@ -542,7 +588,11 @@ function App() {
 
             <div className="space-y-3">
               <button
-                onClick={() => { setShowServerSettings(false); setShowInviteModal(true); }}
+                onClick={async () => {
+                  setShowServerSettings(false);
+                  setShowInviteModal(true);
+                  await loadInviteLink();
+                }}
                 className="w-full flex items-center gap-3 px-4 py-3 bg-gc-dark-700 hover:bg-gc-dark-600 rounded text-left"
               >
                 <span>🔗</span>
@@ -596,9 +646,10 @@ function App() {
             <div className="flex gap-2">
               <input
                 type="text"
-                value={getInviteLink()}
+                value={inviteLinkValue}
                 readOnly
                 className="flex-1 px-3 py-2 bg-gc-dark-900 border border-gc-dark-600 rounded text-white font-mono text-sm"
+                placeholder="Loading invite link..."
               />
               <button
                 onClick={handleCopyInvite}
