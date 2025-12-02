@@ -1,0 +1,55 @@
+---
+description: SQL security rules for GoConnect
+globs: 
+  - "**/*.go"
+  - "**/*.sql"
+alwaysApply: true
+---
+# Secure SQL Usage for GoConnect
+
+## 1. Always Use Parameterized Queries
+- Never concatenate user input into query strings
+- Use placeholders and prepared statements
+
+```go
+// ❌ Unsafe
+query := fmt.Sprintf("SELECT * FROM users WHERE username = '%s'", username)
+
+// ✅ Safe (PostgreSQL)
+row := db.QueryRowContext(ctx, "SELECT * FROM users WHERE username = $1", username)
+
+// ✅ Safe (SQLite)
+row := db.QueryRowContext(ctx, "SELECT * FROM users WHERE username = ?", username)
+```
+
+## 2. Validate and Sanitize All Input
+- Validate type, length, and format
+- Apply allow-lists where possible
+
+## 3. Avoid Dynamic SQL
+- Do not build table/column names from user input
+- If unavoidable, strictly validate against allow-list
+
+## 4. Use Least Privilege Database Accounts
+- Never use admin accounts for application queries
+- Separate read/write permissions
+
+## 5. Do Not Expose Database Errors
+- Never return raw database errors to users
+- Log errors securely, show generic messages
+
+## 6. Avoid Storing Sensitive Data in Plaintext
+- Use strong hashing for passwords (Argon2id, bcrypt)
+- Encrypt sensitive fields
+
+## 7. Close Database Connections Properly
+- Always close connections and cursors
+- Use `defer` for cleanup
+
+```go
+rows, err := db.QueryContext(ctx, query, args...)
+if err != nil {
+    return err
+}
+defer rows.Close()
+```

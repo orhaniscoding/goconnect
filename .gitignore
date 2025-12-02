@@ -1,7 +1,66 @@
+# Build artifacts
+bin/
+dist/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go build artifacts
+*.test
+*.out
+coverage.out
+coverage.html
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# User-specific config files
+cli/config.yaml
+cli/identity.json
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Rust/Cargo
+target/
+
+# Desktop app build artifacts
+desktop/src-tauri/target/
+desktop/dist/
+
+# Old agent tool files (not used with Cursor)
 .agent/
 .bmad/
 .claude/
-.github/
-.vscode/
-docs/
+memory-bank/
 latestchat.md

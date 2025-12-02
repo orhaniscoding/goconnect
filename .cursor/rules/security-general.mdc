@@ -1,0 +1,59 @@
+---
+description: General security principles for GoConnect
+globs: 
+alwaysApply: true
+---
+# Secure Development Principles for GoConnect
+
+## 1. Do Not Use Raw User Input in Sensitive Operations
+- Untrusted input must never be used directly in:
+  - File access
+  - Command execution
+  - Database queries
+  - URL construction
+
+## 2. Do Not Expose Secrets in Code
+- API keys, credentials, private keys must NOT appear in:
+  - Source code
+  - Public repositories
+  - Client-distributed files
+  - Frontend code
+
+## 3. Enforce Secure Communication
+- Always use HTTPS/TLS for external communications
+- Minimum TLS version: 1.2
+- Never disable certificate verification
+
+## 4. Avoid Executing Dynamic Code
+- No `eval()` or similar with untrusted input
+- No dynamic code construction
+
+## 5. Validate All External Input
+- Validate inputs from:
+  - Users
+  - External APIs
+  - Third-party systems
+  - Environment variables
+
+## 6. Do Not Log Sensitive Information
+- Never log:
+  - Credentials/tokens
+  - Personal identifiers
+  - Private keys
+  - Session IDs
+
+## 7. Prevent Disabling Security Controls
+- Security checks must not be disabled without:
+  - Documented justification
+  - Code review approval
+
+## 8. Limit Trust in Client-Side Logic
+- Critical logic must be server-side:
+  - Authentication
+  - Authorization
+  - Input validation
+  - Business rules
+
+## 9. Eliminate Hardcoded Credentials
+- Use environment variables or secret managers
+- Never commit secrets to version control
