@@ -93,7 +93,7 @@ jobs:
             desktop/src-tauri/target/**/release/bundle/**/*.msi
 
   # ============================================
-  # BUILD CLI (Terminal TUI App)
+  # BUILD CLI (Terminal TUI + Daemon)
   # ============================================
   build-cli:
     runs-on: ubuntu-latest
@@ -114,22 +114,22 @@ jobs:
           VERSION=${{ github.ref_name }}
           
           # Linux
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X main.version=${VERSION}" -o dist/goconnect-cli_${VERSION}_linux_amd64 ./cmd/goconnect
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X main.version=${VERSION}" -o dist/goconnect-cli_${VERSION}_linux_arm64 ./cmd/goconnect
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X main.version=${VERSION}" -o dist/goconnect_${VERSION}_linux_amd64 ./cmd/goconnect
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X main.version=${VERSION}" -o dist/goconnect_${VERSION}_linux_arm64 ./cmd/goconnect
           
           # macOS
-          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X main.version=${VERSION}" -o dist/goconnect-cli_${VERSION}_darwin_amd64 ./cmd/goconnect
-          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X main.version=${VERSION}" -o dist/goconnect-cli_${VERSION}_darwin_arm64 ./cmd/goconnect
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X main.version=${VERSION}" -o dist/goconnect_${VERSION}_darwin_amd64 ./cmd/goconnect
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X main.version=${VERSION}" -o dist/goconnect_${VERSION}_darwin_arm64 ./cmd/goconnect
           
           # Windows
-          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X main.version=${VERSION}" -o dist/goconnect-cli_${VERSION}_windows_amd64.exe ./cmd/goconnect
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X main.version=${VERSION}" -o dist/goconnect_${VERSION}_windows_amd64.exe ./cmd/goconnect
           
           # Create archives
           cd dist
-          for f in goconnect-cli_*_linux_* goconnect-cli_*_darwin_*; do
+          for f in goconnect_*_linux_* goconnect_*_darwin_*; do
             [ -f "$f" ] && tar -czvf "${f}.tar.gz" "$f" && rm "$f"
           done
-          for f in goconnect-cli_*_windows_*.exe; do
+          for f in goconnect_*_windows_*.exe; do
             [ -f "$f" ] && zip "${f%.exe}.zip" "$f" && rm "$f"
           done
         working-directory: cli
@@ -233,7 +233,7 @@ jobs:
           body: |
             # 🚀 GoConnect ${{ github.ref_name }}
             
-            **Virtual LAN made simple** - Connect devices as if they're on the same local network
+            **Virtual LAN made simple** - Connect devices as if they're on the same local network.
             
             ---
             
@@ -241,28 +241,27 @@ jobs:
             
             ### 🖥️ Desktop Application (Recommended)
             
-            The easiest way to use GoConnect! Full GUI with all features.
-            
-            | Platform | Download | Notes |
-            |----------|----------|-------|
-            | **Windows** | `GoConnect_*_x64-setup.exe` | Recommended installer |
-            | **Windows (MSI)** | `GoConnect_*_x64_en-US.msi` | For enterprise deployment |
-            | **macOS (Apple Silicon)** | `GoConnect_*_aarch64.dmg` | M1/M2/M3 Macs |
-            | **macOS (Intel)** | `GoConnect_*_x64.dmg` | Intel Macs |
-            | **Linux (Debian/Ubuntu)** | `GoConnect_*_amd64.deb` | `sudo dpkg -i *.deb` |
-            | **Linux (Universal)** | `GoConnect_*_amd64.AppImage` | Works on any distro |
-            
-            ### 💻 Terminal Application (CLI)
-            
-            For command-line users and servers. Interactive TUI interface.
+            The easiest way to use GoConnect - full GUI with all features.
             
             | Platform | Download |
             |----------|----------|
-            | Linux (x64) | `goconnect-cli_*_linux_amd64.tar.gz` |
-            | Linux (ARM64) | `goconnect-cli_*_linux_arm64.tar.gz` |
-            | macOS (Apple Silicon) | `goconnect-cli_*_darwin_arm64.tar.gz` |
-            | macOS (Intel) | `goconnect-cli_*_darwin_amd64.tar.gz` |
-            | Windows | `goconnect-cli_*_windows_amd64.zip` |
+            | **Windows** | `GoConnect_*_x64-setup.exe` |
+            | **macOS (Apple Silicon)** | `GoConnect_*_aarch64.dmg` |
+            | **macOS (Intel)** | `GoConnect_*_x64.dmg` |
+            | **Linux (Debian/Ubuntu)** | `GoConnect_*_amd64.deb` |
+            | **Linux (Universal)** | `GoConnect_*_amd64.AppImage` |
+            
+            ### 💻 CLI Application
+            
+            For terminal users and headless servers.
+            
+            | Platform | Download |
+            |----------|----------|
+            | Linux (x64) | `goconnect_*_linux_amd64.tar.gz` |
+            | Linux (ARM64) | `goconnect_*_linux_arm64.tar.gz` |
+            | macOS (Apple Silicon) | `goconnect_*_darwin_arm64.tar.gz` |
+            | macOS (Intel) | `goconnect_*_darwin_amd64.tar.gz` |
+            | Windows | `goconnect_*_windows_amd64.zip` |
             
             ### 🖧 Server (Self-Hosted)
             
@@ -272,7 +271,9 @@ jobs:
             |----------|----------|
             | Linux (x64) | `goconnect-server_*_linux_amd64.tar.gz` |
             | Linux (ARM64) | `goconnect-server_*_linux_arm64.tar.gz` |
-            | Docker | `ghcr.io/orhaniscoding/goconnect-server:${{ github.ref_name }}` |
+            | macOS | `goconnect-server_*_darwin_*.tar.gz` |
+            | Windows | `goconnect-server_*_windows_amd64.zip` |
+            | **Docker** | `ghcr.io/orhaniscoding/goconnect-server:${{ github.ref_name }}` |
             
             ---
             
@@ -281,20 +282,28 @@ jobs:
             ### Desktop App
             1. Download the installer for your platform
             2. Install and open GoConnect
-            3. Click "Create Network" or "Join Network"
-            4. Share invite link with friends!
+            3. Create or join a network
             
             ### CLI
             ```bash
             # Download and extract
-            tar -xzf goconnect-cli_*_linux_amd64.tar.gz
+            tar -xzf goconnect_*_linux_amd64.tar.gz
             
-            # Run interactive mode
-            ./goconnect-cli
+            # Run setup wizard
+            ./goconnect setup
             
-            # Or quick commands
-            ./goconnect-cli create "My Network"
-            ./goconnect-cli join gc://invite.goconnect.io/abc123
+            # Or run TUI directly
+            ./goconnect
+            ```
+            
+            ### Self-Hosted Server
+            ```bash
+            # Using Docker (recommended)
+            docker run -d -p 8080:8080 ghcr.io/orhaniscoding/goconnect-server:${{ github.ref_name }}
+            
+            # Or binary
+            tar -xzf goconnect-server_*_linux_amd64.tar.gz
+            ./goconnect-server
             ```
             
             ---
@@ -307,15 +316,7 @@ jobs:
             
             ---
             
-            ## 📚 Documentation
-            
-            - [Quick Start Guide](https://github.com/orhaniscoding/goconnect/blob/main/QUICK_START.md)
-            - [User Guide](https://github.com/orhaniscoding/goconnect/blob/main/docs/USER_GUIDE.md)
-            - [Architecture](https://github.com/orhaniscoding/goconnect/blob/main/docs/ARCHITECTURE.md)
-            
-            ---
-            
-            Built with ❤️ by [@orhaniscoding](https://github.com/orhaniscoding)
+            📚 [Documentation](https://github.com/orhaniscoding/goconnect#readme) | 🐛 [Report Issues](https://github.com/orhaniscoding/goconnect/issues)
           files: release/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

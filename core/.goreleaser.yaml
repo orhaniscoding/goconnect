@@ -48,6 +48,7 @@ archives:
       - README.md
       - LICENSE
       - migrations/*
+      - migrations_sqlite/*
 
 checksum:
   name_template: 'checksums.txt'
@@ -73,9 +74,6 @@ changelog:
     - title: '🐛 Bug Fixes'
       regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
       order: 1
-    - title: '📚 Documentation'
-      regexp: '^.*?docs(\([[:word:]]+\))??!?:.+$'
-      order: 2
     - title: '🔧 Maintenance'
       order: 999
 
@@ -86,50 +84,20 @@ release:
   prerelease: auto
   mode: append
   header: |
-    ## 🚀 GoConnect Server {{ .Tag }}
+    ## 🖧 GoConnect Server {{ .Tag }}
     
-    **"Virtual LAN made simple."**
-    
-    ### 📋 What's Included
-    - Server binaries for Linux, macOS, Windows
-    - Database migrations
-    - SHA256 checksums for verification
+    Self-hosted backend for GoConnect networks.
   footer: |
     ---
     
-    ### 🖥️ Server Installation
+    ### Quick Start
     
-    #### 🐳 Docker (Recommended - All Platforms)
     ```bash
+    # Docker (recommended)
     docker pull ghcr.io/orhaniscoding/goconnect-server:{{ .Tag }}
     docker run -d -p 8080:8080 ghcr.io/orhaniscoding/goconnect-server:{{ .Tag }}
-    ```
     
-    #### 🐧 Linux Server
-    ```bash
-    curl -LO https://github.com/orhaniscoding/goconnect/releases/download/{{ .Tag }}/goconnect-server_{{ .Version }}_linux_amd64.tar.gz
+    # Binary
     tar -xzf goconnect-server_{{ .Version }}_linux_amd64.tar.gz
-    ./goconnect-server
+    ./goconnect-server --help
     ```
-    
-    #### 🍎 macOS Server
-    ```bash
-    curl -LO https://github.com/orhaniscoding/goconnect/releases/download/{{ .Tag }}/goconnect-server_{{ .Version }}_darwin_arm64.tar.gz
-    tar -xzf goconnect-server_{{ .Version }}_darwin_arm64.tar.gz
-    ./goconnect-server
-    ```
-    
-    #### 🪟 Windows Server (PowerShell as Admin)
-    ```powershell
-    Invoke-WebRequest -Uri "https://github.com/orhaniscoding/goconnect/releases/download/{{ .Tag }}/goconnect-server_{{ .Version }}_windows_amd64.zip" -OutFile "goconnect-server.zip"
-    Expand-Archive -Path "goconnect-server.zip" -DestinationPath "."
-    .\goconnect-server.exe
-    ```
-    
-    ### 🔐 Verify Downloads
-    ```bash
-    sha256sum -c checksums.txt
-    ```
-    
-    ---
-    Built with ❤️ by [@orhaniscoding](https://github.com/orhaniscoding)

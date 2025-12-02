@@ -1,18 +1,18 @@
-# GoReleaser configuration for GoConnect Daemon
+# GoReleaser configuration for GoConnect CLI
 # Documentation: https://goreleaser.com
 
 version: 2
 
-project_name: goconnect-daemon
+project_name: goconnect
 
 before:
   hooks:
     - go mod tidy
 
 builds:
-  - id: daemon
+  - id: cli
     main: ./cmd/goconnect
-    binary: goconnect-daemon
+    binary: goconnect
     env:
       - CGO_ENABLED=0
     goos:
@@ -33,9 +33,9 @@ builds:
       - -X main.builtBy=goreleaser
 
 archives:
-  - id: daemon
+  - id: cli
     builds:
-      - daemon
+      - cli
     name_template: >-
       {{ .ProjectName }}_
       {{- .Version }}_
@@ -73,46 +73,21 @@ release:
   prerelease: auto
   mode: append
   header: |
-    ## 💻 GoConnect Daemon {{ .Tag }}
+    ## 💻 GoConnect CLI {{ .Tag }}
     
-    **Client daemon for connecting to GoConnect networks.**
-    
-    ### 📋 What's Included
-    - Daemon binaries for Linux, macOS, Windows
-    - SHA256 checksums for verification
+    Terminal application with TUI for GoConnect networks.
   footer: |
     ---
     
-    ### 💻 Client (Daemon) Installation
+    ### Quick Start
     
-    #### 🐧 Linux Client
     ```bash
-    curl -LO https://github.com/orhaniscoding/goconnect/releases/download/{{ .Tag }}/goconnect-daemon_{{ .Version }}_linux_amd64.tar.gz
-    tar -xzf goconnect-daemon_{{ .Version }}_linux_amd64.tar.gz
-    sudo ./goconnect-daemon install
-    ./goconnect-daemon setup
-    ```
+    # Download and extract
+    tar -xzf goconnect_{{ .Version }}_linux_amd64.tar.gz
     
-    #### 🍎 macOS Client
-    ```bash
-    curl -LO https://github.com/orhaniscoding/goconnect/releases/download/{{ .Tag }}/goconnect-daemon_{{ .Version }}_darwin_arm64.tar.gz
-    tar -xzf goconnect-daemon_{{ .Version }}_darwin_arm64.tar.gz
-    sudo ./goconnect-daemon install
-    ./goconnect-daemon setup
-    ```
+    # Run setup wizard
+    ./goconnect setup
     
-    #### 🪟 Windows Client (PowerShell as Admin)
-    ```powershell
-    Invoke-WebRequest -Uri "https://github.com/orhaniscoding/goconnect/releases/download/{{ .Tag }}/goconnect-daemon_{{ .Version }}_windows_amd64.zip" -OutFile "goconnect-daemon.zip"
-    Expand-Archive -Path "goconnect-daemon.zip" -DestinationPath "."
-    .\goconnect-daemon.exe install
-    .\goconnect-daemon.exe setup
+    # Or launch TUI
+    ./goconnect
     ```
-    
-    ### 🔐 Verify Downloads
-    ```bash
-    sha256sum -c checksums.txt
-    ```
-    
-    ---
-    Built with ❤️ by [@orhaniscoding](https://github.com/orhaniscoding)
