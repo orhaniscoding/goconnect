@@ -281,13 +281,14 @@ func Connect(req Request) {
 goconnect/
 ├── go.work             # Go Workspace (core + cli)
 ├── Makefile            # Unified build commands
-├── core/               # [Go] The Brain (Daemon)
-│   ├── cmd/daemon/     # Entry point
+├── core/               # [Go] The Brain (Server)
+│   ├── cmd/server/     # HTTP Server entry point
 │   ├── internal/       # Private logic
-│   │   ├── api/        # gRPC Server implementation
-│   │   ├── store/      # SQLite queries & migrations
+│   │   ├── handler/    # HTTP handlers
+│   │   ├── service/    # Business services
+│   │   ├── repository/ # Database layer
 │   │   ├── wireguard/  # WG interface management
-│   │   └── peer/       # Peer logic
+│   │   └── websocket/  # Real-time communication
 │   ├── proto/          # Protocol Buffers (Shared Contract)
 │   └── go.mod
 ├── cli/                # [Go] The Terminal Interface

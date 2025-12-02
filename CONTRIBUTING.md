@@ -105,7 +105,7 @@ golangci-lint run ./...
 
 ```bash
 # Build CLI
-cd cli && go build -o goconnect-cli ./cmd/goconnect
+cd cli && go build -o goconnect ./cmd/goconnect
 
 # Build Server
 cd core && go build -o goconnect-server ./cmd/server

@@ -134,23 +134,23 @@ For those who prefer the command line. Interactive TUI with Bubbletea.
 
 ```bash
 # Linux (x64)
-curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli_linux_amd64.tar.gz
-tar -xzf goconnect-cli_linux_amd64.tar.gz
-sudo mv goconnect-cli /usr/local/bin/goconnect
+curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect_*_linux_amd64.tar.gz
+tar -xzf goconnect_*_linux_amd64.tar.gz
+sudo mv goconnect /usr/local/bin/
 goconnect
 
 # macOS (Apple Silicon)
-curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli_darwin_arm64.tar.gz
-tar -xzf goconnect-cli_darwin_arm64.tar.gz
-sudo mv goconnect-cli /usr/local/bin/goconnect
+curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect_*_darwin_arm64.tar.gz
+tar -xzf goconnect_*_darwin_arm64.tar.gz
+sudo mv goconnect /usr/local/bin/
 goconnect
 ```
 
 ```powershell
 # Windows (PowerShell)
-Invoke-WebRequest -Uri "https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli_windows_amd64.zip" -OutFile "goconnect-cli.zip"
-Expand-Archive -Path "goconnect-cli.zip" -DestinationPath "."
-.\goconnect-cli.exe
+Invoke-WebRequest -Uri "https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect_*_windows_amd64.zip" -OutFile "goconnect.zip"
+Expand-Archive -Path "goconnect.zip" -DestinationPath "."
+.\goconnect.exe
 ```
 
 ### Option 3: Self-Hosted Server
@@ -353,8 +353,8 @@ cd goconnect
 
 # Build CLI
 cd cli
-go build -o goconnect-cli ./cmd/goconnect
-./goconnect-cli
+go build -o goconnect ./cmd/goconnect
+./goconnect
 
 # Build Server
 cd ../core

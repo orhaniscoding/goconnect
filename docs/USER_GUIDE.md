@@ -36,9 +36,9 @@ GoConnect ile sanal LAN ağları oluşturmak ve katılmak için kapsamlı kullan
 - Linux: [GoConnect_amd64.deb](https://github.com/orhaniscoding/goconnect/releases/latest)
 
 **CLI:**
-- Windows: `goconnect-cli_windows_amd64.zip`
-- macOS: `goconnect-cli_darwin_arm64.tar.gz`
-- Linux: `goconnect-cli_linux_amd64.tar.gz`
+- Windows: `goconnect_*_windows_amd64.zip`
+- macOS: `goconnect_*_darwin_arm64.tar.gz`
+- Linux: `goconnect_*_linux_amd64.tar.gz`
 
 ---
 

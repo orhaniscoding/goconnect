@@ -89,6 +89,11 @@ type Model struct {
 
 // NewModel creates a new TUI model
 func NewModel() Model {
+	return NewModelWithState(StateDashboard)
+}
+
+// NewModelWithState creates a new TUI model with a specific initial state
+func NewModelWithState(initialState SessionState) Model {
 	c := NewUnifiedClient()
 
 	// Initialize List (Menu)
@@ -115,9 +120,9 @@ func NewModel() Model {
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(ColorSecondary)
 
-	return Model{
+	model := Model{
 		client:    c,
-		state:     StateDashboard,
+		state:     initialState,
 		list:      l,
 		input:     ti,
 		spinner:   s,
@@ -125,6 +130,17 @@ func NewModel() Model {
 		keys:      Keys,
 		usingGRPC: c.IsUsingGRPC(),
 	}
+
+	// If starting in Create or Join state, prepare the input
+	if initialState == StateCreateNetwork {
+		model.input.Placeholder = "Network Name"
+		model.input.Focus()
+	} else if initialState == StateJoinNetwork {
+		model.input.Placeholder = "Invite Code / Link"
+		model.input.Focus()
+	}
+
+	return model
 }
 
 func (m Model) Init() tea.Cmd {

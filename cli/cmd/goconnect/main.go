@@ -112,15 +112,11 @@ func main() {
 			return
 
 		case "create":
-			// TODO: Launch TUI directly to create screen
-			fmt.Println("Launching TUI (Create Mode)...")
-			runTUI()
+			runTUIWithState(tui.StateCreateNetwork)
 			return
 
 		case "join":
-			// TODO: Launch TUI directly to join screen
-			fmt.Println("Launching TUI (Join Mode)...")
-			runTUI()
+			runTUIWithState(tui.StateJoinNetwork)
 			return
 		}
 	}
@@ -145,7 +141,12 @@ func main() {
 }
 
 func runTUI() {
-	p := tea.NewProgram(tui.NewModel(), tea.WithAltScreen())
+	runTUIWithState(tui.StateDashboard)
+}
+
+func runTUIWithState(initialState tui.SessionState) {
+	model := tui.NewModelWithState(initialState)
+	p := tea.NewProgram(model, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
 		os.Exit(1)

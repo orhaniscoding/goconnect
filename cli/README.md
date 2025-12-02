@@ -18,18 +18,19 @@ GoConnect's terminal application with an interactive TUI interface. Create netwo
 
 ```bash
 # Linux (x64)
-curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli_linux_amd64.tar.gz
-tar -xzf goconnect-cli_linux_amd64.tar.gz
-sudo mv goconnect-cli /usr/local/bin/goconnect
+curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect_*_linux_amd64.tar.gz
+tar -xzf goconnect_*_linux_amd64.tar.gz
+sudo mv goconnect /usr/local/bin/
 
 # macOS (Apple Silicon)
-curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli_darwin_arm64.tar.gz
-tar -xzf goconnect-cli_darwin_arm64.tar.gz
-sudo mv goconnect-cli /usr/local/bin/goconnect
+curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect_*_darwin_arm64.tar.gz
+tar -xzf goconnect_*_darwin_arm64.tar.gz
+sudo mv goconnect /usr/local/bin/
 
 # Windows (PowerShell)
-Invoke-WebRequest -Uri "https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-cli_windows_amd64.zip" -OutFile "goconnect-cli.zip"
-Expand-Archive -Path "goconnect-cli.zip" -DestinationPath "."
+Invoke-WebRequest -Uri "https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect_*_windows_amd64.zip" -OutFile "goconnect.zip"
+Expand-Archive -Path "goconnect.zip" -DestinationPath "."
+.\goconnect.exe
 ```
 
 ### Usage
