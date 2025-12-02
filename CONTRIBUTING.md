@@ -245,6 +245,59 @@ func TestNetworkIntegration(t *testing.T) {
 - Update OpenAPI spec for API changes
 - Add examples for new features
 
+## 🚀 Creating a Release
+
+Releases are automated via GitHub Actions when a version tag is pushed.
+
+### Release Process
+
+1. **Update version numbers** using the bump script:
+
+   ```bash
+   # Linux/macOS
+   ./scripts/bump-version.sh 3.1.0
+
+   # Windows (PowerShell)
+   .\scripts\bump-version.ps1 3.1.0
+   ```
+
+   This updates versions in:
+   - `desktop/package.json`
+   - `desktop/src-tauri/tauri.conf.json`
+   - `desktop/src-tauri/Cargo.toml`
+
+2. **Update CHANGELOG.md** with release notes
+
+3. **Commit and tag**:
+   ```bash
+   git add -A
+   git commit -m "chore: bump version to v3.1.0"
+   git tag v3.1.0
+   git push origin main --tags
+   ```
+
+4. **GitHub Actions will automatically**:
+   - Validate version consistency across all files
+   - Build Desktop apps (Windows, macOS, Linux)
+   - Build CLI binaries (all platforms)
+   - Build Server binaries (all platforms)
+   - Build and push Docker images
+   - Create GitHub release with all assets
+   - Generate checksums for verification
+   - Validate the release was created correctly
+
+### Pre-release Versions
+
+For pre-releases, use version suffixes:
+- `v3.1.0-alpha.1` - Alpha release
+- `v3.1.0-beta.1` - Beta release
+- `v3.1.0-rc.1` - Release candidate
+
+Pre-releases are automatically detected and:
+- Marked as pre-release on GitHub
+- NOT tagged as `latest`
+- Docker images NOT tagged as `latest`
+
 ## 🐛 Reporting Issues
 
 ### Bug Reports
