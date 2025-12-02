@@ -9,8 +9,8 @@ all: build
 build: build-core build-cli
 
 build-core:
-	@echo "Building Core..."
-	cd core && go build -o ../bin/goconnect-daemon ./cmd/daemon
+	@echo "Building Core Server..."
+	cd core && go build -o ../bin/goconnect-server ./cmd/server
 
 build-cli:
 	@echo "Building CLI..."

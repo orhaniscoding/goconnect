@@ -67,3 +67,5 @@ desktop/dist/
 .claude/
 memory-bank/
 latestchat.md
+.github/instructions
+.github/copilot-instructions.md
