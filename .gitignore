@@ -11,10 +11,13 @@ dist/
 *.out
 coverage.out
 coverage.html
+go.work.sum
 
 # IDE
 .vscode/
 .idea/
+.cursor/
+.cursorrules
 
 # OS
 .DS_Store
@@ -58,7 +61,7 @@ target/
 desktop/src-tauri/target/
 desktop/dist/
 
-# Old agent tool files (not used with Cursor)
+# AI/Agent generated files (local only)
 .agent/
 .bmad/
 .claude/
