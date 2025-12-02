@@ -188,6 +188,7 @@ func (u *UnifiedClient) GetNetworks() ([]Network, error) {
 }
 
 // LeaveNetwork disconnects from a network.
+// Note: This is a daemon-specific operation and requires gRPC connection.
 func (u *UnifiedClient) LeaveNetwork(networkID string) error {
 	u.mu.RLock()
 	defer u.mu.RUnlock()
@@ -195,11 +196,12 @@ func (u *UnifiedClient) LeaveNetwork(networkID string) error {
 	if u.useGRPC && u.grpcClient != nil {
 		return u.grpcClient.LeaveNetwork(networkID)
 	}
-	// HTTP client doesn't have LeaveNetwork yet
-	return fmt.Errorf("leave network not implemented in HTTP client")
+	// LeaveNetwork is only available via gRPC (daemon-specific operation)
+	return fmt.Errorf("leave network requires gRPC connection to daemon")
 }
 
 // GetPeers returns all peers in the current network.
+// Note: This is a daemon-specific operation and requires gRPC connection.
 func (u *UnifiedClient) GetPeers() ([]Peer, error) {
 	u.mu.RLock()
 	defer u.mu.RUnlock()
@@ -207,11 +209,12 @@ func (u *UnifiedClient) GetPeers() ([]Peer, error) {
 	if u.useGRPC && u.grpcClient != nil {
 		return u.grpcClient.GetPeers()
 	}
-	// HTTP client doesn't have GetPeers yet
-	return nil, fmt.Errorf("get peers not implemented in HTTP client")
+	// GetPeers is only available via gRPC (daemon-specific operation)
+	return nil, fmt.Errorf("get peers requires gRPC connection to daemon")
 }
 
 // SendChatMessage sends a chat message.
+// Note: This is a daemon-specific operation and requires gRPC connection.
 func (u *UnifiedClient) SendChatMessage(networkID, content string) error {
 	u.mu.RLock()
 	defer u.mu.RUnlock()
@@ -219,11 +222,12 @@ func (u *UnifiedClient) SendChatMessage(networkID, content string) error {
 	if u.useGRPC && u.grpcClient != nil {
 		return u.grpcClient.SendChatMessage(networkID, content)
 	}
-	// HTTP client doesn't have SendChatMessage yet
-	return fmt.Errorf("send chat message not implemented in HTTP client")
+	// SendChatMessage is only available via gRPC (daemon-specific operation)
+	return fmt.Errorf("send chat message requires gRPC connection to daemon")
 }
 
 // SendFile initiates a file transfer.
+// Note: This is a daemon-specific operation and requires gRPC connection.
 func (u *UnifiedClient) SendFile(peerID, filePath string) (string, error) {
 	u.mu.RLock()
 	defer u.mu.RUnlock()
@@ -231,11 +235,12 @@ func (u *UnifiedClient) SendFile(peerID, filePath string) (string, error) {
 	if u.useGRPC && u.grpcClient != nil {
 		return u.grpcClient.SendFile(peerID, filePath)
 	}
-	// HTTP client doesn't have SendFile yet
-	return "", fmt.Errorf("send file not implemented in HTTP client")
+	// SendFile is only available via gRPC (daemon-specific operation)
+	return "", fmt.Errorf("send file requires gRPC connection to daemon")
 }
 
 // GetSettings returns the current daemon settings.
+// Note: This is a daemon-specific operation and requires gRPC connection.
 func (u *UnifiedClient) GetSettings() (*pb.Settings, error) {
 	u.mu.RLock()
 	defer u.mu.RUnlock()
@@ -243,11 +248,12 @@ func (u *UnifiedClient) GetSettings() (*pb.Settings, error) {
 	if u.useGRPC && u.grpcClient != nil {
 		return u.grpcClient.GetSettings()
 	}
-	// HTTP client doesn't have GetSettings yet
-	return nil, fmt.Errorf("get settings not implemented in HTTP client")
+	// GetSettings is only available via gRPC (daemon-specific operation)
+	return nil, fmt.Errorf("get settings requires gRPC connection to daemon")
 }
 
 // UpdateSettings updates daemon settings.
+// Note: This is a daemon-specific operation and requires gRPC connection.
 func (u *UnifiedClient) UpdateSettings(settings *pb.Settings) error {
 	u.mu.RLock()
 	defer u.mu.RUnlock()
@@ -255,8 +261,8 @@ func (u *UnifiedClient) UpdateSettings(settings *pb.Settings) error {
 	if u.useGRPC && u.grpcClient != nil {
 		return u.grpcClient.UpdateSettings(settings)
 	}
-	// HTTP client doesn't have UpdateSettings yet
-	return fmt.Errorf("update settings not implemented in HTTP client")
+	// UpdateSettings is only available via gRPC (daemon-specific operation)
+	return fmt.Errorf("update settings requires gRPC connection to daemon")
 }
 
 // Subscribe subscribes to daemon events (gRPC only).
