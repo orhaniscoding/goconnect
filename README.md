@@ -19,6 +19,7 @@ GoConnect is a user-friendly virtual LAN platform that makes devices on the inte
 - [Usage](#-usage)
 - [Features](#-features)
 - [Architecture](#-architecture)
+- [Self-Hosting](#-self-hosting)
 - [Development](#-development)
 - [FAQ](#-faq)
 - [Contributing](#-contributing)
@@ -155,22 +156,31 @@ Expand-Archive -Path "goconnect.zip" -DestinationPath "."
 
 ### Option 3: Self-Hosted Server
 
-For running your own GoConnect infrastructure.
+Run your own GoConnect server for full control and privacy.
 
+**Quick Start (Docker):**
 ```bash
-# Docker (Recommended)
-docker run -d \
-  --name goconnect-server \
-  --cap-add NET_ADMIN \
-  -p 8080:8080 \
-  -p 51820:51820/udp \
-  ghcr.io/orhaniscoding/goconnect-server:latest
+# Download docker-compose
+curl -LO https://raw.githubusercontent.com/orhaniscoding/goconnect/main/docker-compose.yml
 
-# Or download binary
-curl -LO https://github.com/orhaniscoding/goconnect/releases/latest/download/goconnect-server_linux_amd64.tar.gz
-tar -xzf goconnect-server_linux_amd64.tar.gz
-./goconnect-server
+# Create .env file with your settings
+cat > .env << EOF
+JWT_SECRET=$(openssl rand -base64 32)
+DB_PASSWORD=$(openssl rand -base64 16)
+WG_SERVER_ENDPOINT=your-domain.com:51820
+EOF
+
+# Start server
+docker compose up -d
 ```
+
+**📖 Full Setup Guide:** See [Self-Hosting Guide](docs/SELF_HOSTING.md) for:
+- Complete Docker setup
+- Manual binary installation
+- Configuration options
+- Reverse proxy (Nginx/Caddy)
+- Security checklist
+- Troubleshooting
 
 ---
 
@@ -331,6 +341,29 @@ goconnect/
 │       └── websocket/     # Real-time communication
 ├── docs/                  # Documentation
 └── .github/workflows/     # CI/CD
+```
+
+---
+
+## 🏠 Self-Hosting
+
+Want to run your own GoConnect server? Check out our comprehensive guide:
+
+**👉 [Self-Hosting Guide](docs/SELF_HOSTING.md)**
+
+The guide covers:
+- 🐳 **Docker installation** (recommended, 5 minutes)
+- 🖥️ **Manual installation** (binary, systemd service)
+- ⚙️ **Configuration** (PostgreSQL, SQLite, environment variables)
+- 🌐 **Reverse proxy** (Nginx, Caddy with SSL)
+- 🔒 **Security** (firewall, SSL, best practices)
+- 🔧 **Troubleshooting** (common issues and solutions)
+
+**Quick Start:**
+```bash
+# Download and start with Docker
+curl -LO https://raw.githubusercontent.com/orhaniscoding/goconnect/main/docker-compose.yml
+docker compose up -d
 ```
 
 ---
