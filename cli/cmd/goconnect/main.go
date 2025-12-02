@@ -121,22 +121,45 @@ func main() {
 		}
 	}
 
-	// No arguments provided
-	// 1. Check if we are running as a service (this is tricky, usually service manager passes args)
-	//    But kardianos/service usually handles "run" automatically if configured.
-	//    However, if user just types "goconnect", they expect the UI.
-
-	// 2. Check if daemon is running
+	// No arguments provided - Smart first-run detection
 	client := tui.NewClient()
+	
+	// Check if this is first run (no config file)
+	if _, err := os.Stat(cfgPath); os.IsNotExist(err) {
+		// First time user - show friendly welcome
+		runFirstTimeWelcome()
+		return
+	}
+	
+	// Config exists, check if daemon is running
 	if client.CheckDaemonStatus() {
 		// Daemon is running, launch TUI
 		runTUI()
 	} else {
-		// Daemon not running
-		fmt.Println("GoConnect Daemon is not running.")
-		fmt.Println("Run 'goconnect setup' to configure, or 'goconnect run' to start the daemon.")
-		// Optionally launch TUI in "Offline Mode" or Setup Wizard
-		runSetupWizard()
+		// Daemon not running - offer to start it
+		fmt.Println()
+		fmt.Println("  🔗 GoConnect")
+		fmt.Println()
+		fmt.Println("  The daemon is not running.")
+		fmt.Println()
+		fmt.Println("  Quick actions:")
+		fmt.Println("    1. Start daemon:  goconnect run")
+		fmt.Println("    2. Reconfigure:   goconnect setup")
+		fmt.Println()
+		fmt.Print("  Start daemon now? [Y/n]: ")
+		
+		reader := bufio.NewReader(os.Stdin)
+		answer, _ := reader.ReadString('\n')
+		answer = strings.TrimSpace(strings.ToLower(answer))
+		
+		if answer == "" || answer == "y" || answer == "yes" {
+			fmt.Println()
+			fmt.Println("  Starting daemon...")
+			err = daemon.RunDaemon(cfg, version, svcOptions)
+			if err != nil {
+				log.Fatalf("GoConnect Daemon failed: %v", err)
+			}
+		}
 	}
 }
 
@@ -150,6 +173,93 @@ func runTUIWithState(initialState tui.SessionState) {
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
 		os.Exit(1)
+	}
+}
+
+// runFirstTimeWelcome shows a friendly welcome for first-time users
+func runFirstTimeWelcome() {
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Println()
+	fmt.Println("  ╔═══════════════════════════════════════════════════════════╗")
+	fmt.Println("  ║                                                           ║")
+	fmt.Println("  ║   🔗 Welcome to GoConnect!                                ║")
+	fmt.Println("  ║                                                           ║")
+	fmt.Println("  ║   Virtual LAN made simple.                                ║")
+	fmt.Println("  ║                                                           ║")
+	fmt.Println("  ╚═══════════════════════════════════════════════════════════╝")
+	fmt.Println()
+	fmt.Println("  What would you like to do?")
+	fmt.Println()
+	fmt.Println("    1. 🌐 Create a network    - Start your own private LAN")
+	fmt.Println("    2. 🔗 Join a network      - Connect with an invite link")
+	fmt.Println("    3. ⚙️  Advanced setup      - Configure server, auth, etc.")
+	fmt.Println()
+	fmt.Print("  Enter choice [1]: ")
+
+	choice, _ := reader.ReadString('\n')
+	choice = strings.TrimSpace(choice)
+	if choice == "" {
+		choice = "1"
+	}
+
+	switch choice {
+	case "1":
+		// Quick setup for creating a network
+		runQuickSetup("create")
+	case "2":
+		// Quick setup for joining a network
+		runQuickSetup("join")
+	case "3":
+		// Full setup wizard
+		runSetupWizard()
+	default:
+		fmt.Println("  Invalid choice. Running quick setup...")
+		runQuickSetup("create")
+	}
+}
+
+// runQuickSetup does minimal configuration and launches the appropriate action
+func runQuickSetup(action string) {
+	fmt.Println()
+	fmt.Println("  ⚡ Quick Setup")
+	fmt.Println("  ─────────────────────────────────────────────────────────────")
+	fmt.Println()
+	fmt.Println("  Setting up with default configuration...")
+	fmt.Println()
+
+	// Create default config
+	cfgPath := config.DefaultConfigPath()
+	cfg := &config.Config{}
+	cfg.Server.URL = "http://localhost:8081" // Default server
+	cfg.WireGuard.InterfaceName = "goconnect0"
+	cfg.Daemon.LocalPort = 12345
+	cfg.Daemon.HealthCheckInterval = 30 * 1000000000 // 30 seconds
+
+	// Set default identity path
+	home, _ := os.UserHomeDir()
+	cfg.IdentityPath = home + "/.goconnect/identity.json"
+
+	if err := config.SaveConfig(cfg, cfgPath); err != nil {
+		fmt.Printf("  ❌ Failed to save configuration: %v\n", err)
+		fmt.Println()
+		fmt.Println("  Please run 'goconnect setup' for manual configuration.")
+		return
+	}
+
+	fmt.Println("  ✅ Configuration created!")
+	fmt.Println()
+	fmt.Println("  📝 Note: Using default server (localhost:8081)")
+	fmt.Println("     Run 'goconnect setup' to change server settings.")
+	fmt.Println()
+	fmt.Println("  ⏳ Starting GoConnect...")
+	fmt.Println()
+
+	// Launch TUI with the appropriate state
+	if action == "create" {
+		runTUIWithState(tui.StateCreateNetwork)
+	} else {
+		runTUIWithState(tui.StateJoinNetwork)
 	}
 }
 

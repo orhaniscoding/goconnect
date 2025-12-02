@@ -75,6 +75,40 @@ function getAuth(): { deviceId: string; username: string } | null {
     return null;
 }
 
+// User-friendly error messages
+const ERROR_MESSAGES: Record<string, string> = {
+    "Failed to fetch": "Cannot connect to server. Please check your internet connection.",
+    "NetworkError": "Network error. Please check your connection.",
+    "TypeError: Failed to fetch": "Server is not reachable. Make sure GoConnect server is running.",
+    "401": "Authentication failed. Please log in again.",
+    "403": "You don't have permission to do this.",
+    "404": "The requested resource was not found.",
+    "409": "This already exists. Try a different name.",
+    "429": "Too many requests. Please wait a moment.",
+    "500": "Server error. Please try again later.",
+    "502": "Server is temporarily unavailable.",
+    "503": "Service unavailable. Please try again later.",
+};
+
+function getUserFriendlyError(error: string | Error, statusCode?: number): string {
+    const errorStr = error instanceof Error ? error.message : error;
+    
+    // Check for status code based messages
+    if (statusCode && ERROR_MESSAGES[statusCode.toString()]) {
+        return ERROR_MESSAGES[statusCode.toString()];
+    }
+    
+    // Check for known error patterns
+    for (const [pattern, message] of Object.entries(ERROR_MESSAGES)) {
+        if (errorStr.includes(pattern)) {
+            return message;
+        }
+    }
+    
+    // Return original if no match
+    return errorStr || "Something went wrong. Please try again.";
+}
+
 // Base fetch with auth headers
 async function apiFetch<T>(
     endpoint: string,
@@ -94,15 +128,25 @@ async function apiFetch<T>(
             headers,
         });
 
+        // Handle non-JSON responses
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            if (!response.ok) {
+                return { error: getUserFriendlyError("", response.status) };
+            }
+            return { data: undefined as unknown as T };
+        }
+
         const data = await response.json();
 
         if (!response.ok) {
-            return { error: data.message || data.error || "Request failed" };
+            const errorMsg = data.message || data.error || "";
+            return { error: getUserFriendlyError(errorMsg, response.status) };
         }
 
         return { data };
     } catch (error) {
-        return { error: error instanceof Error ? error.message : "Network error" };
+        return { error: getUserFriendlyError(error instanceof Error ? error : String(error)) };
     }
 }
 
@@ -110,8 +154,16 @@ async function apiFetch<T>(
 // Auth / Device
 // =============================================================================
 
-export async function registerDevice(username: string, deviceId: string) {
-    return apiFetch<User>("/devices/register", {
+export async function registerDevice(username: string) {
+    // Generate device ID if not exists
+    let deviceId = localStorage.getItem("gc_device_id");
+    if (!deviceId) {
+        deviceId = "dev_" + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem("gc_device_id", deviceId);
+    }
+    localStorage.setItem("gc_username", username);
+    
+    const result = await apiFetch<{ device_id: string; username: string }>("/devices/register", {
         method: "POST",
         body: JSON.stringify({
             device_id: deviceId,
@@ -120,6 +172,17 @@ export async function registerDevice(username: string, deviceId: string) {
             hostname: "Desktop",
         }),
     });
+    
+    if (result.data) {
+        return { 
+            data: { 
+                id: result.data.device_id,
+                deviceId: result.data.device_id, 
+                username: result.data.username 
+            } as User
+        };
+    }
+    return { error: result.error };
 }
 
 export async function heartbeat() {

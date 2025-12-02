@@ -43,11 +43,18 @@ interface User {
   username: string;
 }
 
+// Onboarding step type
+type OnboardingStep = 'welcome' | 'username' | 'choice' | 'create' | 'join' | 'done';
+
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState("");
   const [usernameError, setUsernameError] = useState("");
   const [user, setUser] = useState<User | null>(null);
+
+  // Onboarding state
+  const [onboardingStep, setOnboardingStep] = useState<OnboardingStep>('welcome');
+  const [isFirstTime, setIsFirstTime] = useState(true);
 
   const [servers, setServers] = useState<Server[]>([]);
   const [networks, setNetworks] = useState<Network[]>([]);
@@ -71,6 +78,25 @@ function App() {
 
   const toast = useToast();
 
+  // Check if user has existing data on mount
+  useEffect(() => {
+    const savedUser = localStorage.getItem('goconnect_user');
+    if (savedUser) {
+      try {
+        const userData = JSON.parse(savedUser);
+        setUser(userData);
+        setUsername(userData.username);
+        setIsFirstTime(false);
+        setOnboardingStep('done');
+        setIsLoggedIn(true);
+        loadServers();
+      } catch {
+        // Invalid saved data, start fresh
+        localStorage.removeItem('goconnect_user');
+      }
+    }
+  }, []);
+
   // Load invite link when modal opens
   useEffect(() => {
     if (showInviteModal && selectedServer && !inviteLinkValue) {
@@ -78,29 +104,6 @@ function App() {
     }
   }, [showInviteModal, selectedServer]);
 
-  const handleStart = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!username.trim()) {
-      setUsernameError("Username is required");
-      return;
-    }
-
-    // Simulate device ID generation
-    const deviceId = "dev_" + Math.random().toString(36).substr(2, 9);
-
-    try {
-      const res = await api.registerDevice(username, deviceId);
-      if (res.error) {
-        setUsernameError(res.error);
-      } else if (res.data) {
-        setUser({ username: res.data.username, deviceId: res.data.deviceId });
-        setIsLoggedIn(true);
-        loadServers();
-      }
-    } catch (err) {
-      setUsernameError("Failed to login");
-    }
-  };
 
   const loadServers = async () => {
     const res = await api.getMyServers();
@@ -265,6 +268,174 @@ function App() {
     setTimeout(() => setCopiedInvite(false), 2000);
   };
 
+  // Save user to localStorage when logged in
+  const saveUserData = (userData: User) => {
+    localStorage.setItem('goconnect_user', JSON.stringify(userData));
+  };
+
+  // Enhanced handleStart that saves user data
+  const handleStartEnhanced = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username.trim()) {
+      setUsernameError("Username is required");
+      return;
+    }
+    if (username.length < 2) {
+      setUsernameError("Username must be at least 2 characters");
+      return;
+    }
+
+    try {
+      const response = await api.registerDevice(username);
+      if (response.data) {
+        const userData = { deviceId: response.data.deviceId, username };
+        setUser(userData);
+        saveUserData(userData);
+        
+        if (isFirstTime) {
+          // First time user - show choice screen
+          setOnboardingStep('choice');
+        } else {
+          // Returning user - go directly to app
+          setIsLoggedIn(true);
+          loadServers();
+        }
+      }
+    } catch (error) {
+      setUsernameError("Failed to register. Please try again.");
+    }
+  };
+
+  // Onboarding: Welcome Screen
+  if (!isLoggedIn && onboardingStep === 'welcome') {
+    return (
+      <div className="h-screen w-screen bg-gradient-to-br from-gc-dark-900 via-gc-dark-800 to-gc-dark-700 flex items-center justify-center">
+        <div className="text-center animate-fade-in">
+          <div className="text-8xl mb-6 animate-bounce">🔗</div>
+          <h1 className="text-5xl font-bold text-white mb-4">GoConnect</h1>
+          <p className="text-xl text-gray-400 mb-8">Virtual LAN made simple</p>
+          
+          <button
+            onClick={() => setOnboardingStep('username')}
+            className="px-8 py-4 bg-gc-primary hover:bg-gc-primary/80 text-white text-lg font-medium rounded-lg transition transform hover:scale-105 shadow-lg"
+          >
+            Get Started →
+          </button>
+          
+          <p className="text-gray-500 text-sm mt-8">
+            Play games, share files, and chat with friends<br />
+            as if you were on the same network
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Onboarding: Username Screen
+  if (!isLoggedIn && onboardingStep === 'username') {
+    return (
+      <div className="h-screen w-screen bg-gradient-to-br from-gc-dark-900 via-gc-dark-800 to-gc-dark-700 flex items-center justify-center">
+        <div className="bg-gc-dark-800/80 backdrop-blur p-8 rounded-xl shadow-2xl w-[420px] border border-gc-dark-600">
+          <div className="text-center mb-8">
+            <div className="text-5xl mb-4">👤</div>
+            <h2 className="text-2xl font-bold text-white mb-2">What should we call you?</h2>
+            <p className="text-gray-400">This is how others will see you</p>
+          </div>
+
+          <form onSubmit={handleStartEnhanced} className="space-y-6">
+            <div>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => { setUsername(e.target.value); setUsernameError(""); }}
+                className="w-full px-4 py-3 bg-gc-dark-900 border border-gc-dark-600 rounded-lg text-white text-lg text-center focus:border-gc-primary focus:outline-none focus:ring-2 focus:ring-gc-primary/20"
+                placeholder="Your username"
+                autoFocus
+                maxLength={20}
+              />
+              {usernameError && <div className="text-red-400 text-sm mt-2 text-center">{usernameError}</div>}
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 bg-gc-primary hover:bg-gc-primary/80 text-white font-medium rounded-lg transition"
+            >
+              Continue →
+            </button>
+          </form>
+
+          <button
+            onClick={() => setOnboardingStep('welcome')}
+            className="w-full mt-4 text-gray-500 hover:text-gray-300 text-sm"
+          >
+            ← Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Onboarding: Choice Screen (Create or Join)
+  if (!isLoggedIn && onboardingStep === 'choice') {
+    return (
+      <div className="h-screen w-screen bg-gradient-to-br from-gc-dark-900 via-gc-dark-800 to-gc-dark-700 flex items-center justify-center">
+        <div className="text-center max-w-2xl mx-auto px-4">
+          <div className="text-5xl mb-4">👋</div>
+          <h2 className="text-3xl font-bold text-white mb-2">Welcome, {username}!</h2>
+          <p className="text-gray-400 mb-10">What would you like to do?</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Create Server Card */}
+            <button
+              onClick={() => {
+                setOnboardingStep('done');
+                setIsLoggedIn(true);
+                loadServers();
+                setShowCreateModal(true);
+              }}
+              className="bg-gc-dark-800/80 backdrop-blur p-8 rounded-xl border border-gc-dark-600 hover:border-gc-primary transition group text-left"
+            >
+              <div className="text-5xl mb-4 group-hover:scale-110 transition">🌐</div>
+              <h3 className="text-xl font-bold text-white mb-2">Create a Server</h3>
+              <p className="text-gray-400 text-sm">
+                Start your own private network and invite friends to join
+              </p>
+            </button>
+
+            {/* Join Server Card */}
+            <button
+              onClick={() => {
+                setOnboardingStep('done');
+                setIsLoggedIn(true);
+                loadServers();
+                setShowJoinModal(true);
+              }}
+              className="bg-gc-dark-800/80 backdrop-blur p-8 rounded-xl border border-gc-dark-600 hover:border-gc-primary transition group text-left"
+            >
+              <div className="text-5xl mb-4 group-hover:scale-110 transition">🔗</div>
+              <h3 className="text-xl font-bold text-white mb-2">Join a Server</h3>
+              <p className="text-gray-400 text-sm">
+                Have an invite link? Join your friend's network instantly
+              </p>
+            </button>
+          </div>
+
+          <button
+            onClick={() => {
+              setOnboardingStep('done');
+              setIsLoggedIn(true);
+              loadServers();
+            }}
+            className="mt-8 text-gray-500 hover:text-gray-300 text-sm"
+          >
+            Skip for now →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Legacy login screen (for returning users without saved data)
   if (!isLoggedIn) {
     return (
       <div className="h-screen w-screen bg-gc-dark-700 flex items-center justify-center">
@@ -272,12 +443,12 @@ function App() {
           <div className="text-center mb-8">
             <div className="text-5xl mb-4">🔗</div>
             <h1 className="text-3xl font-bold text-white mb-2">GoConnect</h1>
-            <p className="text-gray-400">Virtual LAN made simple</p>
+            <p className="text-gray-400">Welcome back!</p>
           </div>
 
-          <form onSubmit={handleStart} className="space-y-4">
+          <form onSubmit={handleStartEnhanced} className="space-y-4">
             <div>
-              <label className="block text-sm text-gray-300 mb-1">Choose a username</label>
+              <label className="block text-sm text-gray-300 mb-1">Username</label>
               <input
                 type="text"
                 value={username}
@@ -295,7 +466,7 @@ function App() {
               type="submit"
               className="w-full py-3 bg-gc-primary hover:bg-gc-primary/80 text-white font-medium rounded transition"
             >
-              Get Started
+              Continue
             </button>
           </form>
         </div>
