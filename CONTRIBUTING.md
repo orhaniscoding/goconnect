@@ -245,58 +245,64 @@ func TestNetworkIntegration(t *testing.T) {
 - Update OpenAPI spec for API changes
 - Add examples for new features
 
-## 🚀 Creating a Release
+## 🚀 Automatic Releases
 
-Releases are automated via GitHub Actions when a version tag is pushed.
+Releases are **fully automated** based on [Conventional Commits](https://www.conventionalcommits.org/). No manual tagging or version bumping required!
 
-### Release Process
+### How It Works
 
-1. **Update version numbers** using the bump script:
+When you push to `main`, GitHub Actions analyzes your commit messages:
 
-   ```bash
-   # Linux/macOS
-   ./scripts/bump-version.sh 3.1.0
+| Commit Type | Version Bump | Example |
+|-------------|--------------|---------|
+| `feat:` | **Minor** (1.0.0 → 1.1.0) | `feat(cli): add network discovery` |
+| `fix:` | **Patch** (1.0.0 → 1.0.1) | `fix(core): resolve memory leak` |
+| `feat!:` or `BREAKING CHANGE` | **Major** (1.0.0 → 2.0.0) | `feat!: redesign API` |
+| `perf:`, `refactor:` | **Patch** | `perf(wireguard): optimize handshake` |
+| `docs:`, `test:`, `chore:` | No release | `docs: update README` |
 
-   # Windows (PowerShell)
-   .\scripts\bump-version.ps1 3.1.0
-   ```
+### Automatic Release Process
 
-   This updates versions in:
-   - `desktop/package.json`
-   - `desktop/src-tauri/tauri.conf.json`
-   - `desktop/src-tauri/Cargo.toml`
+1. **Push commits to `main`** with conventional commit messages
+2. **GitHub Actions automatically**:
+   - Analyzes commits since last release
+   - Determines version bump (major/minor/patch)
+   - Updates all version files (`package.json`, `tauri.conf.json`, `Cargo.toml`)
+   - Creates a git tag
+   - Builds all platforms (Desktop, CLI, Server)
+   - Builds and pushes Docker images
+   - Creates GitHub release with changelog
+   - Generates checksums
 
-2. **Update CHANGELOG.md** with release notes
+### Examples
 
-3. **Commit and tag**:
-   ```bash
-   git add -A
-   git commit -m "chore: bump version to v3.1.0"
-   git tag v3.1.0
-   git push origin main --tags
-   ```
+```bash
+# This will trigger a MINOR release (new feature)
+git commit -m "feat(desktop): add dark mode toggle"
 
-4. **GitHub Actions will automatically**:
-   - Validate version consistency across all files
-   - Build Desktop apps (Windows, macOS, Linux)
-   - Build CLI binaries (all platforms)
-   - Build Server binaries (all platforms)
-   - Build and push Docker images
-   - Create GitHub release with all assets
-   - Generate checksums for verification
-   - Validate the release was created correctly
+# This will trigger a PATCH release (bug fix)
+git commit -m "fix(api): handle null response correctly"
 
-### Pre-release Versions
+# This will trigger a MAJOR release (breaking change)
+git commit -m "feat(api)!: remove deprecated v1 endpoints"
 
-For pre-releases, use version suffixes:
-- `v3.1.0-alpha.1` - Alpha release
-- `v3.1.0-beta.1` - Beta release
-- `v3.1.0-rc.1` - Release candidate
+# This will NOT trigger a release (docs only)
+git commit -m "docs: improve installation guide"
+```
 
-Pre-releases are automatically detected and:
-- Marked as pre-release on GitHub
-- NOT tagged as `latest`
-- Docker images NOT tagged as `latest`
+### Commit Message Format
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer]
+```
+
+**Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`
+
+**Scopes**: `core`, `cli`, `desktop`, `api`, `db`, `wg`, `auth`, `proto`
 
 ## 🐛 Reporting Issues
 
