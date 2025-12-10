@@ -364,3 +364,108 @@ func TestSQLiteDeviceRepository_GetStaleDevices(t *testing.T) {
 func stringIDDevice(prefix string, i int) string {
 	return prefix + "-" + string(rune('0'+i))
 }
+
+// TestSQLiteDeviceRepository_List_Filters tests various filter combinations
+func TestSQLiteDeviceRepository_List_Filters(t *testing.T) {
+	repo, cleanup := setupSQLiteDeviceTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Create devices with different attributes
+	devices := []*domain.Device{
+		{ID: "d1", UserID: "user-1", TenantID: "tenant-1", Name: "Device 1", Platform: "linux", PubKey: "pk1", Active: true, CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		{ID: "d2", UserID: "user-1", TenantID: "tenant-1", Name: "Device 2", Platform: "windows", PubKey: "pk2", Active: true, CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		{ID: "d3", UserID: "user-2", TenantID: "tenant-1", Name: "Device 3", Platform: "linux", PubKey: "pk3", Active: false, CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		{ID: "d4", UserID: "user-2", TenantID: "tenant-2", Name: "Device 4", Platform: "darwin", PubKey: "pk4", Active: true, CreatedAt: time.Now(), UpdatedAt: time.Now()},
+	}
+	for _, d := range devices {
+		require.NoError(t, repo.Create(ctx, d))
+	}
+
+	t.Run("Filter by TenantID", func(t *testing.T) {
+		result, _, err := repo.List(ctx, domain.DeviceFilter{TenantID: "tenant-1", Limit: 10})
+		require.NoError(t, err)
+		assert.Len(t, result, 3)
+	})
+
+	t.Run("Filter by UserID", func(t *testing.T) {
+		result, _, err := repo.List(ctx, domain.DeviceFilter{UserID: "user-2", Limit: 10})
+		require.NoError(t, err)
+		assert.Len(t, result, 2)
+	})
+
+	t.Run("Filter by Active", func(t *testing.T) {
+		active := true
+		result, _, err := repo.List(ctx, domain.DeviceFilter{Active: &active, Limit: 10})
+		require.NoError(t, err)
+		assert.Len(t, result, 3)
+	})
+
+	t.Run("Filter by Platform", func(t *testing.T) {
+		result, _, err := repo.List(ctx, domain.DeviceFilter{Platform: "linux", Limit: 10})
+		require.NoError(t, err)
+		assert.Len(t, result, 2)
+	})
+
+	t.Run("Pagination with Cursor", func(t *testing.T) {
+		result1, cursor, err := repo.List(ctx, domain.DeviceFilter{TenantID: "tenant-1", Limit: 2})
+		require.NoError(t, err)
+		assert.Len(t, result1, 2)
+		assert.NotEmpty(t, cursor)
+
+		result2, _, err := repo.List(ctx, domain.DeviceFilter{TenantID: "tenant-1", Limit: 2, Cursor: cursor})
+		require.NoError(t, err)
+		// Should have remaining items (1 or more based on sort order)
+		assert.True(t, len(result2) >= 1)
+	})
+}
+
+// TestSQLiteDeviceRepository_Update_NotFound tests updating non-existent device
+func TestSQLiteDeviceRepository_Update_NotFound(t *testing.T) {
+	repo, cleanup := setupSQLiteDeviceTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	device := &domain.Device{
+		ID:   "non-existent",
+		Name: "Updated Name",
+	}
+	err := repo.Update(ctx, device)
+	require.Error(t, err)
+}
+
+// TestSQLiteDeviceRepository_Delete_NotFound tests deleting non-existent device
+func TestSQLiteDeviceRepository_Delete_NotFound(t *testing.T) {
+	repo, cleanup := setupSQLiteDeviceTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	err := repo.Delete(ctx, "non-existent")
+	require.Error(t, err)
+}
+
+// TestSQLiteDeviceRepository_UpdateHeartbeat_NotFound tests heartbeat update for non-existent device
+func TestSQLiteDeviceRepository_UpdateHeartbeat_NotFound(t *testing.T) {
+	repo, cleanup := setupSQLiteDeviceTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	err := repo.UpdateHeartbeat(ctx, "non-existent", "192.168.1.1")
+	require.Error(t, err)
+}
+
+// TestSQLiteDeviceRepository_MarkInactive_NotFound tests marking non-existent device inactive
+func TestSQLiteDeviceRepository_MarkInactive_NotFound(t *testing.T) {
+	repo, cleanup := setupSQLiteDeviceTest(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	err := repo.MarkInactive(ctx, "non-existent")
+	require.Error(t, err)
+}
+
