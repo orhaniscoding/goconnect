@@ -2046,3 +2046,562 @@ func TestHandleTenantLeave_Success(t *testing.T) {
 		t.Fatal("Expected ack but got timeout")
 	}
 }
+
+// ==================== CHAT TYPING TESTS ====================
+
+func TestHandleChatTyping_InvalidJSON(t *testing.T) {
+	handler := newTestHandler()
+	client := newTestClient("user-1")
+
+	msg := &InboundMessage{
+		Type: TypeChatTyping,
+		OpID: "op-1",
+		Data: []byte("invalid json {{{"),
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid chat.typing data")
+}
+
+func TestHandleChatTyping_MissingScope(t *testing.T) {
+	handler := newTestHandler()
+	client := newTestClient("user-1")
+
+	data := TypingData{
+		Scope:  "",
+		Typing: true,
+	}
+	dataBytes, _ := json.Marshal(data)
+
+	msg := &InboundMessage{
+		Type: TypeChatTyping,
+		OpID: "op-1",
+		Data: dataBytes,
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "scope is required")
+}
+
+func TestHandleChatTyping_Success(t *testing.T) {
+	hub := NewHub(nil)
+	handler := &DefaultMessageHandler{
+		hub: hub,
+	}
+	client := &Client{
+		userID:   "user-1",
+		tenantID: "tenant-1",
+		send:     make(chan []byte, 256),
+		rooms:    make(map[string]bool),
+		hub:      hub,
+	}
+
+	data := TypingData{
+		Scope:  "network:net-1",
+		Typing: true,
+	}
+	dataBytes, _ := json.Marshal(data)
+
+	msg := &InboundMessage{
+		Type: TypeChatTyping,
+		OpID: "op-1",
+		Data: dataBytes,
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.NoError(t, err)
+}
+
+// ==================== CHAT READ TESTS ====================
+
+func TestHandleChatRead_InvalidJSON(t *testing.T) {
+	handler := newTestHandler()
+	client := newTestClient("user-1")
+
+	msg := &InboundMessage{
+		Type: TypeChatRead,
+		OpID: "op-1",
+		Data: []byte("invalid json {{{"),
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid chat.read data")
+}
+
+func TestHandleChatRead_MissingMessageID(t *testing.T) {
+	handler := newTestHandler()
+	client := newTestClient("user-1")
+
+	data := ChatReadData{
+		MessageID: "",
+		Room:      "network:net-1",
+	}
+	dataBytes, _ := json.Marshal(data)
+
+	msg := &InboundMessage{
+		Type: TypeChatRead,
+		OpID: "op-1",
+		Data: dataBytes,
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "message_id is required")
+}
+
+func TestHandleChatRead_MissingRoom(t *testing.T) {
+	handler := newTestHandler()
+	client := newTestClient("user-1")
+
+	data := ChatReadData{
+		MessageID: "msg-1",
+		Room:      "",
+	}
+	dataBytes, _ := json.Marshal(data)
+
+	msg := &InboundMessage{
+		Type: TypeChatRead,
+		OpID: "op-1",
+		Data: dataBytes,
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "room is required")
+}
+
+func TestHandleChatRead_DMScope(t *testing.T) {
+	hub := NewHub(nil)
+	handler := &DefaultMessageHandler{
+		hub: hub,
+	}
+	client := &Client{
+		userID:   "user-1",
+		tenantID: "tenant-1",
+		send:     make(chan []byte, 256),
+		rooms:    make(map[string]bool),
+		hub:      hub,
+	}
+
+	data := ChatReadData{
+		MessageID: "msg-1",
+		Room:      "dm:user-2",
+	}
+	dataBytes, _ := json.Marshal(data)
+
+	msg := &InboundMessage{
+		Type: TypeChatRead,
+		OpID: "op-1",
+		Data: dataBytes,
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.NoError(t, err)
+}
+
+func TestHandleChatRead_DMCanonicalScope(t *testing.T) {
+	hub := NewHub(nil)
+	handler := &DefaultMessageHandler{
+		hub: hub,
+	}
+	client := &Client{
+		userID:   "user-1",
+		tenantID: "tenant-1",
+		send:     make(chan []byte, 256),
+		rooms:    make(map[string]bool),
+		hub:      hub,
+	}
+
+	// Test with canonical DM format (user is first part)
+	data := ChatReadData{
+		MessageID: "msg-1",
+		Room:      "dm:user-1:user-2",
+	}
+	dataBytes, _ := json.Marshal(data)
+
+	msg := &InboundMessage{
+		Type: TypeChatRead,
+		OpID: "op-1",
+		Data: dataBytes,
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.NoError(t, err)
+}
+
+func TestHandleChatRead_DMCanonicalScope_UserSecond(t *testing.T) {
+	hub := NewHub(nil)
+	handler := &DefaultMessageHandler{
+		hub: hub,
+	}
+	client := &Client{
+		userID:   "user-2",
+		tenantID: "tenant-1",
+		send:     make(chan []byte, 256),
+		rooms:    make(map[string]bool),
+		hub:      hub,
+	}
+
+	// Test with canonical DM format (user is second part)
+	data := ChatReadData{
+		MessageID: "msg-1",
+		Room:      "dm:user-1:user-2",
+	}
+	dataBytes, _ := json.Marshal(data)
+
+	msg := &InboundMessage{
+		Type: TypeChatRead,
+		OpID: "op-1",
+		Data: dataBytes,
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.NoError(t, err)
+}
+
+func TestHandleChatRead_DMCanonicalScope_NotPartOf(t *testing.T) {
+	hub := NewHub(nil)
+	handler := &DefaultMessageHandler{
+		hub: hub,
+	}
+	client := &Client{
+		userID:   "user-3",
+		tenantID: "tenant-1",
+		send:     make(chan []byte, 256),
+		rooms:    make(map[string]bool),
+		hub:      hub,
+	}
+
+	// Test with canonical DM format - user not part of it
+	data := ChatReadData{
+		MessageID: "msg-1",
+		Room:      "dm:user-1:user-2",
+	}
+	dataBytes, _ := json.Marshal(data)
+
+	msg := &InboundMessage{
+		Type: TypeChatRead,
+		OpID: "op-1",
+		Data: dataBytes,
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "client not part of this DM")
+}
+
+func TestHandleChatRead_NetworkScope(t *testing.T) {
+	hub := NewHub(nil)
+	handler := &DefaultMessageHandler{
+		hub: hub,
+	}
+	client := &Client{
+		userID:   "user-1",
+		tenantID: "tenant-1",
+		send:     make(chan []byte, 256),
+		rooms:    make(map[string]bool),
+		hub:      hub,
+	}
+
+	// Client must be subscribed to the room
+	client.JoinRoom("network:net-1")
+
+	data := ChatReadData{
+		MessageID: "msg-1",
+		Room:      "network:net-1",
+	}
+	dataBytes, _ := json.Marshal(data)
+
+	msg := &InboundMessage{
+		Type: TypeChatRead,
+		OpID: "op-1",
+		Data: dataBytes,
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.NoError(t, err)
+}
+
+// ==================== CHAT REACTION TESTS ====================
+
+func TestHandleChatReaction_InvalidJSON(t *testing.T) {
+	handler := newTestHandler()
+	client := newTestClient("user-1")
+
+	msg := &InboundMessage{
+		Type: TypeChatReaction,
+		OpID: "op-1",
+		Data: []byte("invalid json {{{"),
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid chat.reaction data")
+}
+
+func TestHandleChatReaction_MissingMessageID(t *testing.T) {
+	handler := newTestHandler()
+	client := newTestClient("user-1")
+
+	data := ChatReactionData{
+		MessageID: "",
+		Reaction:  "👍",
+		Action:    "add",
+		Scope:     "network:net-1",
+	}
+	dataBytes, _ := json.Marshal(data)
+
+	msg := &InboundMessage{
+		Type: TypeChatReaction,
+		OpID: "op-1",
+		Data: dataBytes,
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "message_id is required")
+}
+
+func TestHandleChatReaction_MissingReaction(t *testing.T) {
+	handler := newTestHandler()
+	client := newTestClient("user-1")
+
+	data := ChatReactionData{
+		MessageID: "msg-1",
+		Reaction:  "",
+		Action:    "add",
+		Scope:     "network:net-1",
+	}
+	dataBytes, _ := json.Marshal(data)
+
+	msg := &InboundMessage{
+		Type: TypeChatReaction,
+		OpID: "op-1",
+		Data: dataBytes,
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "reaction is required")
+}
+
+func TestHandleChatReaction_InvalidAction(t *testing.T) {
+	handler := newTestHandler()
+	client := newTestClient("user-1")
+
+	data := ChatReactionData{
+		MessageID: "msg-1",
+		Reaction:  "👍",
+		Action:    "invalid",
+		Scope:     "network:net-1",
+	}
+	dataBytes, _ := json.Marshal(data)
+
+	msg := &InboundMessage{
+		Type: TypeChatReaction,
+		OpID: "op-1",
+		Data: dataBytes,
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid action")
+}
+
+func TestHandleChatReaction_MissingScope(t *testing.T) {
+	handler := newTestHandler()
+	client := newTestClient("user-1")
+
+	data := ChatReactionData{
+		MessageID: "msg-1",
+		Reaction:  "👍",
+		Action:    "add",
+		Scope:     "",
+	}
+	dataBytes, _ := json.Marshal(data)
+
+	msg := &InboundMessage{
+		Type: TypeChatReaction,
+		OpID: "op-1",
+		Data: dataBytes,
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "scope is required")
+}
+
+func TestHandleChatReaction_DMScope(t *testing.T) {
+	hub := NewHub(nil)
+	handler := &DefaultMessageHandler{
+		hub: hub,
+	}
+	client := &Client{
+		userID:   "user-1",
+		tenantID: "tenant-1",
+		send:     make(chan []byte, 256),
+		rooms:    make(map[string]bool),
+		hub:      hub,
+	}
+
+	data := ChatReactionData{
+		MessageID: "msg-1",
+		Reaction:  "👍",
+		Action:    "add",
+		Scope:     "dm:user-1:user-2",
+	}
+	dataBytes, _ := json.Marshal(data)
+
+	msg := &InboundMessage{
+		Type: TypeChatReaction,
+		OpID: "op-1",
+		Data: dataBytes,
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.NoError(t, err)
+}
+
+func TestHandleChatReaction_DMScope_NotPartOf(t *testing.T) {
+	hub := NewHub(nil)
+	handler := &DefaultMessageHandler{
+		hub: hub,
+	}
+	client := &Client{
+		userID:   "user-3",
+		tenantID: "tenant-1",
+		send:     make(chan []byte, 256),
+		rooms:    make(map[string]bool),
+		hub:      hub,
+	}
+
+	data := ChatReactionData{
+		MessageID: "msg-1",
+		Reaction:  "👍",
+		Action:    "add",
+		Scope:     "dm:user-1:user-2",
+	}
+	dataBytes, _ := json.Marshal(data)
+
+	msg := &InboundMessage{
+		Type: TypeChatReaction,
+		OpID: "op-1",
+		Data: dataBytes,
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "client not part of this DM")
+}
+
+func TestHandleChatReaction_NetworkScope(t *testing.T) {
+	hub := NewHub(nil)
+	handler := &DefaultMessageHandler{
+		hub: hub,
+	}
+	client := &Client{
+		userID:   "user-1",
+		tenantID: "tenant-1",
+		send:     make(chan []byte, 256),
+		rooms:    make(map[string]bool),
+		hub:      hub,
+	}
+
+	// Client must be subscribed to the room
+	client.JoinRoom("network:net-1")
+
+	data := ChatReactionData{
+		MessageID: "msg-1",
+		Reaction:  "👍",
+		Action:    "remove",
+		Scope:     "network:net-1",
+	}
+	dataBytes, _ := json.Marshal(data)
+
+	msg := &InboundMessage{
+		Type: TypeChatReaction,
+		OpID: "op-1",
+		Data: dataBytes,
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.NoError(t, err)
+}
+
+// ==================== AUTH REFRESH ERROR TESTS ====================
+
+func TestHandleAuthRefresh_InvalidJSON(t *testing.T) {
+	handler := newTestHandler()
+	client := newTestClient("user-1")
+
+	msg := &InboundMessage{
+		Type: TypeAuthRefresh,
+		OpID: "op-1",
+		Data: []byte("invalid json {{{"),
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid auth.refresh data")
+}
+
+func TestHandleAuthRefresh_InvalidToken(t *testing.T) {
+	handler := newTestHandler()
+	client := newTestClient("user-1")
+
+	data := map[string]string{
+		"refresh_token": "invalid-token-format",
+	}
+	dataBytes, _ := json.Marshal(data)
+
+	msg := &InboundMessage{
+		Type: TypeAuthRefresh,
+		OpID: "op-1",
+		Data: dataBytes,
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.Error(t, err)
+}
+
+// ==================== FILE UPLOAD ERROR TESTS ====================
+
+func TestHandleFileUpload_InvalidJSON(t *testing.T) {
+	handler := newTestHandler()
+	client := newTestClient("user-1")
+
+	msg := &InboundMessage{
+		Type: TypeFileUpload,
+		OpID: "op-1",
+		Data: []byte("invalid json {{{"),
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid file.upload data")
+}
+
+func TestHandleFileUpload_MissingFilename(t *testing.T) {
+	handler := newTestHandler()
+	client := newTestClient("user-1")
+
+	// File upload requires scope validation
+	data := FileUploadData{
+		FileName: "test.png",
+		Scope:    "",  // Empty scope should fail
+	}
+	dataBytes, _ := json.Marshal(data)
+
+	msg := &InboundMessage{
+		Type: TypeFileUpload,
+		OpID: "op-1",
+		Data: dataBytes,
+	}
+
+	err := handler.HandleMessage(context.Background(), client, msg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "scope is required")
+}
