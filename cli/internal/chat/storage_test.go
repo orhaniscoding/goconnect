@@ -698,3 +698,42 @@ func TestStorage_GetMessagesByPeer_NotFound(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, messages)
 }
+
+// TestNewStorage_ReadOnlyDirectory tests creating storage in a readonly directory
+func TestNewStorage_ReadOnlyDirectory(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("Skipping as root")
+	}
+	// Skip on Windows as permissions work differently
+	if filepath.Separator == '\\' {
+		t.Skip("Skipping on Windows")
+	}
+
+	tmpDir := t.TempDir()
+	readOnlyDir := filepath.Join(tmpDir, "readonly")
+	if err := os.Mkdir(readOnlyDir, 0555); err != nil {
+		t.Fatalf("Failed to create readonly dir: %v", err)
+	}
+	defer os.Chmod(readOnlyDir, 0755)
+
+	// Try to create nested directory in readonly parent
+	nestedDir := filepath.Join(readOnlyDir, "chat")
+	_, err := NewStorage(nestedDir)
+	if err == nil {
+		t.Error("Expected error when creating storage in readonly directory")
+	}
+}
+
+// TestStorage_Close tests closing the storage
+func TestStorage_Close(t *testing.T) {
+	tmpDir := t.TempDir()
+	storage, err := NewStorage(tmpDir)
+	require.NoError(t, err)
+
+	err = storage.Close()
+	require.NoError(t, err)
+
+	// Trying to save after close should fail
+	err = storage.SaveMessage(Message{ID: "1", From: "test", Content: "test", Time: time.Now()})
+	assert.Error(t, err)
+}
