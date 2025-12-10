@@ -1010,3 +1010,110 @@ func TestAdminService_GetSystemStats_EdgeCases(t *testing.T) {
 		assert.Equal(t, 0, stats.TotalDevices)
 	})
 }
+
+// ==================== UPDATE USER ROLE EDGE CASES ====================
+
+func TestAdminService_UpdateUserRole_WithAuditor(t *testing.T) {
+	svc, userRepo, _, _, _, _, adminRepo := setupAdminServiceTest()
+	ctx := context.Background()
+
+	// Create admin and target user
+	adminUser := &domain.User{ID: "admin-audit", Email: "admin-audit@test.com", TenantID: "t1", IsAdmin: true}
+	require.NoError(t, userRepo.Create(ctx, adminUser))
+
+	targetUser := &domain.User{ID: "target-audit", Email: "target-audit@test.com", TenantID: "t1", IsAdmin: false}
+	require.NoError(t, userRepo.Create(ctx, targetUser))
+	adminRepo.AddUser(targetUser)
+
+	// Update role with both flags
+	isAdmin := true
+	isMod := true
+	err := svc.UpdateUserRole(ctx, "admin-audit", "target-audit", &isAdmin, &isMod)
+	require.NoError(t, err)
+}
+
+func TestAdminService_UpdateUserRole_AllowSelfPromoteModerator(t *testing.T) {
+	svc, userRepo, _, _, _, _, adminRepo := setupAdminServiceTest()
+	ctx := context.Background()
+
+	// Create admin
+	adminUser := &domain.User{ID: "admin-self", Email: "admin-self@test.com", TenantID: "t1", IsAdmin: true}
+	require.NoError(t, userRepo.Create(ctx, adminUser))
+	adminRepo.AddUser(adminUser)
+
+	// Admin can still promote themselves to moderator (self-demotion check only applies to removing admin)
+	isMod := true
+	err := svc.UpdateUserRole(ctx, "admin-self", "admin-self", nil, &isMod)
+	require.NoError(t, err)
+}
+
+func TestAdminService_UpdateUserRole_AdminNotFound(t *testing.T) {
+	svc, _, _, _, _, _, _ := setupAdminServiceTest()
+	ctx := context.Background()
+
+	isAdmin := true
+	err := svc.UpdateUserRole(ctx, "non-existent-admin", "some-target", &isAdmin, nil)
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrUnauthorized, domainErr.Code)
+}
+
+// ==================== SUSPEND USER EDGE CASES ====================
+
+func TestAdminService_SuspendUser_AdminNotFound(t *testing.T) {
+	svc, _, _, _, _, _, _ := setupAdminServiceTest()
+	ctx := context.Background()
+
+	err := svc.SuspendUser(ctx, "non-existent-admin", "some-target", "Reason")
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrUnauthorized, domainErr.Code)
+}
+
+func TestAdminService_SuspendUser_WithAuditor(t *testing.T) {
+	svc, userRepo, _, _, _, _, adminRepo := setupAdminServiceTest()
+	ctx := context.Background()
+
+	// Create admin and target
+	adminUser := &domain.User{ID: "admin-susp-audit", Email: "admin-susp@test.com", TenantID: "t1", IsAdmin: true}
+	require.NoError(t, userRepo.Create(ctx, adminUser))
+
+	targetUser := &domain.User{ID: "target-susp-audit", Email: "target-susp@test.com", TenantID: "t1", IsAdmin: false}
+	require.NoError(t, userRepo.Create(ctx, targetUser))
+	adminRepo.AddUser(targetUser)
+
+	err := svc.SuspendUser(ctx, "admin-susp-audit", "target-susp-audit", "Violated ToS with detailed reason")
+	require.NoError(t, err)
+}
+
+// ==================== UNSUSPEND USER EDGE CASES ====================
+
+func TestAdminService_UnsuspendUser_AdminNotFound(t *testing.T) {
+	svc, _, _, _, _, _, _ := setupAdminServiceTest()
+	ctx := context.Background()
+
+	err := svc.UnsuspendUser(ctx, "non-existent-admin", "some-target")
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrUnauthorized, domainErr.Code)
+}
+
+func TestAdminService_UnsuspendUser_Success(t *testing.T) {
+	svc, userRepo, _, _, _, _, adminRepo := setupAdminServiceTest()
+	ctx := context.Background()
+
+	// Create admin and suspended target
+	adminUser := &domain.User{ID: "admin-unsusp", Email: "admin-unsusp@test.com", TenantID: "t1", IsAdmin: true}
+	require.NoError(t, userRepo.Create(ctx, adminUser))
+
+	targetUser := &domain.User{ID: "target-unsusp", Email: "target-unsusp@test.com", TenantID: "t1", IsAdmin: false}
+	require.NoError(t, userRepo.Create(ctx, targetUser))
+	adminRepo.AddUser(targetUser)
+	adminRepo.SuspendUser(ctx, "target-unsusp", "Initial reason", "some-admin")
+
+	err := svc.UnsuspendUser(ctx, "admin-unsusp", "target-unsusp")
+	require.NoError(t, err)
+}

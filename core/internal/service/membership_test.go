@@ -7,6 +7,8 @@ import (
 
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func setup() (*MembershipService, string, string) {
@@ -1025,4 +1027,123 @@ func TestNoopNotifier(t *testing.T) {
 		// Should not panic
 		notifier.MemberLeft("network-id", "user-id")
 	})
+}
+
+// ==================== KICK EDGE CASE TESTS ====================
+
+func TestKick_NetworkNotFound(t *testing.T) {
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	svc := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+
+	err := svc.Kick(context.Background(), "non-existent-network", "some-user", "admin", "t1")
+	require.Error(t, err)
+}
+
+func TestKick_WrongTenant(t *testing.T) {
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	svc := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+
+	net := &domain.Network{
+		ID:         "net-kick-tenant",
+		TenantID:   "t1",
+		Name:       "Net",
+		Visibility: domain.NetworkVisibilityPublic,
+		JoinPolicy: domain.JoinPolicyOpen,
+		CIDR:       "10.10.0.0/24",
+		CreatedBy:  "admin",
+	}
+	_ = nrepo.Create(context.Background(), net)
+	_, _ = mrepo.UpsertApproved(context.Background(), net.ID, "admin", domain.RoleAdmin, time.Now())
+
+	// Try to kick with wrong tenant
+	err := svc.Kick(context.Background(), net.ID, "some-user", "admin", "wrong-tenant")
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
+}
+
+// ==================== LIST MEMBERS EDGE CASE TESTS ====================
+
+func TestListMembers_NetworkNotFound(t *testing.T) {
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	svc := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+
+	_, _, err := svc.ListMembers(context.Background(), "non-existent", "", "t1", 10, "")
+	require.Error(t, err)
+}
+
+func TestListMembers_WrongTenant(t *testing.T) {
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	svc := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+
+	net := &domain.Network{
+		ID:         "net-list-tenant",
+		TenantID:   "t1",
+		Name:       "Net",
+		Visibility: domain.NetworkVisibilityPublic,
+		JoinPolicy: domain.JoinPolicyOpen,
+		CIDR:       "10.11.0.0/24",
+		CreatedBy:  "admin",
+	}
+	_ = nrepo.Create(context.Background(), net)
+
+	// Try to list with wrong tenant
+	_, _, err := svc.ListMembers(context.Background(), net.ID, "", "wrong-tenant", 10, "")
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
+}
+
+// ==================== BAN EDGE CASE TESTS ====================
+
+func TestBan_NetworkNotFound(t *testing.T) {
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	svc := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+
+	err := svc.Ban(context.Background(), "non-existent-network", "some-user", "admin", "t1")
+	require.Error(t, err)
+}
+
+func TestBan_WrongTenant(t *testing.T) {
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	svc := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+
+	net := &domain.Network{
+		ID:         "net-ban-tenant",
+		TenantID:   "t1",
+		Name:       "Net",
+		Visibility: domain.NetworkVisibilityPublic,
+		JoinPolicy: domain.JoinPolicyOpen,
+		CIDR:       "10.12.0.0/24",
+		CreatedBy:  "admin",
+	}
+	_ = nrepo.Create(context.Background(), net)
+	_, _ = mrepo.UpsertApproved(context.Background(), net.ID, "admin", domain.RoleAdmin, time.Now())
+
+	// Try to ban with wrong tenant
+	err := svc.Ban(context.Background(), net.ID, "some-user", "admin", "wrong-tenant")
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
 }
