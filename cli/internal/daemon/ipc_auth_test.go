@@ -180,3 +180,47 @@ func TestLoadClientToken_NotFound(t *testing.T) {
 		t.Error("LoadClientTokenFromPath should fail for non-existent file")
 	}
 }
+
+func TestIPCAuth_GetTokenPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	tokenPath := filepath.Join(tmpDir, "test.token")
+	auth := daemon.NewIPCAuthWithPath(tokenPath)
+
+	if got := auth.GetTokenPath(); got != tokenPath {
+		t.Errorf("GetTokenPath() = %v, want %v", got, tokenPath)
+	}
+}
+
+func TestNewIPCAuth(t *testing.T) {
+	// Test that NewIPCAuth creates an auth with the default path
+	auth := daemon.NewIPCAuth()
+	if auth == nil {
+		t.Fatal("NewIPCAuth returned nil")
+	}
+
+	// Token path should not be empty
+	if auth.GetTokenPath() == "" {
+		t.Error("Token path should not be empty")
+	}
+}
+
+func TestTokenCredentials(t *testing.T) {
+	token := "test-token-12345"
+	creds := daemon.NewTokenCredentials(token)
+
+	t.Run("GetRequestMetadata", func(t *testing.T) {
+		md, err := creds.GetRequestMetadata(nil)
+		if err != nil {
+			t.Fatalf("GetRequestMetadata failed: %v", err)
+		}
+		if md["x-goconnect-ipc-token"] != token {
+			t.Errorf("Token mismatch: got %v, want %v", md["x-goconnect-ipc-token"], token)
+		}
+	})
+
+	t.Run("RequireTransportSecurity", func(t *testing.T) {
+		if creds.RequireTransportSecurity() {
+			t.Error("RequireTransportSecurity should return false for IPC")
+		}
+	})
+}
