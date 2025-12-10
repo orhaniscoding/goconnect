@@ -557,3 +557,228 @@ func TestNetworkService_SetAuditor(t *testing.T) {
 		// Should not panic
 	})
 }
+
+// ==================== UpdateNetwork Additional Tests ====================
+
+func TestNetworkService_UpdateNetwork_DNS(t *testing.T) {
+	repo := repository.NewInMemoryNetworkRepository()
+	service := NewNetworkService(repo, repository.NewInMemoryIdempotencyRepository())
+	ctx := context.Background()
+
+	// Create test network
+	net := &domain.Network{
+		ID:         "net-dns-test",
+		TenantID:   "default",
+		Name:       "DNS Test Network",
+		Visibility: domain.NetworkVisibilityPublic,
+		CIDR:       "10.100.0.0/24",
+		CreatedBy:  "user1",
+	}
+	repo.Create(ctx, net)
+
+	t.Run("Set Valid DNS", func(t *testing.T) {
+		updated, err := service.UpdateNetwork(ctx, "net-dns-test", "user1", "default", map[string]any{
+			"dns": "8.8.8.8",
+		})
+		if err != nil {
+			t.Fatalf("UpdateNetwork DNS failed: %v", err)
+		}
+		if updated.DNS == nil || *updated.DNS != "8.8.8.8" {
+			t.Errorf("expected DNS 8.8.8.8, got %v", updated.DNS)
+		}
+	})
+
+	t.Run("Set Invalid DNS", func(t *testing.T) {
+		_, err := service.UpdateNetwork(ctx, "net-dns-test", "user1", "default", map[string]any{
+			"dns": "not-an-ip",
+		})
+		if err == nil {
+			t.Error("expected error for invalid DNS IP")
+		}
+	})
+
+	t.Run("Clear DNS with nil", func(t *testing.T) {
+		updated, err := service.UpdateNetwork(ctx, "net-dns-test", "user1", "default", map[string]any{
+			"dns": nil,
+		})
+		if err != nil {
+			t.Fatalf("UpdateNetwork clear DNS failed: %v", err)
+		}
+		if updated.DNS != nil {
+			t.Errorf("expected DNS to be nil, got %v", updated.DNS)
+		}
+	})
+
+	t.Run("Clear DNS with empty string", func(t *testing.T) {
+		// First set DNS
+		service.UpdateNetwork(ctx, "net-dns-test", "user1", "default", map[string]any{"dns": "1.1.1.1"})
+		
+		updated, err := service.UpdateNetwork(ctx, "net-dns-test", "user1", "default", map[string]any{
+			"dns": "",
+		})
+		if err != nil {
+			t.Fatalf("UpdateNetwork clear DNS failed: %v", err)
+		}
+		if updated.DNS != nil {
+			t.Errorf("expected DNS to be nil, got %v", updated.DNS)
+		}
+	})
+}
+
+func TestNetworkService_UpdateNetwork_MTU(t *testing.T) {
+	repo := repository.NewInMemoryNetworkRepository()
+	service := NewNetworkService(repo, repository.NewInMemoryIdempotencyRepository())
+	ctx := context.Background()
+
+	// Create test network
+	net := &domain.Network{
+		ID:         "net-mtu-test",
+		TenantID:   "default",
+		Name:       "MTU Test Network",
+		Visibility: domain.NetworkVisibilityPublic,
+		CIDR:       "10.101.0.0/24",
+		CreatedBy:  "user1",
+	}
+	repo.Create(ctx, net)
+
+	t.Run("Set Valid MTU", func(t *testing.T) {
+		updated, err := service.UpdateNetwork(ctx, "net-mtu-test", "user1", "default", map[string]any{
+			"mtu": float64(1400),
+		})
+		if err != nil {
+			t.Fatalf("UpdateNetwork MTU failed: %v", err)
+		}
+		if updated.MTU == nil || *updated.MTU != 1400 {
+			t.Errorf("expected MTU 1400, got %v", updated.MTU)
+		}
+	})
+
+	t.Run("Set MTU too low", func(t *testing.T) {
+		_, err := service.UpdateNetwork(ctx, "net-mtu-test", "user1", "default", map[string]any{
+			"mtu": float64(500),
+		})
+		if err == nil {
+			t.Error("expected error for MTU too low")
+		}
+	})
+
+	t.Run("Set MTU too high", func(t *testing.T) {
+		_, err := service.UpdateNetwork(ctx, "net-mtu-test", "user1", "default", map[string]any{
+			"mtu": float64(2000),
+		})
+		if err == nil {
+			t.Error("expected error for MTU too high")
+		}
+	})
+
+	t.Run("Clear MTU with nil", func(t *testing.T) {
+		updated, err := service.UpdateNetwork(ctx, "net-mtu-test", "user1", "default", map[string]any{
+			"mtu": nil,
+		})
+		if err != nil {
+			t.Fatalf("UpdateNetwork clear MTU failed: %v", err)
+		}
+		if updated.MTU != nil {
+			t.Errorf("expected MTU to be nil, got %v", updated.MTU)
+		}
+	})
+}
+
+func TestNetworkService_UpdateNetwork_SplitTunnel(t *testing.T) {
+	repo := repository.NewInMemoryNetworkRepository()
+	service := NewNetworkService(repo, repository.NewInMemoryIdempotencyRepository())
+	ctx := context.Background()
+
+	// Create test network
+	net := &domain.Network{
+		ID:         "net-split-test",
+		TenantID:   "default",
+		Name:       "Split Tunnel Test",
+		Visibility: domain.NetworkVisibilityPublic,
+		CIDR:       "10.102.0.0/24",
+		CreatedBy:  "user1",
+	}
+	repo.Create(ctx, net)
+
+	t.Run("Enable Split Tunnel", func(t *testing.T) {
+		updated, err := service.UpdateNetwork(ctx, "net-split-test", "user1", "default", map[string]any{
+			"split_tunnel": true,
+		})
+		if err != nil {
+			t.Fatalf("UpdateNetwork SplitTunnel failed: %v", err)
+		}
+		if updated.SplitTunnel == nil || *updated.SplitTunnel != true {
+			t.Errorf("expected SplitTunnel true, got %v", updated.SplitTunnel)
+		}
+	})
+
+	t.Run("Disable Split Tunnel", func(t *testing.T) {
+		updated, err := service.UpdateNetwork(ctx, "net-split-test", "user1", "default", map[string]any{
+			"split_tunnel": false,
+		})
+		if err != nil {
+			t.Fatalf("UpdateNetwork SplitTunnel failed: %v", err)
+		}
+		if updated.SplitTunnel == nil || *updated.SplitTunnel != false {
+			t.Errorf("expected SplitTunnel false, got %v", updated.SplitTunnel)
+		}
+	})
+
+	t.Run("Clear Split Tunnel with nil", func(t *testing.T) {
+		updated, err := service.UpdateNetwork(ctx, "net-split-test", "user1", "default", map[string]any{
+			"split_tunnel": nil,
+		})
+		if err != nil {
+			t.Fatalf("UpdateNetwork clear SplitTunnel failed: %v", err)
+		}
+		if updated.SplitTunnel != nil {
+			t.Errorf("expected SplitTunnel to be nil, got %v", updated.SplitTunnel)
+		}
+	})
+}
+
+func TestNetworkService_UpdateNetwork_NameValidation(t *testing.T) {
+	repo := repository.NewInMemoryNetworkRepository()
+	service := NewNetworkService(repo, repository.NewInMemoryIdempotencyRepository())
+	ctx := context.Background()
+
+	// Create test network
+	net := &domain.Network{
+		ID:         "net-name-test",
+		TenantID:   "default",
+		Name:       "Name Validation Test",
+		Visibility: domain.NetworkVisibilityPublic,
+		CIDR:       "10.103.0.0/24",
+		CreatedBy:  "user1",
+	}
+	repo.Create(ctx, net)
+
+	t.Run("Name too long", func(t *testing.T) {
+		longName := ""
+		for i := 0; i < 70; i++ {
+			longName += "a"
+		}
+		_, err := service.UpdateNetwork(ctx, "net-name-test", "user1", "default", map[string]any{
+			"name": longName,
+		})
+		if err == nil {
+			t.Error("expected error for name too long")
+		}
+	})
+
+	t.Run("Name exactly 64 chars", func(t *testing.T) {
+		name64 := ""
+		for i := 0; i < 64; i++ {
+			name64 += "a"
+		}
+		updated, err := service.UpdateNetwork(ctx, "net-name-test", "user1", "default", map[string]any{
+			"name": name64,
+		})
+		if err != nil {
+			t.Fatalf("UpdateNetwork name 64 chars failed: %v", err)
+		}
+		if updated.Name != name64 {
+			t.Errorf("expected name %s, got %s", name64, updated.Name)
+		}
+	})
+}

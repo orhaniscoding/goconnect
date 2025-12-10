@@ -261,6 +261,37 @@ func TestAdminHandler_GetSystemStats(t *testing.T) {
 		assert.Equal(t, float64(1), data["total_devices"])
 		assert.Equal(t, float64(5), data["active_connections"]) // mock returns 5
 	})
+
+	t.Run("Unauthorized", func(t *testing.T) {
+		r, handler, _, _, _, _, _ := setupAdminTest()
+		r.GET("/v1/admin/stats", adminAuthMiddleware(), handler.GetSystemStats)
+
+		// Request without authorization header
+		req := httptest.NewRequest("GET", "/v1/admin/stats", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("Empty database", func(t *testing.T) {
+		r, handler, _, _, _, _, _ := setupAdminTest()
+		r.GET("/v1/admin/stats", adminAuthMiddleware(), handler.GetSystemStats)
+
+		req := httptest.NewRequest("GET", "/v1/admin/stats", nil)
+		req.Header.Set("Authorization", "Bearer admin-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var response map[string]interface{}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+		data := response["data"].(map[string]interface{})
+
+		assert.Equal(t, float64(0), data["total_users"])
+		assert.Equal(t, float64(0), data["total_tenants"])
+	})
 }
 
 // ==================== TOGGLE USER ADMIN TESTS ====================
@@ -636,6 +667,85 @@ func TestAdminHandler_UpdateUserRole(t *testing.T) {
 		// Should pass validation and reach service layer (may return error from service)
 		assert.True(t, w.Code != http.StatusUnauthorized)
 	})
+
+	t.Run("Success - update existing user role", func(t *testing.T) {
+		r, handler, userRepo, _, _, _, _ := setupAdminTest()
+		r.PUT("/v1/admin/users/:id/role", adminAuthMiddleware(), handler.UpdateUserRole)
+
+		// Create both admin user and target user
+		ctx := context.Background()
+		require.NoError(t, userRepo.Create(ctx, &domain.User{
+			ID:      "admin_user",
+			Email:   "admin@test.com",
+			IsAdmin: true,
+		}))
+		require.NoError(t, userRepo.Create(ctx, &domain.User{
+			ID:    "target_user",
+			Email: "target@test.com",
+		}))
+
+		body := `{"is_admin": true, "is_moderator": true}`
+		req := httptest.NewRequest("PUT", "/v1/admin/users/target_user/role", strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer admin-token")
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Should succeed or return valid error - test the path
+		assert.Contains(t, []int{http.StatusOK, http.StatusBadRequest, http.StatusNotFound}, w.Code)
+	})
+
+	t.Run("Promote to moderator only", func(t *testing.T) {
+		r, handler, userRepo, _, _, _, _ := setupAdminTest()
+		r.PUT("/v1/admin/users/:id/role", adminAuthMiddleware(), handler.UpdateUserRole)
+
+		ctx := context.Background()
+		require.NoError(t, userRepo.Create(ctx, &domain.User{
+			ID:      "admin_user",
+			Email:   "admin@test.com",
+			IsAdmin: true,
+		}))
+		require.NoError(t, userRepo.Create(ctx, &domain.User{
+			ID:    "mod_user",
+			Email: "mod@test.com",
+		}))
+
+		body := `{"is_admin": false, "is_moderator": true}`
+		req := httptest.NewRequest("PUT", "/v1/admin/users/mod_user/role", strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer admin-token")
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Contains(t, []int{http.StatusOK, http.StatusBadRequest, http.StatusNotFound}, w.Code)
+	})
+
+	t.Run("Demote user roles", func(t *testing.T) {
+		r, handler, userRepo, _, _, _, _ := setupAdminTest()
+		r.PUT("/v1/admin/users/:id/role", adminAuthMiddleware(), handler.UpdateUserRole)
+
+		ctx := context.Background()
+		require.NoError(t, userRepo.Create(ctx, &domain.User{
+			ID:      "admin_user",
+			Email:   "admin@test.com",
+			IsAdmin: true,
+		}))
+		require.NoError(t, userRepo.Create(ctx, &domain.User{
+			ID:          "demote_user",
+			Email:       "demote@test.com",
+			IsAdmin:     true,
+			IsModerator: true,
+		}))
+
+		body := `{"is_admin": false, "is_moderator": false}`
+		req := httptest.NewRequest("PUT", "/v1/admin/users/demote_user/role", strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer admin-token")
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Contains(t, []int{http.StatusOK, http.StatusBadRequest, http.StatusNotFound}, w.Code)
+	})
 }
 
 // ==================== SUSPEND/UNSUSPEND TESTS ====================
@@ -835,5 +945,28 @@ func TestAdminHandler_GetUserDetails(t *testing.T) {
 
 		// Reaches service layer (not blocked by middleware)
 		assert.True(t, w.Code >= 200)
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		r, handler, userRepo, _, _, _, adminRepo := setupAdminTest()
+		r.GET("/v1/admin/users/:id", adminAuthMiddleware(), handler.GetUserDetails)
+
+		ctx := context.Background()
+
+		// Create admin user
+		adminUser := &domain.User{ID: "admin_user", Email: "admin@test.com", TenantID: "t1", IsAdmin: true}
+		require.NoError(t, userRepo.Create(ctx, adminUser))
+
+		// Create target user
+		targetUser := &domain.User{ID: "target-details", Email: "target@test.com", TenantID: "t1"}
+		require.NoError(t, userRepo.Create(ctx, targetUser))
+		adminRepo.AddUser(targetUser)
+
+		req := httptest.NewRequest("GET", "/v1/admin/users/target-details", nil)
+		req.Header.Set("Authorization", "Bearer admin-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }

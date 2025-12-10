@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -371,6 +373,162 @@ func TestGDPRService_RequestDeletion_Errors(t *testing.T) {
 
 	t.Run("RequestDeletion for non-existent user", func(t *testing.T) {
 		_, err := svc.RequestDeletion(ctx, "non-existent-user")
+		if err == nil {
+			t.Error("expected error for non-existent user")
+		}
+	})
+}
+
+// ==================== processPendingRequests Tests ====================
+
+func TestGDPRService_ProcessPendingRequests(t *testing.T) {
+	ctx := context.Background()
+	userRepo := repository.NewInMemoryUserRepository()
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	membershipRepo := repository.NewInMemoryMembershipRepository()
+	deletionRepo := repository.NewInMemoryDeletionRequestRepository()
+
+	svc := NewGDPRService(userRepo, deviceRepo, networkRepo, membershipRepo, deletionRepo)
+
+	t.Run("processPendingRequests with multiple pending requests", func(t *testing.T) {
+		// Create multiple users
+		for i := 0; i < 3; i++ {
+			user := &domain.User{
+				ID:       fmt.Sprintf("batch-user-%d", i),
+				TenantID: "tenant-1",
+				Email:    fmt.Sprintf("batch%d@example.com", i),
+			}
+			userRepo.Create(ctx, user)
+		}
+
+		// Request deletion for all
+		for i := 0; i < 3; i++ {
+			svc.RequestDeletion(ctx, fmt.Sprintf("batch-user-%d", i))
+		}
+
+		// Process pending requests
+		svc.processPendingRequests(ctx)
+
+		// Verify all requests were processed
+		pending, _ := deletionRepo.ListPending(ctx)
+		for _, req := range pending {
+			if strings.HasPrefix(req.UserID, "batch-user-") && req.Status == domain.DeletionRequestStatusPending {
+				t.Errorf("expected all batch requests to be processed, but %s is still pending", req.UserID)
+			}
+		}
+	})
+
+	t.Run("processPendingRequests handles empty list", func(t *testing.T) {
+		// Create a fresh service with empty deletion repo
+		freshDeletionRepo := repository.NewInMemoryDeletionRequestRepository()
+		freshSvc := NewGDPRService(userRepo, deviceRepo, networkRepo, membershipRepo, freshDeletionRepo)
+
+		// Should not panic on empty list
+		freshSvc.processPendingRequests(ctx)
+	})
+}
+
+// ==================== processRequest Tests ====================
+
+func TestGDPRService_ProcessRequest_StatusTransitions(t *testing.T) {
+	ctx := context.Background()
+	userRepo := repository.NewInMemoryUserRepository()
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	membershipRepo := repository.NewInMemoryMembershipRepository()
+	deletionRepo := repository.NewInMemoryDeletionRequestRepository()
+
+	svc := NewGDPRService(userRepo, deviceRepo, networkRepo, membershipRepo, deletionRepo)
+
+	t.Run("processRequest transitions to completed on success", func(t *testing.T) {
+		// Create user
+		user := &domain.User{
+			ID:       "status-trans-user",
+			TenantID: "tenant-1",
+			Email:    "status-trans@example.com",
+		}
+		userRepo.Create(ctx, user)
+
+		// Create deletion request
+		req, _ := svc.RequestDeletion(ctx, "status-trans-user")
+
+		// Process the request
+		svc.processRequest(ctx, req)
+
+		// Fetch updated request
+		updated, _ := deletionRepo.GetByUserID(ctx, "status-trans-user")
+		if updated.Status != domain.DeletionRequestStatusCompleted {
+			t.Errorf("expected status COMPLETED, got %s", updated.Status)
+		}
+		if updated.CompletedAt == nil {
+			t.Error("expected CompletedAt to be set")
+		}
+	})
+
+	t.Run("processRequest transitions to failed on error", func(t *testing.T) {
+		// Create a deletion request for non-existent user (will fail)
+		req := &domain.DeletionRequest{
+			ID:          "del_fail_test",
+			UserID:      "non-existent-for-fail",
+			Status:      domain.DeletionRequestStatusPending,
+			RequestedAt: time.Now().UTC(),
+		}
+		deletionRepo.Create(ctx, req)
+
+		// Process the request (should fail since user doesn't exist)
+		svc.processRequest(ctx, req)
+
+		// Fetch updated request
+		updated, _ := deletionRepo.Get(ctx, "del_fail_test")
+		if updated.Status != domain.DeletionRequestStatusFailed {
+			t.Errorf("expected status FAILED, got %s", updated.Status)
+		}
+		if updated.Error == "" {
+			t.Error("expected Error to be set on failure")
+		}
+	})
+}
+
+// ==================== ExportUserDataJSON Tests ====================
+
+func TestGDPRService_ExportUserDataJSON(t *testing.T) {
+	ctx := context.Background()
+	userRepo := repository.NewInMemoryUserRepository()
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	membershipRepo := repository.NewInMemoryMembershipRepository()
+	deletionRepo := repository.NewInMemoryDeletionRequestRepository()
+
+	svc := NewGDPRService(userRepo, deviceRepo, networkRepo, membershipRepo, deletionRepo)
+
+	// Create user
+	user := &domain.User{
+		ID:       "json-export-user",
+		TenantID: "tenant-1",
+		Email:    "json@example.com",
+	}
+	userRepo.Create(ctx, user)
+
+	t.Run("ExportUserDataJSON returns valid JSON", func(t *testing.T) {
+		jsonData, err := svc.ExportUserDataJSON(ctx, "json-export-user", "tenant-1")
+		if err != nil {
+			t.Fatalf("ExportUserDataJSON failed: %v", err)
+		}
+
+		// Verify it's valid JSON
+		var export GDPRExportData
+		if err := json.Unmarshal(jsonData, &export); err != nil {
+			t.Fatalf("failed to unmarshal JSON: %v", err)
+		}
+
+		if export.User.ID != "json-export-user" {
+			t.Errorf("expected user ID json-export-user, got %s", export.User.ID)
+		}
+	})
+
+	t.Run("ExportUserDataJSON for non-existent user", func(t *testing.T) {
+		_, err := svc.ExportUserDataJSON(ctx, "non-existent", "tenant-1")
 		if err == nil {
 			t.Error("expected error for non-existent user")
 		}

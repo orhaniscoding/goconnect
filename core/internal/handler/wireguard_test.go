@@ -365,3 +365,121 @@ func TestRegisterWireGuardRoutes(t *testing.T) {
 			"Expected 401, 400 or 404 but got %d", w.Code)
 	})
 }
+
+// ==================== GetProfile Deep Path Tests ====================
+
+func TestWireGuardHandler_GetProfile_NetworkDomainError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+
+	// Custom network repo that returns domain error
+	customNetworkRepo := &mockNetworkRepoWithDomainError{}
+	membershipRepo := newMockMembershipRepo()
+	userRepo := newMockUserRepo()
+	auditor := &mockAuditor{}
+
+	handler := NewWireGuardHandler(customNetworkRepo, membershipRepo, nil, nil, userRepo, nil, auditor)
+	r.GET("/v1/networks/:id/wg/profile", wireguardAuthMiddleware(), handler.GetProfile)
+
+	req := httptest.NewRequest("GET", "/v1/networks/error-net/wg/profile?device_id=d1&private_key=pk1", nil)
+	req.Header.Set("Authorization", "Bearer user-token")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Should return the domain error's HTTP status
+	assert.True(t, w.Code >= 400)
+}
+
+// mockNetworkRepoWithDomainError returns a domain error
+type mockNetworkRepoWithDomainError struct{}
+
+func (m *mockNetworkRepoWithDomainError) GetByID(ctx context.Context, id string) (*domain.Network, error) {
+	return nil, domain.NewError(domain.ErrForbidden, "Access denied", nil)
+}
+
+func TestWireGuardHandler_GetProfile_RejectedMembership(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+
+	networkRepo := newMockNetworkRepo()
+	networkRepo.networks["net1"] = &domain.Network{
+		ID:       "net1",
+		TenantID: "t1",
+		Name:     "Test Network",
+		CIDR:     "10.0.0.0/24",
+	}
+
+	membershipRepo := newMockMembershipRepo()
+	now := time.Now()
+	membershipRepo.memberships["net1:user1"] = &domain.Membership{
+		NetworkID: "net1",
+		UserID:    "user1",
+		Status:    "rejected", // Rejected status
+		JoinedAt:  &now,
+	}
+
+	userRepo := newMockUserRepo()
+	auditor := &mockAuditor{}
+
+	handler := NewWireGuardHandler(networkRepo, membershipRepo, nil, nil, userRepo, nil, auditor)
+	r.GET("/v1/networks/:id/wg/profile", wireguardAuthMiddleware(), handler.GetProfile)
+
+	req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1&private_key=pk1", nil)
+	req.Header.Set("Authorization", "Bearer user-token")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "not approved")
+}
+
+func TestWireGuardHandler_GetProfile_BannedMembership(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+
+	networkRepo := newMockNetworkRepo()
+	networkRepo.networks["net1"] = &domain.Network{
+		ID:       "net1",
+		TenantID: "t1",
+		Name:     "Test Network",
+		CIDR:     "10.0.0.0/24",
+	}
+
+	membershipRepo := newMockMembershipRepo()
+	now := time.Now()
+	membershipRepo.memberships["net1:user1"] = &domain.Membership{
+		NetworkID: "net1",
+		UserID:    "user1",
+		Status:    domain.StatusBanned, // Banned status (using correct constant)
+		JoinedAt:  &now,
+	}
+
+	userRepo := newMockUserRepo()
+	auditor := &mockAuditor{}
+
+	handler := NewWireGuardHandler(networkRepo, membershipRepo, nil, nil, userRepo, nil, auditor)
+	r.GET("/v1/networks/:id/wg/profile", wireguardAuthMiddleware(), handler.GetProfile)
+
+	req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1&private_key=pk1", nil)
+	req.Header.Set("Authorization", "Bearer user-token")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "not approved")
+}
+
+func TestWireGuardHandler_NewHandler(t *testing.T) {
+	networkRepo := newMockNetworkRepo()
+	membershipRepo := newMockMembershipRepo()
+	userRepo := newMockUserRepo()
+	auditor := &mockAuditor{}
+
+	handler := NewWireGuardHandler(networkRepo, membershipRepo, nil, nil, userRepo, nil, auditor)
+
+	assert.NotNil(t, handler)
+	assert.Equal(t, networkRepo, handler.networkRepo)
+	assert.Equal(t, membershipRepo, handler.membershipRepo)
+	assert.Equal(t, userRepo, handler.userRepo)
+	assert.Equal(t, auditor, handler.auditor)
+}

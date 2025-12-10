@@ -1202,3 +1202,229 @@ func TestTenantMembershipService_CheckTenantPermission_Forbidden(t *testing.T) {
 	err := svc.CheckTenantPermission(ctx, "regular", tenantID, domain.TenantRoleAdmin)
 	require.Error(t, err)
 }
+
+// ==================== JOIN BY CODE ADDITIONAL TESTS ====================
+
+func TestTenantMembershipService_JoinByCode_ExpiredInvite(t *testing.T) {
+	svc, _ := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	// Create tenant with invite-only access
+	tenant, err := svc.CreateTenant(ctx, "owner-expired", &domain.CreateTenantRequest{
+		Name:       "Expired Invite Tenant",
+		Visibility: domain.TenantVisibilityPrivate,
+		AccessType: domain.TenantAccessInviteOnly,
+		MaxMembers: 100,
+	})
+	require.NoError(t, err)
+
+	// Create invite with very short expiry (1 second)
+	invite, err := svc.CreateInvite(ctx, "owner-expired", tenant.ID, &domain.CreateTenantInviteRequest{
+		MaxUses:   10,
+		ExpiresIn: 1, // 1 second
+	})
+	require.NoError(t, err)
+
+	// Wait for invite to expire
+	time.Sleep(2 * time.Second)
+
+	// Try to use expired invite
+	_, err = svc.JoinByCode(ctx, "user-late", invite.Code)
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrInviteTokenExpired, domainErr.Code)
+}
+
+func TestTenantMembershipService_JoinByCode_MaxUsesReached(t *testing.T) {
+	svc, _ := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	// Create tenant
+	tenant, err := svc.CreateTenant(ctx, "owner-max-uses", &domain.CreateTenantRequest{
+		Name:       "Max Uses Tenant",
+		Visibility: domain.TenantVisibilityPrivate,
+		AccessType: domain.TenantAccessInviteOnly,
+		MaxMembers: 100,
+	})
+	require.NoError(t, err)
+
+	// Create invite with max uses = 1
+	invite, err := svc.CreateInvite(ctx, "owner-max-uses", tenant.ID, &domain.CreateTenantInviteRequest{
+		MaxUses:   1,
+		ExpiresIn: 3600,
+	})
+	require.NoError(t, err)
+
+	// First use should succeed
+	_, err = svc.JoinByCode(ctx, "user-first", invite.Code)
+	require.NoError(t, err)
+
+	// Second use should fail
+	_, err = svc.JoinByCode(ctx, "user-second", invite.Code)
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrInviteTokenExpired, domainErr.Code)
+}
+
+func TestTenantMembershipService_JoinByCode_InvalidCode(t *testing.T) {
+	svc, _ := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	// Try to join with invalid code
+	_, err := svc.JoinByCode(ctx, "user-invalid", "invalid-code-12345")
+	require.Error(t, err)
+}
+
+func TestTenantMembershipService_JoinByCode_AlreadyMember(t *testing.T) {
+	svc, _ := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	// Create tenant
+	tenant, err := svc.CreateTenant(ctx, "owner-already", &domain.CreateTenantRequest{
+		Name:       "Already Member Tenant",
+		Visibility: domain.TenantVisibilityPrivate,
+		AccessType: domain.TenantAccessInviteOnly,
+		MaxMembers: 100,
+	})
+	require.NoError(t, err)
+
+	// Create invite
+	invite, err := svc.CreateInvite(ctx, "owner-already", tenant.ID, &domain.CreateTenantInviteRequest{
+		MaxUses:   10,
+		ExpiresIn: 3600,
+	})
+	require.NoError(t, err)
+
+	// First join should succeed
+	_, err = svc.JoinByCode(ctx, "user-join-twice", invite.Code)
+	require.NoError(t, err)
+
+	// Second join should fail (already a member)
+	_, err = svc.JoinByCode(ctx, "user-join-twice", invite.Code)
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrAlreadyMember, domainErr.Code)
+}
+
+// ==================== UPDATE TENANT ADDITIONAL TESTS ====================
+
+func TestTenantMembershipService_UpdateTenant_ChangeVisibility(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Change visibility from public to private
+	visibility := domain.TenantVisibilityPrivate
+	req := &domain.UpdateTenantRequest{
+		Visibility: &visibility,
+	}
+
+	updated, err := svc.UpdateTenant(ctx, ownerID, tenantID, req)
+	require.NoError(t, err)
+	assert.Equal(t, domain.TenantVisibilityPrivate, updated.Visibility)
+}
+
+func TestTenantMembershipService_UpdateTenant_ChangeAccessType(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Change access type to invite only
+	accessType := domain.TenantAccessInviteOnly
+	req := &domain.UpdateTenantRequest{
+		AccessType: &accessType,
+	}
+
+	updated, err := svc.UpdateTenant(ctx, ownerID, tenantID, req)
+	require.NoError(t, err)
+	assert.Equal(t, domain.TenantAccessInviteOnly, updated.AccessType)
+}
+
+func TestTenantMembershipService_UpdateTenant_AdminCanUpdate(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Add admin
+	adminMember, _ := svc.JoinTenant(ctx, "admin-updater", tenantID, &domain.JoinTenantRequest{})
+	_ = svc.UpdateMemberRole(ctx, ownerID, tenantID, adminMember.ID, domain.TenantRoleAdmin)
+
+	// Admin updates tenant
+	newDesc := "Admin updated description"
+	req := &domain.UpdateTenantRequest{
+		Description: &newDesc,
+	}
+
+	updated, err := svc.UpdateTenant(ctx, "admin-updater", tenantID, req)
+	require.NoError(t, err)
+	assert.Equal(t, newDesc, updated.Description)
+}
+
+// ==================== BAN MEMBER ADDITIONAL TESTS ====================
+
+func TestTenantMembershipService_BanMember_CannotBanOwner(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Add admin
+	adminMember, _ := svc.JoinTenant(ctx, "admin-ban-owner", tenantID, &domain.JoinTenantRequest{})
+	_ = svc.UpdateMemberRole(ctx, ownerID, tenantID, adminMember.ID, domain.TenantRoleAdmin)
+
+	// Get owner's member ID
+	ownerMembership, _ := svc.memberRepo.GetByUserAndTenant(ctx, ownerID, tenantID)
+
+	// Admin tries to ban owner
+	err := svc.BanMember(ctx, "admin-ban-owner", tenantID, ownerMembership.ID)
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
+}
+
+func TestTenantMembershipService_BanMember_CannotBanHigherRole(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Add admin
+	adminMember, _ := svc.JoinTenant(ctx, "admin-to-ban", tenantID, &domain.JoinTenantRequest{})
+	_ = svc.UpdateMemberRole(ctx, ownerID, tenantID, adminMember.ID, domain.TenantRoleAdmin)
+
+	// Add moderator
+	modMember, _ := svc.JoinTenant(ctx, "mod-banner", tenantID, &domain.JoinTenantRequest{})
+	_ = svc.UpdateMemberRole(ctx, ownerID, tenantID, modMember.ID, domain.TenantRoleModerator)
+
+	// Moderator tries to ban admin
+	err := svc.BanMember(ctx, "mod-banner", tenantID, adminMember.ID)
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
+}
+
+func TestTenantMembershipService_BanMember_BannedUserCannotRejoin(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Add and ban a member
+	member, _ := svc.JoinTenant(ctx, "banned-user", tenantID, &domain.JoinTenantRequest{})
+	_ = svc.BanMember(ctx, ownerID, tenantID, member.ID)
+
+	// Banned user tries to rejoin
+	_, err := svc.JoinTenant(ctx, "banned-user", tenantID, &domain.JoinTenantRequest{})
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
+}

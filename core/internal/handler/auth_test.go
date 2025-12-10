@@ -149,6 +149,30 @@ func TestAuthHandler_Login(t *testing.T) {
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
+
+	t.Run("Invalid JSON", func(t *testing.T) {
+		r, handler, _ := setupAuthTest()
+		r.POST("/login", handler.Login)
+
+		req := httptest.NewRequest("POST", "/login", bytes.NewBufferString("{invalid}"))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("Empty request body", func(t *testing.T) {
+		r, handler, _ := setupAuthTest()
+		r.POST("/login", handler.Login)
+
+		req := httptest.NewRequest("POST", "/login", nil)
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
 }
 
 func TestAuthHandler_Refresh(t *testing.T) {
@@ -188,6 +212,33 @@ func TestAuthHandler_Refresh(t *testing.T) {
 		// Invalid token format causes parsing error, returns 500
 		assert.True(t, w.Code == http.StatusUnauthorized || w.Code == http.StatusInternalServerError)
 	})
+
+	t.Run("Invalid JSON", func(t *testing.T) {
+		r, handler, _ := setupAuthTest()
+		r.POST("/refresh", handler.Refresh)
+
+		req := httptest.NewRequest("POST", "/refresh", bytes.NewBufferString("{invalid}"))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("Missing refresh token", func(t *testing.T) {
+		r, handler, _ := setupAuthTest()
+		r.POST("/refresh", handler.Refresh)
+
+		body := map[string]interface{}{}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("POST", "/refresh", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.True(t, w.Code == http.StatusBadRequest || w.Code == http.StatusUnauthorized)
+	})
 }
 
 func TestAuthHandler_Logout(t *testing.T) {
@@ -208,6 +259,34 @@ func TestAuthHandler_Logout(t *testing.T) {
 		var response map[string]interface{}
 		json.Unmarshal(w.Body.Bytes(), &response)
 		assert.Equal(t, true, response["ok"])
+	})
+
+	t.Run("With Authorization Header", func(t *testing.T) {
+		r, handler, _ := setupAuthTest()
+		r.POST("/logout", handler.Logout)
+
+		body := map[string]interface{}{"refresh_token": "dummy-refresh-token"}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("POST", "/logout", bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer access-token-123")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("Invalid JSON Body", func(t *testing.T) {
+		r, handler, _ := setupAuthTest()
+		r.POST("/logout", handler.Logout)
+
+		req := httptest.NewRequest("POST", "/logout", bytes.NewBufferString("{invalid}"))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 }
 
@@ -323,6 +402,80 @@ func TestAuthHandler_CallbackOIDC_Success(t *testing.T) {
 		}
 	}
 	assert.True(t, cleared)
+}
+
+func TestAuthHandler_CallbackOIDC_MissingCode(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authSvc := service.NewAuthService(userRepo, tenantRepo, nil)
+	oidcMock := &stubOIDCService{}
+	handler := NewAuthHandler(authSvc, oidcMock)
+
+	r := gin.New()
+	r.GET("/v1/auth/oidc/callback", handler.CallbackOIDC)
+
+	// Missing code param
+	req := httptest.NewRequest("GET", "/v1/auth/oidc/callback?state=state-123", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestAuthHandler_CallbackOIDC_MissingState(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authSvc := service.NewAuthService(userRepo, tenantRepo, nil)
+	oidcMock := &stubOIDCService{}
+	handler := NewAuthHandler(authSvc, oidcMock)
+
+	r := gin.New()
+	r.GET("/v1/auth/oidc/callback", handler.CallbackOIDC)
+
+	// Missing state param
+	req := httptest.NewRequest("GET", "/v1/auth/oidc/callback?code=abc", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestAuthHandler_LoginOIDC_NoOIDCService(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authSvc := service.NewAuthService(userRepo, tenantRepo, nil)
+	// No OIDC service configured
+	handler := NewAuthHandler(authSvc, nil)
+
+	r := gin.New()
+	r.GET("/v1/auth/oidc/login", handler.LoginOIDC)
+
+	req := httptest.NewRequest("GET", "/v1/auth/oidc/login", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestAuthHandler_CallbackOIDC_NoOIDCService(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authSvc := service.NewAuthService(userRepo, tenantRepo, nil)
+	// No OIDC service configured
+	handler := NewAuthHandler(authSvc, nil)
+
+	r := gin.New()
+	r.GET("/v1/auth/oidc/callback", handler.CallbackOIDC)
+
+	req := httptest.NewRequest("GET", "/v1/auth/oidc/callback?code=abc&state=123", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
 // ==================== 2FA TESTS ====================
@@ -673,6 +826,27 @@ func TestAuthHandler_Me(t *testing.T) {
 		json.Unmarshal(w.Body.Bytes(), &response)
 		data := response["data"].(map[string]interface{})
 		assert.Equal(t, "test@example.com", data["email"])
+	})
+
+	t.Run("User Not Found", func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+		userRepo := repository.NewInMemoryUserRepository()
+		tenantRepo := repository.NewInMemoryTenantRepository()
+		authService := service.NewAuthService(userRepo, tenantRepo, nil)
+
+		handler := NewAuthHandler(authService, nil)
+		r := gin.New()
+
+		r.GET("/v1/auth/me", func(c *gin.Context) {
+			c.Set("user_id", "non-existent-user")
+			c.Next()
+		}, handler.Me)
+
+		req := httptest.NewRequest("GET", "/v1/auth/me", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
 }
 

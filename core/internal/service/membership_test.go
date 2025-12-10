@@ -68,6 +68,169 @@ func TestMembershipTenantIsolation(t *testing.T) {
 	}
 }
 
+// ==================== JoinNetwork Additional Tests ====================
+
+func TestJoinNetwork_NetworkNotFound(t *testing.T) {
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	svc := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+
+	_, _, err := svc.JoinNetwork(context.Background(), "non-existent-network", "user-1", "t1", domain.GenerateIdempotencyKey())
+	if err == nil {
+		t.Fatal("expected error for non-existent network")
+	}
+}
+
+func TestJoinNetwork_BannedUser(t *testing.T) {
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	svc := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+
+	// Create network
+	net := &domain.Network{
+		ID:         "net-banned-test",
+		TenantID:   "t1",
+		Name:       "Banned Test",
+		Visibility: domain.NetworkVisibilityPublic,
+		JoinPolicy: domain.JoinPolicyOpen,
+		CIDR:       "10.80.0.0/24",
+		CreatedBy:  "admin",
+	}
+	_ = nrepo.Create(context.Background(), net)
+
+	// Add admin
+	_, _ = mrepo.UpsertApproved(context.Background(), net.ID, "admin", domain.RoleAdmin, time.Now())
+
+	// Add user and ban them
+	_, _ = mrepo.UpsertApproved(context.Background(), net.ID, "banned-user", domain.RoleMember, time.Now())
+	_ = mrepo.SetStatus(context.Background(), net.ID, "banned-user", domain.StatusBanned)
+
+	// Banned user tries to rejoin
+	_, _, err := svc.JoinNetwork(context.Background(), net.ID, "banned-user", "t1", domain.GenerateIdempotencyKey())
+	if err == nil {
+		t.Fatal("expected error for banned user trying to rejoin")
+	}
+	if derr, ok := err.(*domain.Error); ok {
+		if derr.Code != domain.ErrUserBanned {
+			t.Errorf("expected ErrUserBanned, got %s", derr.Code)
+		}
+	}
+}
+
+func TestJoinNetwork_PrivateNetwork(t *testing.T) {
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	svc := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+
+	// Create private network without a name (simulating unknown network)
+	net := &domain.Network{
+		ID:         "net-private-test",
+		TenantID:   "t1",
+		Name:       "", // Empty name simulates private network where name is unknown
+		Visibility: domain.NetworkVisibilityPrivate,
+		JoinPolicy: domain.JoinPolicyOpen,
+		CIDR:       "10.81.0.0/24",
+		CreatedBy:  "admin",
+	}
+	_ = nrepo.Create(context.Background(), net)
+
+	// Try to join private network
+	_, _, err := svc.JoinNetwork(context.Background(), net.ID, "user-1", "t1", domain.GenerateIdempotencyKey())
+	if err == nil {
+		t.Fatal("expected error for private network with empty name")
+	}
+	if derr, ok := err.(*domain.Error); ok {
+		if derr.Code != domain.ErrNetworkPrivate {
+			t.Errorf("expected ErrNetworkPrivate, got %s", derr.Code)
+		}
+	}
+}
+
+func TestJoinNetwork_MissingIdempotencyKey(t *testing.T) {
+	svc, nid, uid := setup()
+
+	// Try to join without idempotency key
+	_, _, err := svc.JoinNetwork(context.Background(), nid, uid+"_new", "t1", "")
+	if err == nil {
+		t.Fatal("expected error for missing idempotency key")
+	}
+	if derr, ok := err.(*domain.Error); ok {
+		if derr.Code != domain.ErrInvalidRequest {
+			t.Errorf("expected ErrInvalidRequest, got %s", derr.Code)
+		}
+	}
+}
+
+func TestJoinNetwork_InviteOnlyPolicy(t *testing.T) {
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	svc := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+
+	// Create invite-only network
+	net := &domain.Network{
+		ID:         "net-invite-only",
+		TenantID:   "t1",
+		Name:       "Invite Only Network",
+		Visibility: domain.NetworkVisibilityPublic,
+		JoinPolicy: domain.JoinPolicyInvite,
+		CIDR:       "10.82.0.0/24",
+		CreatedBy:  "admin",
+	}
+	_ = nrepo.Create(context.Background(), net)
+
+	// Try to join invite-only network
+	_, _, err := svc.JoinNetwork(context.Background(), net.ID, "user-1", "t1", domain.GenerateIdempotencyKey())
+	if err == nil {
+		t.Fatal("expected error for invite-only network")
+	}
+	// Any error is acceptable - the network requires invite
+}
+
+func TestJoinNetwork_ApprovalPolicyCreatesJoinRequest(t *testing.T) {
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	svc := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+
+	// Create approval-required network
+	net := &domain.Network{
+		ID:         "net-approval-jr",
+		TenantID:   "t1",
+		Name:       "Approval JR Test",
+		Visibility: domain.NetworkVisibilityPublic,
+		JoinPolicy: domain.JoinPolicyApproval,
+		CIDR:       "10.83.0.0/24",
+		CreatedBy:  "admin",
+	}
+	_ = nrepo.Create(context.Background(), net)
+
+	// Try to join
+	membership, joinRequest, err := svc.JoinNetwork(context.Background(), net.ID, "user-1", "t1", domain.GenerateIdempotencyKey())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should return nil membership and a join request
+	if membership != nil {
+		t.Error("expected nil membership for approval-required network")
+	}
+	if joinRequest == nil {
+		t.Fatal("expected join request for approval-required network")
+	}
+	if joinRequest.UserID != "user-1" {
+		t.Errorf("expected userID user-1, got %s", joinRequest.UserID)
+	}
+}
+
 // Test Deny: Admin denies a pending join request
 func TestDeny_Success(t *testing.T) {
 	nrepo := repository.NewInMemoryNetworkRepository()

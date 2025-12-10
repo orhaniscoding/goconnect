@@ -567,4 +567,112 @@ func TestRoleMiddleware(t *testing.T) {
 		assert.True(t, exists)
 		assert.Equal(t, domain.RoleMember, role) // Default for authenticated but not member
 	})
+
+	t.Run("Token auth fallback path with bearer token", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+
+		c.Request = httptest.NewRequest("GET", "/v1/networks/net-token/members", nil)
+		c.Request.Header.Set("Authorization", "Bearer test-token")
+		// No user_id set, should fallback to token validation
+
+		mrepo := repository.NewInMemoryMembershipRepository()
+		mockValidator := &mockTokenValidator{
+			claims: &domain.TokenClaims{
+				UserID:  "validated-user",
+				IsAdmin: false,
+			},
+		}
+
+		middleware := RoleMiddleware(mrepo, mockValidator)
+		middleware(c)
+
+		assert.False(t, c.IsAborted())
+	})
+
+	t.Run("Token auth fallback path with admin token", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+
+		c.Request = httptest.NewRequest("GET", "/v1/networks/net-admin/members", nil)
+		c.Request.Header.Set("Authorization", "Bearer admin-token")
+
+		mrepo := repository.NewInMemoryMembershipRepository()
+		mockValidator := &mockTokenValidator{
+			claims: &domain.TokenClaims{
+				UserID:  "admin-user",
+				IsAdmin: true,
+			},
+		}
+
+		middleware := RoleMiddleware(mrepo, mockValidator)
+		middleware(c)
+
+		assert.False(t, c.IsAborted())
+		role, _ := c.Get("membership_role")
+		assert.Equal(t, domain.RoleOwner, role)
+		isAdmin, _ := c.Get("is_admin")
+		assert.True(t, isAdmin.(bool))
+	})
+}
+
+// ==================== CORSMiddleware Tests ====================
+
+func TestCORSMiddleware(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("Sets headers for allowed origin", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+
+		c.Request = httptest.NewRequest("GET", "/v1/test", nil)
+		c.Request.Header.Set("Origin", "http://localhost:3000")
+
+		middleware := CORSMiddleware()
+		middleware(c)
+
+		assert.Equal(t, "http://localhost:3000", w.Header().Get("Access-Control-Allow-Origin"))
+		assert.Contains(t, w.Header().Get("Access-Control-Allow-Methods"), "GET")
+		assert.Contains(t, w.Header().Get("Access-Control-Allow-Headers"), "Authorization")
+	})
+
+	t.Run("No origin header for disallowed origin", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+
+		c.Request = httptest.NewRequest("GET", "/v1/test", nil)
+		c.Request.Header.Set("Origin", "http://evil.com")
+
+		middleware := CORSMiddleware()
+		middleware(c)
+
+		assert.Empty(t, w.Header().Get("Access-Control-Allow-Origin"))
+	})
+
+	t.Run("OPTIONS request returns 204", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+
+		c.Request = httptest.NewRequest("OPTIONS", "/v1/test", nil)
+		c.Request.Header.Set("Origin", "http://localhost:3000")
+
+		middleware := CORSMiddleware()
+		middleware(c)
+
+		assert.True(t, c.IsAborted())
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+
+	t.Run("Allowed origin - 127.0.0.1:3000", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+
+		c.Request = httptest.NewRequest("GET", "/v1/test", nil)
+		c.Request.Header.Set("Origin", "http://127.0.0.1:3000")
+
+		middleware := CORSMiddleware()
+		middleware(c)
+
+		assert.Equal(t, "http://127.0.0.1:3000", w.Header().Get("Access-Control-Allow-Origin"))
+	})
 }

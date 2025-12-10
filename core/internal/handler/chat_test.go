@@ -283,6 +283,54 @@ func TestChatHandler_ListMessages(t *testing.T) {
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
+
+	t.Run("Success - with time filters", func(t *testing.T) {
+		since := time.Now().Add(-1 * time.Hour).Format(time.RFC3339)
+		before := time.Now().Add(1 * time.Hour).Format(time.RFC3339)
+		req := httptest.NewRequest("GET", "/v1/chat?scope=host&since="+since+"&before="+before, nil)
+		w := httptest.NewRecorder()
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("Success - include deleted", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/v1/chat?scope=host&include_deleted=true", nil)
+		w := httptest.NewRecorder()
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("Success - with cursor", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/v1/chat?scope=host&cursor=some-cursor-value", nil)
+		w := httptest.NewRecorder()
+
+		r.ServeHTTP(w, req)
+
+		// Should still return OK even with invalid cursor (service handles it gracefully)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("Success - invalid limit uses default", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/v1/chat?scope=host&limit=invalid", nil)
+		w := httptest.NewRecorder()
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("Success - limit out of range uses default", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/v1/chat?scope=host&limit=500", nil)
+		w := httptest.NewRecorder()
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
 }
 
 func TestChatHandler_EditMessage(t *testing.T) {
@@ -552,5 +600,14 @@ func TestChatHandler_GetEditHistory(t *testing.T) {
 		assert.Equal(t, msg.ID, response["message_id"])
 		edits := response["edits"].([]interface{})
 		assert.Len(t, edits, 2)
+	})
+
+	t.Run("Non-existent message returns error", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/v1/chat/nonexistent/edits", nil)
+		w := httptest.NewRecorder()
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 }

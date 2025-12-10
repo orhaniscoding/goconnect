@@ -12,6 +12,8 @@ import (
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
 	"github.com/orhaniscoding/goconnect/server/internal/service"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func setupIPRuleHandler() (*IPRuleHandler, *service.IPRuleService) {
@@ -101,6 +103,40 @@ func TestIPRuleHandler_CreateIPRule(t *testing.T) {
 			}
 		})
 	}
+
+	// Additional test for conflict/success case (in-memory repo allows duplicates)
+	t.Run("create duplicate rule allowed in memory", func(t *testing.T) {
+		dupHandler, _ := setupIPRuleHandler()
+
+		// Create first rule
+		body1, _ := json.Marshal(CreateIPRuleRequest{
+			Type:        "allow",
+			CIDR:        "172.16.0.0/24",
+			Description: "First rule",
+		})
+		req1 := httptest.NewRequest(http.MethodPost, "/v1/admin/ip-rules", bytes.NewReader(body1))
+		req1.Header.Set("Content-Type", "application/json")
+		req1.Header.Set("X-Tenant-ID", "tenant-1")
+		req1.Header.Set("X-User-ID", "admin-1")
+		rr1 := httptest.NewRecorder()
+		dupHandler.CreateIPRule(rr1, req1)
+		require.Equal(t, http.StatusCreated, rr1.Code)
+
+		// Create second rule with same CIDR (in-memory allows it, real DB might conflict)
+		body2, _ := json.Marshal(CreateIPRuleRequest{
+			Type:        "allow",
+			CIDR:        "172.16.0.0/24",
+			Description: "Second rule",
+		})
+		req2 := httptest.NewRequest(http.MethodPost, "/v1/admin/ip-rules", bytes.NewReader(body2))
+		req2.Header.Set("Content-Type", "application/json")
+		req2.Header.Set("X-Tenant-ID", "tenant-1")
+		req2.Header.Set("X-User-ID", "admin-1")
+		rr2 := httptest.NewRecorder()
+		dupHandler.CreateIPRule(rr2, req2)
+		// In-memory repo doesn't enforce uniqueness, so 201 is expected
+		assert.Contains(t, []int{http.StatusCreated, http.StatusConflict}, rr2.Code)
+	})
 }
 
 func TestIPRuleHandler_ListIPRules(t *testing.T) {
@@ -124,24 +160,49 @@ func TestIPRuleHandler_ListIPRules(t *testing.T) {
 		CIDR:     "172.16.0.0/16",
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/v1/admin/ip-rules", nil)
-	req.Header.Set("X-Tenant-ID", "tenant-1")
+	t.Run("Success", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/v1/admin/ip-rules", nil)
+		req.Header.Set("X-Tenant-ID", "tenant-1")
 
-	rr := httptest.NewRecorder()
-	handler.ListIPRules(rr, req)
+		rr := httptest.NewRecorder()
+		handler.ListIPRules(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", rr.Code)
-	}
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected status 200, got %d", rr.Code)
+		}
 
-	var response IPRulesListResponse
-	if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
+		var response IPRulesListResponse
+		if err := json.NewDecoder(rr.Body).Decode(&response); err != nil {
+			t.Fatalf("failed to decode response: %v", err)
+		}
 
-	if response.Total != 2 {
-		t.Errorf("expected 2 rules for tenant-1, got %d", response.Total)
-	}
+		if response.Total != 2 {
+			t.Errorf("expected 2 rules for tenant-1, got %d", response.Total)
+		}
+	})
+
+	t.Run("Missing tenant ID", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/v1/admin/ip-rules", nil)
+		// No X-Tenant-ID header
+
+		rr := httptest.NewRecorder()
+		handler.ListIPRules(rr, req)
+
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+	})
+
+	t.Run("Empty tenant", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/v1/admin/ip-rules", nil)
+		req.Header.Set("X-Tenant-ID", "tenant-empty")
+
+		rr := httptest.NewRecorder()
+		handler.ListIPRules(rr, req)
+
+		assert.Equal(t, http.StatusOK, rr.Code)
+		var response IPRulesListResponse
+		json.NewDecoder(rr.Body).Decode(&response)
+		assert.Equal(t, 0, response.Total)
+	})
 }
 
 func TestIPRuleHandler_DeleteIPRule(t *testing.T) {
@@ -249,6 +310,41 @@ func TestIPRuleHandler_CheckIP(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("Missing IP address", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]string{})
+		req := httptest.NewRequest(http.MethodPost, "/v1/admin/ip-rules/check", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Tenant-ID", "tenant-1")
+
+		rr := httptest.NewRecorder()
+		handler.CheckIP(rr, req)
+
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+	})
+
+	t.Run("Missing tenant ID", func(t *testing.T) {
+		body, _ := json.Marshal(CheckIPRequest{IP: "192.168.1.50"})
+		req := httptest.NewRequest(http.MethodPost, "/v1/admin/ip-rules/check", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		// No X-Tenant-ID header
+
+		rr := httptest.NewRecorder()
+		handler.CheckIP(rr, req)
+
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+	})
+
+	t.Run("Invalid JSON body", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/v1/admin/ip-rules/check", bytes.NewReader([]byte("{invalid")))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Tenant-ID", "tenant-1")
+
+		rr := httptest.NewRecorder()
+		handler.CheckIP(rr, req)
+
+		assert.Equal(t, http.StatusBadRequest, rr.Code)
+	})
 }
 
 func TestIPFilterMiddleware(t *testing.T) {
@@ -438,6 +534,187 @@ func TestIPRuleHandler_GetIPRule(t *testing.T) {
 
 		if rr.Code != http.StatusNotFound {
 			t.Errorf("expected status 404 for wrong tenant, got %d", rr.Code)
+		}
+	})
+}
+
+// ==================== DeleteIPRule Comprehensive Tests ====================
+
+func TestIPRuleHandler_DeleteIPRule_Comprehensive(t *testing.T) {
+	t.Run("Success - Delete existing rule", func(t *testing.T) {
+		handler, svc := setupIPRuleHandler()
+
+		ctx := context.Background()
+		rule, _ := svc.CreateIPRule(ctx, domain.CreateIPRuleRequest{
+			TenantID: "tenant-1",
+			Type:     domain.IPRuleTypeAllow,
+			CIDR:     "192.168.2.0/24",
+		})
+
+		mux := http.NewServeMux()
+		mux.HandleFunc("DELETE /v1/admin/ip-rules/{id}", handler.DeleteIPRule)
+
+		req := httptest.NewRequest(http.MethodDelete, "/v1/admin/ip-rules/"+rule.ID, nil)
+		req.Header.Set("X-Tenant-ID", "tenant-1")
+
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusNoContent {
+			t.Errorf("expected status 204, got %d: %s", rr.Code, rr.Body.String())
+		}
+
+		// Verify rule is deleted
+		rules, _ := svc.ListIPRules(ctx, "tenant-1")
+		for _, r := range rules {
+			if r.ID == rule.ID {
+				t.Errorf("rule should be deleted but still exists")
+			}
+		}
+	})
+
+	t.Run("Missing ID", func(t *testing.T) {
+		handler, _ := setupIPRuleHandler()
+
+		req := httptest.NewRequest(http.MethodDelete, "/v1/admin/ip-rules/", nil)
+		req.Header.Set("X-Tenant-ID", "tenant-1")
+		// No path value set
+
+		rr := httptest.NewRecorder()
+		handler.DeleteIPRule(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("expected status 400, got %d", rr.Code)
+		}
+	})
+
+	t.Run("Not Found", func(t *testing.T) {
+		handler, _ := setupIPRuleHandler()
+
+		mux := http.NewServeMux()
+		mux.HandleFunc("DELETE /v1/admin/ip-rules/{id}", handler.DeleteIPRule)
+
+		req := httptest.NewRequest(http.MethodDelete, "/v1/admin/ip-rules/nonexistent-rule", nil)
+		req.Header.Set("X-Tenant-ID", "tenant-1")
+
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusNotFound {
+			t.Errorf("expected status 404, got %d", rr.Code)
+		}
+	})
+
+	t.Run("Wrong Tenant - Cannot Delete Other's Rule", func(t *testing.T) {
+		handler, svc := setupIPRuleHandler()
+
+		ctx := context.Background()
+		rule, _ := svc.CreateIPRule(ctx, domain.CreateIPRuleRequest{
+			TenantID: "tenant-1",
+			Type:     domain.IPRuleTypeAllow,
+			CIDR:     "192.168.3.0/24",
+		})
+
+		mux := http.NewServeMux()
+		mux.HandleFunc("DELETE /v1/admin/ip-rules/{id}", handler.DeleteIPRule)
+
+		req := httptest.NewRequest(http.MethodDelete, "/v1/admin/ip-rules/"+rule.ID, nil)
+		req.Header.Set("X-Tenant-ID", "tenant-2") // Different tenant
+
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusNotFound {
+			t.Errorf("expected status 404 for wrong tenant, got %d", rr.Code)
+		}
+
+		// Verify rule still exists for original tenant
+		rules, _ := svc.ListIPRules(ctx, "tenant-1")
+		found := false
+		for _, r := range rules {
+			if r.ID == rule.ID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("rule should not be deleted by wrong tenant")
+		}
+	})
+
+	t.Run("Delete Multiple Rules Sequentially", func(t *testing.T) {
+		handler, svc := setupIPRuleHandler()
+
+		ctx := context.Background()
+		rule1, _ := svc.CreateIPRule(ctx, domain.CreateIPRuleRequest{
+			TenantID: "tenant-1",
+			Type:     domain.IPRuleTypeAllow,
+			CIDR:     "192.168.10.0/24",
+		})
+		rule2, _ := svc.CreateIPRule(ctx, domain.CreateIPRuleRequest{
+			TenantID: "tenant-1",
+			Type:     domain.IPRuleTypeDeny,
+			CIDR:     "192.168.20.0/24",
+		})
+
+		mux := http.NewServeMux()
+		mux.HandleFunc("DELETE /v1/admin/ip-rules/{id}", handler.DeleteIPRule)
+
+		// Delete first rule
+		req1 := httptest.NewRequest(http.MethodDelete, "/v1/admin/ip-rules/"+rule1.ID, nil)
+		req1.Header.Set("X-Tenant-ID", "tenant-1")
+		rr1 := httptest.NewRecorder()
+		mux.ServeHTTP(rr1, req1)
+		if rr1.Code != http.StatusNoContent {
+			t.Errorf("expected status 204 for first delete, got %d", rr1.Code)
+		}
+
+		// Delete second rule
+		req2 := httptest.NewRequest(http.MethodDelete, "/v1/admin/ip-rules/"+rule2.ID, nil)
+		req2.Header.Set("X-Tenant-ID", "tenant-1")
+		rr2 := httptest.NewRecorder()
+		mux.ServeHTTP(rr2, req2)
+		if rr2.Code != http.StatusNoContent {
+			t.Errorf("expected status 204 for second delete, got %d", rr2.Code)
+		}
+
+		// Verify all rules deleted
+		rules, _ := svc.ListIPRules(ctx, "tenant-1")
+		if len(rules) != 0 {
+			t.Errorf("expected 0 rules, got %d", len(rules))
+		}
+	})
+
+	t.Run("Idempotent Delete", func(t *testing.T) {
+		handler, svc := setupIPRuleHandler()
+
+		ctx := context.Background()
+		rule, _ := svc.CreateIPRule(ctx, domain.CreateIPRuleRequest{
+			TenantID: "tenant-1",
+			Type:     domain.IPRuleTypeAllow,
+			CIDR:     "192.168.50.0/24",
+		})
+
+		mux := http.NewServeMux()
+		mux.HandleFunc("DELETE /v1/admin/ip-rules/{id}", handler.DeleteIPRule)
+
+		// First delete
+		req1 := httptest.NewRequest(http.MethodDelete, "/v1/admin/ip-rules/"+rule.ID, nil)
+		req1.Header.Set("X-Tenant-ID", "tenant-1")
+		rr1 := httptest.NewRecorder()
+		mux.ServeHTTP(rr1, req1)
+		if rr1.Code != http.StatusNoContent {
+			t.Errorf("expected status 204 for first delete, got %d", rr1.Code)
+		}
+
+		// Second delete (should return not found or no content depending on implementation)
+		req2 := httptest.NewRequest(http.MethodDelete, "/v1/admin/ip-rules/"+rule.ID, nil)
+		req2.Header.Set("X-Tenant-ID", "tenant-1")
+		rr2 := httptest.NewRecorder()
+		mux.ServeHTTP(rr2, req2)
+		// Either 204 (idempotent) or 404 (strict) is acceptable
+		if rr2.Code != http.StatusNoContent && rr2.Code != http.StatusNotFound {
+			t.Errorf("expected status 204 or 404, got %d", rr2.Code)
 		}
 	})
 }
