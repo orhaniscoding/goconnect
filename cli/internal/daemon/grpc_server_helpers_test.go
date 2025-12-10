@@ -261,6 +261,21 @@ func TestGRPCServer_Stop(t *testing.T) {
 		// Should not panic
 		srv.Stop()
 	})
+
+	t.Run("stop with ipcAuth cleanup", func(t *testing.T) {
+		mockDaemon := &DaemonService{
+			logf: &fallbackServiceLogger{},
+		}
+
+		srv := NewGRPCServer(mockDaemon, "1.0.0", "", "")
+		// Create a mock ipcAuth
+		srv.ipcAuth = NewIPCAuth()
+		srv.grpcServer = nil
+		srv.listener = nil
+
+		// Should not panic and should call cleanup
+		srv.Stop()
+	})
 }
 
 // ==================== BroadcastEvent Test ====================
