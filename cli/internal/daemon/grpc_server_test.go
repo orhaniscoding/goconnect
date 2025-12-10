@@ -26,6 +26,11 @@ type mockEngine struct {
 	joinErr       error
 	getNetworkErr error
 	getPeersErr   error
+	kickErr       error
+	banErr        error
+	unbanErr      error
+	rejectErr     error
+	cancelErr     error
 }
 
 // NetworkResult for mock engine
@@ -138,12 +143,18 @@ func (m *mockEngine) KickPeer(networkID, peerID, reason string) error {
 	if networkID == "" || peerID == "" {
 		return fmt.Errorf("networkID and peerID required")
 	}
+	if m.kickErr != nil {
+		return m.kickErr
+	}
 	return nil
 }
 
 func (m *mockEngine) BanPeer(networkID, peerID, reason string) error {
 	if networkID == "" || peerID == "" {
 		return fmt.Errorf("networkID and peerID required")
+	}
+	if m.banErr != nil {
+		return m.banErr
 	}
 	return nil
 }
@@ -152,6 +163,9 @@ func (m *mockEngine) UnbanPeer(networkID, peerID string) error {
 	if networkID == "" || peerID == "" {
 		return fmt.Errorf("networkID and peerID required")
 	}
+	if m.unbanErr != nil {
+		return m.unbanErr
+	}
 	return nil
 }
 
@@ -159,12 +173,18 @@ func (m *mockEngine) RejectTransfer(transferID string) error {
 	if transferID == "" {
 		return fmt.Errorf("transferID required")
 	}
+	if m.rejectErr != nil {
+		return m.rejectErr
+	}
 	return nil
 }
 
 func (m *mockEngine) CancelTransfer(transferID string) error {
 	if transferID == "" {
 		return fmt.Errorf("transferID required")
+	}
+	if m.cancelErr != nil {
+		return m.cancelErr
 	}
 	return nil
 }
@@ -1168,5 +1188,426 @@ func TestGRPCServer_CancelTransfer(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestGRPCServer_BanPeer_EngineError tests engine error handling
+func TestGRPCServer_BanPeer_EngineError(t *testing.T) {
+	server, addr := newTestGRPCServer(t)
+	server.engine.banErr = fmt.Errorf("engine ban error")
+	defer server.stop()
+
+	token, _ := LoadClientTokenFromPath(server.ipcAuth.GetTokenPath())
+	conn, _ := grpc.NewClient(addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithPerRPCCredentials(NewTokenCredentials(token)),
+	)
+	defer conn.Close()
+
+	client := pb.NewPeerServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err := client.BanPeer(ctx, &pb.BanPeerRequest{
+		NetworkId: "net-1",
+		PeerId:    "peer-1",
+		Reason:    "test",
+	})
+
+	if err == nil {
+		t.Fatal("Expected error from engine")
+	}
+	st, _ := status.FromError(err)
+	if st.Code() != codes.Internal {
+		t.Errorf("Expected Internal error, got: %v", st.Code())
+	}
+}
+
+// TestGRPCServer_UnbanPeer_EngineError tests engine error handling
+func TestGRPCServer_UnbanPeer_EngineError(t *testing.T) {
+	server, addr := newTestGRPCServer(t)
+	server.engine.unbanErr = fmt.Errorf("engine unban error")
+	defer server.stop()
+
+	token, _ := LoadClientTokenFromPath(server.ipcAuth.GetTokenPath())
+	conn, _ := grpc.NewClient(addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithPerRPCCredentials(NewTokenCredentials(token)),
+	)
+	defer conn.Close()
+
+	client := pb.NewPeerServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err := client.UnbanPeer(ctx, &pb.UnbanPeerRequest{
+		NetworkId: "net-1",
+		PeerId:    "peer-1",
+	})
+
+	if err == nil {
+		t.Fatal("Expected error from engine")
+	}
+	st, _ := status.FromError(err)
+	if st.Code() != codes.Internal {
+		t.Errorf("Expected Internal error, got: %v", st.Code())
+	}
+}
+
+// TestGRPCServer_KickPeer_EngineError tests engine error handling
+func TestGRPCServer_KickPeer_EngineError(t *testing.T) {
+	server, addr := newTestGRPCServer(t)
+	server.engine.kickErr = fmt.Errorf("engine kick error")
+	defer server.stop()
+
+	token, _ := LoadClientTokenFromPath(server.ipcAuth.GetTokenPath())
+	conn, _ := grpc.NewClient(addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithPerRPCCredentials(NewTokenCredentials(token)),
+	)
+	defer conn.Close()
+
+	client := pb.NewPeerServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err := client.KickPeer(ctx, &pb.KickPeerRequest{
+		NetworkId: "net-1",
+		PeerId:    "peer-1",
+		Reason:    "test",
+	})
+
+	if err == nil {
+		t.Fatal("Expected error from engine")
+	}
+	st, _ := status.FromError(err)
+	if st.Code() != codes.Internal {
+		t.Errorf("Expected Internal error, got: %v", st.Code())
+	}
+}
+
+// TestGRPCServer_RejectTransfer_EngineError tests engine error handling
+func TestGRPCServer_RejectTransfer_EngineError(t *testing.T) {
+	server, addr := newTestGRPCServer(t)
+	server.engine.rejectErr = fmt.Errorf("engine reject error")
+	defer server.stop()
+
+	token, _ := LoadClientTokenFromPath(server.ipcAuth.GetTokenPath())
+	conn, _ := grpc.NewClient(addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithPerRPCCredentials(NewTokenCredentials(token)),
+	)
+	defer conn.Close()
+
+	client := pb.NewTransferServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err := client.RejectTransfer(ctx, &pb.RejectTransferRequest{
+		TransferId: "transfer-123",
+	})
+
+	if err == nil {
+		t.Fatal("Expected error from engine")
+	}
+	st, _ := status.FromError(err)
+	if st.Code() != codes.Internal {
+		t.Errorf("Expected Internal error, got: %v", st.Code())
+	}
+}
+
+// TestGRPCServer_CancelTransfer_EngineError tests engine error handling
+func TestGRPCServer_CancelTransfer_EngineError(t *testing.T) {
+	server, addr := newTestGRPCServer(t)
+	server.engine.cancelErr = fmt.Errorf("engine cancel error")
+	defer server.stop()
+
+	token, _ := LoadClientTokenFromPath(server.ipcAuth.GetTokenPath())
+	conn, _ := grpc.NewClient(addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithPerRPCCredentials(NewTokenCredentials(token)),
+	)
+	defer conn.Close()
+
+	client := pb.NewTransferServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err := client.CancelTransfer(ctx, &pb.CancelTransferRequest{
+		TransferId: "transfer-456",
+	})
+
+	if err == nil {
+		t.Fatal("Expected error from engine")
+	}
+	st, _ := status.FromError(err)
+	if st.Code() != codes.Internal {
+		t.Errorf("Expected Internal error, got: %v", st.Code())
+	}
+}
+
+// TestGRPCServer_CreateNetwork_EngineError tests engine error handling
+func TestGRPCServer_CreateNetwork_EngineError(t *testing.T) {
+	server, addr := newTestGRPCServer(t)
+	server.engine.createErr = fmt.Errorf("engine create error")
+	defer server.stop()
+
+	token, _ := LoadClientTokenFromPath(server.ipcAuth.GetTokenPath())
+	conn, _ := grpc.NewClient(addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithPerRPCCredentials(NewTokenCredentials(token)),
+	)
+	defer conn.Close()
+
+	client := pb.NewNetworkServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err := client.CreateNetwork(ctx, &pb.CreateNetworkRequest{
+		Name: "TestNetwork",
+	})
+
+	if err == nil {
+		t.Fatal("Expected error from engine")
+	}
+	st, _ := status.FromError(err)
+	if st.Code() != codes.Internal {
+		t.Errorf("Expected Internal error, got: %v", st.Code())
+	}
+}
+
+// TestGRPCServer_JoinNetwork_EngineError tests engine error handling
+func TestGRPCServer_JoinNetwork_EngineError(t *testing.T) {
+	server, addr := newTestGRPCServer(t)
+	server.engine.joinErr = fmt.Errorf("engine join error")
+	defer server.stop()
+
+	token, _ := LoadClientTokenFromPath(server.ipcAuth.GetTokenPath())
+	conn, _ := grpc.NewClient(addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithPerRPCCredentials(NewTokenCredentials(token)),
+	)
+	defer conn.Close()
+
+	client := pb.NewNetworkServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err := client.JoinNetwork(ctx, &pb.JoinNetworkRequest{
+		InviteCode: "invite-abc",
+	})
+
+	if err == nil {
+		t.Fatal("Expected error from engine")
+	}
+	st, _ := status.FromError(err)
+	if st.Code() != codes.Internal {
+		t.Errorf("Expected Internal error, got: %v", st.Code())
+	}
+}
+
+// TestGRPCServer_ListNetworks_EngineError tests engine error handling
+func TestGRPCServer_ListNetworks_EngineError(t *testing.T) {
+	server, addr := newTestGRPCServer(t)
+	server.engine.getNetworkErr = fmt.Errorf("engine list error")
+	defer server.stop()
+
+	token, _ := LoadClientTokenFromPath(server.ipcAuth.GetTokenPath())
+	conn, _ := grpc.NewClient(addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithPerRPCCredentials(NewTokenCredentials(token)),
+	)
+	defer conn.Close()
+
+	client := pb.NewNetworkServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err := client.ListNetworks(ctx, &emptypb.Empty{})
+
+	if err == nil {
+		t.Fatal("Expected error from engine")
+	}
+	st, _ := status.FromError(err)
+	if st.Code() != codes.Internal {
+		t.Errorf("Expected Internal error, got: %v", st.Code())
+	}
+}
+
+// TestGRPCServer_GetPeers_EngineError tests engine error handling
+func TestGRPCServer_GetPeers_EngineError(t *testing.T) {
+	server, addr := newTestGRPCServer(t)
+	server.engine.getPeersErr = fmt.Errorf("engine peers error")
+	defer server.stop()
+
+	token, _ := LoadClientTokenFromPath(server.ipcAuth.GetTokenPath())
+	conn, _ := grpc.NewClient(addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithPerRPCCredentials(NewTokenCredentials(token)),
+	)
+	defer conn.Close()
+
+	client := pb.NewPeerServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err := client.GetPeers(ctx, &pb.GetPeersRequest{})
+
+	if err == nil {
+		t.Fatal("Expected error from engine")
+	}
+	st, _ := status.FromError(err)
+	if st.Code() != codes.Internal {
+		t.Errorf("Expected Internal error, got: %v", st.Code())
+	}
+}
+
+// TestGRPCServer_GetPeer_NotFound tests peer not found scenario
+func TestGRPCServer_GetPeer_NotFound(t *testing.T) {
+	server, addr := newTestGRPCServer(t)
+	defer server.stop()
+
+	token, _ := LoadClientTokenFromPath(server.ipcAuth.GetTokenPath())
+	conn, _ := grpc.NewClient(addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithPerRPCCredentials(NewTokenCredentials(token)),
+	)
+	defer conn.Close()
+
+	client := pb.NewPeerServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err := client.GetPeer(ctx, &pb.GetPeerRequest{
+		PeerId: "nonexistent-peer",
+	})
+
+	if err == nil {
+		t.Fatal("Expected error for nonexistent peer")
+	}
+	st, _ := status.FromError(err)
+	if st.Code() != codes.NotFound {
+		t.Errorf("Expected NotFound error, got: %v", st.Code())
+	}
+}
+
+// TestGRPCServer_GetStatus_DisconnectedState tests disconnected status
+func TestGRPCServer_GetStatus_DisconnectedState(t *testing.T) {
+	server, addr := newTestGRPCServer(t)
+	server.engine.status = map[string]interface{}{
+		"connected":    false,
+		"virtual_ip":   "",
+		"active_peers": 0,
+		"network_id":   "",
+		"network_name": "",
+	}
+	defer server.stop()
+
+	token, _ := LoadClientTokenFromPath(server.ipcAuth.GetTokenPath())
+	conn, _ := grpc.NewClient(addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithPerRPCCredentials(NewTokenCredentials(token)),
+	)
+	defer conn.Close()
+
+	client := pb.NewDaemonServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	resp, err := client.GetStatus(ctx, &pb.GetStatusRequest{})
+	if err != nil {
+		t.Fatalf("GetStatus failed: %v", err)
+	}
+
+	if resp.Status == pb.ConnectionStatus_CONNECTION_STATUS_CONNECTED {
+		t.Error("Expected disconnected status")
+	}
+	if resp.ActivePeers != 0 {
+		t.Errorf("Expected 0 active peers, got: %d", resp.ActivePeers)
+	}
+}
+
+// TestGRPCServer_GenerateInvite_EmptyNetworkID tests empty network ID
+func TestGRPCServer_GenerateInvite_EmptyNetworkID(t *testing.T) {
+	server, addr := newTestGRPCServer(t)
+	defer server.stop()
+
+	token, _ := LoadClientTokenFromPath(server.ipcAuth.GetTokenPath())
+	conn, _ := grpc.NewClient(addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithPerRPCCredentials(NewTokenCredentials(token)),
+	)
+	defer conn.Close()
+
+	client := pb.NewNetworkServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err := client.GenerateInvite(ctx, &pb.GenerateInviteRequest{
+		NetworkId:    "",
+		MaxUses:      5,
+		ExpiresHours: 24,
+	})
+
+	if err == nil {
+		t.Fatal("Expected error for empty network ID")
+	}
+	st, _ := status.FromError(err)
+	if st.Code() != codes.InvalidArgument {
+		t.Errorf("Expected InvalidArgument error, got: %v", st.Code())
+	}
+}
+
+// TestGRPCServer_ListNetworks_EmptyResult tests empty network list
+func TestGRPCServer_ListNetworks_EmptyResult(t *testing.T) {
+	server, addr := newTestGRPCServer(t)
+	server.engine.networks = []NetworkResult{}
+	defer server.stop()
+
+	token, _ := LoadClientTokenFromPath(server.ipcAuth.GetTokenPath())
+	conn, _ := grpc.NewClient(addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithPerRPCCredentials(NewTokenCredentials(token)),
+	)
+	defer conn.Close()
+
+	client := pb.NewNetworkServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	resp, err := client.ListNetworks(ctx, &emptypb.Empty{})
+	if err != nil {
+		t.Fatalf("ListNetworks failed: %v", err)
+	}
+
+	if len(resp.Networks) != 0 {
+		t.Errorf("Expected 0 networks, got: %d", len(resp.Networks))
+	}
+}
+
+// TestGRPCServer_GetPeers_EmptyResult tests empty peer list
+func TestGRPCServer_GetPeers_EmptyResult(t *testing.T) {
+	server, addr := newTestGRPCServer(t)
+	server.engine.peers = []PeerResult{}
+	defer server.stop()
+
+	token, _ := LoadClientTokenFromPath(server.ipcAuth.GetTokenPath())
+	conn, _ := grpc.NewClient(addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithPerRPCCredentials(NewTokenCredentials(token)),
+	)
+	defer conn.Close()
+
+	client := pb.NewPeerServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	resp, err := client.GetPeers(ctx, &pb.GetPeersRequest{})
+	if err != nil {
+		t.Fatalf("GetPeers failed: %v", err)
+	}
+
+	if len(resp.Peers) != 0 {
+		t.Errorf("Expected 0 peers, got: %d", len(resp.Peers))
 	}
 }

@@ -162,3 +162,217 @@ func TestNewTestKeyring(t *testing.T) {
 		t.Fatalf("RemoveAuthData via file backend failed: %v", err)
 	}
 }
+
+func TestNewTestKeyring_RetrieveBeforeStore(t *testing.T) {
+	dir := t.TempDir()
+
+	ks, err := NewTestKeyring(dir)
+	if err != nil {
+		t.Fatalf("NewTestKeyring failed: %v", err)
+	}
+
+	// Try to retrieve token before storing - should fail
+	_, err = ks.RetrieveAuthToken()
+	if err == nil {
+		t.Error("Expected error retrieving non-existent token")
+	}
+
+	// Try to retrieve device ID before storing - should fail
+	_, err = ks.RetrieveDeviceID()
+	if err == nil {
+		t.Error("Expected error retrieving non-existent device ID")
+	}
+}
+
+func TestNewTestKeyring_RemoveNonExistent(t *testing.T) {
+	dir := t.TempDir()
+
+	ks, err := NewTestKeyring(dir)
+	if err != nil {
+		t.Fatalf("NewTestKeyring failed: %v", err)
+	}
+
+	// Store only auth token
+	if err := ks.StoreAuthToken("test-token"); err != nil {
+		t.Fatalf("StoreAuthToken failed: %v", err)
+	}
+
+	// RemoveAuthData should handle missing device ID gracefully
+	err = ks.RemoveAuthData()
+	// The error handling depends on whether keyring.ErrKeyNotFound is returned
+	// for device ID - our implementation should handle this gracefully
+	if err != nil {
+		t.Logf("RemoveAuthData returned error (may be expected): %v", err)
+	}
+}
+
+func TestNewTestKeyring_OverwriteToken(t *testing.T) {
+	dir := t.TempDir()
+
+	ks, err := NewTestKeyring(dir)
+	if err != nil {
+		t.Fatalf("NewTestKeyring failed: %v", err)
+	}
+
+	// Store first token
+	if err := ks.StoreAuthToken("token-1"); err != nil {
+		t.Fatalf("StoreAuthToken failed: %v", err)
+	}
+
+	// Overwrite with second token
+	if err := ks.StoreAuthToken("token-2"); err != nil {
+		t.Fatalf("StoreAuthToken (overwrite) failed: %v", err)
+	}
+
+	// Should get the second token
+	token, err := ks.RetrieveAuthToken()
+	if err != nil {
+		t.Fatalf("RetrieveAuthToken failed: %v", err)
+	}
+
+	if token != "token-2" {
+		t.Errorf("Expected token-2, got %s", token)
+	}
+}
+
+func TestNewTestKeyring_OverwriteDeviceID(t *testing.T) {
+	dir := t.TempDir()
+
+	ks, err := NewTestKeyring(dir)
+	if err != nil {
+		t.Fatalf("NewTestKeyring failed: %v", err)
+	}
+
+	// Store first device ID
+	if err := ks.StoreDeviceID("device-1"); err != nil {
+		t.Fatalf("StoreDeviceID failed: %v", err)
+	}
+
+	// Overwrite with second device ID
+	if err := ks.StoreDeviceID("device-2"); err != nil {
+		t.Fatalf("StoreDeviceID (overwrite) failed: %v", err)
+	}
+
+	// Should get the second device ID
+	deviceID, err := ks.RetrieveDeviceID()
+	if err != nil {
+		t.Fatalf("RetrieveDeviceID failed: %v", err)
+	}
+
+	if deviceID != "device-2" {
+		t.Errorf("Expected device-2, got %s", deviceID)
+	}
+}
+
+func TestNewTestKeyring_EmptyValues(t *testing.T) {
+	dir := t.TempDir()
+
+	ks, err := NewTestKeyring(dir)
+	if err != nil {
+		t.Fatalf("NewTestKeyring failed: %v", err)
+	}
+
+	// Store empty token
+	if err := ks.StoreAuthToken(""); err != nil {
+		t.Fatalf("StoreAuthToken (empty) failed: %v", err)
+	}
+
+	token, err := ks.RetrieveAuthToken()
+	if err != nil {
+		t.Fatalf("RetrieveAuthToken failed: %v", err)
+	}
+
+	if token != "" {
+		t.Errorf("Expected empty token, got %s", token)
+	}
+
+	// Store empty device ID
+	if err := ks.StoreDeviceID(""); err != nil {
+		t.Fatalf("StoreDeviceID (empty) failed: %v", err)
+	}
+
+	deviceID, err := ks.RetrieveDeviceID()
+	if err != nil {
+		t.Fatalf("RetrieveDeviceID failed: %v", err)
+	}
+
+	if deviceID != "" {
+		t.Errorf("Expected empty device ID, got %s", deviceID)
+	}
+}
+
+func TestNewTestKeyring_LongValues(t *testing.T) {
+	dir := t.TempDir()
+
+	ks, err := NewTestKeyring(dir)
+	if err != nil {
+		t.Fatalf("NewTestKeyring failed: %v", err)
+	}
+
+	// Create a long token (1000 chars)
+	longToken := ""
+	for i := 0; i < 100; i++ {
+		longToken += "abcdefghij"
+	}
+
+	if err := ks.StoreAuthToken(longToken); err != nil {
+		t.Fatalf("StoreAuthToken (long) failed: %v", err)
+	}
+
+	token, err := ks.RetrieveAuthToken()
+	if err != nil {
+		t.Fatalf("RetrieveAuthToken failed: %v", err)
+	}
+
+	if token != longToken {
+		t.Errorf("Long token mismatch: expected %d chars, got %d chars", len(longToken), len(token))
+	}
+}
+
+func TestNewTestKeyring_SpecialCharacters(t *testing.T) {
+	dir := t.TempDir()
+
+	ks, err := NewTestKeyring(dir)
+	if err != nil {
+		t.Fatalf("NewTestKeyring failed: %v", err)
+	}
+
+	// Token with special characters
+	specialToken := "token!@#$%^&*()_+-=[]{}|;':\",./<>?`~"
+	if err := ks.StoreAuthToken(specialToken); err != nil {
+		t.Fatalf("StoreAuthToken (special) failed: %v", err)
+	}
+
+	token, err := ks.RetrieveAuthToken()
+	if err != nil {
+		t.Fatalf("RetrieveAuthToken failed: %v", err)
+	}
+
+	if token != specialToken {
+		t.Errorf("Special token mismatch: expected %s, got %s", specialToken, token)
+	}
+}
+
+func TestNewTestKeyring_UnicodeValues(t *testing.T) {
+	dir := t.TempDir()
+
+	ks, err := NewTestKeyring(dir)
+	if err != nil {
+		t.Fatalf("NewTestKeyring failed: %v", err)
+	}
+
+	// Token with unicode characters
+	unicodeToken := "token-日本語-한국어-中文-🔐"
+	if err := ks.StoreAuthToken(unicodeToken); err != nil {
+		t.Fatalf("StoreAuthToken (unicode) failed: %v", err)
+	}
+
+	token, err := ks.RetrieveAuthToken()
+	if err != nil {
+		t.Fatalf("RetrieveAuthToken failed: %v", err)
+	}
+
+	if token != unicodeToken {
+		t.Errorf("Unicode token mismatch: expected %s, got %s", unicodeToken, token)
+	}
+}

@@ -572,3 +572,294 @@ func TestApplyEnvOverrides_MoreVars(t *testing.T) {
 		assert.Equal(t, 0, cfg.Redis.DB) // Should remain unchanged
 	})
 }
+
+func TestApplyEnvOverrides_ServerTimeouts(t *testing.T) {
+	t.Run("OverrideReadTimeout", func(t *testing.T) {
+		os.Setenv("SERVER_READ_TIMEOUT", "30s")
+		defer os.Unsetenv("SERVER_READ_TIMEOUT")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, 30*time.Second, cfg.Server.ReadTimeout)
+	})
+
+	t.Run("OverrideWriteTimeout", func(t *testing.T) {
+		os.Setenv("SERVER_WRITE_TIMEOUT", "45s")
+		defer os.Unsetenv("SERVER_WRITE_TIMEOUT")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, 45*time.Second, cfg.Server.WriteTimeout)
+	})
+
+	t.Run("OverrideIdleTimeout", func(t *testing.T) {
+		os.Setenv("SERVER_IDLE_TIMEOUT", "120s")
+		defer os.Unsetenv("SERVER_IDLE_TIMEOUT")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, 120*time.Second, cfg.Server.IdleTimeout)
+	})
+
+	t.Run("OverrideEnvironment", func(t *testing.T) {
+		os.Setenv("ENVIRONMENT", "production")
+		defer os.Unsetenv("ENVIRONMENT")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, "production", cfg.Server.Environment)
+	})
+
+	t.Run("InvalidReadTimeout", func(t *testing.T) {
+		os.Setenv("SERVER_READ_TIMEOUT", "invalid")
+		defer os.Unsetenv("SERVER_READ_TIMEOUT")
+		cfg := baseValidConfig()
+		cfg.Server.ReadTimeout = 10 * time.Second
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, 10*time.Second, cfg.Server.ReadTimeout) // Should remain unchanged
+	})
+}
+
+func TestApplyEnvOverrides_DatabaseExtended(t *testing.T) {
+	t.Run("OverrideDatabasePort", func(t *testing.T) {
+		os.Setenv("DB_PORT", "5433")
+		defer os.Unsetenv("DB_PORT")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, "5433", cfg.Database.Port)
+	})
+
+	t.Run("OverrideDatabaseUser", func(t *testing.T) {
+		os.Setenv("DB_USER", "appuser")
+		defer os.Unsetenv("DB_USER")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, "appuser", cfg.Database.User)
+	})
+
+	t.Run("OverrideDatabasePassword", func(t *testing.T) {
+		os.Setenv("DB_PASSWORD", "secret123")
+		defer os.Unsetenv("DB_PASSWORD")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, "secret123", cfg.Database.Password)
+	})
+
+	t.Run("OverrideDatabaseName", func(t *testing.T) {
+		os.Setenv("DB_NAME", "mydb")
+		defer os.Unsetenv("DB_NAME")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, "mydb", cfg.Database.DBName)
+	})
+
+	t.Run("OverrideDatabaseSSLMode", func(t *testing.T) {
+		os.Setenv("DB_SSLMODE", "require")
+		defer os.Unsetenv("DB_SSLMODE")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, "require", cfg.Database.SSLMode)
+	})
+
+	t.Run("OverrideMaxOpenConns", func(t *testing.T) {
+		os.Setenv("DB_MAX_OPEN_CONNS", "50")
+		defer os.Unsetenv("DB_MAX_OPEN_CONNS")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, 50, cfg.Database.MaxOpenConns)
+	})
+
+	t.Run("OverrideMaxIdleConns", func(t *testing.T) {
+		os.Setenv("DB_MAX_IDLE_CONNS", "10")
+		defer os.Unsetenv("DB_MAX_IDLE_CONNS")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, 10, cfg.Database.MaxIdleConns)
+	})
+
+	t.Run("OverrideConnMaxLifetime", func(t *testing.T) {
+		os.Setenv("DB_CONN_MAX_LIFETIME", "5m")
+		defer os.Unsetenv("DB_CONN_MAX_LIFETIME")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, 5*time.Minute, cfg.Database.ConnMaxLifetime)
+	})
+
+	t.Run("OverrideSQLitePath", func(t *testing.T) {
+		os.Setenv("DB_SQLITE_PATH", "/data/app.db")
+		defer os.Unsetenv("DB_SQLITE_PATH")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, "/data/app.db", cfg.Database.SQLitePath)
+	})
+
+	t.Run("InvalidMaxOpenConns", func(t *testing.T) {
+		os.Setenv("DB_MAX_OPEN_CONNS", "invalid")
+		defer os.Unsetenv("DB_MAX_OPEN_CONNS")
+		cfg := baseValidConfig()
+		cfg.Database.MaxOpenConns = 25
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, 25, cfg.Database.MaxOpenConns) // Should remain unchanged
+	})
+}
+
+func TestApplyEnvOverrides_JWTExtended(t *testing.T) {
+	t.Run("OverrideAccessTTL", func(t *testing.T) {
+		os.Setenv("JWT_ACCESS_TTL", "1h")
+		defer os.Unsetenv("JWT_ACCESS_TTL")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, time.Hour, cfg.JWT.AccessTokenTTL)
+	})
+
+	t.Run("OverrideRefreshTTL", func(t *testing.T) {
+		os.Setenv("JWT_REFRESH_TTL", "168h")
+		defer os.Unsetenv("JWT_REFRESH_TTL")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, 168*time.Hour, cfg.JWT.RefreshTokenTTL)
+	})
+
+	t.Run("OverrideRefreshSecret", func(t *testing.T) {
+		os.Setenv("JWT_REFRESH_SECRET", "refresh_secret_key")
+		defer os.Unsetenv("JWT_REFRESH_SECRET")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, "refresh_secret_key", cfg.JWT.RefreshSecretKey)
+	})
+
+	t.Run("InvalidAccessTTL", func(t *testing.T) {
+		os.Setenv("JWT_ACCESS_TTL", "invalid")
+		defer os.Unsetenv("JWT_ACCESS_TTL")
+		cfg := baseValidConfig()
+		cfg.JWT.AccessTokenTTL = 15 * time.Minute
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, 15*time.Minute, cfg.JWT.AccessTokenTTL) // Should remain unchanged
+	})
+}
+
+func TestApplyEnvOverrides_WireGuardExtended(t *testing.T) {
+	t.Run("OverrideInterfaceName", func(t *testing.T) {
+		os.Setenv("WG_INTERFACE_NAME", "wg1")
+		defer os.Unsetenv("WG_INTERFACE_NAME")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, "wg1", cfg.WireGuard.InterfaceName)
+	})
+
+	t.Run("OverridePrivateKey", func(t *testing.T) {
+		os.Setenv("WG_PRIVATE_KEY", "privatekey1234567890123456789012345678901234=")
+		defer os.Unsetenv("WG_PRIVATE_KEY")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, "privatekey1234567890123456789012345678901234=", cfg.WireGuard.PrivateKey)
+	})
+}
+
+func TestLoadFromFileOrEnv_FileNotFound(t *testing.T) {
+	// Test LoadFromFileOrEnv when file doesn't exist
+	// It should fall back to Load()
+	
+	// Set required env vars for Load() to succeed
+	os.Setenv("SERVER_PORT", "8080")
+	os.Setenv("DB_HOST", "localhost")
+	os.Setenv("DB_NAME", "testdb")
+	os.Setenv("DB_USER", "testuser")
+	os.Setenv("JWT_SECRET", "this_is_a_very_secure_secret_key_with_at_least_32_chars")
+	os.Setenv("WG_SERVER_ENDPOINT", "vpn.test.com:51820")
+	os.Setenv("WG_SERVER_PUBKEY", "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789ABCDEFG=")
+	
+	defer func() {
+		os.Unsetenv("SERVER_PORT")
+		os.Unsetenv("DB_HOST")
+		os.Unsetenv("DB_NAME")
+		os.Unsetenv("DB_USER")
+		os.Unsetenv("JWT_SECRET")
+		os.Unsetenv("WG_SERVER_ENDPOINT")
+		os.Unsetenv("WG_SERVER_PUBKEY")
+	}()
+
+	cfg, err := LoadFromFileOrEnv("/nonexistent/path/config.yaml")
+	require.NoError(t, err)
+	assert.Equal(t, "8080", cfg.Server.Port)
+}
+
+func TestLoadFromFileOrEnv_InvalidYAML(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "invalid.yaml")
+	
+	// Write invalid YAML
+	require.NoError(t, os.WriteFile(configPath, []byte("{{invalid yaml content"), 0o600))
+
+	_, err := LoadFromFileOrEnv(configPath)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to parse")
+}
+
+func TestLoadFromFileOrEnv_ValidationFailure(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "invalid_config.yaml")
+	
+	// Write valid YAML but invalid config (missing required fields)
+	yamlContent := `
+server:
+  port: ""
+database:
+  backend: "postgres"
+`
+	require.NoError(t, os.WriteFile(configPath, []byte(yamlContent), 0o600))
+
+	_, err := LoadFromFileOrEnv(configPath)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "SERVER_PORT")
+}
+
+func TestLoadFromFile_IsDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+	
+	// Try to load a directory as a config file
+	_, err := LoadFromFile(tmpDir)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestSaveToFile_NilConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "nil.yaml")
+	
+	err := SaveToFile(nil, configPath)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "nil")
+}
+
+func TestSaveToFile_InvalidConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "invalid.yaml")
+	
+	// Config with invalid values
+	cfg := &Config{
+		Server: ServerConfig{Port: ""}, // Missing required field
+	}
+	
+	err := SaveToFile(cfg, configPath)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "SERVER_PORT")
+}
+
+func TestBackendOrDefault(t *testing.T) {
+	t.Run("PostgresBackend", func(t *testing.T) {
+		cfg := DatabaseConfig{Backend: "postgres"}
+		assert.Equal(t, "postgres", cfg.backendOrDefault())
+	})
+
+	t.Run("SQLiteBackend", func(t *testing.T) {
+		cfg := DatabaseConfig{Backend: "sqlite"}
+		assert.Equal(t, "sqlite", cfg.backendOrDefault())
+	})
+
+	t.Run("MemoryBackend", func(t *testing.T) {
+		cfg := DatabaseConfig{Backend: "memory"}
+		assert.Equal(t, "memory", cfg.backendOrDefault())
+	})
+
+	t.Run("EmptyBackend_DefaultsToPostgres", func(t *testing.T) {
+		cfg := DatabaseConfig{Backend: ""}
+		assert.Equal(t, "postgres", cfg.backendOrDefault())
+	})
+}
