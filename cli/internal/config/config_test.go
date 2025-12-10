@@ -240,3 +240,48 @@ func TestConfig_SettingsStruct(t *testing.T) {
 	}
 	// Note: LogLevel defaults to "info" if empty in yaml, but we saved "warn"
 }
+
+func TestConfig_Save_ReadOnlyDirectory(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("Skipping as root")
+	}
+	// Skip on Windows as permissions work differently
+	if filepath.Separator == '\\' {
+		t.Skip("Skipping on Windows")
+	}
+
+	tmpDir := t.TempDir()
+	readOnlyDir := filepath.Join(tmpDir, "readonly")
+	if err := os.Mkdir(readOnlyDir, 0555); err != nil {
+		t.Fatalf("Failed to create readonly dir: %v", err)
+	}
+	defer os.Chmod(readOnlyDir, 0755)
+
+	cfg := &Config{}
+	cfg.Server.URL = "https://test.example.com"
+
+	// Try to save config in readonly directory
+	configPath := filepath.Join(readOnlyDir, "subdir", "config.yaml")
+	err := cfg.Save(configPath)
+	if err == nil {
+		t.Error("Expected error when saving to readonly directory")
+	}
+}
+
+func TestConfig_Save_CreatesDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+	nestedPath := filepath.Join(tmpDir, "a", "b", "c", "config.yaml")
+
+	cfg := &Config{}
+	cfg.Server.URL = "https://nested.example.com"
+
+	err := cfg.Save(nestedPath)
+	if err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+
+	// Verify file exists
+	if _, err := os.Stat(nestedPath); os.IsNotExist(err) {
+		t.Error("Config file was not created")
+	}
+}
