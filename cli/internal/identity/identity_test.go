@@ -256,3 +256,40 @@ func TestManager_FilePermissions(t *testing.T) {
 		t.Error("Identity path should be a file, not a directory")
 	}
 }
+
+func TestManager_Save_NoIdentity(t *testing.T) {
+	tmpDir := t.TempDir()
+	identityPath := filepath.Join(tmpDir, "identity.json")
+
+	m := NewManager(identityPath)
+	// Do not create identity, so save should fail
+
+	// Try to update (which calls save internally) without identity
+	err := m.Update("device-123")
+	if err == nil {
+		t.Error("Expected error when updating without identity")
+	}
+}
+
+func TestManager_Save_ReadOnlyDir(t *testing.T) {
+	// Skip on Windows as permissions work differently
+	if filepath.Separator == '\\' {
+		t.Skip("Skipping on Windows")
+	}
+
+	tmpDir := t.TempDir()
+	readOnlyDir := filepath.Join(tmpDir, "readonly")
+	if err := os.Mkdir(readOnlyDir, 0555); err != nil {
+		t.Fatalf("Failed to create readonly dir: %v", err)
+	}
+	defer os.Chmod(readOnlyDir, 0755) // Cleanup
+
+	identityPath := filepath.Join(readOnlyDir, "identity.json")
+	m := NewManager(identityPath)
+
+	// Try to create identity in readonly directory
+	_, err := m.LoadOrCreateIdentity()
+	if err == nil {
+		t.Error("Expected error when creating identity in readonly directory")
+	}
+}
