@@ -9,6 +9,12 @@ import (
 	"strings"
 )
 
+// Variables for mocking in tests
+var (
+	osReleasePath = "/etc/os-release"
+	execCommand   = exec.Command
+)
+
 // GetOSVersion returns a human-readable OS version string
 func GetOSVersion() string {
 	switch runtime.GOOS {
@@ -24,7 +30,7 @@ func GetOSVersion() string {
 }
 
 func getWindowsVersion() string {
-	cmd := exec.Command("cmd", "/c", "ver")
+	cmd := execCommand("cmd", "/c", "ver")
 	out, err := cmd.Output()
 	if err != nil {
 		return "Windows"
@@ -34,7 +40,7 @@ func getWindowsVersion() string {
 
 func getLinuxVersion() string {
 	// Try /etc/os-release
-	f, err := os.Open("/etc/os-release")
+	f, err := os.Open(osReleasePath)
 	if err != nil {
 		return "Linux"
 	}
@@ -64,7 +70,7 @@ func getLinuxVersion() string {
 }
 
 func getMacVersion() string {
-	cmd := exec.Command("sw_vers", "-productVersion")
+	cmd := execCommand("sw_vers", "-productVersion")
 	out, err := cmd.Output()
 	if err != nil {
 		return "macOS"

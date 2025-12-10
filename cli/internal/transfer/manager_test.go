@@ -420,3 +420,207 @@ func TestGetActiveCount(t *testing.T) {
 		t.Errorf("Expected 2 active, got %d", count)
 	}
 }
+
+func TestSetCallbacks(t *testing.T) {
+	tm := NewManager()
+
+	progressCalled := false
+	requestCalled := false
+
+	tm.SetCallbacks(
+		func(s Session) { progressCalled = true },
+		func(r Request, peer string) { requestCalled = true },
+	)
+
+	// Trigger progress callback via notifyProgress
+	tm.mu.Lock()
+	tm.sessions["test"] = &Session{ID: "test", Status: StatusInProgress}
+	tm.mu.Unlock()
+	tm.notifyProgress("test")
+
+	if !progressCalled {
+		t.Error("Expected progress callback to be called")
+	}
+
+	// Trigger request callback via HandleSignalingMessage
+	tm.HandleSignalingMessage(`{"id":"callback-test","file_name":"test.txt","file_size":100}`, "peer-1")
+
+	if !requestCalled {
+		t.Error("Expected request callback to be called")
+	}
+}
+
+func TestGetSession(t *testing.T) {
+	tm := NewManager()
+
+	// Non-existent session
+	s := tm.GetSession("non-existent")
+	if s != nil {
+		t.Error("Expected nil for non-existent session")
+	}
+
+	// Add a session
+	tm.mu.Lock()
+	tm.sessions["exists"] = &Session{ID: "exists", Status: StatusPending}
+	tm.mu.Unlock()
+
+	s = tm.GetSession("exists")
+	if s == nil {
+		t.Fatal("Expected session to exist")
+	}
+	if s.ID != "exists" {
+		t.Errorf("Expected ID 'exists', got %s", s.ID)
+	}
+}
+
+func TestHandleSignalingMessage(t *testing.T) {
+	tm := NewManager()
+
+	// Handle valid message
+	tm.HandleSignalingMessage(`{"id":"sig-1","file_name":"test.txt","file_size":1024}`, "sender-1")
+
+	req, peer, found := tm.GetPendingRequest("sig-1")
+	if !found {
+		t.Fatal("Expected pending request to be added")
+	}
+	if peer != "sender-1" {
+		t.Errorf("Expected peer 'sender-1', got %s", peer)
+	}
+	if req.FileName != "test.txt" {
+		t.Errorf("Expected FileName 'test.txt', got %s", req.FileName)
+	}
+
+	// Handle invalid JSON
+	tm.HandleSignalingMessage("invalid-json", "sender-2")
+	// Should not panic, just log error
+}
+
+func TestGetPendingRequest_NotFound(t *testing.T) {
+	tm := NewManager()
+
+	_, _, found := tm.GetPendingRequest("non-existent")
+	if found {
+		t.Error("Expected pending request to not be found")
+	}
+}
+
+func TestManager_StartAndStop(t *testing.T) {
+	tm := NewManager()
+
+	// Start on a random available port
+	err := tm.Start("127.0.0.1")
+	if err != nil {
+		t.Fatalf("Failed to start manager: %v", err)
+	}
+
+	// Verify listener is set
+	if tm.listener == nil {
+		t.Error("Expected listener to be set after Start")
+	}
+
+	// Stop should not panic
+	tm.Stop()
+}
+
+func TestManager_StopWithoutStart(t *testing.T) {
+	tm := NewManager()
+
+	// Stop without starting should not panic
+	tm.Stop()
+}
+
+func TestCreateSendSession_NonexistentFile(t *testing.T) {
+	tm := NewManager()
+
+	_, err := tm.CreateSendSession("receiver", "/nonexistent/path/file.txt")
+	if err == nil {
+		t.Error("Expected error for non-existent file")
+	}
+}
+
+func TestListSessions_Sorting(t *testing.T) {
+	tm := NewManager()
+
+	now := time.Now()
+
+	tm.mu.Lock()
+	tm.sessions["1"] = &Session{ID: "1", FileName: "aaa.txt", StartTime: now.Add(-1 * time.Hour), FileSize: 100}
+	tm.sessions["2"] = &Session{ID: "2", FileName: "bbb.txt", StartTime: now.Add(-2 * time.Hour), FileSize: 300}
+	tm.sessions["3"] = &Session{ID: "3", FileName: "ccc.txt", StartTime: now.Add(-30 * time.Minute), FileSize: 200}
+	tm.mu.Unlock()
+
+	// Sort by name ascending (default)
+	result := tm.ListSessions(ListOptions{SortBy: SortByFileName, SortOrder: SortAsc})
+	if len(result.Sessions) != 3 {
+		t.Fatalf("Expected 3 sessions, got %d", len(result.Sessions))
+	}
+	if result.Sessions[0].FileName != "aaa.txt" {
+		t.Errorf("Expected first file 'aaa.txt', got %s", result.Sessions[0].FileName)
+	}
+
+	// Sort by size descending
+	result = tm.ListSessions(ListOptions{SortBy: SortByFileSize, SortOrder: SortDesc})
+	if result.Sessions[0].FileSize != 300 {
+		t.Errorf("Expected first file size 300, got %d", result.Sessions[0].FileSize)
+	}
+}
+
+func TestRequest_Struct(t *testing.T) {
+	req := Request{
+		ID:       "req-123",
+		FileName: "document.pdf",
+		FileSize: 1024000,
+	}
+
+	if req.ID != "req-123" {
+		t.Errorf("Expected ID 'req-123', got %s", req.ID)
+	}
+	if req.FileName != "document.pdf" {
+		t.Errorf("Expected FileName 'document.pdf', got %s", req.FileName)
+	}
+	if req.FileSize != 1024000 {
+		t.Errorf("Expected FileSize 1024000, got %d", req.FileSize)
+	}
+}
+
+func TestConcurrentSessionAccess(t *testing.T) {
+	tm := NewManager()
+
+	// Add initial sessions
+	for i := 0; i < 10; i++ {
+		tm.mu.Lock()
+		tm.sessions[string(rune('a'+i))] = &Session{ID: string(rune('a' + i)), Status: StatusPending}
+		tm.mu.Unlock()
+	}
+
+	done := make(chan bool)
+
+	// Concurrent reads
+	go func() {
+		for i := 0; i < 100; i++ {
+			_ = tm.GetSessions()
+		}
+		done <- true
+	}()
+
+	// Concurrent stats
+	go func() {
+		for i := 0; i < 100; i++ {
+			_ = tm.GetStats()
+		}
+		done <- true
+	}()
+
+	// Concurrent active count
+	go func() {
+		for i := 0; i < 100; i++ {
+			_ = tm.GetActiveCount()
+		}
+		done <- true
+	}()
+
+	// Wait for all goroutines
+	<-done
+	<-done
+	<-done
+}

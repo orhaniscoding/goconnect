@@ -661,3 +661,544 @@ func TestTenantMembershipService_RemoveMember_MemberCannotKick(t *testing.T) {
 
 	require.Error(t, err)
 }
+
+// ==================== UPDATE TENANT TESTS ====================
+
+func TestTenantMembershipService_UpdateTenant_Success(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Owner updates tenant
+	newName := "Updated Tenant Name"
+	newDesc := "Updated description"
+	req := &domain.UpdateTenantRequest{
+		Name:        &newName,
+		Description: &newDesc,
+	}
+
+	updated, err := svc.UpdateTenant(ctx, ownerID, tenantID, req)
+	require.NoError(t, err)
+	assert.Equal(t, newName, updated.Name)
+	assert.Equal(t, newDesc, updated.Description)
+}
+
+func TestTenantMembershipService_UpdateTenant_MemberForbidden(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, _ := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Add a regular member
+	_, _ = svc.JoinTenant(ctx, "regular-user", tenantID, &domain.JoinTenantRequest{})
+
+	// Member tries to update tenant
+	newName := "Hacked Name"
+	req := &domain.UpdateTenantRequest{
+		Name: &newName,
+	}
+
+	_, err := svc.UpdateTenant(ctx, "regular-user", tenantID, req)
+	require.Error(t, err)
+	if domErr, ok := err.(*domain.Error); ok {
+		assert.Equal(t, domain.ErrForbidden, domErr.Code)
+	}
+}
+
+func TestTenantMembershipService_UpdateTenant_NotMember(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, _ := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Non-member tries to update tenant
+	newName := "Hacked Name"
+	req := &domain.UpdateTenantRequest{
+		Name: &newName,
+	}
+
+	_, err := svc.UpdateTenant(ctx, "stranger", tenantID, req)
+	require.Error(t, err)
+}
+
+// ==================== DELETE TENANT TESTS ====================
+
+func TestTenantMembershipService_DeleteTenant_Success(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	err := svc.DeleteTenant(ctx, ownerID, tenantID)
+	require.NoError(t, err)
+
+	// Verify tenant is deleted
+	_, err = tenantRepo.GetByID(ctx, tenantID)
+	require.Error(t, err)
+}
+
+func TestTenantMembershipService_DeleteTenant_NonOwnerForbidden(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Add admin
+	_, _ = svc.JoinTenant(ctx, "admin-user", tenantID, &domain.JoinTenantRequest{})
+	// Need to make them admin through UpdateMemberRole
+	admin, _ := svc.JoinTenant(ctx, "admin2", tenantID, &domain.JoinTenantRequest{})
+	_ = svc.UpdateMemberRole(ctx, ownerID, tenantID, admin.ID, domain.TenantRoleAdmin)
+
+	// Admin tries to delete tenant (only owner can)
+	err := svc.DeleteTenant(ctx, "admin2", tenantID)
+	require.Error(t, err)
+	if domErr, ok := err.(*domain.Error); ok {
+		assert.Equal(t, domain.ErrForbidden, domErr.Code)
+	}
+}
+
+// ==================== BAN/UNBAN MEMBER TESTS ====================
+
+func TestTenantMembershipService_BanMember_Success(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Add a member
+	member, _ := svc.JoinTenant(ctx, "member-to-ban", tenantID, &domain.JoinTenantRequest{})
+
+	// Owner bans member
+	err := svc.BanMember(ctx, ownerID, tenantID, member.ID)
+	require.NoError(t, err)
+}
+
+func TestTenantMembershipService_BanMember_NotAdmin(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, _ := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Add members
+	member1, _ := svc.JoinTenant(ctx, "member-1", tenantID, &domain.JoinTenantRequest{})
+	_, _ = svc.JoinTenant(ctx, "member-2", tenantID, &domain.JoinTenantRequest{})
+
+	// Regular member tries to ban another member
+	err := svc.BanMember(ctx, "member-2", tenantID, member1.ID)
+	require.Error(t, err)
+}
+
+func TestTenantMembershipService_UnbanMember_Success(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Add and ban a member
+	member, _ := svc.JoinTenant(ctx, "member-to-unban", tenantID, &domain.JoinTenantRequest{})
+	_ = svc.BanMember(ctx, ownerID, tenantID, member.ID)
+
+	// Owner unbans member
+	err := svc.UnbanMember(ctx, ownerID, tenantID, member.ID)
+	require.NoError(t, err)
+}
+
+func TestTenantMembershipService_UnbanMember_NotAdmin(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Add and ban a member
+	member, _ := svc.JoinTenant(ctx, "banned-member", tenantID, &domain.JoinTenantRequest{})
+	_ = svc.BanMember(ctx, ownerID, tenantID, member.ID)
+
+	// Add another regular member who tries to unban
+	_, _ = svc.JoinTenant(ctx, "regular-member", tenantID, &domain.JoinTenantRequest{})
+
+	err := svc.UnbanMember(ctx, "regular-member", tenantID, member.ID)
+	require.Error(t, err)
+}
+
+func TestTenantMembershipService_ListBannedMembers_Success(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Add and ban members
+	member1, _ := svc.JoinTenant(ctx, "ban-list-1", tenantID, &domain.JoinTenantRequest{})
+	member2, _ := svc.JoinTenant(ctx, "ban-list-2", tenantID, &domain.JoinTenantRequest{})
+	_ = svc.BanMember(ctx, ownerID, tenantID, member1.ID)
+	_ = svc.BanMember(ctx, ownerID, tenantID, member2.ID)
+
+	// List banned members
+	banned, err := svc.ListBannedMembers(ctx, ownerID, tenantID)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, len(banned), 2)
+}
+
+func TestTenantMembershipService_ListBannedMembers_NotAdmin(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, _ := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Add regular member
+	_, _ = svc.JoinTenant(ctx, "regular", tenantID, &domain.JoinTenantRequest{})
+
+	// Regular member tries to list banned members
+	_, err := svc.ListBannedMembers(ctx, "regular", tenantID)
+	require.Error(t, err)
+}
+
+// ==================== INVITE TESTS ====================
+
+func TestTenantMembershipService_ListInvites_Success(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Create an invite first
+	_, err := svc.CreateInvite(ctx, ownerID, tenantID, &domain.CreateTenantInviteRequest{
+		MaxUses:   10,
+		ExpiresIn: 86400, // 24 hours in seconds
+	})
+	require.NoError(t, err)
+
+	// List invites as admin (owner)
+	invites, err := svc.ListInvites(ctx, ownerID, tenantID)
+	require.NoError(t, err)
+	assert.Len(t, invites, 1)
+}
+
+func TestTenantMembershipService_ListInvites_NotAdmin(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, _ := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Add regular member
+	_, _ = svc.JoinTenant(ctx, "regular", tenantID, &domain.JoinTenantRequest{})
+
+	// Regular member tries to list invites
+	_, err := svc.ListInvites(ctx, "regular", tenantID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "admin")
+}
+
+func TestTenantMembershipService_RevokeInvite_Success(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Create an invite
+	invite, err := svc.CreateInvite(ctx, ownerID, tenantID, &domain.CreateTenantInviteRequest{
+		MaxUses:   10,
+		ExpiresIn: 86400,
+	})
+	require.NoError(t, err)
+
+	// Revoke the invite
+	err = svc.RevokeInvite(ctx, ownerID, tenantID, invite.ID)
+	require.NoError(t, err)
+	// Success is indicated by no error returned
+}
+
+func TestTenantMembershipService_RevokeInvite_NotAdmin(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Create an invite
+	invite, _ := svc.CreateInvite(ctx, ownerID, tenantID, &domain.CreateTenantInviteRequest{
+		MaxUses:   10,
+		ExpiresIn: 86400,
+	})
+
+	// Add regular member
+	_, _ = svc.JoinTenant(ctx, "regular", tenantID, &domain.JoinTenantRequest{})
+
+	// Regular member tries to revoke invite
+	err := svc.RevokeInvite(ctx, "regular", tenantID, invite.ID)
+	require.Error(t, err)
+}
+
+// ==================== ANNOUNCEMENT TESTS ====================
+
+func TestTenantMembershipService_CreateAnnouncement_Success(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	announcement, err := svc.CreateAnnouncement(ctx, ownerID, tenantID, &domain.CreateAnnouncementRequest{
+		Title:    "Important Update",
+		Content:  "This is an important announcement.",
+		IsPinned: true,
+	})
+	require.NoError(t, err)
+	assert.NotEmpty(t, announcement.ID)
+	assert.Equal(t, "Important Update", announcement.Title)
+}
+
+func TestTenantMembershipService_CreateAnnouncement_NotModerator(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, _ := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Add regular member
+	_, _ = svc.JoinTenant(ctx, "regular", tenantID, &domain.JoinTenantRequest{})
+
+	// Regular member tries to create announcement
+	_, err := svc.CreateAnnouncement(ctx, "regular", tenantID, &domain.CreateAnnouncementRequest{
+		Title:   "Test",
+		Content: "Content",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "moderator")
+}
+
+func TestTenantMembershipService_GetAnnouncements_Success(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Create an announcement
+	_, _ = svc.CreateAnnouncement(ctx, ownerID, tenantID, &domain.CreateAnnouncementRequest{
+		Title:   "Announcement 1",
+		Content: "Content 1",
+	})
+
+	// Get announcements
+	announcements, _, err := svc.GetAnnouncements(ctx, ownerID, tenantID, &domain.ListAnnouncementsRequest{})
+	require.NoError(t, err)
+	assert.Len(t, announcements, 1)
+}
+
+func TestTenantMembershipService_GetAnnouncements_NotMember(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Create an announcement
+	_, _ = svc.CreateAnnouncement(ctx, ownerID, tenantID, &domain.CreateAnnouncementRequest{
+		Title:   "Test",
+		Content: "Content",
+	})
+
+	// Non-member tries to get announcements
+	_, _, err := svc.GetAnnouncements(ctx, "non-member", tenantID, &domain.ListAnnouncementsRequest{})
+	require.Error(t, err)
+}
+
+func TestTenantMembershipService_UpdateAnnouncement_Success(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Create an announcement
+	announcement, err := svc.CreateAnnouncement(ctx, ownerID, tenantID, &domain.CreateAnnouncementRequest{
+		Title:   "Original Title",
+		Content: "Original Content",
+	})
+	require.NoError(t, err)
+
+	// Update the announcement
+	newTitle := "Updated Title"
+	newContent := "Updated Content"
+	isPinned := true
+	err = svc.UpdateAnnouncement(ctx, ownerID, tenantID, announcement.ID, &domain.UpdateAnnouncementRequest{
+		Title:    &newTitle,
+		Content:  &newContent,
+		IsPinned: &isPinned,
+	})
+	require.NoError(t, err)
+}
+
+func TestTenantMembershipService_UpdateAnnouncement_NotModerator(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Create an announcement
+	announcement, _ := svc.CreateAnnouncement(ctx, ownerID, tenantID, &domain.CreateAnnouncementRequest{
+		Title:   "Test",
+		Content: "Content",
+	})
+
+	// Add regular member
+	_, _ = svc.JoinTenant(ctx, "regular", tenantID, &domain.JoinTenantRequest{})
+
+	// Regular member tries to update
+	newTitle := "Hacked"
+	err := svc.UpdateAnnouncement(ctx, "regular", tenantID, announcement.ID, &domain.UpdateAnnouncementRequest{
+		Title: &newTitle,
+	})
+	require.Error(t, err)
+}
+
+func TestTenantMembershipService_DeleteAnnouncement_Success(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Create an announcement
+	announcement, _ := svc.CreateAnnouncement(ctx, ownerID, tenantID, &domain.CreateAnnouncementRequest{
+		Title:   "To Delete",
+		Content: "Content",
+	})
+
+	// Delete announcement
+	err := svc.DeleteAnnouncement(ctx, ownerID, tenantID, announcement.ID)
+	require.NoError(t, err)
+}
+
+func TestTenantMembershipService_DeleteAnnouncement_NotModerator(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Create an announcement
+	announcement, _ := svc.CreateAnnouncement(ctx, ownerID, tenantID, &domain.CreateAnnouncementRequest{
+		Title:   "Test",
+		Content: "Content",
+	})
+
+	// Add regular member
+	_, _ = svc.JoinTenant(ctx, "regular", tenantID, &domain.JoinTenantRequest{})
+
+	// Regular member tries to delete
+	err := svc.DeleteAnnouncement(ctx, "regular", tenantID, announcement.ID)
+	require.Error(t, err)
+}
+
+// ==================== CHAT TESTS ====================
+
+func TestTenantMembershipService_SendChatMessage_Success(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Send a chat message
+	msg, err := svc.SendChatMessage(ctx, ownerID, tenantID, &domain.SendChatMessageRequest{
+		Content: "Hello, world!",
+	})
+	require.NoError(t, err)
+	assert.NotEmpty(t, msg.ID)
+	assert.Equal(t, "Hello, world!", msg.Content)
+}
+
+func TestTenantMembershipService_SendChatMessage_NotMember(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, _ := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Non-member tries to send message
+	_, err := svc.SendChatMessage(ctx, "non-member", tenantID, &domain.SendChatMessageRequest{
+		Content: "Hello",
+	})
+	require.Error(t, err)
+}
+
+func TestTenantMembershipService_GetChatHistory_Success(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Send a few messages
+	_, _ = svc.SendChatMessage(ctx, ownerID, tenantID, &domain.SendChatMessageRequest{Content: "Msg 1"})
+	_, _ = svc.SendChatMessage(ctx, ownerID, tenantID, &domain.SendChatMessageRequest{Content: "Msg 2"})
+
+	// Get chat history
+	messages, err := svc.GetChatHistory(ctx, ownerID, tenantID, &domain.ListChatMessagesRequest{})
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, len(messages), 2)
+}
+
+func TestTenantMembershipService_GetChatHistory_NotMember(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, _ := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Non-member tries to get chat history
+	_, err := svc.GetChatHistory(ctx, "non-member", tenantID, &domain.ListChatMessagesRequest{})
+	require.Error(t, err)
+}
+
+func TestTenantMembershipService_DeleteChatMessage_Success(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Send a message
+	msg, _ := svc.SendChatMessage(ctx, ownerID, tenantID, &domain.SendChatMessageRequest{Content: "To Delete"})
+
+	// Delete message (owner can delete)
+	err := svc.DeleteChatMessage(ctx, ownerID, tenantID, msg.ID)
+	require.NoError(t, err)
+}
+
+func TestTenantMembershipService_DeleteChatMessage_NotAuthorized(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Owner sends a message
+	msg, _ := svc.SendChatMessage(ctx, ownerID, tenantID, &domain.SendChatMessageRequest{Content: "Owner's message"})
+
+	// Add regular member
+	_, _ = svc.JoinTenant(ctx, "regular", tenantID, &domain.JoinTenantRequest{})
+
+	// Regular member tries to delete owner's message
+	err := svc.DeleteChatMessage(ctx, "regular", tenantID, msg.ID)
+	require.Error(t, err)
+}
+
+// ==================== PERMISSION CHECK TESTS ====================
+
+func TestTenantMembershipService_CheckTenantPermission_Success(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Check owner has owner permission
+	err := svc.CheckTenantPermission(ctx, ownerID, tenantID, domain.TenantRoleOwner)
+	require.NoError(t, err)
+
+	// Check owner has admin permission (owner >= admin)
+	err = svc.CheckTenantPermission(ctx, ownerID, tenantID, domain.TenantRoleAdmin)
+	require.NoError(t, err)
+}
+
+func TestTenantMembershipService_CheckTenantPermission_Forbidden(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, _ := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Add regular member
+	_, _ = svc.JoinTenant(ctx, "regular", tenantID, &domain.JoinTenantRequest{})
+
+	// Regular member doesn't have admin permission
+	err := svc.CheckTenantPermission(ctx, "regular", tenantID, domain.TenantRoleAdmin)
+	require.Error(t, err)
+}

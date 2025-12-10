@@ -399,3 +399,22 @@ func TestChatService_ListMessages(t *testing.T) {
 		assert.Len(t, messages, 3) // Includes deleted message
 	})
 }
+
+// ==================== SetAuditor Tests ====================
+
+func TestChatService_SetAuditor(t *testing.T) {
+	chatRepo := repository.NewInMemoryChatRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+	service := NewChatService(chatRepo, userRepo)
+
+	t.Run("Set Auditor With Nil", func(t *testing.T) {
+		// Setting nil auditor should be a no-op (not panic)
+		service.SetAuditor(nil)
+	})
+
+	t.Run("Set Auditor With Valid Auditor", func(t *testing.T) {
+		mockAuditor := auditorFunc(func(ctx context.Context, tenantID, action, actor, object string, details map[string]any) {})
+		service.SetAuditor(mockAuditor)
+		// Should not panic
+	})
+}

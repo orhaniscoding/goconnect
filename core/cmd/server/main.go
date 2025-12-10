@@ -182,7 +182,7 @@ type Repositories struct {
 	Idempotency     repository.IdempotencyRepository
 	InviteToken     repository.InviteTokenRepository
 	IPRule          repository.IPRuleRepository
-	Post            *repository.PostRepository
+	Post            repository.PostRepository
 	DeletionRequest repository.DeletionRequestRepository
 	Admin           *repository.AdminRepository
 }

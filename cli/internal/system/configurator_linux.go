@@ -8,9 +8,16 @@ import (
 
 type linuxConfigurator struct{}
 
+
+
 func newConfigurator() Configurator {
 	return &linuxConfigurator{}
 }
+
+// Variables for mocking
+var (
+	execLookPath = exec.LookPath
+)
 
 func (c *linuxConfigurator) EnsureInterface(name string) error {
 	// Check if interface exists
@@ -53,8 +60,8 @@ func (c *linuxConfigurator) ConfigureInterface(name string, addresses []string, 
 	// 5. Configure DNS
 	if len(dns) > 0 {
 		// Try using resolvconf if available
-		if _, err := exec.LookPath("resolvconf"); err == nil {
-			cmd := exec.Command("resolvconf", "-a", name)
+		if _, err := execLookPath("resolvconf"); err == nil {
+			cmd := execCommand("resolvconf", "-a", name)
 			stdin, err := cmd.StdinPipe()
 			if err == nil {
 				go func() {
@@ -89,8 +96,8 @@ func (c *linuxConfigurator) AddRoutes(name string, routes []string) error {
 	return nil
 }
 
-func runCommand(name string, args ...string) error {
-	cmd := exec.Command(name, args...)
+var runCommand = func(name string, args ...string) error {
+	cmd := execCommand(name, args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%v: %s", err, string(out))

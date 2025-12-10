@@ -1780,3 +1780,97 @@ func TestTenantHandler_DeleteChatMessage(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }
+
+func TestTenantHandler_UpdateAnnouncement(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.PATCH("/v1/tenants/:tenantId/announcements/:announcementId", authMiddleware(mockAuth), handler.UpdateAnnouncement)
+
+		// Create tenant as user_dev (owner)
+		ctx := context.Background()
+		tenant, err := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+		require.NoError(t, err)
+
+		// Create an announcement
+		announcement, err := tenantService.CreateAnnouncement(ctx, "user_dev", tenant.ID, &domain.CreateAnnouncementRequest{
+			Title:   "Original Title",
+			Content: "Original Content",
+		})
+		require.NoError(t, err)
+
+		// Update the announcement
+		body := map[string]interface{}{
+			"title":   "Updated Title",
+			"content": "Updated Content",
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("PATCH", "/v1/tenants/"+tenant.ID+"/announcements/"+announcement.ID, bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("Invalid request body", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.PATCH("/v1/tenants/:tenantId/announcements/:announcementId", authMiddleware(mockAuth), handler.UpdateAnnouncement)
+
+		ctx := context.Background()
+		tenant, _ := tenantService.CreateTenant(ctx, "user_dev", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+
+		req := httptest.NewRequest("PATCH", "/v1/tenants/"+tenant.ID+"/announcements/some-id", bytes.NewBufferString("invalid json"))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("Forbidden - not admin", func(t *testing.T) {
+		r, handler, tenantService, mockAuth := setupTenantTest()
+		r.PATCH("/v1/tenants/:tenantId/announcements/:announcementId", authMiddleware(mockAuth), handler.UpdateAnnouncement)
+
+		// Create tenant as different owner
+		ctx := context.Background()
+		tenant, _ := tenantService.CreateTenant(ctx, "owner_user", &domain.CreateTenantRequest{
+			Name:       "Test Tenant",
+			Visibility: "public",
+			AccessType: "open",
+		})
+
+		// user_dev joins as member
+		tenantService.JoinTenant(ctx, "user_dev", tenant.ID, &domain.JoinTenantRequest{})
+
+		// Create announcement as owner
+		announcement, _ := tenantService.CreateAnnouncement(ctx, "owner_user", tenant.ID, &domain.CreateAnnouncementRequest{
+			Title:   "Owner Announcement",
+			Content: "Content",
+		})
+
+		// user_dev (member) tries to update
+		body := map[string]interface{}{
+			"title": "Hacked Title",
+		}
+		jsonBody, _ := json.Marshal(body)
+
+		req := httptest.NewRequest("PATCH", "/v1/tenants/"+tenant.ID+"/announcements/"+announcement.ID, bytes.NewBuffer(jsonBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer valid-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusForbidden, w.Code)
+	})
+}

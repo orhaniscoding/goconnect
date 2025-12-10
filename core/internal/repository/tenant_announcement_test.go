@@ -296,3 +296,24 @@ func TestTenantAnnouncementRepository_MultipleAnnouncements(t *testing.T) {
 	pinned, _, _ := repo.ListByTenant(ctx, "tenant-1", true, 100, "")
 	assert.Equal(t, 5, len(pinned))
 }
+
+func TestTenantAnnouncementRepository_DeleteAllByTenant(t *testing.T) {
+	repo := NewInMemoryTenantAnnouncementRepository()
+	ctx := context.Background()
+
+	// Create announcements in tenant-1
+	ann1 := mkTenantAnnouncement("", "tenant-1", "Ann 1", "Content", "user-1", false)
+	ann2 := mkTenantAnnouncement("", "tenant-1", "Ann 2", "Content", "user-1", false)
+	ann3 := mkTenantAnnouncement("", "tenant-2", "Ann 3", "Content", "user-1", false)
+	_ = repo.Create(ctx, ann1)
+	_ = repo.Create(ctx, ann2)
+	_ = repo.Create(ctx, ann3)
+
+	err := repo.DeleteAllByTenant(ctx, "tenant-1")
+
+	require.NoError(t, err)
+	results1, _, _ := repo.ListByTenant(ctx, "tenant-1", false, 100, "")
+	assert.Empty(t, results1)
+	results2, _, _ := repo.ListByTenant(ctx, "tenant-2", false, 100, "")
+	assert.Len(t, results2, 1)
+}

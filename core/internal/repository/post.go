@@ -9,17 +9,28 @@ import (
 )
 
 // PostRepository handles database operations for posts
-type PostRepository struct {
+type PostRepository interface {
+	Create(ctx context.Context, post *domain.Post) (*domain.Post, error)
+	GetAll(ctx context.Context) ([]*domain.Post, error)
+	GetByID(ctx context.Context, id int64) (*domain.Post, error)
+	Update(ctx context.Context, post *domain.Post) (*domain.Post, error)
+	Delete(ctx context.Context, id int64) error
+	IncrementLikes(ctx context.Context, id int64) error
+	DecrementLikes(ctx context.Context, id int64) error
+}
+
+// SQLPostRepository implements PostRepository using SQL
+type SQLPostRepository struct {
 	db *sql.DB
 }
 
 // NewPostRepository creates a new post repository
-func NewPostRepository(db *sql.DB) *PostRepository {
-	return &PostRepository{db: db}
+func NewPostRepository(db *sql.DB) PostRepository {
+	return &SQLPostRepository{db: db}
 }
 
 // Create creates a new post
-func (r *PostRepository) Create(ctx context.Context, post *domain.Post) (*domain.Post, error) {
+func (r *SQLPostRepository) Create(ctx context.Context, post *domain.Post) (*domain.Post, error) {
 	query := `
 		INSERT INTO posts (user_id, content, image_url, likes, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
@@ -45,7 +56,7 @@ func (r *PostRepository) Create(ctx context.Context, post *domain.Post) (*domain
 }
 
 // GetAll retrieves all posts with author information
-func (r *PostRepository) GetAll(ctx context.Context) ([]*domain.Post, error) {
+func (r *SQLPostRepository) GetAll(ctx context.Context) ([]*domain.Post, error) {
 	query := `
 		SELECT 
 			p.id, p.user_id, p.content, p.image_url, p.likes, p.created_at, p.updated_at,
@@ -88,7 +99,7 @@ func (r *PostRepository) GetAll(ctx context.Context) ([]*domain.Post, error) {
 }
 
 // GetByID retrieves a post by ID
-func (r *PostRepository) GetByID(ctx context.Context, id int64) (*domain.Post, error) {
+func (r *SQLPostRepository) GetByID(ctx context.Context, id int64) (*domain.Post, error) {
 	query := `
 		SELECT 
 			p.id, p.user_id, p.content, p.image_url, p.likes, p.created_at, p.updated_at,
@@ -120,7 +131,7 @@ func (r *PostRepository) GetByID(ctx context.Context, id int64) (*domain.Post, e
 }
 
 // Update updates an existing post
-func (r *PostRepository) Update(ctx context.Context, post *domain.Post) (*domain.Post, error) {
+func (r *SQLPostRepository) Update(ctx context.Context, post *domain.Post) (*domain.Post, error) {
 	query := `
 		UPDATE posts
 		SET content = $1, image_url = $2, updated_at = $3
@@ -144,7 +155,7 @@ func (r *PostRepository) Update(ctx context.Context, post *domain.Post) (*domain
 }
 
 // Delete deletes a post
-func (r *PostRepository) Delete(ctx context.Context, id int64) error {
+func (r *SQLPostRepository) Delete(ctx context.Context, id int64) error {
 	query := `DELETE FROM posts WHERE id = $1`
 
 	result, err := r.db.ExecContext(ctx, query, id)
@@ -165,7 +176,7 @@ func (r *PostRepository) Delete(ctx context.Context, id int64) error {
 }
 
 // IncrementLikes increments the like count of a post
-func (r *PostRepository) IncrementLikes(ctx context.Context, id int64) error {
+func (r *SQLPostRepository) IncrementLikes(ctx context.Context, id int64) error {
 	query := `UPDATE posts SET likes = likes + 1 WHERE id = $1`
 
 	result, err := r.db.ExecContext(ctx, query, id)
@@ -186,7 +197,7 @@ func (r *PostRepository) IncrementLikes(ctx context.Context, id int64) error {
 }
 
 // DecrementLikes decrements the like count of a post
-func (r *PostRepository) DecrementLikes(ctx context.Context, id int64) error {
+func (r *SQLPostRepository) DecrementLikes(ctx context.Context, id int64) error {
 	query := `UPDATE posts SET likes = GREATEST(likes - 1, 0) WHERE id = $1`
 
 	result, err := r.db.ExecContext(ctx, query, id)

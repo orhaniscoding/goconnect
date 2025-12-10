@@ -430,3 +430,138 @@ func TestTenantMemberRepository_AllRoleHierarchy(t *testing.T) {
 		}
 	}
 }
+
+func TestTenantMemberRepository_Ban_Success(t *testing.T) {
+	repo := NewInMemoryTenantMemberRepository()
+	ctx := context.Background()
+	member := mkTenantMember("member-1", "tenant-1", "user-1", domain.TenantRoleMember, "")
+	_ = repo.Create(ctx, member)
+
+	err := repo.Ban(ctx, "member-1", "admin-1")
+
+	require.NoError(t, err)
+	result, _ := repo.GetByID(ctx, "member-1")
+	assert.NotNil(t, result.BannedAt)
+	assert.Equal(t, "admin-1", result.BannedBy)
+}
+
+func TestTenantMemberRepository_Ban_NotFound(t *testing.T) {
+	repo := NewInMemoryTenantMemberRepository()
+	ctx := context.Background()
+
+	err := repo.Ban(ctx, "nonexistent", "admin-1")
+
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
+}
+
+func TestTenantMemberRepository_Unban_Success(t *testing.T) {
+	repo := NewInMemoryTenantMemberRepository()
+	ctx := context.Background()
+	member := mkTenantMember("member-1", "tenant-1", "user-1", domain.TenantRoleMember, "")
+	_ = repo.Create(ctx, member)
+	_ = repo.Ban(ctx, "member-1", "admin-1")
+
+	err := repo.Unban(ctx, "member-1")
+
+	require.NoError(t, err)
+	result, _ := repo.GetByID(ctx, "member-1")
+	assert.Nil(t, result.BannedAt)
+	assert.Empty(t, result.BannedBy)
+}
+
+func TestTenantMemberRepository_Unban_NotFound(t *testing.T) {
+	repo := NewInMemoryTenantMemberRepository()
+	ctx := context.Background()
+
+	err := repo.Unban(ctx, "nonexistent")
+
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
+}
+
+func TestTenantMemberRepository_IsBanned_True(t *testing.T) {
+	repo := NewInMemoryTenantMemberRepository()
+	ctx := context.Background()
+	member := mkTenantMember("member-1", "tenant-1", "user-1", domain.TenantRoleMember, "")
+	_ = repo.Create(ctx, member)
+	_ = repo.Ban(ctx, "member-1", "admin-1")
+
+	isBanned, err := repo.IsBanned(ctx, "user-1", "tenant-1")
+
+	require.NoError(t, err)
+	assert.True(t, isBanned)
+}
+
+func TestTenantMemberRepository_IsBanned_False(t *testing.T) {
+	repo := NewInMemoryTenantMemberRepository()
+	ctx := context.Background()
+	member := mkTenantMember("member-1", "tenant-1", "user-1", domain.TenantRoleMember, "")
+	_ = repo.Create(ctx, member)
+
+	isBanned, err := repo.IsBanned(ctx, "user-1", "tenant-1")
+
+	require.NoError(t, err)
+	assert.False(t, isBanned)
+}
+
+func TestTenantMemberRepository_IsBanned_NotMember(t *testing.T) {
+	repo := NewInMemoryTenantMemberRepository()
+	ctx := context.Background()
+
+	isBanned, err := repo.IsBanned(ctx, "user-1", "tenant-1")
+
+	require.NoError(t, err)
+	assert.False(t, isBanned)
+}
+
+func TestTenantMemberRepository_ListBannedByTenant(t *testing.T) {
+	repo := NewInMemoryTenantMemberRepository()
+	ctx := context.Background()
+	member1 := mkTenantMember("member-1", "tenant-1", "user-1", domain.TenantRoleMember, "")
+	member2 := mkTenantMember("member-2", "tenant-1", "user-2", domain.TenantRoleMember, "")
+	member3 := mkTenantMember("member-3", "tenant-1", "user-3", domain.TenantRoleMember, "")
+	_ = repo.Create(ctx, member1)
+	_ = repo.Create(ctx, member2)
+	_ = repo.Create(ctx, member3)
+	_ = repo.Ban(ctx, "member-1", "admin")
+	_ = repo.Ban(ctx, "member-3", "admin")
+
+	banned, err := repo.ListBannedByTenant(ctx, "tenant-1")
+
+	require.NoError(t, err)
+	assert.Len(t, banned, 2)
+}
+
+func TestTenantMemberRepository_ListBannedByTenant_Empty(t *testing.T) {
+	repo := NewInMemoryTenantMemberRepository()
+	ctx := context.Background()
+
+	banned, err := repo.ListBannedByTenant(ctx, "tenant-1")
+
+	require.NoError(t, err)
+	assert.Empty(t, banned)
+}
+
+func TestTenantMemberRepository_DeleteAllByTenant(t *testing.T) {
+	repo := NewInMemoryTenantMemberRepository()
+	ctx := context.Background()
+	member1 := mkTenantMember("member-1", "tenant-1", "user-1", domain.TenantRoleMember, "")
+	member2 := mkTenantMember("member-2", "tenant-1", "user-2", domain.TenantRoleMember, "")
+	member3 := mkTenantMember("member-3", "tenant-2", "user-3", domain.TenantRoleMember, "")
+	_ = repo.Create(ctx, member1)
+	_ = repo.Create(ctx, member2)
+	_ = repo.Create(ctx, member3)
+
+	err := repo.DeleteAllByTenant(ctx, "tenant-1")
+
+	require.NoError(t, err)
+	members, _, _ := repo.ListByTenant(ctx, "tenant-1", "", 100, "")
+	assert.Empty(t, members)
+	members2, _, _ := repo.ListByTenant(ctx, "tenant-2", "", 100, "")
+	assert.Len(t, members2, 1)
+}

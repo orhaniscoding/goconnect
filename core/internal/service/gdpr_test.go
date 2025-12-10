@@ -236,3 +236,143 @@ func TestGDPRService_ExportUserData_EmptyData(t *testing.T) {
 		}
 	})
 }
+
+// ==================== StartWorker Tests ====================
+
+func TestGDPRService_StartWorker(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	membershipRepo := repository.NewInMemoryMembershipRepository()
+	deletionRepo := repository.NewInMemoryDeletionRequestRepository()
+
+	svc := NewGDPRService(userRepo, deviceRepo, networkRepo, membershipRepo, deletionRepo)
+
+	t.Run("StartWorker runs and stops without panic", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+
+		// Start worker with a short interval
+		svc.StartWorker(ctx, 50*time.Millisecond)
+
+		// Wait for context to cancel
+		<-ctx.Done()
+		// If we reach here without panic, the test passes
+	})
+
+	t.Run("StartWorker processes pending requests", func(t *testing.T) {
+		ctx := context.Background()
+
+		// Create a user with pending deletion request
+		user := &domain.User{
+			ID:       "user-to-delete",
+			TenantID: "tenant-1",
+			Email:    "delete@example.com",
+		}
+		userRepo.Create(ctx, user)
+
+		// Request deletion
+		_, err := svc.RequestDeletion(ctx, "user-to-delete")
+		if err != nil {
+			t.Fatalf("failed to request deletion: %v", err)
+		}
+
+		// Create short-lived context for worker
+		workerCtx, cancel := context.WithTimeout(ctx, 150*time.Millisecond)
+		defer cancel()
+
+		// Start worker
+		svc.StartWorker(workerCtx, 50*time.Millisecond)
+
+		// Wait for worker to process
+		<-workerCtx.Done()
+
+		// Check if request was processed (status should no longer be pending)
+		requests, _ := deletionRepo.ListPending(ctx)
+		for _, req := range requests {
+			if req.UserID == "user-to-delete" && req.Status == domain.DeletionRequestStatusPending {
+				t.Errorf("expected deletion request to be processed")
+			}
+		}
+	})
+}
+
+// ==================== ProcessDeletion Tests ====================
+
+func TestGDPRService_ProcessDeletion(t *testing.T) {
+	ctx := context.Background()
+	userRepo := repository.NewInMemoryUserRepository()
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	membershipRepo := repository.NewInMemoryMembershipRepository()
+	deletionRepo := repository.NewInMemoryDeletionRequestRepository()
+
+	svc := NewGDPRService(userRepo, deviceRepo, networkRepo, membershipRepo, deletionRepo)
+
+	t.Run("ProcessDeletion for non-existent user", func(t *testing.T) {
+		err := svc.ProcessDeletion(ctx, "non-existent", "tenant-1")
+		// Should return error for non-existent user
+		if err == nil {
+			t.Error("expected error for non-existent user")
+		}
+	})
+
+	t.Run("ProcessDeletion removes user data", func(t *testing.T) {
+		// Create user
+		user := &domain.User{
+			ID:       "user-process-delete",
+			TenantID: "tenant-1",
+			Email:    "process@example.com",
+		}
+		userRepo.Create(ctx, user)
+
+		// Create device for user
+		device := &domain.Device{
+			ID:       "dev-process-1",
+			UserID:   "user-process-delete",
+			TenantID: "tenant-1",
+			Name:     "Device to Delete",
+			Platform: "linux",
+			PubKey:   "processkey123456789012345678901234567890=",
+		}
+		deviceRepo.Create(ctx, device)
+
+		// Process deletion
+		err := svc.ProcessDeletion(ctx, "user-process-delete", "tenant-1")
+		if err != nil {
+			t.Fatalf("ProcessDeletion failed: %v", err)
+		}
+
+		// Verify user is deleted (GetByID should fail)
+		_, err = userRepo.GetByID(ctx, "user-process-delete")
+		if err == nil {
+			t.Error("expected user to be deleted")
+		}
+
+		// Verify devices are deleted
+		devices, _, _ := deviceRepo.List(ctx, domain.DeviceFilter{UserID: "user-process-delete"})
+		if len(devices) != 0 {
+			t.Errorf("expected 0 devices, got %d", len(devices))
+		}
+	})
+}
+
+// ==================== RequestDeletion Additional Tests ====================
+
+func TestGDPRService_RequestDeletion_Errors(t *testing.T) {
+	ctx := context.Background()
+	userRepo := repository.NewInMemoryUserRepository()
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	membershipRepo := repository.NewInMemoryMembershipRepository()
+	deletionRepo := repository.NewInMemoryDeletionRequestRepository()
+
+	svc := NewGDPRService(userRepo, deviceRepo, networkRepo, membershipRepo, deletionRepo)
+
+	t.Run("RequestDeletion for non-existent user", func(t *testing.T) {
+		_, err := svc.RequestDeletion(ctx, "non-existent-user")
+		if err == nil {
+			t.Error("expected error for non-existent user")
+		}
+	})
+}

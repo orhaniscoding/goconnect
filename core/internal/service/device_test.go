@@ -565,3 +565,240 @@ func TestDeviceService_OfflineDetection(t *testing.T) {
 	assert.Contains(t, mockNotifier.offlineCalls, d2.ID)
 	assert.NotContains(t, mockNotifier.offlineCalls, d1.ID)
 }
+
+// ==================== SetAuditor Tests ====================
+
+func TestDeviceService_SetAuditor(t *testing.T) {
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{}
+
+	service := NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
+
+	t.Run("Set Auditor With Nil", func(t *testing.T) {
+		// Setting nil auditor should be a no-op (not panic)
+		service.SetAuditor(nil)
+	})
+
+	t.Run("Set Auditor With Valid Auditor", func(t *testing.T) {
+		mockAuditor := &mockAuditor{}
+		service.SetAuditor(mockAuditor)
+		// Should not panic and auditor should be set
+	})
+}
+
+// ==================== SetPeerProvisioning Tests ====================
+
+func TestDeviceService_SetPeerProvisioning(t *testing.T) {
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{}
+
+	service := NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
+
+	t.Run("Set PeerProvisioning With Nil", func(t *testing.T) {
+		// Setting nil should work
+		service.SetPeerProvisioning(nil)
+	})
+
+	t.Run("Set PeerProvisioning With Valid Service", func(t *testing.T) {
+		membershipRepo := repository.NewInMemoryMembershipRepository()
+		ipamRepo := repository.NewInMemoryIPAM()
+		peerProvService := NewPeerProvisioningService(peerRepo, deviceRepo, networkRepo, membershipRepo, ipamRepo)
+		service.SetPeerProvisioning(peerProvService)
+		// Should not panic
+	})
+}
+
+// Mock auditor for testing
+type mockAuditor struct {
+	calls []string
+}
+
+func (m *mockAuditor) Event(ctx context.Context, tenantID, action, actor, object string, details map[string]any) {
+	m.calls = append(m.calls, action)
+}
+
+// ==================== GetDeviceConfig Tests ====================
+
+func TestDeviceService_GetDeviceConfig(t *testing.T) {
+	ctx := context.Background()
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{
+		DNS:            "10.0.0.1",
+		ServerPubKey:   "testserverpubkey123456789012345678901234=",
+		ServerEndpoint: "vpn.example.com:51820",
+		Keepalive:      25,
+	}
+
+	service := NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
+
+	// Create test user and device
+	username := "testuser"
+	user := &domain.User{
+		ID:       "user-1",
+		TenantID: "tenant-1",
+		Email:    "test@example.com",
+		Username: &username,
+	}
+	userRepo.Create(ctx, user)
+
+	device := &domain.Device{
+		ID:       "device-1",
+		UserID:   "user-1",
+		TenantID: "tenant-1",
+		Name:     "Test Device",
+		PubKey:   "testpubkey123456789012345678901234567890=",
+	}
+	deviceRepo.Create(ctx, device)
+
+	t.Run("Device Not Found", func(t *testing.T) {
+		_, err := service.GetDeviceConfig(ctx, "non-existent", "user-1")
+		assert.Error(t, err)
+	})
+
+	t.Run("Device Ownership Mismatch", func(t *testing.T) {
+		_, err := service.GetDeviceConfig(ctx, "device-1", "other-user")
+		assert.Error(t, err)
+	})
+
+	t.Run("No Peers Found", func(t *testing.T) {
+		_, err := service.GetDeviceConfig(ctx, "device-1", "user-1")
+		assert.Error(t, err)
+	})
+
+	t.Run("Success With Peers", func(t *testing.T) {
+		// Create network
+		dns := "8.8.8.8"
+		mtu := 1400
+		network := &domain.Network{
+			ID:       "network-1",
+			TenantID: "tenant-1",
+			Name:     "Test Network",
+			CIDR:     "10.1.0.0/24",
+			DNS:      &dns,
+			MTU:      &mtu,
+		}
+		networkRepo.Create(ctx, network)
+
+		// Create peer for the device
+		peer := &domain.Peer{
+			ID:        "peer-1",
+			DeviceID:  "device-1",
+			NetworkID: "network-1",
+			PublicKey: "testpubkey123456789012345678901234567890=",
+			AllowedIPs: []string{"10.1.0.2/32"},
+		}
+		peerRepo.Create(ctx, peer)
+
+		config, err := service.GetDeviceConfig(ctx, "device-1", "user-1")
+		assert.NoError(t, err)
+		assert.NotNil(t, config)
+		assert.Equal(t, []string{"10.1.0.2/32"}, config.Interface.Addresses)
+		assert.Equal(t, 1400, config.Interface.MTU)
+		assert.Contains(t, config.Interface.DNS, "8.8.8.8")
+		assert.NotEmpty(t, config.Peers)
+	})
+}
+
+// ==================== DetectOfflineDevices Tests ====================
+
+func TestDeviceService_DetectOfflineDevices(t *testing.T) {
+	ctx := context.Background()
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{}
+
+	service := NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
+
+	// Create test user
+	username := "testuser"
+	user := &domain.User{
+		ID:       "user-1",
+		TenantID: "tenant-1",
+		Email:    "test@example.com",
+		Username: &username,
+	}
+	userRepo.Create(ctx, user)
+
+	// Create a device with old last seen time
+	oldTime := time.Now().Add(-1 * time.Hour)
+	device := &domain.Device{
+		ID:       "stale-device",
+		UserID:   "user-1",
+		TenantID: "tenant-1",
+		Name:     "Stale Device",
+		PubKey:   "stalepubkey12345678901234567890123456789=",
+		LastSeen: oldTime,
+		Active:   true,
+	}
+	deviceRepo.Create(ctx, device)
+
+	// Set up mock notifier
+	mockNotify := &MockNotifier{}
+	service.SetNotifier(mockNotify)
+
+	// Call detectOfflineDevices (private method, but we can test via StartOfflineDetection behavior)
+	// Since detectOfflineDevices is private, we test via StartOfflineDetection with short context
+	shortCtx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
+	defer cancel()
+
+	go service.StartOfflineDetection(shortCtx, 50*time.Millisecond, 30*time.Minute)
+
+	// Wait for context to cancel
+	<-shortCtx.Done()
+
+	// The device should have been detected (if GetStaleDevices is implemented)
+	// This tests that StartOfflineDetection doesn't panic
+}
+
+// ==================== GetUpdatedFields Tests ====================
+
+func TestGetUpdatedFields(t *testing.T) {
+	t.Run("No Fields Updated", func(t *testing.T) {
+		req := &domain.UpdateDeviceRequest{}
+		fields := getUpdatedFields(req)
+		assert.Empty(t, fields)
+	})
+
+	t.Run("All Fields Updated", func(t *testing.T) {
+		name := "New Name"
+		pubkey := "newpubkey1234567890123456789012345678901="
+		hostname := "newhostname"
+		osVersion := "1.0.0"
+		daemonVer := "2.0.0"
+		req := &domain.UpdateDeviceRequest{
+			Name:      &name,
+			PubKey:    &pubkey,
+			HostName:  &hostname,
+			OSVersion: &osVersion,
+			DaemonVer: &daemonVer,
+		}
+		fields := getUpdatedFields(req)
+		assert.Len(t, fields, 5)
+		assert.Contains(t, fields, "name")
+		assert.Contains(t, fields, "pubkey")
+		assert.Contains(t, fields, "hostname")
+		assert.Contains(t, fields, "os_version")
+		assert.Contains(t, fields, "daemon_ver")
+	})
+
+	t.Run("Some Fields Updated", func(t *testing.T) {
+		name := "New Name"
+		req := &domain.UpdateDeviceRequest{
+			Name: &name,
+		}
+		fields := getUpdatedFields(req)
+		assert.Len(t, fields, 1)
+		assert.Contains(t, fields, "name")
+	})
+}

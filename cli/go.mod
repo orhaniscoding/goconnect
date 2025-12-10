@@ -1,6 +1,6 @@
 module github.com/orhaniscoding/goconnect/client-daemon
 
-go 1.24.0
+go 1.23
 
 require (
 	github.com/99designs/keyring v1.2.1
@@ -9,6 +9,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/google/uuid v1.6.0
+	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.5.3
 	github.com/kardianos/service v1.2.2
 	github.com/mattn/go-sqlite3 v1.14.22

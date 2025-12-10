@@ -13,6 +13,14 @@ coverage.out
 coverage.html
 go.work.sum
 
+# Go compiled binaries (avoid committing binaries in source dirs)
+core/server
+cli/goconnect
+
+# Test output files
+*_test_output.txt
+*_test_pass*.txt
+
 # IDE
 .vscode/
 .idea/
@@ -66,6 +74,7 @@ desktop/dist/
 .bmad/
 .claude/
 memory-bank/
-latestchat.md
+latestchat.*
 .github/instructions
 .github/copilot-instructions.md
+copilot_*

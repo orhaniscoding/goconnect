@@ -26,13 +26,13 @@ import (
 // DaemonService implements the kardianos/service.Service interface.
 type DaemonService struct {
 	config          *config.Config
-	engine          *engine.Engine
+	engine          DaemonEngine
 	logf            service.Logger
 	cancel          context.CancelFunc
 	localHTTPServer *http.Server
 	grpcServer      *GRPCServer
 	idManager       *identity.Manager
-	apiClient       *api.Client
+	apiClient       DaemonAPIClient
 	daemonVersion   string
 	buildDate       string
 	commit          string
@@ -41,6 +41,10 @@ type DaemonService struct {
 	sseClients map[chan string]bool
 	sseMu      sync.RWMutex
 }
+
+var (
+	autoConnectRetryInterval = 5 * time.Second
+)
 
 // NewDaemonService creates a new DaemonService.
 func NewDaemonService(cfg *config.Config, daemonVersion string) *DaemonService {
@@ -93,10 +97,11 @@ func (s *DaemonService) Start(srv service.Service) error {
 	}
 
 	// Initialize API Client
-	s.apiClient = api.NewClient(s.config) // Pass full config
+	concreteClient := api.NewClient(s.config)
+	s.apiClient = concreteClient
 
 	// Initialize Engine
-	s.engine, err = engine.NewEngine(s.config, s.idManager, wgClient, s.apiClient, s.logf)
+	s.engine, err = engine.NewEngine(s.config, s.idManager, wgClient, concreteClient, s.logf)
 	if err != nil {
 		s.logf.Error("Failed to initialize engine: ", err.Error())
 		return err
@@ -224,7 +229,7 @@ func (s *DaemonService) autoConnectLoop(ctx context.Context) {
 	s.logf.Info("Auto-connect loop started.")
 
 	// Retry mechanism for network availability
-	retryInterval := 5 * time.Second
+	retryInterval := autoConnectRetryInterval
 	maxRetries := 12 // Try for 1 minute (12 * 5s)
 
 	for i := 0; i < maxRetries; i++ {

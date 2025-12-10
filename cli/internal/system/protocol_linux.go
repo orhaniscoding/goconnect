@@ -5,7 +5,6 @@ package system
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 )
 
@@ -52,7 +51,7 @@ MimeType=x-scheme-handler/%s;
 	}
 
 	// Update mime database
-	if err := exec.Command("xdg-mime", "default", appName, fmt.Sprintf("x-scheme-handler/%s", scheme)).Run(); err != nil {
+	if err := runCommand("xdg-mime", "default", appName, fmt.Sprintf("x-scheme-handler/%s", scheme)); err != nil {
 		return fmt.Errorf("failed to update mime database: %w", err)
 	}
 

@@ -577,3 +577,39 @@ func TestDeviceRepository_GetStaleDevices(t *testing.T) {
 	assert.Len(t, stale, 1)
 	assert.Equal(t, "d2", stale[0].ID)
 }
+
+func TestDeviceRepository_Count(t *testing.T) {
+	repo := NewInMemoryDeviceRepository()
+	ctx := context.Background()
+
+	// Initially empty
+	count, err := repo.Count(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 0, count)
+
+	// Add some devices
+	d1 := mkDevice("d1", "u1", "Device 1", "pk1", "linux")
+	d2 := mkDevice("d2", "u1", "Device 2", "pk2", "windows")
+	d3 := mkDevice("d3", "u2", "Device 3", "pk3", "darwin")
+
+	repo.Create(ctx, d1)
+	count, err = repo.Count(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+
+	repo.Create(ctx, d2)
+	count, err = repo.Count(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+
+	repo.Create(ctx, d3)
+	count, err = repo.Count(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 3, count)
+
+	// Delete a device
+	repo.Delete(ctx, "d1")
+	count, err = repo.Count(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+}

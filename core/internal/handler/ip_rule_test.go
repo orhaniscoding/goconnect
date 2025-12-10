@@ -377,3 +377,67 @@ func TestIPRuleExpiration(t *testing.T) {
 		t.Errorf("expected 1 expired rule cleaned up, got %d", count)
 	}
 }
+
+func TestIPRuleHandler_GetIPRule(t *testing.T) {
+	handler, svc := setupIPRuleHandler()
+
+	// Create a rule
+	ctx := context.Background()
+	rule, _ := svc.CreateIPRule(ctx, domain.CreateIPRuleRequest{
+		TenantID: "tenant-1",
+		Type:     domain.IPRuleTypeAllow,
+		CIDR:     "192.168.1.0/24",
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/v1/admin/ip-rules/"+rule.ID, nil)
+		req.Header.Set("X-Tenant-ID", "tenant-1")
+		req.SetPathValue("id", rule.ID)
+
+		rr := httptest.NewRecorder()
+		handler.GetIPRule(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+		}
+	})
+
+	t.Run("Missing ID", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/v1/admin/ip-rules/", nil)
+		req.Header.Set("X-Tenant-ID", "tenant-1")
+		// No path value set
+
+		rr := httptest.NewRecorder()
+		handler.GetIPRule(rr, req)
+
+		if rr.Code != http.StatusBadRequest {
+			t.Errorf("expected status 400, got %d", rr.Code)
+		}
+	})
+
+	t.Run("Not Found", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/v1/admin/ip-rules/nonexistent", nil)
+		req.Header.Set("X-Tenant-ID", "tenant-1")
+		req.SetPathValue("id", "nonexistent")
+
+		rr := httptest.NewRecorder()
+		handler.GetIPRule(rr, req)
+
+		if rr.Code != http.StatusNotFound {
+			t.Errorf("expected status 404, got %d", rr.Code)
+		}
+	})
+
+	t.Run("Wrong Tenant", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/v1/admin/ip-rules/"+rule.ID, nil)
+		req.Header.Set("X-Tenant-ID", "wrong-tenant")
+		req.SetPathValue("id", rule.ID)
+
+		rr := httptest.NewRecorder()
+		handler.GetIPRule(rr, req)
+
+		if rr.Code != http.StatusNotFound {
+			t.Errorf("expected status 404 for wrong tenant, got %d", rr.Code)
+		}
+	})
+}

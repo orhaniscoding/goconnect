@@ -272,3 +272,23 @@ func TestIPAMTenantIsolation(t *testing.T) {
 		t.Fatalf("expected ErrNotFound got %+v", err)
 	}
 }
+
+// ==================== SetAuditor Tests ====================
+
+func TestIPAMService_SetAuditor(t *testing.T) {
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	membershipRepo := repository.NewInMemoryMembershipRepository()
+	ipamRepo := repository.NewInMemoryIPAM()
+	service := NewIPAMService(networkRepo, membershipRepo, ipamRepo)
+
+	t.Run("Set Auditor With Nil", func(t *testing.T) {
+		// Setting nil auditor should be a no-op (not panic)
+		service.SetAuditor(nil)
+	})
+
+	t.Run("Set Auditor With Valid Auditor", func(t *testing.T) {
+		mockAuditor := auditorFunc(func(ctx context.Context, tenantID, action, actor, object string, details map[string]any) {})
+		service.SetAuditor(mockAuditor)
+		// Should not panic
+	})
+}

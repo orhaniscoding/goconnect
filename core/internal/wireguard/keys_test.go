@@ -190,3 +190,33 @@ func TestCurve25519Compliance(t *testing.T) {
 		assert.Equal(t, byte(64), privateKeyBytes[31]&64, "Private key should have second bit of last byte set to 1")
 	}
 }
+
+func TestPublicKeyFromPrivate_Errors(t *testing.T) {
+	t.Run("Invalid base64", func(t *testing.T) {
+		_, err := PublicKeyFromPrivate("not-valid-base64!!!")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid private key encoding")
+	})
+
+	t.Run("Invalid length", func(t *testing.T) {
+		// Valid base64 but wrong length (only 16 bytes)
+		shortKey := base64.StdEncoding.EncodeToString(make([]byte, 16))
+		_, err := PublicKeyFromPrivate(shortKey)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid private key length")
+	})
+}
+
+func TestGeneratePresharedKey_Success(t *testing.T) {
+	// Test successful generation multiple times
+	for i := 0; i < 5; i++ {
+		key, err := GeneratePresharedKey()
+		assert.NoError(t, err)
+		assert.NotEmpty(t, key)
+		
+		// Decode and verify length
+		decoded, err := base64.StdEncoding.DecodeString(key)
+		assert.NoError(t, err)
+		assert.Equal(t, 32, len(decoded), "Preshared key should be 32 bytes")
+	}
+}

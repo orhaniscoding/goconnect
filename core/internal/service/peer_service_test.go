@@ -389,3 +389,141 @@ func TestPeerService_RotatePeerKeys(t *testing.T) {
 	assert.Equal(t, rotated.PublicKey, saved.PublicKey)
 	assert.Equal(t, rotated.PresharedKey, saved.PresharedKey)
 }
+
+// ==================== GetPeerByNetworkAndDevice Tests ====================
+
+func TestPeerService_GetPeerByNetworkAndDevice(t *testing.T) {
+	ctx := context.Background()
+	svc, peerRepo, deviceRepo, networkRepo := setupPeerService(t)
+
+	// Seed network and device
+	network := seedNetwork(t, networkRepo, "tenant-1", "network-1")
+	device := seedDevice(t, deviceRepo, "tenant-1", "user-1", "device-1", "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBd=")
+	peer := seedPeer(t, peerRepo, network.ID, device.ID, "tenant-1", "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCc=")
+
+	t.Run("Success - get peer by network and device", func(t *testing.T) {
+		result, err := svc.GetPeerByNetworkAndDevice(ctx, network.ID, device.ID)
+		require.NoError(t, err)
+		assert.Equal(t, peer.ID, result.ID)
+	})
+
+	t.Run("Network not found", func(t *testing.T) {
+		_, err := svc.GetPeerByNetworkAndDevice(ctx, "nonexistent-network", device.ID)
+		require.Error(t, err)
+	})
+
+	t.Run("Device not found", func(t *testing.T) {
+		_, err := svc.GetPeerByNetworkAndDevice(ctx, network.ID, "nonexistent-device")
+		require.Error(t, err)
+	})
+}
+
+// ==================== GetActivePeers Tests ====================
+
+func TestPeerService_GetActivePeers(t *testing.T) {
+	ctx := context.Background()
+	svc, peerRepo, _, networkRepo := setupPeerService(t)
+
+	network := seedNetwork(t, networkRepo, "tenant-1", "active-peers-net")
+
+	// Create active and inactive peers
+	activePeer := seedPeer(t, peerRepo, network.ID, "device-active", "tenant-1", "DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDd=")
+	activePeer.Active = true
+	require.NoError(t, peerRepo.Update(ctx, activePeer))
+
+	inactivePeer := seedPeer(t, peerRepo, network.ID, "device-inactive", "tenant-1", "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEe=")
+	inactivePeer.Active = false
+	require.NoError(t, peerRepo.Update(ctx, inactivePeer))
+
+	t.Run("Success - get active peers", func(t *testing.T) {
+		peers, err := svc.GetActivePeers(ctx, network.ID)
+		require.NoError(t, err)
+		// Should only get active peer
+		assert.GreaterOrEqual(t, len(peers), 1)
+	})
+
+	t.Run("Network not found", func(t *testing.T) {
+		_, err := svc.GetActivePeers(ctx, "nonexistent-network")
+		require.Error(t, err)
+	})
+}
+
+// ==================== GetActivePeersConfig Tests ====================
+
+func TestPeerService_GetActivePeersConfig(t *testing.T) {
+	ctx := context.Background()
+	svc, peerRepo, deviceRepo, networkRepo := setupPeerService(t)
+
+	network := seedNetwork(t, networkRepo, "tenant-1", "config-net")
+	device := seedDevice(t, deviceRepo, "tenant-1", "user-1", "device-cfg", "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFf=")
+
+	peer := seedPeer(t, peerRepo, network.ID, device.ID, "tenant-1", "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGg=")
+	peer.Active = true
+	require.NoError(t, peerRepo.Update(ctx, peer))
+
+	t.Run("Success - get active peers config", func(t *testing.T) {
+		configs, err := svc.GetActivePeersConfig(ctx, network.ID)
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, len(configs), 1)
+
+		if len(configs) > 0 {
+			assert.NotEmpty(t, configs[0].PublicKey)
+		}
+	})
+
+	t.Run("Network not found", func(t *testing.T) {
+		_, err := svc.GetActivePeersConfig(ctx, "nonexistent-network")
+		require.Error(t, err)
+	})
+}
+
+// ==================== UpdatePeerStats Tests ====================
+
+func TestPeerService_UpdatePeerStats(t *testing.T) {
+	ctx := context.Background()
+	svc, peerRepo, _, _ := setupPeerService(t)
+
+	peer := seedPeer(t, peerRepo, "network-stats", "device-stats", "tenant-1", "HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHh=")
+
+	t.Run("Success - update peer stats", func(t *testing.T) {
+		now := time.Now()
+		stats := &domain.UpdatePeerStatsRequest{
+			RxBytes:       1024,
+			TxBytes:       2048,
+			LastHandshake: &now,
+		}
+
+		err := svc.UpdatePeerStats(ctx, peer.ID, stats)
+		require.NoError(t, err)
+
+		// Verify stats were updated
+		updated, err := peerRepo.GetByID(ctx, peer.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1024), updated.RxBytes)
+		assert.Equal(t, int64(2048), updated.TxBytes)
+	})
+}
+
+// ==================== GetNetworkPeerStats Tests ====================
+
+func TestPeerService_GetNetworkPeerStats(t *testing.T) {
+	ctx := context.Background()
+	svc, peerRepo, _, networkRepo := setupPeerService(t)
+
+	network := seedNetwork(t, networkRepo, "tenant-1", "net-stats")
+	seedPeer(t, peerRepo, network.ID, "device-ns-1", "tenant-1", "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIi=")
+	seedPeer(t, peerRepo, network.ID, "device-ns-2", "tenant-1", "JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJj=")
+
+	t.Run("Success - get network peer stats", func(t *testing.T) {
+		stats, err := svc.GetNetworkPeerStats(ctx, network.ID)
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, len(stats), 2)
+	})
+
+	t.Run("Empty network", func(t *testing.T) {
+		emptyNet := seedNetwork(t, networkRepo, "tenant-1", "empty-net")
+		stats, err := svc.GetNetworkPeerStats(ctx, emptyNet.ID)
+		require.NoError(t, err)
+		assert.Len(t, stats, 0)
+	})
+}

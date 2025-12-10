@@ -181,3 +181,74 @@ func TestNewProfileGenerator(t *testing.T) {
 		assert.Equal(t, "8.8.8.8, 8.8.4.4", gen.dns)
 	})
 }
+
+func TestProfileRequest_Validate(t *testing.T) {
+	generator := NewProfileGenerator(
+		"vpn.example.com:51820",
+		"gOqRLN7xqkK7xKJGVz8M3bKhq8tZ6vS4r9pW3nA1bXY=",
+		"1.1.1.1, 1.0.0.1",
+		1420,
+		25,
+	)
+
+	t.Run("Validation - missing device_ip", func(t *testing.T) {
+		req := &ProfileRequest{
+			NetworkID:        "net_123",
+			DeviceID:         "dev_456",
+			DeviceIP:         "",
+			DevicePrivateKey: "cOvbNjH7xqkK7xKJGVz8M3bKhq8tZ6vS4r9pW3nA2aZ=",
+			NetworkCIDR:      "10.0.1.0/24",
+			PrefixLen:        24,
+		}
+
+		_, err := generator.GenerateClientConfig(context.Background(), req)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "device_ip is required")
+	})
+
+	t.Run("Validation - missing device_private_key", func(t *testing.T) {
+		req := &ProfileRequest{
+			NetworkID:        "net_123",
+			DeviceID:         "dev_456",
+			DeviceIP:         "10.0.1.5",
+			DevicePrivateKey: "",
+			NetworkCIDR:      "10.0.1.0/24",
+			PrefixLen:        24,
+		}
+
+		_, err := generator.GenerateClientConfig(context.Background(), req)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "device_private_key is required")
+	})
+
+	t.Run("Validation - missing network_cidr", func(t *testing.T) {
+		req := &ProfileRequest{
+			NetworkID:        "net_123",
+			DeviceID:         "dev_456",
+			DeviceIP:         "10.0.1.5",
+			DevicePrivateKey: "cOvbNjH7xqkK7xKJGVz8M3bKhq8tZ6vS4r9pW3nA2aZ=",
+			NetworkCIDR:      "",
+			PrefixLen:        24,
+		}
+
+		_, err := generator.GenerateClientConfig(context.Background(), req)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "network_cidr is required")
+	})
+
+	t.Run("Validation - missing prefix_len", func(t *testing.T) {
+		req := &ProfileRequest{
+			NetworkID:        "net_123",
+			DeviceID:         "dev_456",
+			DeviceIP:         "10.0.1.5",
+			DevicePrivateKey: "cOvbNjH7xqkK7xKJGVz8M3bKhq8tZ6vS4r9pW3nA2aZ=",
+			NetworkCIDR:      "10.0.1.0/24",
+			PrefixLen:        0,
+		}
+
+		_, err := generator.GenerateClientConfig(context.Background(), req)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "prefix_len is required")
+	})
+}
+

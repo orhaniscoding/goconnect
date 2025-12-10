@@ -921,3 +921,338 @@ func (m *mockMessageHandler) HandleMessage(ctx context.Context, client *Client, 
 	}
 	return nil
 }
+
+func TestDefaultMessageHandler_MemberJoined(t *testing.T) {
+	hub := NewHub(nil)
+	handler := NewDefaultMessageHandler(hub, nil, nil, nil, nil)
+	hub.handler = handler
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go hub.Run(ctx)
+
+	// Create client and join network room
+	client := &Client{
+		hub:         hub,
+		send:        make(chan []byte, 10),
+		userID:      "user1",
+		tenantID:    "tenant1",
+		isAdmin:     false,
+		isModerator: false,
+		rooms:       make(map[string]bool),
+	}
+
+	hub.Register(client)
+	hub.JoinRoom(client, "network:net-123")
+	time.Sleep(10 * time.Millisecond)
+
+	// Call MemberJoined
+	handler.MemberJoined("net-123", "user2")
+	time.Sleep(10 * time.Millisecond)
+
+	// Client should receive member.joined event
+	select {
+	case data := <-client.send:
+		var received OutboundMessage
+		err := json.Unmarshal(data, &received)
+		require.NoError(t, err)
+		assert.Equal(t, TypeMemberJoined, received.Type)
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("did not receive member.joined message")
+	}
+}
+
+func TestDefaultMessageHandler_MemberLeft(t *testing.T) {
+	hub := NewHub(nil)
+	handler := NewDefaultMessageHandler(hub, nil, nil, nil, nil)
+	hub.handler = handler
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go hub.Run(ctx)
+
+	// Create client and join network room
+	client := &Client{
+		hub:         hub,
+		send:        make(chan []byte, 10),
+		userID:      "user1",
+		tenantID:    "tenant1",
+		isAdmin:     false,
+		isModerator: false,
+		rooms:       make(map[string]bool),
+	}
+
+	hub.Register(client)
+	hub.JoinRoom(client, "network:net-123")
+	time.Sleep(10 * time.Millisecond)
+
+	// Call MemberLeft
+	handler.MemberLeft("net-123", "user2")
+	time.Sleep(10 * time.Millisecond)
+
+	// Client should receive member.left event
+	select {
+	case data := <-client.send:
+		var received OutboundMessage
+		err := json.Unmarshal(data, &received)
+		require.NoError(t, err)
+		assert.Equal(t, TypeMemberLeft, received.Type)
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("did not receive member.left message")
+	}
+}
+
+func TestDefaultMessageHandler_DeviceOnline(t *testing.T) {
+	hub := NewHub(nil)
+	handler := NewDefaultMessageHandler(hub, nil, nil, nil, nil)
+	hub.handler = handler
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go hub.Run(ctx)
+
+	// Create client
+	client := &Client{
+		hub:         hub,
+		send:        make(chan []byte, 10),
+		userID:      "user1",
+		tenantID:    "tenant1",
+		isAdmin:     false,
+		isModerator: false,
+		rooms:       make(map[string]bool),
+	}
+
+	hub.Register(client)
+	time.Sleep(10 * time.Millisecond)
+
+	// Call DeviceOnline
+	handler.DeviceOnline("device-123", "user1")
+	time.Sleep(10 * time.Millisecond)
+
+	// Client should receive device.online event
+	select {
+	case data := <-client.send:
+		var received OutboundMessage
+		err := json.Unmarshal(data, &received)
+		require.NoError(t, err)
+		assert.Equal(t, TypeDeviceOnline, received.Type)
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("did not receive device.online message")
+	}
+}
+
+func TestDefaultMessageHandler_DeviceOffline(t *testing.T) {
+	hub := NewHub(nil)
+	handler := NewDefaultMessageHandler(hub, nil, nil, nil, nil)
+	hub.handler = handler
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go hub.Run(ctx)
+
+	// Create client
+	client := &Client{
+		hub:         hub,
+		send:        make(chan []byte, 10),
+		userID:      "user1",
+		tenantID:    "tenant1",
+		isAdmin:     false,
+		isModerator: false,
+		rooms:       make(map[string]bool),
+	}
+
+	hub.Register(client)
+	time.Sleep(10 * time.Millisecond)
+
+	// Call DeviceOffline
+	handler.DeviceOffline("device-123", "user1")
+	time.Sleep(10 * time.Millisecond)
+
+	// Client should receive device.offline event
+	select {
+	case data := <-client.send:
+		var received OutboundMessage
+		err := json.Unmarshal(data, &received)
+		require.NoError(t, err)
+		assert.Equal(t, TypeDeviceOffline, received.Type)
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("did not receive device.offline message")
+	}
+}
+
+func TestDefaultMessageHandler_BroadcastTenantMemberJoined(t *testing.T) {
+	hub := NewHub(nil)
+	handler := NewDefaultMessageHandler(hub, nil, nil, nil, nil)
+	hub.handler = handler
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go hub.Run(ctx)
+
+	// Create client and join tenant room
+	client := &Client{
+		hub:         hub,
+		send:        make(chan []byte, 10),
+		userID:      "user1",
+		tenantID:    "tenant-123",
+		isAdmin:     false,
+		isModerator: false,
+		rooms:       make(map[string]bool),
+	}
+
+	hub.Register(client)
+	hub.JoinRoom(client, "tenant:tenant-123")
+	time.Sleep(10 * time.Millisecond)
+
+	// Call BroadcastTenantMemberJoined
+	handler.BroadcastTenantMemberJoined("tenant-123", "user2", "member")
+	time.Sleep(10 * time.Millisecond)
+
+	// Client should receive tenant.member.joined event
+	select {
+	case data := <-client.send:
+		var received OutboundMessage
+		err := json.Unmarshal(data, &received)
+		require.NoError(t, err)
+		assert.Equal(t, TypeTenantMemberJoined, received.Type)
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("did not receive tenant.member.joined message")
+	}
+}
+
+func TestDefaultMessageHandler_BroadcastTenantMemberLeft(t *testing.T) {
+	hub := NewHub(nil)
+	handler := NewDefaultMessageHandler(hub, nil, nil, nil, nil)
+	hub.handler = handler
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go hub.Run(ctx)
+
+	// Create client and join tenant room
+	client := &Client{
+		hub:         hub,
+		send:        make(chan []byte, 10),
+		userID:      "user1",
+		tenantID:    "tenant-123",
+		isAdmin:     false,
+		isModerator: false,
+		rooms:       make(map[string]bool),
+	}
+
+	hub.Register(client)
+	hub.JoinRoom(client, "tenant:tenant-123")
+	time.Sleep(10 * time.Millisecond)
+
+	// Call BroadcastTenantMemberLeft
+	handler.BroadcastTenantMemberLeft("tenant-123", "user2")
+	time.Sleep(10 * time.Millisecond)
+
+	// Client should receive tenant.member.left event
+	select {
+	case data := <-client.send:
+		var received OutboundMessage
+		err := json.Unmarshal(data, &received)
+		require.NoError(t, err)
+		assert.Equal(t, TypeTenantMemberLeft, received.Type)
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("did not receive tenant.member.left message")
+	}
+}
+
+func TestDefaultMessageHandler_BroadcastTenantMemberKicked(t *testing.T) {
+	hub := NewHub(nil)
+	handler := NewDefaultMessageHandler(hub, nil, nil, nil, nil)
+	hub.handler = handler
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go hub.Run(ctx)
+
+	// Create client and join tenant room
+	client := &Client{
+		hub:         hub,
+		send:        make(chan []byte, 10),
+		userID:      "user1",
+		tenantID:    "tenant-123",
+		isAdmin:     false,
+		isModerator: false,
+		rooms:       make(map[string]bool),
+	}
+
+	hub.Register(client)
+	hub.JoinRoom(client, "tenant:tenant-123")
+	time.Sleep(10 * time.Millisecond)
+
+	// Call BroadcastTenantMemberKicked
+	handler.BroadcastTenantMemberKicked("tenant-123", "user2", "admin", "violations")
+	time.Sleep(10 * time.Millisecond)
+
+	// Client should receive tenant.member.kicked event
+	select {
+	case data := <-client.send:
+		var received OutboundMessage
+		err := json.Unmarshal(data, &received)
+		require.NoError(t, err)
+		assert.Equal(t, TypeTenantMemberKicked, received.Type)
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("did not receive tenant.member.kicked message")
+	}
+}
+
+func TestDefaultMessageHandler_BroadcastTenantMemberRoleChanged(t *testing.T) {
+	hub := NewHub(nil)
+	handler := NewDefaultMessageHandler(hub, nil, nil, nil, nil)
+	hub.handler = handler
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go hub.Run(ctx)
+
+	// Create client and join tenant room
+	client := &Client{
+		hub:         hub,
+		send:        make(chan []byte, 10),
+		userID:      "user1",
+		tenantID:    "tenant-123",
+		isAdmin:     false,
+		isModerator: false,
+		rooms:       make(map[string]bool),
+	}
+
+	hub.Register(client)
+	hub.JoinRoom(client, "tenant:tenant-123")
+	time.Sleep(10 * time.Millisecond)
+
+	// Call BroadcastTenantMemberRoleChanged
+	handler.BroadcastTenantMemberRoleChanged("tenant-123", "user2", "member", "admin")
+	time.Sleep(10 * time.Millisecond)
+
+	// Client should receive tenant.member.role_changed event
+	select {
+	case data := <-client.send:
+		var received OutboundMessage
+		err := json.Unmarshal(data, &received)
+		require.NoError(t, err)
+		assert.Equal(t, TypeTenantMemberRoleChanged, received.Type)
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("did not receive tenant.member.role_changed message")
+	}
+}
+
+func TestDefaultMessageHandler_SetHub_Basic(t *testing.T) {
+	handler := NewDefaultMessageHandler(nil, nil, nil, nil, nil)
+	assert.Nil(t, handler.hub)
+
+	hub := NewHub(nil)
+	handler.SetHub(hub)
+	assert.Equal(t, hub, handler.hub)
+}

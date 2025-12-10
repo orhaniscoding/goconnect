@@ -366,3 +366,21 @@ func TestTenantInviteRepository_FullLifecycle(t *testing.T) {
 	_, err = repo.GetByID(ctx, inviteID)
 	require.Error(t, err)
 }
+
+func TestTenantInviteRepository_DeleteAllByTenant(t *testing.T) {
+repo := NewInMemoryTenantInviteRepository()
+ctx := context.Background()
+
+// Create invites
+_ = repo.Create(ctx, mkTenantInvite("", "tenant-1", "code1", "user-1", 10, time.Hour))
+_ = repo.Create(ctx, mkTenantInvite("", "tenant-1", "code2", "user-2", 10, time.Hour))
+_ = repo.Create(ctx, mkTenantInvite("", "tenant-2", "code3", "user-3", 10, time.Hour))
+
+err := repo.DeleteAllByTenant(ctx, "tenant-1")
+
+require.NoError(t, err)
+results1, _ := repo.ListByTenant(ctx, "tenant-1")
+assert.Empty(t, results1)
+results2, _ := repo.ListByTenant(ctx, "tenant-2")
+assert.Len(t, results2, 1)
+}

@@ -188,3 +188,16 @@ func TestHashRequestBody(t *testing.T) {
 		t.Error("HashRequestBody() should return different hash for different requests")
 	}
 }
+
+// unMarshalable is a type that causes json.Marshal to fail
+type unMarshalable struct {
+	Ch chan int
+}
+
+func TestHashRequestBody_Error(t *testing.T) {
+	// json.Marshal fails for channels
+	_, err := HashRequestBody(unMarshalable{Ch: make(chan int)})
+	if err == nil {
+		t.Error("HashRequestBody() should return error for un-marshalable type")
+	}
+}

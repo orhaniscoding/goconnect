@@ -225,6 +225,20 @@ func TestInviteHandler_ListInvites(t *testing.T) {
 
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
+
+	t.Run("Network Not Found", func(t *testing.T) {
+		r, handler, _, _, _ := setupInviteTest()
+		r.GET("/v1/networks/:id/invites", inviteAuthMiddleware(), handler.ListInvites)
+
+		// Try to list invites for a non-existent network
+		req := httptest.NewRequest("GET", "/v1/networks/nonexistent/invites", nil)
+		req.Header.Set("Authorization", "Bearer owner-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Should return 404 or similar error
+		assert.NotEqual(t, http.StatusOK, w.Code)
+	})
 }
 
 // ==================== GET INVITE TESTS ====================

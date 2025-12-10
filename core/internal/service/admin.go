@@ -14,7 +14,7 @@ import (
 // AdminService handles admin-related operations
 type AdminService struct {
 	userRepo             repository.UserRepository
-	adminRepo            *repository.AdminRepository
+	adminRepo            repository.AdminRepositoryInterface
 	tenantRepo           repository.TenantRepository
 	networkRepo          repository.NetworkRepository
 	deviceRepo           repository.DeviceRepository
@@ -27,7 +27,7 @@ type AdminService struct {
 // NewAdminService creates a new admin service
 func NewAdminService(
 	userRepo repository.UserRepository,
-	adminRepo *repository.AdminRepository,
+	adminRepo repository.AdminRepositoryInterface,
 	tenantRepo repository.TenantRepository,
 	networkRepo repository.NetworkRepository,
 	deviceRepo repository.DeviceRepository,

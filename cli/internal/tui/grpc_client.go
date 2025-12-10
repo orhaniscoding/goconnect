@@ -25,27 +25,35 @@ type GRPCClient struct {
 	defaultTimeout  time.Duration
 }
 
+// Variables for testing to allow mocking
+var (
+	loadAuthTokenFunc = daemon.LoadClientToken
+	getGRPCTargetFunc = getGRPCTarget
+)
+
 // NewGRPCClient creates a new gRPC client connected to the daemon.
-func NewGRPCClient() (*GRPCClient, error) {
-	target := getGRPCTarget()
+func NewGRPCClient(opts ...grpc.DialOption) (*GRPCClient, error) {
+	target := getGRPCTargetFunc()
 
 	// Load IPC auth token
-	token, err := daemon.LoadClientToken()
+	token, err := loadAuthTokenFunc()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load IPC token: %w", err)
 	}
 
 	// Set up connection with IPC token authentication
-	opts := []grpc.DialOption{
+	defaultOpts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithPerRPCCredentials(daemon.NewTokenCredentials(token)),
 		grpc.WithBlock(),
 	}
+	
+	defaultOpts = append(defaultOpts, opts...)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	conn, err := grpc.DialContext(ctx, target, opts...)
+	conn, err := grpc.DialContext(ctx, target, defaultOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to daemon: %w", err)
 	}

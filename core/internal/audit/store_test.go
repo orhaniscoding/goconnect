@@ -61,3 +61,49 @@ func TestInMemoryStoreHashing(t *testing.T) {
 		t.Fatalf("unexpected hash length: %d", len(a1))
 	}
 }
+
+func TestInMemoryStore_Clear(t *testing.T) {
+	store := NewInMemoryStore()
+	ctx := context.Background()
+
+	// Add some events
+	store.Event(ctx, "t1", "ACTION1", "actor1", "object1", nil)
+	store.Event(ctx, "t1", "ACTION2", "actor2", "object2", nil)
+	store.Event(ctx, "t1", "ACTION3", "actor3", "object3", nil)
+
+	// Verify events are stored
+	events := store.List()
+	if len(events) != 3 {
+		t.Fatalf("expected 3 events, got %d", len(events))
+	}
+
+	// Clear events
+	store.Clear()
+
+	// Verify all events are removed
+	events = store.List()
+	if len(events) != 0 {
+		t.Fatalf("expected 0 events after Clear, got %d", len(events))
+	}
+}
+
+func TestInMemoryStore_WithRedaction(t *testing.T) {
+	// Create store with redaction enabled
+	store := NewInMemoryStore(WithRedaction())
+	ctx := context.Background()
+
+	store.Event(ctx, "t1", "ACTION", "user123", "resource456", nil)
+
+	events := store.List()
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
+	}
+
+	// With redaction, actor and object should be [redacted]
+	if events[0].Actor != "[redacted]" {
+		t.Fatalf("expected [redacted], got %s", events[0].Actor)
+	}
+	if events[0].Object != "[redacted]" {
+		t.Fatalf("expected [redacted], got %s", events[0].Object)
+	}
+}

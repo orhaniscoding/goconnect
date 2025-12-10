@@ -399,3 +399,21 @@ func TestTenantChatRepository_MultipleSenders(t *testing.T) {
 	assert.Equal(t, 1, users["user-2"])
 	assert.Equal(t, 1, users["user-3"])
 }
+
+func TestTenantChatRepository_DeleteAllByTenant(t *testing.T) {
+repo := NewInMemoryTenantChatRepository()
+ctx := context.Background()
+
+// Create messages in tenant-1
+_ = repo.Create(ctx, mkTenantChatMessage("", "tenant-1", "user-1", "Msg 1"))
+_ = repo.Create(ctx, mkTenantChatMessage("", "tenant-1", "user-2", "Msg 2"))
+_ = repo.Create(ctx, mkTenantChatMessage("", "tenant-2", "user-3", "Msg 3"))
+
+err := repo.DeleteAllByTenant(ctx, "tenant-1")
+
+require.NoError(t, err)
+results1, _ := repo.ListByTenant(ctx, "tenant-1", "", 100)
+assert.Empty(t, results1)
+results2, _ := repo.ListByTenant(ctx, "tenant-2", "", 100)
+assert.Len(t, results2, 1)
+}

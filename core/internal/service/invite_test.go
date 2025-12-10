@@ -294,3 +294,78 @@ func TestInviteService_ListInvites(t *testing.T) {
 		}
 	})
 }
+
+// ==================== SetAuditor Tests ====================
+
+func TestInviteService_SetAuditor(t *testing.T) {
+	inviteRepo := repository.NewInMemoryInviteTokenRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	membershipRepo := repository.NewInMemoryMembershipRepository()
+	service := NewInviteService(inviteRepo, networkRepo, membershipRepo, "https://app.example.com")
+
+	t.Run("Set Auditor With Nil", func(t *testing.T) {
+		// Setting nil auditor should be a no-op (not panic)
+		service.SetAuditor(nil)
+	})
+
+	t.Run("Set Auditor With Valid Auditor", func(t *testing.T) {
+		mockAuditor := auditorFunc(func(ctx context.Context, tenantID, action, actor, object string, details map[string]any) {})
+		service.SetAuditor(mockAuditor)
+		// Should not panic
+	})
+}
+
+func TestInviteService_GetInviteByID(t *testing.T) {
+	inviteRepo := repository.NewInMemoryInviteTokenRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	membershipRepo := repository.NewInMemoryMembershipRepository()
+	service := NewInviteService(inviteRepo, networkRepo, membershipRepo, "https://app.example.com")
+
+	ctx := context.Background()
+
+	// Create a network first
+	network := &domain.Network{
+		ID:         "net-1",
+		TenantID:   "tenant-1",
+		Name:       "Test Network",
+		CIDR:       "10.10.0.0/24",
+		Visibility: domain.NetworkVisibilityPrivate,
+		JoinPolicy: domain.JoinPolicyInvite,
+		CreatedBy:  "user-1",
+	}
+	_ = networkRepo.Create(ctx, network)
+
+	// Create owner membership
+	_, _ = membershipRepo.UpsertApproved(ctx, "net-1", "user-1", domain.RoleOwner, time.Now())
+
+	t.Run("Get Existing Invite", func(t *testing.T) {
+		// Create an invite
+		resp, err := service.CreateInvite(ctx, "net-1", "tenant-1", "user-1", CreateInviteOptions{
+			UsesMax:   10,
+			ExpiresIn: 86400,
+		})
+		if err != nil {
+			t.Fatalf("failed to create invite: %v", err)
+		}
+
+		// Get the invite by ID
+		retrieved, err := service.GetInviteByID(ctx, resp.ID)
+		if err != nil {
+			t.Fatalf("failed to get invite: %v", err)
+		}
+
+		if retrieved.ID != resp.ID {
+			t.Errorf("expected ID %s, got %s", resp.ID, retrieved.ID)
+		}
+		if retrieved.NetworkID != "net-1" {
+			t.Errorf("expected network ID net-1, got %s", retrieved.NetworkID)
+		}
+	})
+
+	t.Run("Get Non-Existent Invite", func(t *testing.T) {
+		_, err := service.GetInviteByID(ctx, "non-existent")
+		if err == nil {
+			t.Fatal("expected error for non-existent invite")
+		}
+	})
+}

@@ -207,3 +207,219 @@ func TestSendMessage(t *testing.T) {
 		t.Error("Expected error when sending to non-existent target")
 	}
 }
+
+func TestManager_StartAndStop(t *testing.T) {
+	m := NewManager()
+
+	// Start on a random available port
+	err := m.Start("127.0.0.1", 0)
+	if err != nil {
+		t.Fatalf("Failed to start manager: %v", err)
+	}
+
+	// Verify listener is running
+	if m.listener == nil {
+		t.Error("Expected listener to be set after Start")
+	}
+
+	// Get the actual port
+	addr := m.listener.Addr().String()
+	if addr == "" {
+		t.Error("Expected listener address to be set")
+	}
+
+	// Stop should not panic
+	m.Stop()
+
+	// Listener should be closed
+	if m.listener != nil {
+		// Try to accept - should fail if closed
+		_, err := m.listener.Accept()
+		if err == nil {
+			t.Error("Expected listener to be closed after Stop")
+		}
+	}
+}
+
+func TestManager_StopWithoutStart(t *testing.T) {
+	m := NewManager()
+
+	// Stop without starting should not panic
+	m.Stop()
+}
+
+func TestManager_GetStorage_NoStorage(t *testing.T) {
+	m := NewManager()
+
+	storage := m.GetStorage()
+	if storage != nil {
+		t.Error("Expected nil storage for manager created without storage")
+	}
+}
+
+func TestManager_SearchMessages_NoStorage(t *testing.T) {
+	m := NewManager()
+
+	// SearchMessages without storage returns nil
+	results := m.SearchMessages("test", 10)
+	if results != nil {
+		t.Error("Expected nil results when no storage is configured")
+	}
+}
+
+func TestMessage_Struct(t *testing.T) {
+	t.Run("All Fields", func(t *testing.T) {
+		now := time.Now()
+		msg := Message{
+			ID:        "msg-123",
+			From:      "peer-456",
+			Content:   "Hello, World!",
+			Time:      now,
+			NetworkID: "network-789",
+		}
+
+		if msg.ID != "msg-123" {
+			t.Errorf("Expected ID 'msg-123', got %s", msg.ID)
+		}
+		if msg.From != "peer-456" {
+			t.Errorf("Expected From 'peer-456', got %s", msg.From)
+		}
+		if msg.Content != "Hello, World!" {
+			t.Errorf("Expected Content 'Hello, World!', got %s", msg.Content)
+		}
+		if !msg.Time.Equal(now) {
+			t.Errorf("Expected Time %v, got %v", now, msg.Time)
+		}
+		if msg.NetworkID != "network-789" {
+			t.Errorf("Expected NetworkID 'network-789', got %s", msg.NetworkID)
+		}
+	})
+}
+
+func TestManager_GetMessages_NegativeLimit(t *testing.T) {
+	m := NewManager()
+
+	// Add some messages
+	for i := 0; i < 3; i++ {
+		m.storeMessage(Message{
+			ID:      fmt.Sprintf("msg-%d", i),
+			From:    "peer-1",
+			Content: "test",
+			Time:    time.Now(),
+		})
+	}
+
+	// Negative limit should return all messages
+	messages := m.GetMessages("", -1, "")
+	if len(messages) != 3 {
+		t.Errorf("Expected 3 messages with negative limit, got %d", len(messages))
+	}
+}
+
+func TestManager_GetMessages_ZeroLimit(t *testing.T) {
+	m := NewManager()
+
+	// Add some messages
+	for i := 0; i < 3; i++ {
+		m.storeMessage(Message{
+			ID:      fmt.Sprintf("msg-%d", i),
+			From:    "peer-1",
+			Content: "test",
+			Time:    time.Now(),
+		})
+	}
+
+	// Zero limit should return all messages
+	messages := m.GetMessages("", 0, "")
+	if len(messages) != 3 {
+		t.Errorf("Expected 3 messages with zero limit, got %d", len(messages))
+	}
+}
+
+func TestManager_ConcurrentSubscribers(t *testing.T) {
+	m := NewManager()
+
+	// Create multiple subscribers
+	ch1 := m.Subscribe()
+	ch2 := m.Subscribe()
+	ch3 := m.Subscribe()
+
+	// Store a message
+	msg := Message{
+		ID:      "concurrent-msg",
+		From:    "peer-1",
+		Content: "test",
+		Time:    time.Now(),
+	}
+
+	// Notify all subscribers
+	go m.notifySubscribers(msg)
+
+	// All subscribers should receive the message
+	timeout := time.After(time.Second)
+	for i, ch := range []chan Message{ch1, ch2, ch3} {
+		select {
+		case received := <-ch:
+			if received.ID != "concurrent-msg" {
+				t.Errorf("Subscriber %d: Expected message ID 'concurrent-msg', got %s", i, received.ID)
+			}
+		case <-timeout:
+			t.Errorf("Subscriber %d: Timeout waiting for message", i)
+		}
+	}
+
+	// Cleanup
+	m.Unsubscribe(ch1)
+	m.Unsubscribe(ch2)
+	m.Unsubscribe(ch3)
+}
+
+func TestManager_SubscriberChannelFull(t *testing.T) {
+	m := NewManager()
+
+	// Subscribe with a small buffer
+	ch := m.Subscribe()
+
+	// Fill the channel buffer (100 messages)
+	for i := 0; i < 100; i++ {
+		m.notifySubscribers(Message{
+			ID:      fmt.Sprintf("msg-%d", i),
+			From:    "peer-1",
+			Content: "test",
+			Time:    time.Now(),
+		})
+	}
+
+	// This should not block - additional messages should be dropped
+	m.notifySubscribers(Message{
+		ID:      "overflow-msg",
+		From:    "peer-1",
+		Content: "test",
+		Time:    time.Now(),
+	})
+
+	m.Unsubscribe(ch)
+}
+
+func TestManager_StoreMessage_GeneratesID(t *testing.T) {
+	m := NewManager()
+
+	// Store message without ID
+	msg := Message{
+		From:    "peer-1",
+		Content: "test",
+		Time:    time.Now(),
+	}
+
+	m.storeMessage(msg)
+
+	messages := m.GetMessages("", 1, "")
+	if len(messages) != 1 {
+		t.Fatalf("Expected 1 message, got %d", len(messages))
+	}
+
+	// ID should be generated (format: timestamp-from)
+	if messages[0].ID == "" {
+		t.Error("Expected ID to be generated for message without ID")
+	}
+}

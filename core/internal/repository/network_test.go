@@ -354,3 +354,34 @@ func TestInMemoryNetworkRepository_List_Search(t *testing.T) {
 		t.Fatalf("expected 3 networks, got %d", len(got))
 	}
 }
+
+func TestNetworkRepository_Count(t *testing.T) {
+	repo := NewInMemoryNetworkRepository()
+	ctx := context.Background()
+
+	// Count empty
+	count, err := repo.Count(ctx)
+	if err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected 0, got %d", count)
+	}
+
+	// Add networks
+	n1 := mkNet("n1", "net1", "10.0.0.0/24", "user1", domain.NetworkVisibilityPrivate)
+	n2 := mkNet("n2", "net2", "10.0.1.0/24", "user1", domain.NetworkVisibilityPrivate)
+	n3 := mkNet("n3", "net3", "10.0.2.0/24", "user1", domain.NetworkVisibilityPublic)
+	_ = repo.Create(ctx, n1)
+	_ = repo.Create(ctx, n2)
+	_ = repo.Create(ctx, n3)
+
+	// Count all
+	count, err = repo.Count(ctx)
+	if err != nil {
+		t.Fatalf("count all: %v", err)
+	}
+	if count != 3 {
+		t.Fatalf("expected 3, got %d", count)
+	}
+}

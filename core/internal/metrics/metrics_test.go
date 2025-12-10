@@ -519,3 +519,47 @@ func TestMetrics_AllCounters(t *testing.T) {
 		assert.Contains(t, body, metric, "Expected metric %s not found", metric)
 	}
 }
+
+func TestSetWGPeersTotal(t *testing.T) {
+	Register()
+
+	// Should not panic
+	SetWGPeersTotal(10)
+	SetWGPeersTotal(0)
+	SetWGPeersTotal(100)
+
+	// Verify metric is registered by checking /metrics endpoint
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.GET("/metrics", Handler())
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/metrics", nil)
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, 200, w.Code)
+	assert.Contains(t, w.Body.String(), "goconnect_wg_peers_total")
+}
+
+func TestSetWGPeerStats(t *testing.T) {
+	Register()
+
+	// Should not panic
+	SetWGPeerStats("pubkey1234567890", 1024, 2048, 60.5)
+	SetWGPeerStats("pubkey0987654321", 4096, 8192, 120.0)
+
+	// Verify metrics are registered by checking /metrics endpoint
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.GET("/metrics", Handler())
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/metrics", nil)
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, 200, w.Code)
+	body := w.Body.String()
+	assert.Contains(t, body, "goconnect_wg_peer_rx_bytes")
+	assert.Contains(t, body, "goconnect_wg_peer_tx_bytes")
+	assert.Contains(t, body, "goconnect_wg_peer_last_handshake_seconds")
+}

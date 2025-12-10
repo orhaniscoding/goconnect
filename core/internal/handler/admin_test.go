@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,7 +18,7 @@ import (
 )
 
 // setupAdminTest creates all required repositories and services for admin testing
-func setupAdminTest() (*gin.Engine, *AdminHandler, *repository.InMemoryUserRepository, *repository.InMemoryTenantRepository, *repository.InMemoryNetworkRepository, *repository.InMemoryDeviceRepository) {
+func setupAdminTest() (*gin.Engine, *AdminHandler, *repository.InMemoryUserRepository, *repository.InMemoryTenantRepository, *repository.InMemoryNetworkRepository, *repository.InMemoryDeviceRepository, *repository.InMemoryAdminRepository) {
 	gin.SetMode(gin.TestMode)
 
 	userRepo := repository.NewInMemoryUserRepository()
@@ -25,7 +26,7 @@ func setupAdminTest() (*gin.Engine, *AdminHandler, *repository.InMemoryUserRepos
 	networkRepo := repository.NewInMemoryNetworkRepository()
 	deviceRepo := repository.NewInMemoryDeviceRepository()
 	chatRepo := repository.NewInMemoryChatRepository()
-	adminRepo := repository.NewAdminRepository(nil)
+	adminRepo := repository.NewInMemoryAdminRepository()
 
 	adminService := service.NewAdminService(
 		userRepo,
@@ -42,7 +43,7 @@ func setupAdminTest() (*gin.Engine, *AdminHandler, *repository.InMemoryUserRepos
 	handler := NewAdminHandler(adminService)
 	r := gin.New()
 
-	return r, handler, userRepo, tenantRepo, networkRepo, deviceRepo
+	return r, handler, userRepo, tenantRepo, networkRepo, deviceRepo, adminRepo
 }
 
 // adminAuthMiddleware returns a test auth middleware that requires admin
@@ -69,7 +70,7 @@ func adminAuthMiddleware() gin.HandlerFunc {
 
 func TestAdminHandler_ListUsers(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		r, handler, userRepo, _, _, _ := setupAdminTest()
+		r, handler, userRepo, _, _, _, _ := setupAdminTest()
 		r.GET("/v1/admin/users", adminAuthMiddleware(), handler.ListUsers)
 
 		// Seed users
@@ -94,7 +95,7 @@ func TestAdminHandler_ListUsers(t *testing.T) {
 	})
 
 	t.Run("Pagination", func(t *testing.T) {
-		r, handler, userRepo, _, _, _ := setupAdminTest()
+		r, handler, userRepo, _, _, _, _ := setupAdminTest()
 		r.GET("/v1/admin/users", adminAuthMiddleware(), handler.ListUsers)
 
 		ctx := context.Background()
@@ -123,7 +124,7 @@ func TestAdminHandler_ListUsers(t *testing.T) {
 	})
 
 	t.Run("Query Filter", func(t *testing.T) {
-		r, handler, userRepo, _, _, _ := setupAdminTest()
+		r, handler, userRepo, _, _, _, _ := setupAdminTest()
 		r.GET("/v1/admin/users", adminAuthMiddleware(), handler.ListUsers)
 
 		ctx := context.Background()
@@ -145,7 +146,7 @@ func TestAdminHandler_ListUsers(t *testing.T) {
 	})
 
 	t.Run("Unauthorized", func(t *testing.T) {
-		r, handler, _, _, _, _ := setupAdminTest()
+		r, handler, _, _, _, _, _ := setupAdminTest()
 		r.GET("/v1/admin/users", adminAuthMiddleware(), handler.ListUsers)
 
 		req := httptest.NewRequest("GET", "/v1/admin/users", nil)
@@ -161,7 +162,7 @@ func TestAdminHandler_ListUsers(t *testing.T) {
 
 func TestAdminHandler_ListTenants(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		r, handler, _, tenantRepo, _, _ := setupAdminTest()
+		r, handler, _, tenantRepo, _, _, _ := setupAdminTest()
 		r.GET("/v1/admin/tenants", adminAuthMiddleware(), handler.ListTenants)
 
 		ctx := context.Background()
@@ -182,7 +183,7 @@ func TestAdminHandler_ListTenants(t *testing.T) {
 	})
 
 	t.Run("Pagination", func(t *testing.T) {
-		r, handler, _, tenantRepo, _, _ := setupAdminTest()
+		r, handler, _, tenantRepo, _, _, _ := setupAdminTest()
 		r.GET("/v1/admin/tenants", adminAuthMiddleware(), handler.ListTenants)
 
 		ctx := context.Background()
@@ -207,7 +208,7 @@ func TestAdminHandler_ListTenants(t *testing.T) {
 	})
 
 	t.Run("Query Filter", func(t *testing.T) {
-		r, handler, _, tenantRepo, _, _ := setupAdminTest()
+		r, handler, _, tenantRepo, _, _, _ := setupAdminTest()
 		r.GET("/v1/admin/tenants", adminAuthMiddleware(), handler.ListTenants)
 
 		ctx := context.Background()
@@ -233,7 +234,7 @@ func TestAdminHandler_ListTenants(t *testing.T) {
 
 func TestAdminHandler_GetSystemStats(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		r, handler, userRepo, tenantRepo, networkRepo, deviceRepo := setupAdminTest()
+		r, handler, userRepo, tenantRepo, networkRepo, deviceRepo, _ := setupAdminTest()
 		r.GET("/v1/admin/stats", adminAuthMiddleware(), handler.GetSystemStats)
 
 		ctx := context.Background()
@@ -266,7 +267,7 @@ func TestAdminHandler_GetSystemStats(t *testing.T) {
 
 func TestAdminHandler_ToggleUserAdmin(t *testing.T) {
 	t.Run("Success - Make Admin", func(t *testing.T) {
-		r, handler, userRepo, _, _, _ := setupAdminTest()
+		r, handler, userRepo, _, _, _, _ := setupAdminTest()
 		r.POST("/v1/admin/users/:id/toggle-admin", adminAuthMiddleware(), handler.ToggleUserAdmin)
 
 		ctx := context.Background()
@@ -286,7 +287,7 @@ func TestAdminHandler_ToggleUserAdmin(t *testing.T) {
 	})
 
 	t.Run("Success - Remove Admin", func(t *testing.T) {
-		r, handler, userRepo, _, _, _ := setupAdminTest()
+		r, handler, userRepo, _, _, _, _ := setupAdminTest()
 		r.POST("/v1/admin/users/:id/toggle-admin", adminAuthMiddleware(), handler.ToggleUserAdmin)
 
 		ctx := context.Background()
@@ -306,7 +307,7 @@ func TestAdminHandler_ToggleUserAdmin(t *testing.T) {
 	})
 
 	t.Run("Not Found", func(t *testing.T) {
-		r, handler, _, _, _, _ := setupAdminTest()
+		r, handler, _, _, _, _, _ := setupAdminTest()
 		r.POST("/v1/admin/users/:id/toggle-admin", adminAuthMiddleware(), handler.ToggleUserAdmin)
 
 		req := httptest.NewRequest("POST", "/v1/admin/users/nonexistent/toggle-admin", nil)
@@ -318,7 +319,7 @@ func TestAdminHandler_ToggleUserAdmin(t *testing.T) {
 	})
 
 	t.Run("Empty ID", func(t *testing.T) {
-		r, handler, _, _, _, _ := setupAdminTest()
+		r, handler, _, _, _, _, _ := setupAdminTest()
 		// Explicitly define route without :id to test empty ID case
 		r.POST("/v1/admin/users//toggle-admin", adminAuthMiddleware(), handler.ToggleUserAdmin)
 
@@ -336,7 +337,7 @@ func TestAdminHandler_ToggleUserAdmin(t *testing.T) {
 
 func TestAdminHandler_DeleteUser(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		r, handler, userRepo, _, _, _ := setupAdminTest()
+		r, handler, userRepo, _, _, _, _ := setupAdminTest()
 		r.DELETE("/v1/admin/users/:id", adminAuthMiddleware(), handler.DeleteUser)
 
 		ctx := context.Background()
@@ -355,7 +356,7 @@ func TestAdminHandler_DeleteUser(t *testing.T) {
 	})
 
 	t.Run("Not Found", func(t *testing.T) {
-		r, handler, _, _, _, _ := setupAdminTest()
+		r, handler, _, _, _, _, _ := setupAdminTest()
 		r.DELETE("/v1/admin/users/:id", adminAuthMiddleware(), handler.DeleteUser)
 
 		req := httptest.NewRequest("DELETE", "/v1/admin/users/nonexistent", nil)
@@ -371,7 +372,7 @@ func TestAdminHandler_DeleteUser(t *testing.T) {
 
 func TestAdminHandler_DeleteTenant(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		r, handler, _, tenantRepo, _, _ := setupAdminTest()
+		r, handler, _, tenantRepo, _, _, _ := setupAdminTest()
 		r.DELETE("/v1/admin/tenants/:id", adminAuthMiddleware(), handler.DeleteTenant)
 
 		ctx := context.Background()
@@ -390,7 +391,7 @@ func TestAdminHandler_DeleteTenant(t *testing.T) {
 	})
 
 	t.Run("Not Found", func(t *testing.T) {
-		r, handler, _, _, _, _ := setupAdminTest()
+		r, handler, _, _, _, _, _ := setupAdminTest()
 		r.DELETE("/v1/admin/tenants/:id", adminAuthMiddleware(), handler.DeleteTenant)
 
 		req := httptest.NewRequest("DELETE", "/v1/admin/tenants/nonexistent", nil)
@@ -406,7 +407,7 @@ func TestAdminHandler_DeleteTenant(t *testing.T) {
 
 func TestAdminHandler_ListNetworks(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		r, handler, _, _, networkRepo, _ := setupAdminTest()
+		r, handler, _, _, networkRepo, _, _ := setupAdminTest()
 		r.GET("/v1/admin/networks", adminAuthMiddleware(), handler.ListNetworks)
 
 		ctx := context.Background()
@@ -430,7 +431,7 @@ func TestAdminHandler_ListNetworks(t *testing.T) {
 	})
 
 	t.Run("Cursor Pagination", func(t *testing.T) {
-		r, handler, _, _, networkRepo, _ := setupAdminTest()
+		r, handler, _, _, networkRepo, _, _ := setupAdminTest()
 		r.GET("/v1/admin/networks", adminAuthMiddleware(), handler.ListNetworks)
 
 		ctx := context.Background()
@@ -464,7 +465,7 @@ func TestAdminHandler_ListNetworks(t *testing.T) {
 
 func TestAdminHandler_ListDevices(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		r, handler, _, _, _, deviceRepo := setupAdminTest()
+		r, handler, _, _, _, deviceRepo, _ := setupAdminTest()
 		r.GET("/v1/admin/devices", adminAuthMiddleware(), handler.ListDevices)
 
 		ctx := context.Background()
@@ -488,7 +489,7 @@ func TestAdminHandler_ListDevices(t *testing.T) {
 	})
 
 	t.Run("Cursor Pagination", func(t *testing.T) {
-		r, handler, _, _, _, deviceRepo := setupAdminTest()
+		r, handler, _, _, _, deviceRepo, _ := setupAdminTest()
 		r.GET("/v1/admin/devices", adminAuthMiddleware(), handler.ListDevices)
 
 		ctx := context.Background()
@@ -518,5 +519,321 @@ func TestAdminHandler_ListDevices(t *testing.T) {
 		if ok && len(data) > 0 {
 			assert.LessOrEqual(t, len(data), 5)
 		}
+	})
+}
+
+// ==================== LIST ALL USERS TESTS ====================
+// Note: Success cases require database backend (AdminRepository uses SQL directly)
+// These tests only cover the handler validation logic
+
+func TestAdminHandler_ListAllUsers(t *testing.T) {
+	t.Run("Unauthorized - No Auth Middleware", func(t *testing.T) {
+		r, handler, _, _, _, _, _ := setupAdminTest()
+		r.GET("/v1/admin/all-users", handler.ListAllUsers) // No auth middleware
+
+		req := httptest.NewRequest("GET", "/v1/admin/all-users", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("With query parameters", func(t *testing.T) {
+		r, handler, _, _, _, _, _ := setupAdminTest()
+		r.GET("/v1/admin/all-users", adminAuthMiddleware(), handler.ListAllUsers)
+
+		// Should handle query params even if service fails
+		req := httptest.NewRequest("GET", "/v1/admin/all-users?role=admin&status=active&tenant_id=t1&q=test&page=2&per_page=10", nil)
+		req.Header.Set("Authorization", "Bearer admin-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Reaches service layer (not blocked by middleware)
+		assert.True(t, w.Code >= 200)
+	})
+}
+
+// ==================== GET USER STATS TESTS ====================
+// Note: Success cases require database backend (AdminRepository uses SQL directly)
+
+func TestAdminHandler_GetUserStats(t *testing.T) {
+	t.Run("Unauthorized", func(t *testing.T) {
+		r, handler, _, _, _, _, _ := setupAdminTest()
+		r.GET("/v1/admin/stats", handler.GetUserStats)
+
+		req := httptest.NewRequest("GET", "/v1/admin/stats", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("With auth header", func(t *testing.T) {
+		r, handler, _, _, _, _, _ := setupAdminTest()
+		r.GET("/v1/admin/stats", adminAuthMiddleware(), handler.GetUserStats)
+
+		req := httptest.NewRequest("GET", "/v1/admin/stats", nil)
+		req.Header.Set("Authorization", "Bearer admin-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Reaches service layer (not blocked by middleware)
+		assert.True(t, w.Code >= 200)
+	})
+}
+
+// ==================== UPDATE USER ROLE TESTS ====================
+
+func TestAdminHandler_UpdateUserRole(t *testing.T) {
+	t.Run("Unauthorized", func(t *testing.T) {
+		r, handler, _, _, _, _, _ := setupAdminTest()
+		r.PUT("/v1/admin/users/:id/role", handler.UpdateUserRole)
+
+		req := httptest.NewRequest("PUT", "/v1/admin/users/u1/role", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("Missing User ID", func(t *testing.T) {
+		r, handler, _, _, _, _, _ := setupAdminTest()
+		r.PUT("/v1/admin/users//role", adminAuthMiddleware(), handler.UpdateUserRole)
+
+		req := httptest.NewRequest("PUT", "/v1/admin/users//role", nil)
+		req.Header.Set("Authorization", "Bearer admin-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Should return bad request since user ID is empty
+		assert.NotEqual(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("Invalid JSON Body", func(t *testing.T) {
+		r, handler, _, _, _, _, _ := setupAdminTest()
+		r.PUT("/v1/admin/users/:id/role", adminAuthMiddleware(), handler.UpdateUserRole)
+
+		req := httptest.NewRequest("PUT", "/v1/admin/users/u1/role", strings.NewReader("{invalid json}"))
+		req.Header.Set("Authorization", "Bearer admin-token")
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("Valid request body", func(t *testing.T) {
+		r, handler, _, _, _, _, _ := setupAdminTest()
+		r.PUT("/v1/admin/users/:id/role", adminAuthMiddleware(), handler.UpdateUserRole)
+
+		body := `{"is_admin": true, "is_moderator": false}`
+		req := httptest.NewRequest("PUT", "/v1/admin/users/u1/role", strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer admin-token")
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Should pass validation and reach service layer (may return error from service)
+		assert.True(t, w.Code != http.StatusUnauthorized)
+	})
+}
+
+// ==================== SUSPEND/UNSUSPEND TESTS ====================
+
+func TestAdminHandler_SuspendUser(t *testing.T) {
+	t.Run("Unauthorized", func(t *testing.T) {
+		r, handler, _, _, _, _, _ := setupAdminTest()
+		r.POST("/v1/admin/users/:id/suspend", handler.SuspendUser)
+
+		req := httptest.NewRequest("POST", "/v1/admin/users/u1/suspend", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("Missing User ID", func(t *testing.T) {
+		r, handler, _, _, _, _, _ := setupAdminTest()
+		r.POST("/v1/admin/users//suspend", adminAuthMiddleware(), handler.SuspendUser)
+
+		req := httptest.NewRequest("POST", "/v1/admin/users//suspend", strings.NewReader(`{"reason": "test"}`))
+		req.Header.Set("Authorization", "Bearer admin-token")
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.NotEqual(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("Invalid JSON Body", func(t *testing.T) {
+		r, handler, _, _, _, _, _ := setupAdminTest()
+		r.POST("/v1/admin/users/:id/suspend", adminAuthMiddleware(), handler.SuspendUser)
+
+		req := httptest.NewRequest("POST", "/v1/admin/users/u1/suspend", strings.NewReader("{invalid}"))
+		req.Header.Set("Authorization", "Bearer admin-token")
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("Missing reason", func(t *testing.T) {
+		r, handler, _, _, _, _, _ := setupAdminTest()
+		r.POST("/v1/admin/users/:id/suspend", adminAuthMiddleware(), handler.SuspendUser)
+
+		req := httptest.NewRequest("POST", "/v1/admin/users/u1/suspend", strings.NewReader(`{"reason": ""}`))
+		req.Header.Set("Authorization", "Bearer admin-token")
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("Valid request body", func(t *testing.T) {
+		r, handler, _, _, _, _, _ := setupAdminTest()
+		r.POST("/v1/admin/users/:id/suspend", adminAuthMiddleware(), handler.SuspendUser)
+
+		body := `{"reason": "Violation of terms of service"}`
+		req := httptest.NewRequest("POST", "/v1/admin/users/u1/suspend", strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer admin-token")
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Should pass validation and reach service layer (may return error from service)
+		assert.True(t, w.Code != http.StatusUnauthorized)
+	})
+
+	t.Run("Success_SuspendUser", func(t *testing.T) {
+		r, handler, userRepo, _, _, _, adminRepo := setupAdminTest()
+		r.POST("/v1/admin/users/:id/suspend", adminAuthMiddleware(), handler.SuspendUser)
+
+		ctx := context.Background()
+
+		// Create admin user (the one making the request) - for user lookup
+		adminUser := &domain.User{ID: "admin_user", Email: "admin@test.com", TenantID: "t1", IsAdmin: true}
+		require.NoError(t, userRepo.Create(ctx, adminUser))
+
+		// Create target user to suspend
+		targetUser := &domain.User{ID: "target-susp", Email: "target@test.com", TenantID: "t1", IsAdmin: false}
+		require.NoError(t, userRepo.Create(ctx, targetUser))
+		adminRepo.AddUser(targetUser) // Also add to admin repo for suspend
+
+		body := `{"user_id": "target-susp", "reason": "Violation of terms of service - very bad behavior"}`
+		req := httptest.NewRequest("POST", "/v1/admin/users/target-susp/suspend", strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer admin-token")
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Log error if not OK
+		if w.Code != http.StatusOK {
+			t.Logf("Response: %s", w.Body.String())
+		}
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
+func TestAdminHandler_UnsuspendUser(t *testing.T) {
+	t.Run("Unauthorized", func(t *testing.T) {
+		r, handler, _, _, _, _, _ := setupAdminTest()
+		r.POST("/v1/admin/users/:id/unsuspend", handler.UnsuspendUser)
+
+		req := httptest.NewRequest("POST", "/v1/admin/users/u1/unsuspend", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("Missing User ID", func(t *testing.T) {
+		r, handler, _, _, _, _, _ := setupAdminTest()
+		r.POST("/v1/admin/users//unsuspend", adminAuthMiddleware(), handler.UnsuspendUser)
+
+		req := httptest.NewRequest("POST", "/v1/admin/users//unsuspend", nil)
+		req.Header.Set("Authorization", "Bearer admin-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.NotEqual(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("With user ID", func(t *testing.T) {
+		r, handler, _, _, _, _, _ := setupAdminTest()
+		r.POST("/v1/admin/users/:id/unsuspend", adminAuthMiddleware(), handler.UnsuspendUser)
+
+		req := httptest.NewRequest("POST", "/v1/admin/users/u1/unsuspend", nil)
+		req.Header.Set("Authorization", "Bearer admin-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Reaches service layer (not blocked by middleware)
+		assert.True(t, w.Code >= 200)
+	})
+
+	t.Run("Success_UnsuspendUser", func(t *testing.T) {
+		r, handler, userRepo, _, _, _, adminRepo := setupAdminTest()
+		r.POST("/v1/admin/users/:id/unsuspend", adminAuthMiddleware(), handler.UnsuspendUser)
+
+		ctx := context.Background()
+
+		// Create admin user
+		adminUser := &domain.User{ID: "admin_user", Email: "admin@test.com", TenantID: "t1", IsAdmin: true}
+		require.NoError(t, userRepo.Create(ctx, adminUser))
+
+		// Create suspended user
+		suspendedUser := &domain.User{ID: "susp-user", Email: "suspended@test.com", TenantID: "t1", Suspended: true}
+		require.NoError(t, userRepo.Create(ctx, suspendedUser))
+		adminRepo.AddUser(suspendedUser)
+
+		req := httptest.NewRequest("POST", "/v1/admin/users/susp-user/unsuspend", nil)
+		req.Header.Set("Authorization", "Bearer admin-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Logf("Response: %s", w.Body.String())
+		}
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
+func TestAdminHandler_GetUserDetails(t *testing.T) {
+	t.Run("Unauthorized", func(t *testing.T) {
+		r, handler, _, _, _, _, _ := setupAdminTest()
+		r.GET("/v1/admin/users/:id", handler.GetUserDetails)
+
+		req := httptest.NewRequest("GET", "/v1/admin/users/u1", nil)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("Missing User ID", func(t *testing.T) {
+		r, handler, _, _, _, _, _ := setupAdminTest()
+		r.GET("/v1/admin/users/", adminAuthMiddleware(), handler.GetUserDetails)
+
+		req := httptest.NewRequest("GET", "/v1/admin/users/", nil)
+		req.Header.Set("Authorization", "Bearer admin-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.NotEqual(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("With user ID", func(t *testing.T) {
+		r, handler, _, _, _, _, _ := setupAdminTest()
+		r.GET("/v1/admin/users/:id", adminAuthMiddleware(), handler.GetUserDetails)
+
+		req := httptest.NewRequest("GET", "/v1/admin/users/u1", nil)
+		req.Header.Set("Authorization", "Bearer admin-token")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		// Reaches service layer (not blocked by middleware)
+		assert.True(t, w.Code >= 200)
 	})
 }

@@ -538,3 +538,22 @@ func TestNetworkService_DeleteNetwork(t *testing.T) {
 		t.Errorf("DeleteNetwork expected ErrNotFound for tenant mismatch, got %v", err)
 	}
 }
+
+// ==================== SetAuditor Tests ====================
+
+func TestNetworkService_SetAuditor(t *testing.T) {
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	idempotencyRepo := repository.NewInMemoryIdempotencyRepository()
+	service := NewNetworkService(networkRepo, idempotencyRepo)
+
+	t.Run("Set Auditor With Nil", func(t *testing.T) {
+		// Setting nil auditor should be a no-op (not panic)
+		service.SetAuditor(nil)
+	})
+
+	t.Run("Set Auditor With Valid Auditor", func(t *testing.T) {
+		mockAuditor := auditorFunc(func(ctx context.Context, tenantID, action, actor, object string, details map[string]any) {})
+		service.SetAuditor(mockAuditor)
+		// Should not panic
+	})
+}

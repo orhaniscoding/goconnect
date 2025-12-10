@@ -530,9 +530,9 @@ func (m *Manager) shouldSwap(a, b *Session, by SortField, order SortOrder) bool 
 	}
 	
 	if order == SortDesc {
-		return !less
+		return less
 	}
-	return less
+	return !less
 }
 
 // GetStats returns transfer statistics

@@ -7,6 +7,7 @@ import (
 
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
+	"github.com/pquerna/otp/totp"
 )
 
 func TestAuthService_Register(t *testing.T) {
@@ -372,9 +373,25 @@ func TestAuthService_RecoveryCodes(t *testing.T) {
 		t.Error("expected error with invalid TOTP code")
 	}
 
-	// For proper testing, we'd need to generate a valid TOTP code
-	// Skip the actual generation test since we can't mock TOTP easily
-	t.Log("Recovery code generation requires valid TOTP - skipping live test")
+	// Generate a valid TOTP code and test successful recovery code generation
+	validCode, err := totp.GenerateCode(secret, time.Now())
+	if err != nil {
+		t.Fatalf("failed to generate TOTP code: %v", err)
+	}
+
+	codes, err := authService.GenerateRecoveryCodes(ctx, userID, validCode)
+	if err != nil {
+		t.Fatalf("failed to generate recovery codes: %v", err)
+	}
+	if len(codes) != 8 {
+		t.Errorf("expected 8 recovery codes, got %d", len(codes))
+	}
+
+	// Verify recovery codes are stored (as hashes)
+	updatedUser, _ := userRepo.GetByID(ctx, userID)
+	if len(updatedUser.RecoveryCodes) != 8 {
+		t.Errorf("expected 8 hashed recovery codes stored, got %d", len(updatedUser.RecoveryCodes))
+	}
 }
 
 func TestRecoveryCodeFormat(t *testing.T) {
@@ -436,5 +453,743 @@ func TestNormalizeRecoveryCode(t *testing.T) {
 				t.Errorf("normalizeRecoveryCode(%q) = %q, want %q", tt.input, result, tt.expected)
 			}
 		})
+	}
+}
+
+// ==================== GetUserByID Tests ====================
+
+func TestAuthService_GetUserByID(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+
+	// Create a test user
+	testUser := &domain.User{
+		ID:       "user-123",
+		Email:    "test@example.com",
+		TenantID: "tenant-1",
+	}
+	err := userRepo.Create(context.Background(), testUser)
+	if err != nil {
+		t.Fatalf("failed to create test user: %v", err)
+	}
+
+	t.Run("User Found", func(t *testing.T) {
+		user, err := authService.GetUserByID(context.Background(), "user-123")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if user.Email != "test@example.com" {
+			t.Errorf("expected email test@example.com, got %s", user.Email)
+		}
+	})
+
+	t.Run("User Not Found", func(t *testing.T) {
+		_, err := authService.GetUserByID(context.Background(), "non-existent")
+		if err == nil {
+			t.Fatal("expected error for non-existent user")
+		}
+	})
+}
+
+// ==================== UpdateUserProfile Tests ====================
+
+func TestAuthService_UpdateUserProfile(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+
+	// Create a test user
+	testUser := &domain.User{
+		ID:       "user-456",
+		Email:    "profile@example.com",
+		TenantID: "tenant-1",
+	}
+	err := userRepo.Create(context.Background(), testUser)
+	if err != nil {
+		t.Fatalf("failed to create test user: %v", err)
+	}
+
+	t.Run("Update Full Name", func(t *testing.T) {
+		fullName := "John Doe"
+		err := authService.UpdateUserProfile(context.Background(), "user-456", &fullName, nil, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// Verify update
+		user, _ := userRepo.GetByID(context.Background(), "user-456")
+		if user.FullName == nil || *user.FullName != "John Doe" {
+			t.Errorf("expected full name John Doe")
+		}
+	})
+
+	t.Run("Update Bio", func(t *testing.T) {
+		bio := "Software developer"
+		err := authService.UpdateUserProfile(context.Background(), "user-456", nil, &bio, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		user, _ := userRepo.GetByID(context.Background(), "user-456")
+		if user.Bio == nil || *user.Bio != "Software developer" {
+			t.Errorf("expected bio Software developer")
+		}
+	})
+
+	t.Run("Update Avatar URL", func(t *testing.T) {
+		avatar := "https://example.com/avatar.jpg"
+		err := authService.UpdateUserProfile(context.Background(), "user-456", nil, nil, &avatar)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		user, _ := userRepo.GetByID(context.Background(), "user-456")
+		if user.AvatarURL == nil || *user.AvatarURL != "https://example.com/avatar.jpg" {
+			t.Errorf("expected avatar URL")
+		}
+	})
+
+	t.Run("User Not Found", func(t *testing.T) {
+		fullName := "Test"
+		err := authService.UpdateUserProfile(context.Background(), "non-existent", &fullName, nil, nil)
+		if err == nil {
+			t.Fatal("expected error for non-existent user")
+		}
+	})
+}
+
+// ==================== ChangePassword Tests ====================
+
+func TestAuthService_ChangePassword(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+
+	// Register a user first
+	authResp, err := authService.Register(context.Background(), &domain.RegisterRequest{
+		Email:    "password@example.com",
+		Password: "oldPassword123",
+		Locale:   "en",
+	})
+	if err != nil {
+		t.Fatalf("failed to register user: %v", err)
+	}
+	userID := authResp.User.ID
+
+	t.Run("Successful Password Change", func(t *testing.T) {
+		err := authService.ChangePassword(context.Background(), userID, "oldPassword123", "newPassword456")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// Verify new password works
+		_, err = authService.Login(context.Background(), &domain.LoginRequest{
+			Email:    "password@example.com",
+			Password: "newPassword456",
+		})
+		if err != nil {
+			t.Fatalf("login with new password failed: %v", err)
+		}
+	})
+
+	t.Run("Wrong Old Password", func(t *testing.T) {
+		err := authService.ChangePassword(context.Background(), userID, "wrongOldPassword", "anotherPassword")
+		if err == nil {
+			t.Fatal("expected error for wrong old password")
+		}
+	})
+
+	t.Run("User Not Found", func(t *testing.T) {
+		err := authService.ChangePassword(context.Background(), "non-existent", "test", "test2test2")
+		if err == nil {
+			t.Fatal("expected error for non-existent user")
+		}
+	})
+
+	// Note: ChangePassword does not validate password strength unlike Register
+	// This is by design - validation should happen at handler level
+}
+
+// ==================== Logout Tests ====================
+
+func TestAuthService_Logout(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	// Note: Logout requires Redis for token blacklisting
+	// Without Redis, the function still works but doesn't blacklist
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+
+	// Register a user
+	authResp, err := authService.Register(context.Background(), &domain.RegisterRequest{
+		Email:    "logout@example.com",
+		Password: "password123",
+		Locale:   "en",
+	})
+	if err != nil {
+		t.Fatalf("failed to register user: %v", err)
+	}
+
+	t.Run("Logout Without Redis", func(t *testing.T) {
+		// Should succeed even without Redis (graceful degradation)
+		err := authService.Logout(context.Background(), authResp.AccessToken, authResp.RefreshToken)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("Logout With Empty Token", func(t *testing.T) {
+		err := authService.Logout(context.Background(), "", "")
+		// Empty token might still work but is a no-op
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+}
+
+// ==================== Enable2FA Tests ====================
+
+func TestAuthService_Enable2FA(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+
+	// Create a user first
+	user := &domain.User{
+		ID:           "test-user-2fa",
+		Email:        "2fa@example.com",
+		TwoFAEnabled: false,
+	}
+	if err := userRepo.Create(context.Background(), user); err != nil {
+		t.Fatalf("failed to create user: %v", err)
+	}
+
+	t.Run("Invalid 2FA Code", func(t *testing.T) {
+		// Try to enable 2FA with an invalid code
+		err := authService.Enable2FA(context.Background(), user.ID, "TESTSECRET", "000000")
+		if err == nil {
+			t.Fatal("expected error for invalid 2FA code")
+		}
+		if derr, ok := err.(*domain.Error); ok {
+			if derr.Code != domain.ErrInvalidCredentials {
+				t.Errorf("expected error code %s, got %s", domain.ErrInvalidCredentials, derr.Code)
+			}
+		}
+	})
+
+	t.Run("User Not Found", func(t *testing.T) {
+		err := authService.Enable2FA(context.Background(), "non-existent-user", "SECRET", "123456")
+		if err == nil {
+			t.Fatal("expected error for non-existent user")
+		}
+	})
+
+	t.Run("Success Enable2FA", func(t *testing.T) {
+		// Generate a real TOTP secret
+		key, err := totp.Generate(totp.GenerateOpts{
+			Issuer:      "GoConnect",
+			AccountName: user.Email,
+		})
+		if err != nil {
+			t.Fatalf("failed to generate TOTP key: %v", err)
+		}
+
+		// Generate a valid TOTP code using the secret
+		code, err := totp.GenerateCode(key.Secret(), time.Now())
+		if err != nil {
+			t.Fatalf("failed to generate TOTP code: %v", err)
+		}
+
+		// Enable 2FA with valid code
+		err = authService.Enable2FA(context.Background(), user.ID, key.Secret(), code)
+		if err != nil {
+			t.Fatalf("failed to enable 2FA: %v", err)
+		}
+
+		// Verify 2FA is enabled
+		updatedUser, _ := userRepo.GetByID(context.Background(), user.ID)
+		if !updatedUser.TwoFAEnabled {
+			t.Error("expected TwoFAEnabled to be true")
+		}
+		if updatedUser.TwoFAKey != key.Secret() {
+			t.Error("expected TwoFAKey to be set")
+		}
+	})
+}
+
+// ==================== Disable2FA Tests ====================
+
+func TestAuthService_Disable2FA(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+
+	t.Run("User Without 2FA Enabled", func(t *testing.T) {
+		// Create a user without 2FA
+		user := &domain.User{
+			ID:           "test-user-disable-2fa",
+			Email:        "disable2fa@example.com",
+			TwoFAEnabled: false,
+		}
+		if err := userRepo.Create(context.Background(), user); err != nil {
+			t.Fatalf("failed to create user: %v", err)
+		}
+
+		// Disabling 2FA when not enabled should be a no-op (return nil)
+		err := authService.Disable2FA(context.Background(), user.ID, "")
+		if err != nil {
+			t.Fatalf("unexpected error when disabling 2FA on user without 2FA: %v", err)
+		}
+	})
+
+	t.Run("User Not Found", func(t *testing.T) {
+		err := authService.Disable2FA(context.Background(), "non-existent-user", "123456")
+		if err == nil {
+			t.Fatal("expected error for non-existent user")
+		}
+	})
+
+	t.Run("Invalid 2FA Code", func(t *testing.T) {
+		// Create a user with 2FA enabled
+		user := &domain.User{
+			ID:           "test-user-disable-2fa-invalid",
+			Email:        "disable2fa-invalid@example.com",
+			TwoFAEnabled: true,
+			TwoFAKey:     "TESTSECRETKEY",
+		}
+		if err := userRepo.Create(context.Background(), user); err != nil {
+			t.Fatalf("failed to create user: %v", err)
+		}
+
+		err := authService.Disable2FA(context.Background(), user.ID, "000000")
+		if err == nil {
+			t.Fatal("expected error for invalid 2FA code")
+		}
+		if derr, ok := err.(*domain.Error); ok {
+			if derr.Code != domain.ErrInvalidCredentials {
+				t.Errorf("expected error code %s, got %s", domain.ErrInvalidCredentials, derr.Code)
+			}
+		}
+	})
+}
+
+// ==================== ValidateToken Tests ====================
+
+func TestAuthService_ValidateToken(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+
+	t.Run("Invalid Token Format", func(t *testing.T) {
+		_, err := authService.ValidateToken(context.Background(), "invalid-token")
+		if err == nil {
+			t.Fatal("expected error for invalid token format")
+		}
+	})
+
+	t.Run("Empty Token", func(t *testing.T) {
+		_, err := authService.ValidateToken(context.Background(), "")
+		if err == nil {
+			t.Fatal("expected error for empty token")
+		}
+	})
+
+	t.Run("Malformed JWT", func(t *testing.T) {
+		_, err := authService.ValidateToken(context.Background(), "eyJ.malformed.token")
+		if err == nil {
+			t.Fatal("expected error for malformed JWT")
+		}
+	})
+
+	t.Run("Valid Token For Registered User", func(t *testing.T) {
+		// Register a user to get a valid token
+		authResp, err := authService.Register(context.Background(), &domain.RegisterRequest{
+			Email:    "validate@example.com",
+			Password: "password123",
+			Locale:   "en",
+		})
+		if err != nil {
+			t.Fatalf("failed to register user: %v", err)
+		}
+
+		// Validate the access token
+		claims, err := authService.ValidateToken(context.Background(), authResp.AccessToken)
+		if err != nil {
+			t.Fatalf("unexpected error validating token: %v", err)
+		}
+
+		if claims.Email != "validate@example.com" {
+			t.Errorf("expected email validate@example.com, got %s", claims.Email)
+		}
+
+		if claims.Type != "access" {
+			t.Errorf("expected token type 'access', got %s", claims.Type)
+		}
+	})
+
+	t.Run("Suspended User Token", func(t *testing.T) {
+		// Create a suspended user directly
+		user := &domain.User{
+			ID:        "suspended-user-id",
+			Email:     "suspended@example.com",
+			Suspended: true,
+		}
+		if err := userRepo.Create(context.Background(), user); err != nil {
+			t.Fatalf("failed to create user: %v", err)
+		}
+
+		// Generate a token for this user using the internal method
+		accessToken, err := authService.generateJWT(user.ID, "", user.Email, false, false, "access", time.Hour)
+		if err != nil {
+			t.Fatalf("failed to generate JWT: %v", err)
+		}
+
+		// Validate should fail because user is suspended
+		_, err = authService.ValidateToken(context.Background(), accessToken)
+		if err == nil {
+			t.Fatal("expected error for suspended user token")
+		}
+		if derr, ok := err.(*domain.Error); ok {
+			if derr.Code != domain.ErrForbidden {
+				t.Errorf("expected error code %s, got %s", domain.ErrForbidden, derr.Code)
+			}
+		}
+	})
+}
+
+// ==================== GetRecoveryCodeCount Tests ====================
+
+func TestAuthService_GetRecoveryCodeCount(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+
+	t.Run("User With Recovery Codes", func(t *testing.T) {
+		// Create a user with recovery codes
+		user := &domain.User{
+			ID:            "user-with-codes",
+			Email:         "recovery@example.com",
+			RecoveryCodes: []string{"code1", "code2", "code3"},
+		}
+		if err := userRepo.Create(context.Background(), user); err != nil {
+			t.Fatalf("failed to create user: %v", err)
+		}
+
+		count, err := authService.GetRecoveryCodeCount(context.Background(), user.ID)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if count != 3 {
+			t.Errorf("expected 3 recovery codes, got %d", count)
+		}
+	})
+
+	t.Run("User Without Recovery Codes", func(t *testing.T) {
+		user := &domain.User{
+			ID:            "user-without-codes",
+			Email:         "norecovery@example.com",
+			RecoveryCodes: nil,
+		}
+		if err := userRepo.Create(context.Background(), user); err != nil {
+			t.Fatalf("failed to create user: %v", err)
+		}
+
+		count, err := authService.GetRecoveryCodeCount(context.Background(), user.ID)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if count != 0 {
+			t.Errorf("expected 0 recovery codes, got %d", count)
+		}
+	})
+
+	t.Run("User Not Found", func(t *testing.T) {
+		_, err := authService.GetRecoveryCodeCount(context.Background(), "non-existent")
+		if err == nil {
+			t.Fatal("expected error for non-existent user")
+		}
+	})
+}
+
+// ==================== USE RECOVERY CODE TESTS ====================
+
+func TestAuthService_UseRecoveryCode(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+
+	// Create a user with 2FA enabled and recovery codes
+	password := "password123"
+	hashedPassword, _ := authService.HashPassword(password)
+
+	// Generate hashed recovery codes
+	var recoveryCodes []string
+	plainCode := "ABCD1234" // We'll use this to test
+	hashedCode, _ := authService.HashPassword(plainCode)
+	recoveryCodes = append(recoveryCodes, hashedCode)
+
+	user := &domain.User{
+		ID:            "user-with-2fa",
+		Email:         "2fa@example.com",
+		PasswordHash:  hashedPassword,
+		TwoFAEnabled:  true,
+		RecoveryCodes: recoveryCodes,
+		TenantID:      "tenant-1",
+	}
+	if err := userRepo.Create(context.Background(), user); err != nil {
+		t.Fatalf("failed to create user: %v", err)
+	}
+
+	t.Run("Success - Valid Recovery Code", func(t *testing.T) {
+		resp, err := authService.UseRecoveryCode(context.Background(), &domain.UseRecoveryCodeRequest{
+			Email:        "2fa@example.com",
+			Password:     password,
+			RecoveryCode: plainCode,
+		})
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if resp.AccessToken == "" {
+			t.Error("expected access token")
+		}
+	})
+
+	t.Run("Invalid Email", func(t *testing.T) {
+		_, err := authService.UseRecoveryCode(context.Background(), &domain.UseRecoveryCodeRequest{
+			Email:        "wrong@example.com",
+			Password:     password,
+			RecoveryCode: plainCode,
+		})
+
+		if err == nil {
+			t.Fatal("expected error for invalid email")
+		}
+	})
+
+	t.Run("Invalid Password", func(t *testing.T) {
+		// Re-create user since code was consumed
+		user.RecoveryCodes = []string{hashedCode}
+		_ = userRepo.Update(context.Background(), user)
+
+		_, err := authService.UseRecoveryCode(context.Background(), &domain.UseRecoveryCodeRequest{
+			Email:        "2fa@example.com",
+			Password:     "wrongpassword",
+			RecoveryCode: plainCode,
+		})
+
+		if err == nil {
+			t.Fatal("expected error for invalid password")
+		}
+	})
+
+	t.Run("Invalid Recovery Code", func(t *testing.T) {
+		// Re-add recovery code
+		user.RecoveryCodes = []string{hashedCode}
+		_ = userRepo.Update(context.Background(), user)
+
+		_, err := authService.UseRecoveryCode(context.Background(), &domain.UseRecoveryCodeRequest{
+			Email:        "2fa@example.com",
+			Password:     password,
+			RecoveryCode: "WRONGCODE",
+		})
+
+		if err == nil {
+			t.Fatal("expected error for invalid recovery code")
+		}
+	})
+
+	t.Run("2FA Not Enabled", func(t *testing.T) {
+		// Create user without 2FA
+		user2 := &domain.User{
+			ID:           "user-no-2fa",
+			Email:        "no2fa@example.com",
+			PasswordHash: hashedPassword,
+			TwoFAEnabled: false,
+		}
+		_ = userRepo.Create(context.Background(), user2)
+
+		_, err := authService.UseRecoveryCode(context.Background(), &domain.UseRecoveryCodeRequest{
+			Email:        "no2fa@example.com",
+			Password:     password,
+			RecoveryCode: "ANYCODE",
+		})
+
+		if err == nil {
+			t.Fatal("expected error when 2FA not enabled")
+		}
+	})
+
+	t.Run("No Recovery Codes", func(t *testing.T) {
+		// User with 2FA enabled but no recovery codes
+		user3 := &domain.User{
+			ID:            "user-no-codes",
+			Email:         "nocodes@example.com",
+			PasswordHash:  hashedPassword,
+			TwoFAEnabled:  true,
+			RecoveryCodes: []string{},
+		}
+		_ = userRepo.Create(context.Background(), user3)
+
+		_, err := authService.UseRecoveryCode(context.Background(), &domain.UseRecoveryCodeRequest{
+			Email:        "nocodes@example.com",
+			Password:     password,
+			RecoveryCode: "ANYCODE",
+		})
+
+		if err == nil {
+			t.Fatal("expected error when no recovery codes")
+		}
+	})
+}
+
+// ==================== OIDC LOGIN TESTS ====================
+
+func TestAuthService_LoginOrRegisterOIDC(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+
+	t.Run("Register New User", func(t *testing.T) {
+		resp, err := authService.LoginOrRegisterOIDC(context.Background(), "oidc@example.com", "ext-123", "google")
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if resp.AccessToken == "" {
+			t.Error("expected access token")
+		}
+		if resp.User.Email != "oidc@example.com" {
+			t.Errorf("expected email oidc@example.com, got %s", resp.User.Email)
+		}
+		if resp.User.AuthProvider != "google" {
+			t.Errorf("expected provider google, got %s", resp.User.AuthProvider)
+		}
+	})
+
+	t.Run("Login Existing User", func(t *testing.T) {
+		// Same email should return existing user
+		resp, err := authService.LoginOrRegisterOIDC(context.Background(), "oidc@example.com", "ext-123", "google")
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if resp.User.Email != "oidc@example.com" {
+			t.Errorf("expected email oidc@example.com, got %s", resp.User.Email)
+		}
+	})
+
+	t.Run("Link Account - User Without Provider", func(t *testing.T) {
+		// Create user without auth provider
+		password, _ := authService.HashPassword("password123")
+		user := &domain.User{
+			ID:           "existing-user",
+			Email:        "existing@example.com",
+			PasswordHash: password,
+			TenantID:     "tenant-1",
+		}
+		_ = userRepo.Create(context.Background(), user)
+		_ = tenantRepo.Create(context.Background(), &domain.Tenant{ID: "tenant-1", Name: "Test"})
+
+		resp, err := authService.LoginOrRegisterOIDC(context.Background(), "existing@example.com", "ext-456", "github")
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if resp.User.AuthProvider != "github" {
+			t.Errorf("expected provider github, got %s", resp.User.AuthProvider)
+		}
+		if resp.User.ExternalID != "ext-456" {
+			t.Errorf("expected externalID ext-456, got %s", resp.User.ExternalID)
+		}
+	})
+}
+
+func TestAuthService_ExtractJTI(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+
+	t.Run("ValidToken", func(t *testing.T) {
+		// Register a user to get a valid token
+		resp, err := authService.Register(context.Background(), &domain.RegisterRequest{
+			Email:    "jti-test@example.com",
+			Password: "password123",
+		})
+		if err != nil {
+			t.Fatalf("register failed: %v", err)
+		}
+
+		jti := authService.extractJTI(resp.AccessToken)
+		if jti == "" {
+			t.Error("expected non-empty JTI")
+		}
+	})
+
+	t.Run("InvalidToken", func(t *testing.T) {
+		jti := authService.extractJTI("invalid-token")
+		if jti != "" {
+			t.Error("expected empty JTI for invalid token")
+		}
+	})
+}
+
+func TestAuthService_ExtractUserID(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+
+	t.Run("ValidToken", func(t *testing.T) {
+		// Register a user to get a valid token
+		resp, err := authService.Register(context.Background(), &domain.RegisterRequest{
+			Email:    "userid-test@example.com",
+			Password: "password123",
+		})
+		if err != nil {
+			t.Fatalf("register failed: %v", err)
+		}
+
+		userID := authService.extractUserID(resp.AccessToken)
+		if userID == "" {
+			t.Error("expected non-empty userID")
+		}
+		if userID != resp.User.ID {
+			t.Errorf("expected %s, got %s", resp.User.ID, userID)
+		}
+	})
+
+	t.Run("InvalidToken", func(t *testing.T) {
+		userID := authService.extractUserID("invalid-token")
+		if userID != "" {
+			t.Error("expected empty userID for invalid token")
+		}
+	})
+}
+
+func TestAuthService_AddToBlacklist_NoRedis(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+
+	err := authService.addToBlacklist(context.Background(), "some-token")
+	if err != nil {
+		t.Errorf("expected nil error without redis, got %v", err)
+	}
+}
+
+func TestAuthService_CheckBlacklist_NoRedis(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+
+	err := authService.checkBlacklist(context.Background(), "some-token")
+	if err != nil {
+		t.Errorf("expected nil error without redis, got %v", err)
 	}
 }

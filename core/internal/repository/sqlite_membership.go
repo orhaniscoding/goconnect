@@ -47,10 +47,10 @@ func (r *SQLiteMembershipRepository) UpsertApproved(ctx context.Context, network
 		// insert
 		id := domain.GenerateNetworkID()
 		insert := `
-			INSERT INTO memberships (id, network_id, user_id, role, status, joined_at, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO memberships (id, network_id, user_id, role, status, joined_at, updated_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?)
 		`
-		_, err = r.db.ExecContext(ctx, insert, id, networkID, userID, role, domain.StatusApproved, joinedAt, now, now)
+		_, err = r.db.ExecContext(ctx, insert, id, networkID, userID, role, domain.StatusApproved, joinedAt, now)
 		if err != nil {
 			return nil, fmt.Errorf("failed to insert membership: %w", err)
 		}
@@ -81,7 +81,7 @@ func (r *SQLiteMembershipRepository) UpsertApproved(ctx context.Context, network
 
 func (r *SQLiteMembershipRepository) Get(ctx context.Context, networkID, userID string) (*domain.Membership, error) {
 	query := `
-		SELECT id, role, status, joined_at, created_at, updated_at
+		SELECT id, role, status, joined_at, updated_at
 		FROM memberships
 		WHERE network_id = ? AND user_id = ?
 	`
@@ -92,7 +92,6 @@ func (r *SQLiteMembershipRepository) Get(ctx context.Context, networkID, userID 
 		&m.Role,
 		&m.Status,
 		&joined,
-		&m.CreatedAt,
 		&m.UpdatedAt,
 	); err != nil {
 		if err == sql.ErrNoRows {
@@ -121,7 +120,7 @@ func (r *SQLiteMembershipRepository) SetStatus(ctx context.Context, networkID, u
 func (r *SQLiteMembershipRepository) List(ctx context.Context, networkID string, status string, limit int, cursor string) ([]*domain.Membership, string, error) {
 	args := []interface{}{networkID}
 	query := `
-		SELECT id, network_id, user_id, role, status, joined_at, created_at, updated_at
+		SELECT id, network_id, user_id, role, status, joined_at, updated_at
 		FROM memberships
 		WHERE network_id = ?
 	`
@@ -157,7 +156,6 @@ func (r *SQLiteMembershipRepository) List(ctx context.Context, networkID string,
 			&m.Role,
 			&m.Status,
 			&joined,
-			&m.CreatedAt,
 			&m.UpdatedAt,
 		); err != nil {
 			return nil, "", fmt.Errorf("failed to scan membership: %w", err)

@@ -376,3 +376,287 @@ func TestListMembers_FilterBanned(t *testing.T) {
 		t.Errorf("expected banned status, got %s", members[0].Status)
 	}
 }
+
+// ==================== SetAuditor Tests ====================
+
+func TestMembershipService_SetAuditor(t *testing.T) {
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	service := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+
+	t.Run("Set Auditor With Nil", func(t *testing.T) {
+		// Setting nil auditor should be a no-op (not panic)
+		service.SetAuditor(nil)
+	})
+
+	t.Run("Set Auditor With Valid Auditor", func(t *testing.T) {
+		mockAuditor := auditorFunc(func(ctx context.Context, tenantID, action, actor, object string, details map[string]any) {})
+		service.SetAuditor(mockAuditor)
+		// Should not panic
+	})
+}
+
+// ==================== SetNotifier Tests ====================
+
+func TestMembershipService_SetNotifier(t *testing.T) {
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	service := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+
+	t.Run("Set Notifier With Nil", func(t *testing.T) {
+		// Setting nil should be a no-op
+		service.SetNotifier(nil)
+	})
+
+	t.Run("Set Notifier With Valid Notifier", func(t *testing.T) {
+		mockNotifier := noopNotifier{}
+		service.SetNotifier(mockNotifier)
+		// Should not panic
+	})
+}
+
+// ==================== SetPeerProvisioning Tests ====================
+
+func TestMembershipService_SetPeerProvisioning(t *testing.T) {
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	service := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+
+	t.Run("Set PeerProvisioning With Nil", func(t *testing.T) {
+		// Setting nil should be a no-op
+		service.SetPeerProvisioning(nil)
+	})
+
+	t.Run("Set PeerProvisioning With Valid Service", func(t *testing.T) {
+		peerRepo := repository.NewInMemoryPeerRepository()
+		deviceRepo := repository.NewInMemoryDeviceRepository()
+		ipamRepo := repository.NewInMemoryIPAM()
+		peerProvService := NewPeerProvisioningService(peerRepo, deviceRepo, nrepo, mrepo, ipamRepo)
+		service.SetPeerProvisioning(peerProvService)
+		// Should not panic
+	})
+}
+
+// ==================== ListJoinRequests Tests ====================
+
+func TestMembershipService_ListJoinRequests(t *testing.T) {
+	ctx := context.Background()
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	service := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+
+	// Create a network
+	network := &domain.Network{
+		ID:         "net-jr-1",
+		TenantID:   "tenant-1",
+		Name:       "Test Network",
+		Visibility: domain.NetworkVisibilityPublic,
+		JoinPolicy: domain.JoinPolicyApproval,
+		CIDR:       "10.20.0.0/24",
+		CreatedBy:  "owner-1",
+	}
+	_ = nrepo.Create(ctx, network)
+
+	t.Run("List Join Requests Success", func(t *testing.T) {
+		// ListJoinRequests takes networkID and tenantID
+		requests, err := service.ListJoinRequests(ctx, "net-jr-1", "tenant-1")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		// May be empty since no pending requests
+		_ = requests
+	})
+
+	t.Run("List Join Requests Wrong Tenant", func(t *testing.T) {
+		// Should fail with wrong tenantID
+		_, err := service.ListJoinRequests(ctx, "net-jr-1", "wrong-tenant")
+		if err == nil {
+			t.Fatal("expected error for wrong tenant")
+		}
+	})
+}
+
+// ==================== IsMember Tests ====================
+
+func TestMembershipService_IsMember(t *testing.T) {
+	ctx := context.Background()
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	service := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+
+	// Create a network
+	network := &domain.Network{
+		ID:         "net-im-1",
+		TenantID:   "tenant-1",
+		Name:       "Test Network",
+		Visibility: domain.NetworkVisibilityPublic,
+		JoinPolicy: domain.JoinPolicyOpen,
+		CIDR:       "10.21.0.0/24",
+		CreatedBy:  "owner-1",
+	}
+	_ = nrepo.Create(ctx, network)
+
+	// Add a member using UpsertApproved
+	_, _ = mrepo.UpsertApproved(ctx, "net-im-1", "member-1", domain.RoleMember, time.Now())
+
+	t.Run("User Is Member", func(t *testing.T) {
+		// IsMember takes networkID, userID
+		isMember, err := service.IsMember(ctx, "net-im-1", "member-1")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !isMember {
+			t.Error("expected user to be a member")
+		}
+	})
+
+	t.Run("User Is Not Member", func(t *testing.T) {
+		// IsMember returns error for non-existent membership
+		isMember, err := service.IsMember(ctx, "net-im-1", "non-member")
+		// According to the implementation, it returns error if membership not found
+		if err != nil {
+			// Expected: not a member (error returned)
+			return
+		}
+		if isMember {
+			t.Error("expected user to not be a member")
+		}
+	})
+}
+
+// Test Approve: Admin approves a pending join request (success path)
+func TestApprove_Success(t *testing.T) {
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	svc := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+
+	// Create approval-required network
+	net := &domain.Network{
+		ID:         "net-approve-success",
+		TenantID:   "t1",
+		Name:       "ApproveNet",
+		Visibility: domain.NetworkVisibilityPublic,
+		JoinPolicy: domain.JoinPolicyApproval,
+		CIDR:       "10.30.0.0/24",
+		CreatedBy:  "admin",
+	}
+	_ = nrepo.Create(context.Background(), net)
+
+	// Admin joins directly as admin
+	_, _ = mrepo.UpsertApproved(context.Background(), net.ID, "admin", domain.RoleAdmin, time.Now())
+
+	// Regular user requests to join
+	_, jr, err := svc.JoinNetwork(context.Background(), net.ID, "userToApprove", "t1", domain.GenerateIdempotencyKey())
+	if err != nil {
+		t.Fatalf("join request failed: %v", err)
+	}
+	if jr == nil {
+		t.Fatal("expected join request for approval policy")
+	}
+
+	// Admin approves the request
+	membership, err := svc.Approve(context.Background(), net.ID, "userToApprove", "admin", "t1")
+	if err != nil {
+		t.Fatalf("expected approve to succeed, got error: %v", err)
+	}
+
+	if membership == nil {
+		t.Fatal("expected membership to be returned")
+	}
+	if membership.Role != domain.RoleMember {
+		t.Errorf("expected role %s, got %s", domain.RoleMember, membership.Role)
+	}
+	if membership.UserID != "userToApprove" {
+		t.Errorf("expected userID userToApprove, got %s", membership.UserID)
+	}
+
+	// Verify user is now a member
+	_, err = mrepo.Get(context.Background(), net.ID, "userToApprove")
+	if err != nil {
+		t.Fatalf("expected user to be a member after approval: %v", err)
+	}
+
+	// Verify join request was decided
+	_, err = jrepo.GetPending(context.Background(), net.ID, "userToApprove")
+	if err == nil {
+		t.Fatal("expected no pending join request after approval")
+	}
+}
+
+// Test Approve: Wrong tenant
+func TestApprove_WrongTenant(t *testing.T) {
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	svc := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+
+	net := &domain.Network{
+		ID:         "net-approve-tenant",
+		TenantID:   "t1",
+		Name:       "TenantNet",
+		Visibility: domain.NetworkVisibilityPublic,
+		JoinPolicy: domain.JoinPolicyApproval,
+		CIDR:       "10.31.0.0/24",
+		CreatedBy:  "admin",
+	}
+	_ = nrepo.Create(context.Background(), net)
+
+	_, _ = mrepo.UpsertApproved(context.Background(), net.ID, "admin", domain.RoleAdmin, time.Now())
+
+	_, _, _ = svc.JoinNetwork(context.Background(), net.ID, "userX", "t1", domain.GenerateIdempotencyKey())
+
+	// Try to approve with wrong tenant
+	_, err := svc.Approve(context.Background(), net.ID, "userX", "admin", "wrong-tenant")
+	if err == nil {
+		t.Fatal("expected error when approving with wrong tenant")
+	}
+
+	derr, ok := err.(*domain.Error)
+	if !ok {
+		t.Fatalf("expected domain.Error, got %T", err)
+	}
+	if derr.Code != domain.ErrNotFound {
+		t.Errorf("expected error code %s, got %s", domain.ErrNotFound, derr.Code)
+	}
+}
+
+// Test Approve: No pending join request
+func TestApprove_NoPendingJoinRequest(t *testing.T) {
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	svc := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+
+	net := &domain.Network{
+		ID:         "net-approve-no-pending",
+		TenantID:   "t1",
+		Name:       "NoPendingNet",
+		Visibility: domain.NetworkVisibilityPublic,
+		JoinPolicy: domain.JoinPolicyApproval,
+		CIDR:       "10.32.0.0/24",
+		CreatedBy:  "admin",
+	}
+	_ = nrepo.Create(context.Background(), net)
+
+	_, _ = mrepo.UpsertApproved(context.Background(), net.ID, "admin", domain.RoleAdmin, time.Now())
+
+	// Try to approve user who never requested to join
+	_, err := svc.Approve(context.Background(), net.ID, "never-requested", "admin", "t1")
+	if err == nil {
+		t.Fatal("expected error when approving user without pending request")
+	}
+}

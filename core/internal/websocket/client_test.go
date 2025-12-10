@@ -374,3 +374,28 @@ func TestClient_AdminAndModeratorFlags(t *testing.T) {
 	assert.True(t, superUser.isAdmin)
 	assert.True(t, superUser.isModerator)
 }
+
+func TestClient_UpdateActivityAndGetLastActivity(t *testing.T) {
+	client := &Client{
+		userID:   "user1",
+		tenantID: "tenant1",
+	}
+
+	// Check initial last activity is zero
+	initial := client.GetLastActivity()
+	assert.True(t, initial.IsZero())
+
+	// Update activity
+	client.UpdateActivity()
+
+	// Check last activity is now set
+	activity := client.GetLastActivity()
+	assert.False(t, activity.IsZero())
+	assert.WithinDuration(t, time.Now(), activity, time.Second)
+
+	// Update again and verify it changes
+	time.Sleep(10 * time.Millisecond)
+	client.UpdateActivity()
+	newActivity := client.GetLastActivity()
+	assert.True(t, newActivity.After(activity) || newActivity.Equal(activity))
+}

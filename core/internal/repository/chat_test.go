@@ -413,3 +413,30 @@ func TestChatRepository_EditHistoryTracking(t *testing.T) {
 	assert.Equal(t, "Version 2", edits[1].PrevBody)
 	assert.Equal(t, "Version 3", edits[1].NewBody)
 }
+
+func TestChatRepository_CountToday(t *testing.T) {
+	repo := NewInMemoryChatRepository()
+	ctx := context.Background()
+
+	// Create messages for today
+	msg1 := mkChatMessage("msg-1", "host", "user-1", "Today message 1")
+	msg2 := mkChatMessage("msg-2", "host", "user-2", "Today message 2")
+
+	err := repo.Create(ctx, msg1)
+	require.NoError(t, err)
+	err = repo.Create(ctx, msg2)
+	require.NoError(t, err)
+
+	count, err := repo.CountToday(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
+}
+
+func TestChatRepository_CountToday_Empty(t *testing.T) {
+	repo := NewInMemoryChatRepository()
+	ctx := context.Background()
+
+	count, err := repo.CountToday(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 0, count)
+}

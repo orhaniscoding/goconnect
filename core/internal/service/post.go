@@ -11,12 +11,12 @@ import (
 
 // PostService handles business logic for posts
 type PostService struct {
-	postRepo *repository.PostRepository
+	postRepo repository.PostRepository
 	userRepo repository.UserRepository
 }
 
 // NewPostService creates a new post service
-func NewPostService(postRepo *repository.PostRepository, userRepo repository.UserRepository) *PostService {
+func NewPostService(postRepo repository.PostRepository, userRepo repository.UserRepository) *PostService {
 	return &PostService{
 		postRepo: postRepo,
 		userRepo: userRepo,

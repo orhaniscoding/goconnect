@@ -636,3 +636,22 @@ func TestDeviceHandler_EnableDevice(t *testing.T) {
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
 }
+
+func TestDeviceHandler_GetDeviceConfig(t *testing.T) {
+	r, handler, _, _ := setupDeviceTest()
+
+	r.GET("/v1/devices/:id/config", func(c *gin.Context) {
+		c.Set("user_id", "user-123")
+		c.Set("tenant_id", "tenant-1")
+		handler.GetDeviceConfig(c)
+	})
+
+	t.Run("Not found - invalid device ID", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/v1/devices/non-existent/config", nil)
+		w := httptest.NewRecorder()
+
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+}

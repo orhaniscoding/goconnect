@@ -86,3 +86,16 @@ func (ks *KeyringStore) RemoveAuthData() error {
 	}
 	return nil
 }
+
+// NewTestKeyring creates a new KeyringStore backed by file (for testing).
+func NewTestKeyring(dir string) (*KeyringStore, error) {
+	kr, err := keyring.Open(keyring.Config{
+		AllowedBackends: []keyring.BackendType{keyring.FileBackend},
+		FileDir:         dir,
+		FilePasswordFunc: func(s string) (string, error) { return "test", nil },
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to open test keyring: %w", err)
+	}
+	return &KeyringStore{kr: kr}, nil
+}

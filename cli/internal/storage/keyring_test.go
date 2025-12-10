@@ -110,3 +110,55 @@ func TestKeyringStore_Integration(t *testing.T) {
 		t.Error("Expected error retrieving removed token")
 	}
 }
+
+func TestNewTestKeyring(t *testing.T) {
+	dir := t.TempDir()
+	
+	ks, err := NewTestKeyring(dir)
+	if err != nil {
+		t.Fatalf("NewTestKeyring failed: %v", err)
+	}
+
+	if ks == nil {
+		t.Fatal("Expected KeyringStore, got nil")
+	}
+
+	if ks.kr == nil {
+		t.Fatal("Expected keyring to be initialized")
+	}
+
+	// Test that it works
+	testToken := "test-token-via-file-backend"
+	if err := ks.StoreAuthToken(testToken); err != nil {
+		t.Fatalf("StoreAuthToken via file backend failed: %v", err)
+	}
+
+	token, err := ks.RetrieveAuthToken()
+	if err != nil {
+		t.Fatalf("RetrieveAuthToken via file backend failed: %v", err)
+	}
+
+	if token != testToken {
+		t.Errorf("Expected token %s, got %s", testToken, token)
+	}
+
+	// Test StoreDeviceID via file backend
+	testDeviceID := "test-device-via-file"
+	if err := ks.StoreDeviceID(testDeviceID); err != nil {
+		t.Fatalf("StoreDeviceID via file backend failed: %v", err)
+	}
+
+	deviceID, err := ks.RetrieveDeviceID()
+	if err != nil {
+		t.Fatalf("RetrieveDeviceID via file backend failed: %v", err)
+	}
+
+	if deviceID != testDeviceID {
+		t.Errorf("Expected device ID %s, got %s", testDeviceID, deviceID)
+	}
+
+	// Test RemoveAuthData
+	if err := ks.RemoveAuthData(); err != nil {
+		t.Fatalf("RemoveAuthData via file backend failed: %v", err)
+	}
+}

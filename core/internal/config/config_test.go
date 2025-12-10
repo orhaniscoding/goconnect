@@ -275,6 +275,70 @@ func TestConfigValidate_BackendVariants(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid DB_BACKEND")
 	})
+
+	t.Run("postgres requires dbname", func(t *testing.T) {
+		cfg := base()
+		cfg.Database.DBName = ""
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "DB_NAME")
+	})
+
+	t.Run("postgres requires user", func(t *testing.T) {
+		cfg := base()
+		cfg.Database.User = ""
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "DB_USER")
+	})
+
+	t.Run("jwt secret too short", func(t *testing.T) {
+		cfg := base()
+		cfg.JWT.Secret = "tooshort"
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "at least 32")
+	})
+
+	t.Run("jwt secret missing", func(t *testing.T) {
+		cfg := base()
+		cfg.JWT.Secret = ""
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "JWT_SECRET")
+	})
+
+	t.Run("wireguard endpoint missing", func(t *testing.T) {
+		cfg := base()
+		cfg.WireGuard.ServerEndpoint = ""
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "WG_SERVER_ENDPOINT")
+	})
+
+	t.Run("wireguard pubkey missing", func(t *testing.T) {
+		cfg := base()
+		cfg.WireGuard.ServerPubKey = ""
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "WG_SERVER_PUBKEY")
+	})
+
+	t.Run("wireguard pubkey wrong length", func(t *testing.T) {
+		cfg := base()
+		cfg.WireGuard.ServerPubKey = "tooshort"
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "44 characters")
+	})
+
+	t.Run("server port missing", func(t *testing.T) {
+		cfg := base()
+		cfg.Server.Port = ""
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "SERVER_PORT")
+	})
 }
 
 func TestLoadFromFileOrEnv_WithFileAndEnvOverride(t *testing.T) {
@@ -332,4 +396,179 @@ func TestLoadFromFile(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, cfg.Database.Backend, loaded.Database.Backend)
 	assert.Equal(t, cfg.Database.SQLitePath, loaded.Database.SQLitePath)
+}
+
+func TestLoadFromFile_NotFound(t *testing.T) {
+	_, err := LoadFromFile("/nonexistent/path/config.yaml")
+	require.Error(t, err)
+}
+
+func TestSaveToFile_InvalidPath(t *testing.T) {
+	cfg := baseValidConfig()
+	err := SaveToFile(&cfg, "/nonexistent/directory/config.yaml")
+	require.Error(t, err)
+}
+
+func TestDefaultConfigPath(t *testing.T) {
+	t.Run("DefaultPath", func(t *testing.T) {
+		os.Unsetenv("GOCONNECT_CONFIG_PATH")
+		path := DefaultConfigPath()
+		assert.Equal(t, "goconnect.yaml", path)
+	})
+	
+	t.Run("EnvOverride", func(t *testing.T) {
+		os.Setenv("GOCONNECT_CONFIG_PATH", "/custom/path/config.yaml")
+		defer os.Unsetenv("GOCONNECT_CONFIG_PATH")
+		path := DefaultConfigPath()
+		assert.Equal(t, "/custom/path/config.yaml", path)
+	})
+}
+
+func TestApplyEnvOverrides(t *testing.T) {
+	t.Run("OverrideServerPort", func(t *testing.T) {
+		os.Setenv("SERVER_PORT", "3000")
+		defer os.Unsetenv("SERVER_PORT")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, "3000", cfg.Server.Port)
+	})
+
+	t.Run("OverrideServerHost", func(t *testing.T) {
+		os.Setenv("SERVER_HOST", "0.0.0.0")
+		defer os.Unsetenv("SERVER_HOST")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, "0.0.0.0", cfg.Server.Host)
+	})
+
+	t.Run("OverrideJWTSecret", func(t *testing.T) {
+		os.Setenv("JWT_SECRET", "supersecret123")
+		defer os.Unsetenv("JWT_SECRET")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, "supersecret123", cfg.JWT.Secret)
+	})
+
+	t.Run("OverrideDatabaseBackend", func(t *testing.T) {
+		os.Setenv("DB_BACKEND", "postgres")
+		defer os.Unsetenv("DB_BACKEND")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, "postgres", cfg.Database.Backend)
+	})
+
+	t.Run("OverrideDatabaseHost", func(t *testing.T) {
+		os.Setenv("DB_HOST", "db.example.com")
+		defer os.Unsetenv("DB_HOST")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, "db.example.com", cfg.Database.Host)
+	})
+}
+
+func TestLookupEnv(t *testing.T) {
+	t.Run("ExistingVar", func(t *testing.T) {
+		os.Setenv("TEST_LOOKUP_VAR", "testvalue")
+		defer os.Unsetenv("TEST_LOOKUP_VAR")
+
+		val, ok := lookupEnv("TEST_LOOKUP_VAR")
+		assert.True(t, ok)
+		assert.Equal(t, "testvalue", val)
+	})
+
+	t.Run("NonExistingVar", func(t *testing.T) {
+		os.Unsetenv("NONEXISTENT_LOOKUP_VAR")
+
+		val, ok := lookupEnv("NONEXISTENT_LOOKUP_VAR")
+		assert.False(t, ok)
+		assert.Empty(t, val)
+	})
+
+	t.Run("EmptyVar", func(t *testing.T) {
+		os.Setenv("EMPTY_LOOKUP_VAR", "")
+		defer os.Unsetenv("EMPTY_LOOKUP_VAR")
+
+		val, ok := lookupEnv("EMPTY_LOOKUP_VAR")
+		assert.True(t, ok) // lookupEnv returns true even for empty
+		assert.Empty(t, val)
+	})
+}
+
+func TestLookupEnvNonEmpty(t *testing.T) {
+	t.Run("ExistingNonEmptyVar", func(t *testing.T) {
+		os.Setenv("TEST_NONEMPTY_VAR", "value")
+		defer os.Unsetenv("TEST_NONEMPTY_VAR")
+
+		val, ok := lookupEnvNonEmpty("TEST_NONEMPTY_VAR")
+		assert.True(t, ok)
+		assert.Equal(t, "value", val)
+	})
+
+	t.Run("NonExistingVar", func(t *testing.T) {
+		os.Unsetenv("NONEXISTENT_NONEMPTY_VAR")
+
+		val, ok := lookupEnvNonEmpty("NONEXISTENT_NONEMPTY_VAR")
+		assert.False(t, ok)
+		assert.Empty(t, val)
+	})
+
+	t.Run("EmptyVar", func(t *testing.T) {
+		os.Setenv("EMPTY_NONEMPTY_VAR", "")
+		defer os.Unsetenv("EMPTY_NONEMPTY_VAR")
+
+		val, ok := lookupEnvNonEmpty("EMPTY_NONEMPTY_VAR")
+		assert.False(t, ok) // lookupEnvNonEmpty returns false for empty
+		assert.Empty(t, val)
+	})
+}
+
+func TestApplyEnvOverrides_MoreVars(t *testing.T) {
+	t.Run("OverrideWireGuardEndpoint", func(t *testing.T) {
+		os.Setenv("WG_SERVER_ENDPOINT", "wg.example.com:51820")
+		defer os.Unsetenv("WG_SERVER_ENDPOINT")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, "wg.example.com:51820", cfg.WireGuard.ServerEndpoint)
+	})
+
+	t.Run("OverrideWireGuardPubKey", func(t *testing.T) {
+		os.Setenv("WG_SERVER_PUBKEY", "newpubkey123456789012345678901234567890AB=")
+		defer os.Unsetenv("WG_SERVER_PUBKEY")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, "newpubkey123456789012345678901234567890AB=", cfg.WireGuard.ServerPubKey)
+	})
+
+	t.Run("OverrideRedisHost", func(t *testing.T) {
+		os.Setenv("REDIS_HOST", "redis.example.com")
+		defer os.Unsetenv("REDIS_HOST")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, "redis.example.com", cfg.Redis.Host)
+	})
+
+	t.Run("OverrideRedisPort", func(t *testing.T) {
+		os.Setenv("REDIS_PORT", "6380")
+		defer os.Unsetenv("REDIS_PORT")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, "6380", cfg.Redis.Port)
+	})
+
+	t.Run("OverrideRedisDB", func(t *testing.T) {
+		os.Setenv("REDIS_DB", "5")
+		defer os.Unsetenv("REDIS_DB")
+		cfg := baseValidConfig()
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, 5, cfg.Redis.DB)
+	})
+
+	t.Run("OverrideRedisDB_InvalidValue", func(t *testing.T) {
+		os.Setenv("REDIS_DB", "invalid")
+		defer os.Unsetenv("REDIS_DB")
+		cfg := baseValidConfig()
+		cfg.Redis.DB = 0 // Set initial value
+		applyEnvOverrides(&cfg)
+		assert.Equal(t, 0, cfg.Redis.DB) // Should remain unchanged
+	})
 }
