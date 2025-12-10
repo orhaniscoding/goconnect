@@ -483,3 +483,101 @@ func TestWireGuardHandler_NewHandler(t *testing.T) {
 	assert.Equal(t, userRepo, handler.userRepo)
 	assert.Equal(t, auditor, handler.auditor)
 }
+
+func TestWireGuardHandler_GetProfile_WrongTenant(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+
+	networkRepo := newMockNetworkRepo()
+	membershipRepo := newMockMembershipRepo()
+	userRepo := newMockUserRepo()
+	auditor := &mockAuditor{}
+
+	// Create network with tenant t1
+	networkRepo.networks["net1"] = &domain.Network{
+		ID:       "net1",
+		TenantID: "t1",
+		Name:     "Test Network",
+		CIDR:     "10.0.0.0/24",
+	}
+
+	handler := NewWireGuardHandler(networkRepo, membershipRepo, nil, nil, userRepo, nil, auditor)
+	r.GET("/v1/networks/:id/wg/profile", wireguardAuthMiddleware(), handler.GetProfile)
+
+	// Request with wrong tenant token
+	req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1&private_key=pk1", nil)
+	req.Header.Set("Authorization", "Bearer wrong-tenant-token")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Contains(t, w.Body.String(), "not found")
+}
+
+func TestWireGuardHandler_GetProfile_MembershipNotFound(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+
+	networkRepo := newMockNetworkRepo()
+	membershipRepo := newMockMembershipRepo()
+	userRepo := newMockUserRepo()
+	auditor := &mockAuditor{}
+
+	// Create network
+	networkRepo.networks["net1"] = &domain.Network{
+		ID:       "net1",
+		TenantID: "t1",
+		Name:     "Test Network",
+		CIDR:     "10.0.0.0/24",
+	}
+
+	// No membership - user1 is not a member of net1
+
+	handler := NewWireGuardHandler(networkRepo, membershipRepo, nil, nil, userRepo, nil, auditor)
+	r.GET("/v1/networks/:id/wg/profile", wireguardAuthMiddleware(), handler.GetProfile)
+
+	req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1&private_key=pk1", nil)
+	req.Header.Set("Authorization", "Bearer user-token")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "not a member")
+}
+
+func TestWireGuardHandler_GetProfile_PendingMembership(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+
+	networkRepo := newMockNetworkRepo()
+	membershipRepo := newMockMembershipRepo()
+	userRepo := newMockUserRepo()
+	auditor := &mockAuditor{}
+
+	// Create network
+	networkRepo.networks["net1"] = &domain.Network{
+		ID:       "net1",
+		TenantID: "t1",
+		Name:     "Test Network",
+		CIDR:     "10.0.0.0/24",
+	}
+
+	// Add pending membership
+	membershipRepo.memberships["net1:user1"] = &domain.Membership{
+		NetworkID: "net1",
+		UserID:    "user1",
+		Status:    domain.StatusPending,
+	}
+
+	handler := NewWireGuardHandler(networkRepo, membershipRepo, nil, nil, userRepo, nil, auditor)
+	r.GET("/v1/networks/:id/wg/profile", wireguardAuthMiddleware(), handler.GetProfile)
+
+	req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1&private_key=pk1", nil)
+	req.Header.Set("Authorization", "Bearer user-token")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "not approved")
+}
+

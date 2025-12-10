@@ -970,3 +970,83 @@ func TestAdminHandler_GetUserDetails(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }
+
+// ==================== GetSystemStats Edge Cases ====================
+
+func TestAdminHandler_GetSystemStats_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r, handler, _, _, _, _, _ := setupAdminTest()
+	r.GET("/v1/admin/stats", adminAuthMiddleware(), handler.GetSystemStats)
+
+	req := httptest.NewRequest("GET", "/v1/admin/stats", nil)
+	req.Header.Set("Authorization", "Bearer admin-token")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Should return 200 OK with stats
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "data")
+}
+
+// ==================== UpdateUserRole Edge Cases ====================
+
+func TestAdminHandler_UpdateUserRole_InvalidBody(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r, handler, _, _, _, _, _ := setupAdminTest()
+	r.PATCH("/v1/admin/users/:id/role", adminAuthMiddleware(), handler.UpdateUserRole)
+
+	req := httptest.NewRequest("PATCH", "/v1/admin/users/u1/role", strings.NewReader("invalid json"))
+	req.Header.Set("Authorization", "Bearer admin-token")
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestAdminHandler_UpdateUserRole_NoFields(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r, handler, _, _, _, _, _ := setupAdminTest()
+	r.PATCH("/v1/admin/users/:id/role", adminAuthMiddleware(), handler.UpdateUserRole)
+
+	// Empty body - no fields to update
+	req := httptest.NewRequest("PATCH", "/v1/admin/users/u1/role", strings.NewReader("{}"))
+	req.Header.Set("Authorization", "Bearer admin-token")
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "ERR_INVALID_REQUEST")
+}
+
+// ==================== SuspendUser Edge Cases ====================
+
+func TestAdminHandler_SuspendUser_InvalidBody(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r, handler, _, _, _, _, _ := setupAdminTest()
+	r.POST("/v1/admin/users/:id/suspend", adminAuthMiddleware(), handler.SuspendUser)
+
+	req := httptest.NewRequest("POST", "/v1/admin/users/u1/suspend", strings.NewReader("invalid json"))
+	req.Header.Set("Authorization", "Bearer admin-token")
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestAdminHandler_SuspendUser_MissingReason(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r, handler, _, _, _, _, _ := setupAdminTest()
+	r.POST("/v1/admin/users/:id/suspend", adminAuthMiddleware(), handler.SuspendUser)
+
+	req := httptest.NewRequest("POST", "/v1/admin/users/u1/suspend", strings.NewReader("{}"))
+	req.Header.Set("Authorization", "Bearer admin-token")
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "ERR_INVALID_REQUEST")
+}
