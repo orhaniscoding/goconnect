@@ -345,3 +345,176 @@ func containsSubstring(s, substr string) bool {
 	}
 	return false
 }
+
+// Additional tests for 0% coverage functions
+
+func TestErrServerUnreachable(t *testing.T) {
+	cause := fmt.Errorf("connection timeout")
+	err := ErrServerUnreachable(cause, "https://api.goconnect.io")
+
+	if err.Code != CodeServerUnreachable {
+		t.Errorf("Code = %v, want %v", err.Code, CodeServerUnreachable)
+	}
+	if err.Category != CategoryNetwork {
+		t.Errorf("Category = %v, want %v", err.Category, CategoryNetwork)
+	}
+	if !containsString(err.Details, "api.goconnect.io") {
+		t.Error("Details should contain server URL")
+	}
+	if !containsString(err.Message, "Cannot reach") {
+		t.Error("Message should mention unreachable")
+	}
+}
+
+func TestErrPeerUnreachable(t *testing.T) {
+	cause := fmt.Errorf("peer offline")
+	err := ErrPeerUnreachable(cause, "peer-12345")
+
+	if err.Code != CodePeerUnreachable {
+		t.Errorf("Code = %v, want %v", err.Code, CodePeerUnreachable)
+	}
+	if err.Category != CategoryNetwork {
+		t.Errorf("Category = %v, want %v", err.Category, CategoryNetwork)
+	}
+	if !containsString(err.Details, "peer-12345") {
+		t.Error("Details should contain peer ID")
+	}
+}
+
+func TestErrInvalidToken(t *testing.T) {
+	cause := fmt.Errorf("token expired")
+	err := ErrInvalidToken(cause)
+
+	if err.Code != CodeInvalidToken {
+		t.Errorf("Code = %v, want %v", err.Code, CodeInvalidToken)
+	}
+	if err.Category != CategoryAuth {
+		t.Errorf("Category = %v, want %v", err.Category, CategoryAuth)
+	}
+	if !containsString(err.Message, "expired") {
+		t.Error("Message should mention expired")
+	}
+}
+
+func TestErrInvalidCredentials(t *testing.T) {
+	cause := fmt.Errorf("wrong password")
+	err := ErrInvalidCredentials(cause)
+
+	if err.Code != CodeInvalidCredentials {
+		t.Errorf("Code = %v, want %v", err.Code, CodeInvalidCredentials)
+	}
+	if err.Category != CategoryAuth {
+		t.Errorf("Category = %v, want %v", err.Category, CategoryAuth)
+	}
+	if !containsString(err.Message, "Invalid username or password") {
+		t.Error("Message should mention invalid credentials")
+	}
+}
+
+func TestErrConfigNotFound(t *testing.T) {
+	err := ErrConfigNotFound("/home/user/.config/goconnect/config.yaml")
+
+	if err.Code != CodeConfigNotFound {
+		t.Errorf("Code = %v, want %v", err.Code, CodeConfigNotFound)
+	}
+	if err.Category != CategoryConfig {
+		t.Errorf("Category = %v, want %v", err.Category, CategoryConfig)
+	}
+	if !containsString(err.Details, "/home/user/.config/goconnect/config.yaml") {
+		t.Error("Details should contain config path")
+	}
+	if !containsString(err.Message, "Configuration file not found") {
+		t.Error("Message should mention not found")
+	}
+}
+
+func TestErrConfigInvalid(t *testing.T) {
+	cause := fmt.Errorf("yaml parse error")
+	err := ErrConfigInvalid(cause, "/etc/goconnect/config.yaml")
+
+	if err.Code != CodeConfigInvalid {
+		t.Errorf("Code = %v, want %v", err.Code, CodeConfigInvalid)
+	}
+	if err.Category != CategoryConfig {
+		t.Errorf("Category = %v, want %v", err.Category, CategoryConfig)
+	}
+	if !containsString(err.Details, "/etc/goconnect/config.yaml") {
+		t.Error("Details should contain config path")
+	}
+}
+
+func TestErrDatabaseError(t *testing.T) {
+	cause := fmt.Errorf("connection refused")
+	err := ErrDatabaseError(cause, "insert_user")
+
+	if err.Code != CodeDatabaseError {
+		t.Errorf("Code = %v, want %v", err.Code, CodeDatabaseError)
+	}
+	if err.Category != CategoryStorage {
+		t.Errorf("Category = %v, want %v", err.Category, CategoryStorage)
+	}
+	if !containsString(err.Details, "insert_user") {
+		t.Error("Details should contain operation name")
+	}
+}
+
+func TestErrPeerNotFound(t *testing.T) {
+	err := ErrPeerNotFound("peer-nonexistent")
+
+	if err.Code != CodePeerNotFound {
+		t.Errorf("Code = %v, want %v", err.Code, CodePeerNotFound)
+	}
+	if err.Category != CategoryNotFound {
+		t.Errorf("Category = %v, want %v", err.Category, CategoryNotFound)
+	}
+	if !containsString(err.Details, "peer-nonexistent") {
+		t.Error("Details should contain peer ID")
+	}
+}
+
+func TestErrTransferNotFound(t *testing.T) {
+	err := ErrTransferNotFound("transfer-12345")
+
+	if err.Code != CodeTransferNotFound {
+		t.Errorf("Code = %v, want %v", err.Code, CodeTransferNotFound)
+	}
+	if err.Category != CategoryNotFound {
+		t.Errorf("Category = %v, want %v", err.Category, CategoryNotFound)
+	}
+	if !containsString(err.Details, "transfer-12345") {
+		t.Error("Details should contain transfer ID")
+	}
+}
+
+func TestErrTransferInProgress(t *testing.T) {
+	err := ErrTransferInProgress("transfer-active")
+
+	if err.Code != CodeTransferInProgress {
+		t.Errorf("Code = %v, want %v", err.Code, CodeTransferInProgress)
+	}
+	if err.Category != CategoryConflict {
+		t.Errorf("Category = %v, want %v", err.Category, CategoryConflict)
+	}
+	if !containsString(err.Details, "transfer-active") {
+		t.Error("Details should contain transfer ID")
+	}
+}
+
+func TestAppError_Is_WithNonAppError(t *testing.T) {
+	appErr := New(CodeInvalidInput, CategoryValidation, "Invalid")
+	stdErr := fmt.Errorf("standard error")
+
+	// AppError.Is should return false for non-AppError
+	if appErr.Is(stdErr) {
+		t.Error("AppError.Is should return false for non-AppError")
+	}
+}
+
+func TestAppError_Is_WithNil(t *testing.T) {
+	appErr := New(CodeInvalidInput, CategoryValidation, "Invalid")
+
+	// AppError.Is should return false for nil
+	if appErr.Is(nil) {
+		t.Error("AppError.Is should return false for nil")
+	}
+}

@@ -529,3 +529,86 @@ func TestJoinRequestRepository_FullCycle(t *testing.T) {
 	updatedJr := repo.byID[jr2.ID]
 	assert.Equal(t, "denied", updatedJr.Status)
 }
+
+func TestInMemoryJoinRequestRepository_ListPending(t *testing.T) {
+	repo := NewInMemoryJoinRequestRepository()
+	ctx := context.Background()
+
+	t.Run("EmptyResult", func(t *testing.T) {
+		result, err := repo.ListPending(ctx, "network-1")
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
+
+	t.Run("OnlyPendingRequests", func(t *testing.T) {
+		// Create pending requests
+		jr1, err := repo.CreatePending(ctx, "network-1", "user-1")
+		require.NoError(t, err)
+		jr2, err := repo.CreatePending(ctx, "network-1", "user-2")
+		require.NoError(t, err)
+
+		// Create request in different network
+		_, err = repo.CreatePending(ctx, "network-2", "user-3")
+		require.NoError(t, err)
+
+		// List pending for network-1
+		result, err := repo.ListPending(ctx, "network-1")
+		require.NoError(t, err)
+		assert.Len(t, result, 2)
+
+		// Verify correct requests returned
+		ids := make(map[string]bool)
+		for _, r := range result {
+			ids[r.ID] = true
+		}
+		assert.True(t, ids[jr1.ID])
+		assert.True(t, ids[jr2.ID])
+	})
+
+	t.Run("ExcludesApprovedAndDenied", func(t *testing.T) {
+		repo2 := NewInMemoryJoinRequestRepository()
+
+		// Create pending, then approve one
+		jr1, err := repo2.CreatePending(ctx, "network-1", "user-1")
+		require.NoError(t, err)
+		jr2, err := repo2.CreatePending(ctx, "network-1", "user-2")
+		require.NoError(t, err)
+		jr3, err := repo2.CreatePending(ctx, "network-1", "user-3")
+		require.NoError(t, err)
+
+		// Approve first, deny second
+		err = repo2.Decide(ctx, jr1.ID, true)
+		require.NoError(t, err)
+		err = repo2.Decide(ctx, jr2.ID, false)
+		require.NoError(t, err)
+
+		// Only third should be pending
+		result, err := repo2.ListPending(ctx, "network-1")
+		require.NoError(t, err)
+		assert.Len(t, result, 1)
+		assert.Equal(t, jr3.ID, result[0].ID)
+	})
+
+	t.Run("SortedByCreationTime", func(t *testing.T) {
+		repo3 := NewInMemoryJoinRequestRepository()
+
+		// Create requests with small delays to ensure different creation times
+		jr1, err := repo3.CreatePending(ctx, "network-1", "user-1")
+		require.NoError(t, err)
+		time.Sleep(1 * time.Millisecond)
+		jr2, err := repo3.CreatePending(ctx, "network-1", "user-2")
+		require.NoError(t, err)
+		time.Sleep(1 * time.Millisecond)
+		jr3, err := repo3.CreatePending(ctx, "network-1", "user-3")
+		require.NoError(t, err)
+
+		result, err := repo3.ListPending(ctx, "network-1")
+		require.NoError(t, err)
+		assert.Len(t, result, 3)
+
+		// Should be sorted oldest first
+		assert.Equal(t, jr1.ID, result[0].ID)
+		assert.Equal(t, jr2.ID, result[1].ID)
+		assert.Equal(t, jr3.ID, result[2].ID)
+	})
+}
