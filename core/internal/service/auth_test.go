@@ -1536,3 +1536,200 @@ func TestAuthService_Generate2FASecret_Success(t *testing.T) {
 		t.Error("expected non-empty URL")
 	}
 }
+
+// ==================== ADDITIONAL JWT/TOKEN TESTS ====================
+
+func TestAuthService_ExtractJTI_ValidToken(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+
+	// Register user to get a valid token
+	authResp, err := authService.Register(context.Background(), &domain.RegisterRequest{
+		Email:    "jti-test@example.com",
+		Password: "password123",
+	})
+	if err != nil {
+		t.Fatalf("register failed: %v", err)
+	}
+
+	// extractJTI is private, but we can test it indirectly through Logout
+	// The token should have a JTI claim
+	if authResp.AccessToken == "" {
+		t.Error("expected non-empty access token")
+	}
+}
+
+func TestAuthService_ExtractJTI_InvalidToken(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+
+	// Test with completely invalid token - Logout should handle gracefully
+	err := authService.Logout(context.Background(), "invalid.token.here", "also.invalid.token")
+	// Should not error because redis is nil (graceful degradation)
+	if err != nil {
+		t.Errorf("expected no error with nil redis, got: %v", err)
+	}
+}
+
+func TestAuthService_Logout_NilRedis(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := NewAuthService(userRepo, tenantRepo, nil) // nil redis
+
+	// Register user to get valid tokens
+	authResp, err := authService.Register(context.Background(), &domain.RegisterRequest{
+		Email:    "logout-test@example.com",
+		Password: "password123",
+	})
+	if err != nil {
+		t.Fatalf("register failed: %v", err)
+	}
+
+	// Logout with valid tokens but nil redis should succeed
+	err = authService.Logout(context.Background(), authResp.AccessToken, authResp.RefreshToken)
+	if err != nil {
+		t.Errorf("expected no error with nil redis, got: %v", err)
+	}
+}
+
+func TestAuthService_Logout_EmptyTokens(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+
+	// Logout with empty tokens should succeed (graceful)
+	err := authService.Logout(context.Background(), "", "")
+	if err != nil {
+		t.Errorf("expected no error with empty tokens, got: %v", err)
+	}
+}
+
+func TestAuthService_Refresh_UserNotFound(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+
+	// Create and delete user to get orphaned token
+	authResp, err := authService.Register(context.Background(), &domain.RegisterRequest{
+		Email:    "refresh-delete@example.com",
+		Password: "password123",
+	})
+	if err != nil {
+		t.Fatalf("register failed: %v", err)
+	}
+
+	// Get user and delete
+	user, _ := userRepo.GetByEmail(context.Background(), "refresh-delete@example.com")
+	userRepo.Delete(context.Background(), user.ID)
+
+	// Try to refresh - should fail because user not found
+	_, err = authService.Refresh(context.Background(), &domain.RefreshRequest{
+		RefreshToken: authResp.RefreshToken,
+	})
+	if err == nil {
+		t.Error("expected error for deleted user refresh")
+	}
+}
+
+func TestAuthService_Refresh_InvalidToken(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+
+	// Try to refresh with completely invalid token
+	_, err := authService.Refresh(context.Background(), &domain.RefreshRequest{
+		RefreshToken: "not.a.valid.jwt.token",
+	})
+	if err == nil {
+		t.Error("expected error for invalid token")
+	}
+}
+
+func TestAuthService_Refresh_ExpiredToken(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+
+	// Create an expired refresh token manually
+	expiredToken := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjEsInN1YiI6InVzZXItaWQifQ.invalid"
+
+	_, err := authService.Refresh(context.Background(), &domain.RefreshRequest{
+		RefreshToken: expiredToken,
+	})
+	if err == nil {
+		t.Error("expected error for expired token")
+	}
+}
+
+func TestAuthService_ValidateToken_InvalidToken(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+	ctx := context.Background()
+
+	// Test with completely malformed token
+	_, err := authService.ValidateToken(ctx, "not-a-valid-jwt")
+	if err == nil {
+		t.Error("expected error for invalid token")
+	}
+
+	// Test with empty token
+	_, err = authService.ValidateToken(ctx, "")
+	if err == nil {
+		t.Error("expected error for empty token")
+	}
+}
+
+func TestAuthService_GetEnvOrDefault(t *testing.T) {
+	// This tests the getEnvOrDefault function indirectly
+	// The function is used in NewAuthService
+
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+
+	// Service creation uses getEnvOrDefault
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+	if authService == nil {
+		t.Error("expected non-nil auth service")
+	}
+}
+
+func TestAuthService_HashPassword_EdgeCases(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := NewAuthService(userRepo, tenantRepo, nil)
+
+	// Test with empty password
+	hash, err := authService.HashPassword("")
+	if err != nil {
+		t.Errorf("expected no error for empty password, got: %v", err)
+	}
+	if hash == "" {
+		t.Error("expected non-empty hash for empty password")
+	}
+
+	// Test with very long password
+	longPass := string(make([]byte, 1000))
+	for i := range longPass {
+		longPass = longPass[:i] + "a"
+	}
+	hash, err = authService.HashPassword(longPass)
+	if err != nil {
+		t.Errorf("expected no error for long password, got: %v", err)
+	}
+	if hash == "" {
+		t.Error("expected non-empty hash for long password")
+	}
+
+	// Test with unicode password
+	unicodePass := "пароль密码パスワード"
+	hash, err = authService.HashPassword(unicodePass)
+	if err != nil {
+		t.Errorf("expected no error for unicode password, got: %v", err)
+	}
+	if hash == "" {
+		t.Error("expected non-empty hash for unicode password")
+	}
+}

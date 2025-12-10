@@ -838,3 +838,175 @@ func TestAdminService_GetUserDetails_Success(t *testing.T) {
 		require.Error(t, err)
 	})
 }
+
+// ==================== ADDITIONAL EDGE CASE TESTS ====================
+
+func TestAdminService_SuspendUser_EdgeCases(t *testing.T) {
+	t.Run("Fail_AdminNotFound", func(t *testing.T) {
+		svc, _, _, _, _, _, _ := setupAdminServiceTest()
+		ctx := context.Background()
+
+		err := svc.SuspendUser(ctx, "non-existent-admin", "target-user", "reason")
+		require.Error(t, err)
+	})
+
+	t.Run("Fail_AdminNotAdmin", func(t *testing.T) {
+		svc, userRepo, _, _, _, _, _ := setupAdminServiceTest()
+		ctx := context.Background()
+
+		// Create a non-admin user
+		normalUser := &domain.User{ID: "normal-1", Email: "normal@test.com", TenantID: "t1", IsAdmin: false}
+		require.NoError(t, userRepo.Create(ctx, normalUser))
+
+		err := svc.SuspendUser(ctx, "normal-1", "target-user", "reason")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Admin access required")
+	})
+
+	t.Run("Fail_TargetNotFound", func(t *testing.T) {
+		svc, userRepo, _, _, _, _, _ := setupAdminServiceTest()
+		ctx := context.Background()
+
+		adminUser := &domain.User{ID: "admin-1", Email: "admin@test.com", TenantID: "t1", IsAdmin: true}
+		require.NoError(t, userRepo.Create(ctx, adminUser))
+
+		err := svc.SuspendUser(ctx, "admin-1", "non-existent", "reason")
+		require.Error(t, err)
+	})
+
+	t.Run("Fail_CannotSuspendSelf", func(t *testing.T) {
+		svc, userRepo, _, _, _, _, adminRepo := setupAdminServiceTest()
+		ctx := context.Background()
+
+		adminUser := &domain.User{ID: "admin-1", Email: "admin@test.com", TenantID: "t1", IsAdmin: true}
+		require.NoError(t, userRepo.Create(ctx, adminUser))
+		adminRepo.AddUser(adminUser)
+
+		err := svc.SuspendUser(ctx, "admin-1", "admin-1", "reason")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Cannot suspend your own account")
+	})
+}
+
+func TestAdminService_UnsuspendUser_EdgeCases(t *testing.T) {
+	t.Run("Fail_AdminNotFound", func(t *testing.T) {
+		svc, _, _, _, _, _, _ := setupAdminServiceTest()
+		ctx := context.Background()
+
+		err := svc.UnsuspendUser(ctx, "non-existent-admin", "target-user")
+		require.Error(t, err)
+	})
+
+	t.Run("Fail_AdminNotAdmin", func(t *testing.T) {
+		svc, userRepo, _, _, _, _, _ := setupAdminServiceTest()
+		ctx := context.Background()
+
+		normalUser := &domain.User{ID: "normal-1", Email: "normal@test.com", TenantID: "t1", IsAdmin: false}
+		require.NoError(t, userRepo.Create(ctx, normalUser))
+
+		err := svc.UnsuspendUser(ctx, "normal-1", "target-user")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Admin access required")
+	})
+
+	t.Run("Fail_TargetNotFound", func(t *testing.T) {
+		svc, userRepo, _, _, _, _, _ := setupAdminServiceTest()
+		ctx := context.Background()
+
+		adminUser := &domain.User{ID: "admin-1", Email: "admin@test.com", TenantID: "t1", IsAdmin: true}
+		require.NoError(t, userRepo.Create(ctx, adminUser))
+
+		err := svc.UnsuspendUser(ctx, "admin-1", "non-existent")
+		require.Error(t, err)
+	})
+}
+
+func TestAdminService_UpdateUserRole_EdgeCases(t *testing.T) {
+	t.Run("Fail_AdminNotFound", func(t *testing.T) {
+		svc, _, _, _, _, _, _ := setupAdminServiceTest()
+		ctx := context.Background()
+
+		isAdmin := true
+		isMod := false
+		err := svc.UpdateUserRole(ctx, "non-existent-admin", "target-user", &isAdmin, &isMod)
+		require.Error(t, err)
+	})
+
+	t.Run("Fail_AdminNotAdmin", func(t *testing.T) {
+		svc, userRepo, _, _, _, _, _ := setupAdminServiceTest()
+		ctx := context.Background()
+
+		normalUser := &domain.User{ID: "normal-1", Email: "normal@test.com", TenantID: "t1", IsAdmin: false}
+		require.NoError(t, userRepo.Create(ctx, normalUser))
+
+		isAdmin := true
+		isMod := false
+		err := svc.UpdateUserRole(ctx, "normal-1", "target-user", &isAdmin, &isMod)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Admin access required")
+	})
+
+	t.Run("Fail_TargetNotFound", func(t *testing.T) {
+		svc, userRepo, _, _, _, _, _ := setupAdminServiceTest()
+		ctx := context.Background()
+
+		adminUser := &domain.User{ID: "admin-1", Email: "admin@test.com", TenantID: "t1", IsAdmin: true}
+		require.NoError(t, userRepo.Create(ctx, adminUser))
+
+		isAdmin := true
+		isMod := false
+		err := svc.UpdateUserRole(ctx, "admin-1", "non-existent", &isAdmin, &isMod)
+		require.Error(t, err)
+	})
+
+	t.Run("Fail_CannotDemoteSelf", func(t *testing.T) {
+		svc, userRepo, _, _, _, _, adminRepo := setupAdminServiceTest()
+		ctx := context.Background()
+
+		adminUser := &domain.User{ID: "admin-1", Email: "admin@test.com", TenantID: "t1", IsAdmin: true}
+		require.NoError(t, userRepo.Create(ctx, adminUser))
+		adminRepo.AddUser(adminUser)
+
+		isAdmin := false
+		isMod := false
+		err := svc.UpdateUserRole(ctx, "admin-1", "admin-1", &isAdmin, &isMod)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Cannot remove your own admin privileges")
+	})
+}
+
+func TestAdminService_ListAllUsers_EdgeCases(t *testing.T) {
+	t.Run("Fail_AdminNotFound", func(t *testing.T) {
+		svc, _, _, _, _, _, _ := setupAdminServiceTest()
+		ctx := context.Background()
+
+		_, _, err := svc.ListAllUsers(ctx, "non-existent-admin", domain.UserFilters{}, domain.PaginationParams{Page: 1, PerPage: 10})
+		require.Error(t, err)
+	})
+
+	t.Run("Fail_AdminNotAdmin", func(t *testing.T) {
+		svc, userRepo, _, _, _, _, _ := setupAdminServiceTest()
+		ctx := context.Background()
+
+		normalUser := &domain.User{ID: "normal-1", Email: "normal@test.com", TenantID: "t1", IsAdmin: false}
+		require.NoError(t, userRepo.Create(ctx, normalUser))
+
+		_, _, err := svc.ListAllUsers(ctx, "normal-1", domain.UserFilters{}, domain.PaginationParams{Page: 1, PerPage: 10})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Admin access required")
+	})
+}
+
+func TestAdminService_GetSystemStats_EdgeCases(t *testing.T) {
+	t.Run("Empty_Database", func(t *testing.T) {
+		svc, _, _, _, _, _, _ := setupAdminServiceTest()
+		ctx := context.Background()
+
+		stats, err := svc.GetSystemStats(ctx)
+		require.NoError(t, err)
+		assert.Equal(t, 0, stats.TotalUsers)
+		assert.Equal(t, 0, stats.TotalTenants)
+		assert.Equal(t, 0, stats.TotalNetworks)
+		assert.Equal(t, 0, stats.TotalDevices)
+	})
+}

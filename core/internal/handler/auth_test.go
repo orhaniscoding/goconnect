@@ -1204,3 +1204,314 @@ func TestAuthHandler_GenerateRecoveryCodes_Success(t *testing.T) {
 	codes := data["codes"].([]interface{})
 	assert.Equal(t, 8, len(codes))
 }
+
+// ==================== ADDITIONAL EDGE CASE TESTS ====================
+
+func TestAuthHandler_Generate2FA_ServiceError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := service.NewAuthService(userRepo, tenantRepo, nil)
+
+	handler := NewAuthHandler(authService, nil)
+	r := gin.New()
+
+	// User ID that doesn't exist in the repo
+	r.POST("/v1/auth/2fa/generate", func(c *gin.Context) {
+		c.Set("user_id", "nonexistent-user")
+		c.Next()
+	}, handler.Generate2FA)
+
+	req := httptest.NewRequest("POST", "/v1/auth/2fa/generate", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Should return 500 since user doesn't exist
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestAuthHandler_Enable2FA_ServiceError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := service.NewAuthService(userRepo, tenantRepo, nil)
+
+	handler := NewAuthHandler(authService, nil)
+	r := gin.New()
+
+	r.POST("/v1/auth/2fa/enable", func(c *gin.Context) {
+		c.Set("user_id", "nonexistent-user")
+		c.Next()
+	}, handler.Enable2FA)
+
+	body := map[string]string{"code": "123456", "secret": "invalid-secret"}
+	jsonBody, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("POST", "/v1/auth/2fa/enable", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Should return error since user doesn't exist
+	assert.NotEqual(t, http.StatusOK, w.Code)
+}
+
+func TestAuthHandler_Disable2FA_ServiceError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := service.NewAuthService(userRepo, tenantRepo, nil)
+
+	handler := NewAuthHandler(authService, nil)
+	r := gin.New()
+
+	r.POST("/v1/auth/2fa/disable", func(c *gin.Context) {
+		c.Set("user_id", "nonexistent-user")
+		c.Next()
+	}, handler.Disable2FA)
+
+	body := map[string]string{"code": "123456"}
+	jsonBody, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("POST", "/v1/auth/2fa/disable", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Should return error since user doesn't exist
+	assert.NotEqual(t, http.StatusOK, w.Code)
+}
+
+func TestAuthHandler_GenerateRecoveryCodes_ServiceError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := service.NewAuthService(userRepo, tenantRepo, nil)
+
+	handler := NewAuthHandler(authService, nil)
+	r := gin.New()
+
+	r.POST("/v1/auth/recovery-codes", func(c *gin.Context) {
+		c.Set("user_id", "nonexistent-user")
+		c.Next()
+	}, handler.GenerateRecoveryCodes)
+
+	body := map[string]string{"code": "123456"}
+	jsonBody, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("POST", "/v1/auth/recovery-codes", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Should return error since user doesn't exist
+	assert.NotEqual(t, http.StatusOK, w.Code)
+}
+
+func TestAuthHandler_GetRecoveryCodeCount_ServiceError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := service.NewAuthService(userRepo, tenantRepo, nil)
+
+	handler := NewAuthHandler(authService, nil)
+	r := gin.New()
+
+	r.GET("/v1/auth/recovery-codes/count", func(c *gin.Context) {
+		c.Set("user_id", "nonexistent-user")
+		c.Next()
+	}, handler.GetRecoveryCodeCount)
+
+	req := httptest.NewRequest("GET", "/v1/auth/recovery-codes/count", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Should return error since user doesn't exist
+	assert.NotEqual(t, http.StatusOK, w.Code)
+}
+
+func TestAuthHandler_UseRecoveryCode_InvalidCode(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := service.NewAuthService(userRepo, tenantRepo, nil)
+
+	// Register user
+	_, err := authService.Register(context.Background(), &domain.RegisterRequest{
+		Email:    "user@example.com",
+		Password: "password123",
+	})
+	assert.NoError(t, err)
+
+	// Get user and enable 2FA
+	user, _ := userRepo.GetByEmail(context.Background(), "user@example.com")
+	key, _ := totp.Generate(totp.GenerateOpts{
+		Issuer:      "GoConnect",
+		AccountName: user.Email,
+	})
+	user.TwoFAKey = key.Secret()
+	user.TwoFAEnabled = true
+	userRepo.Update(context.Background(), user)
+
+	handler := NewAuthHandler(authService, nil)
+	r := gin.New()
+
+	r.POST("/v1/auth/2fa/recovery", handler.UseRecoveryCode)
+
+	body := map[string]string{
+		"email":         "user@example.com",
+		"password":      "password123",
+		"recovery_code": "INVALID-CODE",
+	}
+	jsonBody, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("POST", "/v1/auth/2fa/recovery", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Should return error since recovery code is invalid
+	assert.NotEqual(t, http.StatusOK, w.Code)
+}
+
+func TestAuthHandler_UseRecoveryCode_UserNotFound(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := service.NewAuthService(userRepo, tenantRepo, nil)
+
+	handler := NewAuthHandler(authService, nil)
+	r := gin.New()
+
+	r.POST("/v1/auth/2fa/recovery", handler.UseRecoveryCode)
+
+	body := map[string]string{
+		"email":         "nonexistent@example.com",
+		"password":      "password123",
+		"recovery_code": "ABCDE12345",
+	}
+	jsonBody, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("POST", "/v1/auth/2fa/recovery", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Should return error since user doesn't exist
+	assert.NotEqual(t, http.StatusOK, w.Code)
+}
+
+func TestAuthHandler_ChangePassword_ServiceNonDomainError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := service.NewAuthService(userRepo, tenantRepo, nil)
+
+	handler := NewAuthHandler(authService, nil)
+	r := gin.New()
+
+	// User ID that doesn't exist - will cause error
+	r.POST("/v1/auth/password", func(c *gin.Context) {
+		c.Set("user_id", "nonexistent-user")
+		c.Next()
+	}, handler.ChangePassword)
+
+	body := map[string]string{
+		"old_password": "oldpass123",
+		"new_password": "newpass456",
+	}
+	jsonBody, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("POST", "/v1/auth/password", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Should return error since user doesn't exist
+	assert.NotEqual(t, http.StatusOK, w.Code)
+}
+
+func TestAuthHandler_UpdateProfile_ServiceError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := service.NewAuthService(userRepo, tenantRepo, nil)
+
+	handler := NewAuthHandler(authService, nil)
+	r := gin.New()
+
+	// User ID that doesn't exist - will cause error
+	r.PUT("/v1/users/me", func(c *gin.Context) {
+		c.Set("user_id", "nonexistent-user")
+		c.Next()
+	}, handler.UpdateProfile)
+
+	fullName := "New Name"
+	body := map[string]*string{
+		"full_name": &fullName,
+	}
+	jsonBody, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("PUT", "/v1/users/me", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Should return error since user doesn't exist
+	assert.NotEqual(t, http.StatusOK, w.Code)
+}
+
+func TestAuthHandler_Logout_WithAccessToken(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := service.NewAuthService(userRepo, tenantRepo, nil)
+
+	// Register and login to get tokens
+	authResp, err := authService.Register(context.Background(), &domain.RegisterRequest{
+		Email:    "user@example.com",
+		Password: "password123",
+	})
+	assert.NoError(t, err)
+
+	handler := NewAuthHandler(authService, nil)
+	r := gin.New()
+
+	r.POST("/logout", handler.Logout)
+
+	body := map[string]string{"refresh_token": authResp.RefreshToken}
+	jsonBody, _ := json.Marshal(body)
+
+	req := httptest.NewRequest("POST", "/logout", bytes.NewBuffer(jsonBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+authResp.AccessToken)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestAuthHandler_CallbackOIDC_ExchangeError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	authService := service.NewAuthService(userRepo, tenantRepo, nil)
+
+	// Mock OIDC provider that returns error on exchange
+	stubOIDC := &stubOIDCService{
+		exchangeErr: assert.AnError,
+	}
+
+	handler := NewAuthHandler(authService, stubOIDC)
+	r := gin.New()
+
+	r.GET("/v1/auth/oidc/callback", handler.CallbackOIDC)
+
+	req := httptest.NewRequest("GET", "/v1/auth/oidc/callback?code=test-code&state=test-state", nil)
+	req.AddCookie(&http.Cookie{Name: "oidc_state", Value: "test-state"})
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	// Should return error due to exchange failure
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}

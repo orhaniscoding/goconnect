@@ -197,3 +197,230 @@ func TestAuditListHandler_InvalidPagination(t *testing.T) {
 		t.Fatalf("expected limit=20, got %v", pagination["limit"])
 	}
 }
+
+// ==================== ADDITIONAL EDGE CASE TESTS ====================
+
+func TestAuditIntegrityHandler_NilAuditor(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	// Pass nil auditor
+	r.GET("/v1/audit/integrity", AuditIntegrityHandler(nil))
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/audit/integrity", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != 501 {
+		t.Fatalf("expected 501 got %d", w.Code)
+	}
+}
+
+func TestAuditListHandler_NilAuditor(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("tenant_id", "test-tenant")
+		c.Next()
+	})
+	// Pass nil auditor
+	r.GET("/v1/audit", AuditListHandler(nil))
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/audit", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != 501 {
+		t.Fatalf("expected 501 got %d", w.Code)
+	}
+}
+
+func TestAuditIntegrityHandler_DefaultAnchorsLimit(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	metrics.Register()
+	aud, err := audit.NewSqliteAuditor(":memory:", audit.WithAnchorInterval(2))
+	if err != nil {
+		t.Fatalf("new auditor: %v", err)
+	}
+	defer aud.Close()
+
+	ctx := context.Background()
+	// produce events
+	for i := 0; i < 5; i++ {
+		aud.Event(ctx, "test-tenant", "ACT", "actor", "obj", nil)
+	}
+
+	r := gin.New()
+	// No anchors param - should use default limit of 20
+	r.GET("/v1/audit/integrity", AuditIntegrityHandler(aud))
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/v1/audit/integrity", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != 200 {
+		t.Fatalf("expected 200 got %d", w.Code)
+	}
+}
+
+func TestAuditIntegrityHandler_InvalidAnchorsParam(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	metrics.Register()
+	aud, err := audit.NewSqliteAuditor(":memory:", audit.WithAnchorInterval(2))
+	if err != nil {
+		t.Fatalf("new auditor: %v", err)
+	}
+	defer aud.Close()
+
+	ctx := context.Background()
+	aud.Event(ctx, "test-tenant", "ACT", "actor", "obj", nil)
+
+	r := gin.New()
+	r.GET("/v1/audit/integrity", AuditIntegrityHandler(aud))
+
+	w := httptest.NewRecorder()
+	// Invalid anchors param - should use default
+	req := httptest.NewRequest("GET", "/v1/audit/integrity?anchors=invalid", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != 200 {
+		t.Fatalf("expected 200 got %d", w.Code)
+	}
+}
+
+func TestAuditIntegrityHandler_NegativeAnchorsParam(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	metrics.Register()
+	aud, err := audit.NewSqliteAuditor(":memory:", audit.WithAnchorInterval(2))
+	if err != nil {
+		t.Fatalf("new auditor: %v", err)
+	}
+	defer aud.Close()
+
+	ctx := context.Background()
+	aud.Event(ctx, "test-tenant", "ACT", "actor", "obj", nil)
+
+	r := gin.New()
+	r.GET("/v1/audit/integrity", AuditIntegrityHandler(aud))
+
+	w := httptest.NewRecorder()
+	// Negative anchors param - should use default
+	req := httptest.NewRequest("GET", "/v1/audit/integrity?anchors=-5", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != 200 {
+		t.Fatalf("expected 200 got %d", w.Code)
+	}
+}
+
+func TestAuditIntegrityHandler_ExceedsMaxAnchors(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	metrics.Register()
+	aud, err := audit.NewSqliteAuditor(":memory:", audit.WithAnchorInterval(2))
+	if err != nil {
+		t.Fatalf("new auditor: %v", err)
+	}
+	defer aud.Close()
+
+	ctx := context.Background()
+	aud.Event(ctx, "test-tenant", "ACT", "actor", "obj", nil)
+
+	r := gin.New()
+	r.GET("/v1/audit/integrity", AuditIntegrityHandler(aud))
+
+	w := httptest.NewRecorder()
+	// anchors=1000 exceeds cap of 500 - should use default
+	req := httptest.NewRequest("GET", "/v1/audit/integrity?anchors=1000", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != 200 {
+		t.Fatalf("expected 200 got %d", w.Code)
+	}
+}
+
+func TestAuditListHandler_WithTimestampFilters(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	aud, err := audit.NewSqliteAuditor(":memory:", audit.WithAnchorInterval(10))
+	if err != nil {
+		t.Fatalf("new auditor: %v", err)
+	}
+	defer aud.Close()
+
+	ctx := context.Background()
+	aud.Event(ctx, "test-tenant", "ACTION", "actor", "obj", nil)
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("tenant_id", "test-tenant")
+		c.Next()
+	})
+	r.GET("/v1/audit", AuditListHandler(aud))
+
+	w := httptest.NewRecorder()
+	// Test with from/to timestamp filters
+	req := httptest.NewRequest("GET", "/v1/audit?from=2020-01-01T00:00:00Z&to=2030-12-31T23:59:59Z", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != 200 {
+		t.Fatalf("expected 200 got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+func TestAuditListHandler_InvalidTimestampFilters(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	aud, err := audit.NewSqliteAuditor(":memory:", audit.WithAnchorInterval(10))
+	if err != nil {
+		t.Fatalf("new auditor: %v", err)
+	}
+	defer aud.Close()
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("tenant_id", "test-tenant")
+		c.Next()
+	})
+	r.GET("/v1/audit", AuditListHandler(aud))
+
+	w := httptest.NewRecorder()
+	// Invalid timestamps should be ignored
+	req := httptest.NewRequest("GET", "/v1/audit?from=invalid&to=also-invalid", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != 200 {
+		t.Fatalf("expected 200 got %d", w.Code)
+	}
+}
+
+func TestAuditListHandler_ZeroLimit(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	aud, err := audit.NewSqliteAuditor(":memory:", audit.WithAnchorInterval(10))
+	if err != nil {
+		t.Fatalf("new auditor: %v", err)
+	}
+	defer aud.Close()
+
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("tenant_id", "test-tenant")
+		c.Next()
+	})
+	r.GET("/v1/audit", AuditListHandler(aud))
+
+	w := httptest.NewRecorder()
+	// limit=0 should be corrected to 20
+	req := httptest.NewRequest("GET", "/v1/audit?limit=0", nil)
+	r.ServeHTTP(w, req)
+
+	if w.Code != 200 {
+		t.Fatalf("expected 200 got %d", w.Code)
+	}
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	pagination := resp["pagination"].(map[string]interface{})
+	if int(pagination["limit"].(float64)) != 20 {
+		t.Fatalf("expected limit=20, got %v", pagination["limit"])
+	}
+}
