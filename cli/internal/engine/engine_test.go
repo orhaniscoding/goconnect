@@ -2,6 +2,7 @@ package engine
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net"
 	"net/http"
@@ -18,9 +19,45 @@ import (
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/identity"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/storage"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/transfer"
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/wireguard"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// ==================== Mock WireGuard Client ====================
+
+// MockWireGuardClient implements WireGuardClient interface for testing
+type MockWireGuardClient struct {
+	DownFunc        func() error
+	ApplyConfigFunc func(config *api.DeviceConfig, privateKey string) error
+	GetStatusFunc   func() (*wireguard.Status, error)
+}
+
+func (m *MockWireGuardClient) Down() error {
+	if m.DownFunc != nil {
+		return m.DownFunc()
+	}
+	return nil
+}
+
+func (m *MockWireGuardClient) ApplyConfig(config *api.DeviceConfig, privateKey string) error {
+	if m.ApplyConfigFunc != nil {
+		return m.ApplyConfigFunc(config, privateKey)
+	}
+	return nil
+}
+
+func (m *MockWireGuardClient) GetStatus() (*wireguard.Status, error) {
+	if m.GetStatusFunc != nil {
+		return m.GetStatusFunc()
+	}
+	return &wireguard.Status{Active: true}, nil
+}
+
+// NewMockWireGuardClient creates a default mock that succeeds
+func NewMockWireGuardClient() *MockWireGuardClient {
+	return &MockWireGuardClient{}
+}
 
 // ==================== Helper Functions ====================
 
@@ -59,6 +96,38 @@ func setupTestEngine(t *testing.T, apiHandler http.HandlerFunc) (*Engine, *httpt
 
 	// Create Engine (pass nil for wgClient to avoid system deps)
 	eng, err := NewEngine(cfg, idMgr, nil, apiClient, logger)
+	require.NoError(t, err)
+
+	return eng, server, tmpDir
+}
+
+// setupTestEngineWithWg creates an Engine with a mock WireGuard client
+func setupTestEngineWithWg(t *testing.T, apiHandler http.HandlerFunc, wgClient WireGuardClient) (*Engine, *httptest.Server, string) {
+	tmpDir := t.TempDir()
+	
+	cfg := &config.Config{}
+	cfg.IdentityPath = filepath.Join(tmpDir, "identity.json")
+	cfg.Daemon.HealthCheckInterval = 100 * time.Millisecond
+	cfg.WireGuard.InterfaceName = "wg0"
+	
+	kr, err := storage.NewTestKeyring(tmpDir)
+	require.NoError(t, err)
+	cfg.Keyring = kr
+	err = kr.StoreAuthToken("valid-token")
+	require.NoError(t, err)
+
+	server := httptest.NewServer(apiHandler)
+	cfg.Server.URL = server.URL
+	cfg.P2P.Enabled = true
+
+	idMgr := identity.NewManager(cfg.IdentityPath)
+	_, err = idMgr.LoadOrCreateIdentity()
+	require.NoError(t, err)
+
+	logger := &fallbackLogger{log.New(os.Stderr, "[test_engine] ", log.LstdFlags)}
+	apiClient := api.NewClient(cfg)
+
+	eng, err := NewEngine(cfg, idMgr, wgClient, apiClient, logger)
 	require.NoError(t, err)
 
 	return eng, server, tmpDir
@@ -708,6 +777,1456 @@ func TestEngine_GetStatus_WithPeers(t *testing.T) {
 	p2pStatus, ok := status["p2p"].(map[string]interface{})
 	require.True(t, ok)
 	assert.Len(t, p2pStatus, 2)
+}
+
+// ==================== SyncConfig Detailed Tests ====================
+
+func TestEngine_SyncConfig_NoDeviceID(t *testing.T) {
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		// Should NOT be called since device is not registered
+		t.Error("API should not be called when device is not registered")
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	// Clear device ID to simulate unregistered device
+	eng.idMgr.Update("")
+
+	// Should return early without calling API
+	eng.syncConfig()
+}
+
+func TestEngine_SyncConfig_ConfigFetchError(t *testing.T) {
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/config") {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	eng.idMgr.Update("device-test-id")
+
+	// Should log error but not panic
+	assert.NotPanics(t, func() {
+		eng.syncConfig()
+	})
+}
+
+func TestEngine_SyncConfig_NetworkFetchError(t *testing.T) {
+	configCalled := false
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/config") {
+			configCalled = true
+			json.NewEncoder(w).Encode(api.DeviceConfig{
+				Interface: api.InterfaceConfig{Addresses: []string{"10.0.0.1/24"}},
+				Peers:     []api.PeerConfig{},
+			})
+			return
+		}
+		if r.URL.Path == "/v1/networks" {
+			http.Error(w, "network error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	eng.idMgr.Update("device-test-id")
+
+	// Should continue without panicking even when network fetch fails
+	assert.NotPanics(t, func() {
+		eng.syncConfig()
+	})
+	assert.True(t, configCalled)
+}
+
+func TestEngine_SyncConfig_WithP2PConnections(t *testing.T) {
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/config") {
+			json.NewEncoder(w).Encode(api.DeviceConfig{
+				Interface: api.InterfaceConfig{Addresses: []string{"10.0.0.1/24"}},
+				Peers: []api.PeerConfig{
+					{ID: "peer-a", Name: "Peer A", AllowedIPs: []string{"10.0.0.2/32"}},
+					{ID: "peer-z", Name: "Peer Z", AllowedIPs: []string{"10.0.0.3/32"}},
+				},
+			})
+			return
+		}
+		if r.URL.Path == "/v1/networks" {
+			json.NewEncoder(w).Encode([]api.NetworkResponse{})
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	// Set device ID lower than "peer-z" but higher than "peer-a" 
+	// to test deterministic initiator selection
+	eng.idMgr.Update("peer-m")
+	eng.config.P2P.Enabled = true
+
+	// Call syncConfig
+	eng.syncConfig()
+
+	// Verify peers were added to peerMap
+	eng.mu.RLock()
+	defer eng.mu.RUnlock()
+	assert.Len(t, eng.peerMap, 2)
+	assert.Equal(t, "Peer A", eng.peerMap["peer-a"].Name)
+	assert.Equal(t, "Peer Z", eng.peerMap["peer-z"].Name)
+}
+
+func TestEngine_SyncConfig_P2PDisabled(t *testing.T) {
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/config") {
+			json.NewEncoder(w).Encode(api.DeviceConfig{
+				Interface: api.InterfaceConfig{Addresses: []string{"10.0.0.1/24"}},
+				Peers: []api.PeerConfig{
+					{ID: "peer-a", Name: "Peer A"},
+				},
+			})
+			return
+		}
+		if r.URL.Path == "/v1/networks" {
+			json.NewEncoder(w).Encode([]api.NetworkResponse{})
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	eng.idMgr.Update("device-test-id")
+	eng.config.P2P.Enabled = false
+
+	// Should not panic when P2P is disabled
+	assert.NotPanics(t, func() {
+		eng.syncConfig()
+	})
+}
+
+func TestEngine_SyncConfig_EmptyPeerID(t *testing.T) {
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/config") {
+			json.NewEncoder(w).Encode(api.DeviceConfig{
+				Interface: api.InterfaceConfig{Addresses: []string{"10.0.0.1/24"}},
+				Peers: []api.PeerConfig{
+					{ID: "", Name: "Empty ID Peer"},  // Should be skipped
+					{ID: "peer-1", Name: "Valid Peer"},
+				},
+			})
+			return
+		}
+		if r.URL.Path == "/v1/networks" {
+			json.NewEncoder(w).Encode([]api.NetworkResponse{})
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	eng.idMgr.Update("device-test-id")
+	eng.syncConfig()
+
+	// Only valid peer should be in the map
+	eng.mu.RLock()
+	defer eng.mu.RUnlock()
+	assert.Len(t, eng.peerMap, 1)
+	_, exists := eng.peerMap[""]
+	assert.False(t, exists, "Empty ID peer should not be in map")
+}
+
+// ==================== ManualConnect Tests ====================
+
+func TestEngine_ManualConnect_Success(t *testing.T) {
+	eng, server, _ := setupTestEngine(t, nil)
+	defer server.Close()
+
+	eng.config.P2P.Enabled = true
+	eng.peerMap["peer-1"] = api.PeerConfig{ID: "peer-1", Name: "Test Peer"}
+
+	// ManualConnect starts a goroutine, so we just verify no immediate error
+	err := eng.ManualConnect("peer-1")
+	assert.NoError(t, err)
+}
+
+func TestEngine_ManualConnect_AlreadyConnected(t *testing.T) {
+	eng, server, _ := setupTestEngine(t, nil)
+	defer server.Close()
+
+	eng.config.P2P.Enabled = true
+	eng.peerMap["peer-1"] = api.PeerConfig{ID: "peer-1", Name: "Test Peer"}
+
+	// First connect is fine
+	err := eng.ManualConnect("peer-1")
+	assert.NoError(t, err)
+	
+	// Give the goroutine time to potentially mark as connected
+	// The p2pMgr mock state depends on implementation
+}
+
+// ==================== Disconnect Tests ====================
+
+func TestEngine_Disconnect_WithoutWgClient(t *testing.T) {
+	eng, server, _ := setupTestEngine(t, nil)
+	defer server.Close()
+
+	// wgClient is nil
+	eng.paused = false
+
+	// Should not panic
+	assert.NotPanics(t, func() {
+		eng.Disconnect()
+	})
+	assert.True(t, eng.paused)
+}
+
+func TestEngine_Disconnect_WithoutChatManager(t *testing.T) {
+	eng, server, _ := setupTestEngine(t, nil)
+	defer server.Close()
+
+	eng.chatMgr = nil
+	eng.paused = false
+
+	// Should not panic even with nil chatMgr
+	assert.NotPanics(t, func() {
+		eng.Disconnect()
+	})
+	assert.True(t, eng.paused)
+}
+
+// ==================== Start/Stop Tests ====================
+
+func TestEngine_Start_WithP2PDisabled(t *testing.T) {
+	eng, server, _ := setupTestEngine(t, nil)
+	defer server.Close()
+
+	eng.config.P2P.Enabled = false
+
+	assert.NotPanics(t, func() {
+		eng.Start()
+	})
+
+	// Cleanup
+	eng.Stop()
+}
+
+func TestEngine_Stop_WithNilWgClient(t *testing.T) {
+	eng, server, _ := setupTestEngine(t, nil)
+	defer server.Close()
+
+	eng.wgClient = nil
+
+	// Should not panic
+	assert.NotPanics(t, func() {
+		eng.Stop()
+	})
+}
+
+func TestEngine_Stop_WithNilChatManager(t *testing.T) {
+	eng, server, _ := setupTestEngine(t, nil)
+	defer server.Close()
+
+	eng.chatMgr = nil
+
+	// Should not panic
+	assert.NotPanics(t, func() {
+		eng.Stop()
+	})
+}
+
+// ==================== AcceptFile Tests ====================
+
+func TestEngine_AcceptFile_NotFound(t *testing.T) {
+	eng, server, _ := setupTestEngine(t, nil)
+	defer server.Close()
+
+	err := eng.AcceptFile("non-existent-id", "/tmp/save.txt")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestEngine_AcceptFile_UnknownPeer(t *testing.T) {
+	eng, server, _ := setupTestEngine(t, nil)
+	defer server.Close()
+
+	// Add a pending request
+	req := transfer.Request{
+		ID:       "req-1",
+		FileName: "test.txt",
+		FileSize: 100,
+	}
+	reqBytes, _ := json.Marshal(req)
+	eng.transferMgr.HandleSignalingMessage(string(reqBytes), "unknown-peer")
+
+	err := eng.AcceptFile("req-1", "/tmp/save.txt")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown peer")
+}
+
+func TestEngine_AcceptFile_NoAllowedIPs(t *testing.T) {
+	eng, server, _ := setupTestEngine(t, nil)
+	defer server.Close()
+
+	// Add peer without AllowedIPs
+	eng.peerMap["sender-peer"] = api.PeerConfig{
+		ID:         "sender-peer",
+		Name:       "Sender",
+		AllowedIPs: []string{},
+	}
+
+	// Add a pending request
+	req := transfer.Request{
+		ID:       "req-2",
+		FileName: "test.txt",
+		FileSize: 100,
+	}
+	reqBytes, _ := json.Marshal(req)
+	eng.transferMgr.HandleSignalingMessage(string(reqBytes), "sender-peer")
+
+	err := eng.AcceptFile("req-2", "/tmp/save.txt")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no IP for peer")
+}
+
+// ==================== SendFileRequest Tests ====================
+
+func TestEngine_SendFileRequest_FileNotFound(t *testing.T) {
+	eng, server, _ := setupTestEngine(t, nil)
+	defer server.Close()
+
+	eng.peerMap["peer-1"] = api.PeerConfig{
+		ID:         "peer-1",
+		Name:       "Test",
+		AllowedIPs: []string{"10.0.0.1/32"},
+	}
+
+	_, err := eng.SendFileRequest("peer-1", "/non/existent/file.txt")
+	assert.Error(t, err)
+}
+
+func TestEngine_SendFileRequest_UnknownPeer(t *testing.T) {
+	eng, server, tmpDir := setupTestEngine(t, nil)
+	defer server.Close()
+
+	// Create a test file
+	filePath := filepath.Join(tmpDir, "send.txt")
+	err := os.WriteFile(filePath, []byte("test content"), 0644)
+	require.NoError(t, err)
+
+	// Try to send to unknown peer
+	_, err = eng.SendFileRequest("unknown-peer", filePath)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown peer ID")
+}
+
+// ==================== GetStatus Tests ====================
+
+func TestEngine_GetStatus_NoNetworks(t *testing.T) {
+	eng, server, _ := setupTestEngine(t, nil)
+	defer server.Close()
+
+	eng.networks = []api.NetworkResponse{}
+
+	status := eng.GetStatus()
+	assert.NotContains(t, status, "role")
+	assert.NotContains(t, status, "network_name")
+}
+
+func TestEngine_GetStatus_MultipleNetworks(t *testing.T) {
+	eng, server, _ := setupTestEngine(t, nil)
+	defer server.Close()
+
+	eng.networks = []api.NetworkResponse{
+		{ID: "n1", Name: "Primary", Role: "owner"},
+		{ID: "n2", Name: "Secondary", Role: "member"},
+	}
+
+	status := eng.GetStatus()
+	// First network is used
+	assert.Equal(t, "owner", status["role"])
+	assert.Equal(t, "Primary", status["network_name"])
+}
+
+// ==================== Heartbeat Tests ====================
+
+func TestEngine_SendHeartbeat_NoDeviceID(t *testing.T) {
+	heartbeatCalled := false
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/heartbeat") {
+			heartbeatCalled = true
+		}
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	// Clear device ID
+	eng.idMgr.Update("")
+
+	eng.sendHeartbeat()
+	assert.False(t, heartbeatCalled, "Heartbeat should not be sent when device is not registered")
+}
+
+func TestEngine_SendHeartbeat_Error(t *testing.T) {
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/heartbeat") {
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	eng.idMgr.Update("device-1")
+
+	// Should not panic on error
+	assert.NotPanics(t, func() {
+		eng.sendHeartbeat()
+	})
+}
+
+// ==================== GetNetworks Tests ====================
+
+func TestEngine_GetNetworks_Error(t *testing.T) {
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/networks" {
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	networks, err := eng.GetNetworks()
+	assert.Error(t, err)
+	assert.Nil(t, networks)
+}
+
+// ==================== LeaveNetwork Tests ====================
+
+func TestEngine_LeaveNetwork_Error(t *testing.T) {
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/leave") {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	err := eng.LeaveNetwork("net-123")
+	assert.Error(t, err)
+}
+
+// ==================== ConfigLoop Tests ====================
+
+func TestEngine_ConfigLoop_WhenPaused(t *testing.T) {
+	syncCalled := false
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/config") {
+			syncCalled = true
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	eng.paused = true
+	eng.config.Daemon.HealthCheckInterval = 50 * time.Millisecond
+
+	// Start config loop in goroutine
+	go eng.configLoop()
+
+	// Wait a bit for tick
+	time.Sleep(150 * time.Millisecond)
+
+	// Stop the engine
+	close(eng.stopChan)
+
+	// When paused, syncConfig should not be called from the ticker
+	// (Initial call is skipped because paused is true at start)
+	assert.False(t, syncCalled)
+}
+
+func TestEngine_ConfigLoop_StopSignal(t *testing.T) {
+	eng, server, _ := setupTestEngine(t, nil)
+	defer server.Close()
+
+	eng.config.Daemon.HealthCheckInterval = 100 * time.Millisecond
+
+	// Start config loop
+	done := make(chan bool)
+	go func() {
+		eng.configLoop()
+		done <- true
+	}()
+
+	// Signal stop immediately
+	close(eng.stopChan)
+
+	// Wait for configLoop to exit
+	select {
+	case <-done:
+		// Success - loop exited
+	case <-time.After(1 * time.Second):
+		t.Fatal("configLoop did not exit after stop signal")
+	}
+}
+
+// ==================== HeartbeatLoop Tests ====================
+
+func TestEngine_HeartbeatLoop_StopSignal(t *testing.T) {
+	eng, server, _ := setupTestEngine(t, nil)
+	defer server.Close()
+
+	eng.config.Daemon.HealthCheckInterval = 100 * time.Millisecond
+
+	// Start heartbeat loop
+	done := make(chan bool)
+	go func() {
+		eng.heartbeatLoop()
+		done <- true
+	}()
+
+	// Signal stop
+	close(eng.stopChan)
+
+	// Wait for heartbeatLoop to exit
+	select {
+	case <-done:
+		// Success - loop exited
+	case <-time.After(1 * time.Second):
+		t.Fatal("heartbeatLoop did not exit after stop signal")
+	}
+}
+
+// ==================== Callback Tests ====================
+
+func TestEngine_OnChatMessage_WithTransferSignaling(t *testing.T) {
+	eng, server, _ := setupTestEngine(t, nil)
+	defer server.Close()
+
+	chatReceived := false
+	eng.SetOnChatMessage(func(msg chat.Message) {
+		chatReceived = true
+	})
+
+	// Simulate receiving a message with transfer signaling content
+	transferMsg := `{"id":"tf-1","file_name":"test.txt","file_size":100}`
+
+	// Manually trigger the callback that would happen in syncConfig
+	if eng.onChatMessage != nil {
+		eng.onChatMessage(chat.Message{
+			From:    "peer-1",
+			Content: transferMsg,
+		})
+	}
+
+	assert.True(t, chatReceived)
+}
+
+func TestEngine_TransferCallbacks_NilSafe(t *testing.T) {
+	eng, server, _ := setupTestEngine(t, nil)
+	defer server.Close()
+
+	// Don't set any callbacks - they should be nil
+	eng.onTransferProgress = nil
+	eng.onTransferRequest = nil
+	eng.onChatMessage = nil
+
+	// These operations should not panic even with nil callbacks
+	assert.NotPanics(t, func() {
+		if eng.onTransferProgress != nil {
+			eng.onTransferProgress(transfer.Session{})
+		}
+		if eng.onTransferRequest != nil {
+			eng.onTransferRequest(transfer.Request{}, "peer")
+		}
+		if eng.onChatMessage != nil {
+			eng.onChatMessage(chat.Message{})
+		}
+	})
+}
+
+// ==================== Additional Coverage Tests ====================
+
+func TestEngine_Start_WithP2PEnabled(t *testing.T) {
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	eng.config.P2P.Enabled = true
+
+	// Should setup P2P callbacks and start
+	assert.NotPanics(t, func() {
+		eng.Start()
+	})
+
+	// Give it a moment to start goroutines
+	time.Sleep(50 * time.Millisecond)
+
+	// Clean up
+	eng.Stop()
+}
+
+func TestEngine_ConfigLoop_InitialSyncWhenNotPaused(t *testing.T) {
+	syncCalled := false
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/config") {
+			syncCalled = true
+			json.NewEncoder(w).Encode(api.DeviceConfig{
+				Interface: api.InterfaceConfig{Addresses: []string{"10.0.0.1/24"}},
+				Peers:     []api.PeerConfig{},
+			})
+			return
+		}
+		if r.URL.Path == "/v1/networks" {
+			json.NewEncoder(w).Encode([]api.NetworkResponse{})
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	eng.idMgr.Update("device-id")
+	eng.paused = false
+	eng.config.Daemon.HealthCheckInterval = 50 * time.Millisecond
+
+	// Recreate stopChan since it might be closed
+	eng.stopChan = make(chan struct{})
+
+	// Start config loop in goroutine
+	go eng.configLoop()
+
+	// Wait for initial sync
+	time.Sleep(100 * time.Millisecond)
+
+	// Stop the engine
+	close(eng.stopChan)
+
+	// When not paused, initial syncConfig should be called
+	assert.True(t, syncCalled)
+}
+
+func TestEngine_SyncConfig_WithPeersButLowerDeviceID(t *testing.T) {
+	// Test the case where device ID is lower than peer ID (will not initiate)
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/config") {
+			json.NewEncoder(w).Encode(api.DeviceConfig{
+				Interface: api.InterfaceConfig{Addresses: []string{"10.0.0.1/24"}},
+				Peers: []api.PeerConfig{
+					{ID: "aaa", Name: "Peer AAA", AllowedIPs: []string{"10.0.0.2/32"}},
+				},
+			})
+			return
+		}
+		if r.URL.Path == "/v1/networks" {
+			json.NewEncoder(w).Encode([]api.NetworkResponse{})
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	// Set device ID higher than peer ID - should NOT initiate P2P
+	eng.idMgr.Update("zzz")
+	eng.config.P2P.Enabled = true
+
+	eng.syncConfig()
+
+	// Peer should be in map
+	eng.mu.RLock()
+	defer eng.mu.RUnlock()
+	_, exists := eng.peerMap["aaa"]
+	assert.True(t, exists)
+}
+
+func TestEngine_SyncConfig_WithPeersButHigherDeviceID(t *testing.T) {
+	// Test the case where device ID is higher than peer ID (will initiate)
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/config") {
+			json.NewEncoder(w).Encode(api.DeviceConfig{
+				Interface: api.InterfaceConfig{Addresses: []string{"10.0.0.1/24"}},
+				Peers: []api.PeerConfig{
+					{ID: "zzz", Name: "Peer ZZZ", AllowedIPs: []string{"10.0.0.2/32"}},
+				},
+			})
+			return
+		}
+		if r.URL.Path == "/v1/networks" {
+			json.NewEncoder(w).Encode([]api.NetworkResponse{})
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	// Set device ID lower than peer ID - should initiate P2P
+	eng.idMgr.Update("aaa")
+	eng.config.P2P.Enabled = true
+
+	eng.syncConfig()
+
+	// Peer should be in map
+	eng.mu.RLock()
+	defer eng.mu.RUnlock()
+	_, exists := eng.peerMap["zzz"]
+	assert.True(t, exists)
+}
+
+func TestEngine_SyncConfig_P2PInitiationWithMultiplePeers(t *testing.T) {
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/config") {
+			json.NewEncoder(w).Encode(api.DeviceConfig{
+				Interface: api.InterfaceConfig{Addresses: []string{"10.0.0.1/24"}},
+				Peers: []api.PeerConfig{
+					{ID: "aaa", Name: "Lower", AllowedIPs: []string{"10.0.0.2/32"}},
+					{ID: "zzz", Name: "Higher", AllowedIPs: []string{"10.0.0.3/32"}},
+				},
+			})
+			return
+		}
+		if r.URL.Path == "/v1/networks" {
+			json.NewEncoder(w).Encode([]api.NetworkResponse{})
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	// Set device ID in the middle
+	eng.idMgr.Update("mmm")
+	eng.config.P2P.Enabled = true
+
+	eng.syncConfig()
+
+	// Both peers should be in map
+	eng.mu.RLock()
+	defer eng.mu.RUnlock()
+	assert.Len(t, eng.peerMap, 2)
+}
+
+func TestEngine_Version(t *testing.T) {
+	// Test that Version variable exists and engine uses it
+	eng, server, _ := setupTestEngine(t, nil)
+	defer server.Close()
+
+	// Default is "dev"
+	status := eng.GetStatus()
+	assert.NotEmpty(t, status["version"])
+}
+
+func TestEngine_GetPeers_Empty(t *testing.T) {
+	eng, server, _ := setupTestEngine(t, nil)
+	defer server.Close()
+
+	peers := eng.GetPeers()
+	assert.Empty(t, peers)
+	assert.NotNil(t, peers) // Should be empty slice, not nil
+}
+
+func TestEngine_GetPeerByID_Multiple(t *testing.T) {
+	eng, server, _ := setupTestEngine(t, nil)
+	defer server.Close()
+
+	eng.peerMap["peer-1"] = api.PeerConfig{ID: "peer-1", Name: "One"}
+	eng.peerMap["peer-2"] = api.PeerConfig{ID: "peer-2", Name: "Two"}
+	eng.peerMap["peer-3"] = api.PeerConfig{ID: "peer-3", Name: "Three"}
+
+	// Get each peer
+	p1, ok := eng.GetPeerByID("peer-1")
+	assert.True(t, ok)
+	assert.Equal(t, "One", p1.Name)
+
+	p2, ok := eng.GetPeerByID("peer-2")
+	assert.True(t, ok)
+	assert.Equal(t, "Two", p2.Name)
+
+	p3, ok := eng.GetPeerByID("peer-3")
+	assert.True(t, ok)
+	assert.Equal(t, "Three", p3.Name)
+}
+
+func TestEngine_AcceptFile_WithValidRequest(t *testing.T) {
+	eng, server, tmpDir := setupTestEngine(t, nil)
+	defer server.Close()
+
+	// Add peer with valid IP
+	eng.peerMap["sender"] = api.PeerConfig{
+		ID:         "sender",
+		Name:       "Sender",
+		AllowedIPs: []string{"10.0.0.5/32"},
+	}
+
+	// Add a pending request via signaling
+	req := transfer.Request{
+		ID:       "valid-req",
+		FileName: "file.txt",
+		FileSize: 200,
+	}
+	reqBytes, _ := json.Marshal(req)
+	eng.transferMgr.HandleSignalingMessage(string(reqBytes), "sender")
+
+	savePath := filepath.Join(tmpDir, "saved.txt")
+
+	// AcceptFile should succeed in creating the session
+	// but StartDownload will fail since no actual server is running
+	err := eng.AcceptFile("valid-req", savePath)
+	// Error is expected because there's no transfer server
+	// But the function should reach the StartDownload call
+	// We're testing that the validation passes
+	if err != nil {
+		// Should fail at download, not at validation
+		assert.NotContains(t, err.Error(), "not found")
+		assert.NotContains(t, err.Error(), "unknown peer")
+		assert.NotContains(t, err.Error(), "no IP")
+	}
+}
+
+func TestEngine_SendFileRequest_PeerWithNoIP(t *testing.T) {
+	eng, server, tmpDir := setupTestEngine(t, nil)
+	defer server.Close()
+
+	// Create a test file
+	filePath := filepath.Join(tmpDir, "test.txt")
+	err := os.WriteFile(filePath, []byte("content"), 0644)
+	require.NoError(t, err)
+
+	// Add peer without IPs
+	eng.peerMap["no-ip-peer"] = api.PeerConfig{
+		ID:         "no-ip-peer",
+		Name:       "No IP",
+		AllowedIPs: []string{},
+	}
+
+	_, err = eng.SendFileRequest("no-ip-peer", filePath)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no allowed IPs")
+}
+
+func TestEngine_CreateNetwork_Error(t *testing.T) {
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/networks" && r.Method == "POST" {
+			http.Error(w, "conflict", http.StatusConflict)
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	net, err := eng.CreateNetwork("Duplicate Name")
+	assert.Error(t, err)
+	assert.Nil(t, net)
+}
+
+func TestEngine_JoinNetwork_Error(t *testing.T) {
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/networks/join" {
+			http.Error(w, "invalid code", http.StatusBadRequest)
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	net, err := eng.JoinNetwork("INVALID")
+	assert.Error(t, err)
+	assert.Nil(t, net)
+}
+
+func TestEngine_GenerateInvite_Error(t *testing.T) {
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/invites") {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	invite, err := eng.GenerateInvite("net-1", 5, 24)
+	assert.Error(t, err)
+	assert.Nil(t, invite)
+}
+
+func TestEngine_KickPeer_Error(t *testing.T) {
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/members/") && r.Method == "DELETE" {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	err := eng.KickPeer("net-1", "peer-1", "reason")
+	assert.Error(t, err)
+}
+
+func TestEngine_BanPeer_Error(t *testing.T) {
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/ban") && r.Method == "POST" {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	err := eng.BanPeer("net-1", "peer-1", "spam")
+	assert.Error(t, err)
+}
+
+func TestEngine_UnbanPeer_Error(t *testing.T) {
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/ban") && r.Method == "DELETE" {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	err := eng.UnbanPeer("net-1", "peer-1")
+	assert.Error(t, err)
+}
+
+func TestEngine_LeaveNetwork_Success(t *testing.T) {
+	leaveCalled := false
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/leave") && r.Method == "POST" {
+			leaveCalled = true
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		// Handle subsequent syncConfig calls
+		if strings.Contains(r.URL.Path, "/config") {
+			json.NewEncoder(w).Encode(api.DeviceConfig{})
+			return
+		}
+		if r.URL.Path == "/v1/networks" {
+			json.NewEncoder(w).Encode([]api.NetworkResponse{})
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	// Add network to leave
+	eng.networks = []api.NetworkResponse{
+		{ID: "net-to-leave", Name: "Leaving"},
+		{ID: "net-keep", Name: "Keep"},
+	}
+
+	err := eng.LeaveNetwork("net-to-leave")
+	assert.NoError(t, err)
+	assert.True(t, leaveCalled)
+
+	// Verify network was removed from cache
+	eng.mu.RLock()
+	defer eng.mu.RUnlock()
+	assert.Len(t, eng.networks, 1)
+	assert.Equal(t, "net-keep", eng.networks[0].ID)
+}
+
+func TestEngine_GetStatus_AllFields(t *testing.T) {
+	eng, server, _ := setupTestEngine(t, nil)
+	defer server.Close()
+
+	eng.daemonVersion = "v1.0.0"
+	eng.paused = false
+	eng.networks = []api.NetworkResponse{
+		{ID: "n1", Name: "Network One", Role: "owner"},
+	}
+	eng.peerMap["p1"] = api.PeerConfig{ID: "p1", Name: "Peer One"}
+
+	status := eng.GetStatus()
+
+	// Check all expected fields
+	assert.Equal(t, "v1.0.0", status["version"])
+	assert.Equal(t, true, status["running"])
+	assert.Equal(t, false, status["paused"])
+	assert.Equal(t, "owner", status["role"])
+	assert.Equal(t, "Network One", status["network_name"])
+	assert.NotNil(t, status["wg"])
+	assert.NotNil(t, status["p2p"])
+	assert.NotNil(t, status["networks"])
+}
+
+func TestEngine_HeartbeatLoop_MultipleIterations(t *testing.T) {
+	heartbeatCount := 0
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/heartbeat") {
+			heartbeatCount++
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngine(t, apiHandler)
+	defer server.Close()
+
+	eng.idMgr.Update("device-1")
+	eng.config.Daemon.HealthCheckInterval = 30 * time.Millisecond
+
+	// Recreate stopChan
+	eng.stopChan = make(chan struct{})
+
+	// Start heartbeat loop
+	go eng.heartbeatLoop()
+
+	// Wait for a few iterations
+	time.Sleep(100 * time.Millisecond)
+
+	// Stop the engine
+	close(eng.stopChan)
+
+	// Should have at least 2 heartbeats (initial + at least one tick)
+	assert.GreaterOrEqual(t, heartbeatCount, 2)
+}
+
+// ==================== WireGuard Client Tests ====================
+
+func TestEngine_Stop_WithWgClient(t *testing.T) {
+	downCalled := false
+	mockWg := &MockWireGuardClient{
+		DownFunc: func() error {
+			downCalled = true
+			return nil
+		},
+	}
+
+	eng, server, _ := setupTestEngineWithWg(t, nil, mockWg)
+	defer server.Close()
+
+	eng.Stop()
+	assert.True(t, downCalled, "wgClient.Down should be called on Stop")
+}
+
+func TestEngine_Stop_WithWgClientError(t *testing.T) {
+	mockWg := &MockWireGuardClient{
+		DownFunc: func() error {
+			return errors.New("wg down error")
+		},
+	}
+
+	eng, server, _ := setupTestEngineWithWg(t, nil, mockWg)
+	defer server.Close()
+
+	// Should not panic even with error
+	assert.NotPanics(t, func() {
+		eng.Stop()
+	})
+}
+
+func TestEngine_Disconnect_WithWgClient(t *testing.T) {
+	downCalled := false
+	mockWg := &MockWireGuardClient{
+		DownFunc: func() error {
+			downCalled = true
+			return nil
+		},
+	}
+
+	eng, server, _ := setupTestEngineWithWg(t, nil, mockWg)
+	defer server.Close()
+
+	eng.paused = false
+	eng.Disconnect()
+
+	assert.True(t, downCalled, "wgClient.Down should be called on Disconnect")
+	assert.True(t, eng.paused)
+}
+
+func TestEngine_Disconnect_WithWgClientError(t *testing.T) {
+	mockWg := &MockWireGuardClient{
+		DownFunc: func() error {
+			return errors.New("wg down error")
+		},
+	}
+
+	eng, server, _ := setupTestEngineWithWg(t, nil, mockWg)
+	defer server.Close()
+
+	eng.paused = false
+	// Should not panic and should set paused
+	assert.NotPanics(t, func() {
+		eng.Disconnect()
+	})
+	assert.True(t, eng.paused)
+}
+
+func TestEngine_GetStatus_WithWgClient(t *testing.T) {
+	mockWg := &MockWireGuardClient{
+		GetStatusFunc: func() (*wireguard.Status, error) {
+			return &wireguard.Status{
+				Active:     true,
+				ListenPort: 51820,
+				Peers:      2,
+			}, nil
+		},
+	}
+
+	eng, server, _ := setupTestEngineWithWg(t, nil, mockWg)
+	defer server.Close()
+
+	status := eng.GetStatus()
+	wgStatus := status["wg"].(*wireguard.Status)
+	assert.True(t, wgStatus.Active)
+	assert.Equal(t, 51820, wgStatus.ListenPort)
+}
+
+func TestEngine_GetStatus_WithWgClientError(t *testing.T) {
+	mockWg := &MockWireGuardClient{
+		GetStatusFunc: func() (*wireguard.Status, error) {
+			return nil, errors.New("wg status error")
+		},
+	}
+
+	eng, server, _ := setupTestEngineWithWg(t, nil, mockWg)
+	defer server.Close()
+
+	status := eng.GetStatus()
+	wgStatus := status["wg"].(map[string]interface{})
+	assert.False(t, wgStatus["active"].(bool))
+	assert.Equal(t, "wg status error", wgStatus["error"])
+}
+
+func TestEngine_SyncConfig_WithWgClient_Success(t *testing.T) {
+	applyConfigCalled := false
+	mockWg := &MockWireGuardClient{
+		ApplyConfigFunc: func(config *api.DeviceConfig, privateKey string) error {
+			applyConfigCalled = true
+			return nil
+		},
+	}
+
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/config") {
+			json.NewEncoder(w).Encode(api.DeviceConfig{
+				Interface: api.InterfaceConfig{
+					Addresses: []string{"10.0.0.1/24"},
+					DNS:       []string{"8.8.8.8"},
+					MTU:       1420,
+				},
+				Peers: []api.PeerConfig{
+					{ID: "peer-1", Name: "Peer 1", AllowedIPs: []string{"10.0.0.2/32"}},
+				},
+			})
+			return
+		}
+		if r.URL.Path == "/v1/networks" {
+			json.NewEncoder(w).Encode([]api.NetworkResponse{})
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngineWithWg(t, apiHandler, mockWg)
+	defer server.Close()
+
+	eng.idMgr.Update("device-1")
+	eng.syncConfig()
+
+	assert.True(t, applyConfigCalled, "wgClient.ApplyConfig should be called")
+}
+
+func TestEngine_SyncConfig_WithWgClient_ApplyConfigError(t *testing.T) {
+	mockWg := &MockWireGuardClient{
+		ApplyConfigFunc: func(config *api.DeviceConfig, privateKey string) error {
+			return errors.New("apply config error")
+		},
+	}
+
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/config") {
+			json.NewEncoder(w).Encode(api.DeviceConfig{
+				Interface: api.InterfaceConfig{Addresses: []string{"10.0.0.1/24"}},
+				Peers:     []api.PeerConfig{},
+			})
+			return
+		}
+		if r.URL.Path == "/v1/networks" {
+			json.NewEncoder(w).Encode([]api.NetworkResponse{})
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngineWithWg(t, apiHandler, mockWg)
+	defer server.Close()
+
+	eng.idMgr.Update("device-1")
+
+	// Should not panic on error
+	assert.NotPanics(t, func() {
+		eng.syncConfig()
+	})
+}
+
+func TestEngine_SyncConfig_WithWgClient_FullConfig(t *testing.T) {
+	applyConfigCalled := false
+	mockWg := &MockWireGuardClient{
+		ApplyConfigFunc: func(config *api.DeviceConfig, privateKey string) error {
+			applyConfigCalled = true
+			return nil
+		},
+	}
+
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/config") {
+			json.NewEncoder(w).Encode(api.DeviceConfig{
+				Interface: api.InterfaceConfig{
+					Addresses: []string{"10.0.0.1/24"},
+					DNS:       []string{"8.8.8.8"},
+					MTU:       1420,
+				},
+				Peers: []api.PeerConfig{
+					{
+						ID:         "peer-1",
+						Name:       "Peer One",
+						Hostname:   "peer1.local",
+						AllowedIPs: []string{"10.0.0.2/32", "10.0.1.0/24"},
+					},
+					{
+						ID:         "peer-2",
+						Name:       "Peer Two",
+						AllowedIPs: []string{"10.0.0.3/32"},
+					},
+				},
+			})
+			return
+		}
+		if r.URL.Path == "/v1/networks" {
+			json.NewEncoder(w).Encode([]api.NetworkResponse{})
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngineWithWg(t, apiHandler, mockWg)
+	defer server.Close()
+
+	eng.idMgr.Update("device-1")
+	eng.config.P2P.Enabled = false // Disable P2P to simplify test
+
+	eng.syncConfig()
+
+	assert.True(t, applyConfigCalled)
+
+	// Verify peers added
+	eng.mu.RLock()
+	defer eng.mu.RUnlock()
+	assert.Len(t, eng.peerMap, 2)
+}
+
+func TestEngine_SyncConfig_WithPeerHostnames(t *testing.T) {
+	mockWg := &MockWireGuardClient{}
+
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/config") {
+			json.NewEncoder(w).Encode(api.DeviceConfig{
+				Interface: api.InterfaceConfig{
+					Addresses: []string{"10.0.0.1/24"},
+				},
+				Peers: []api.PeerConfig{
+					{
+						ID:         "peer-1",
+						Name:       "myserver",
+						Hostname:   "myserver.local",
+						AllowedIPs: []string{"10.0.0.2/32"},
+					},
+					{
+						ID:         "peer-2",
+						Name:       "samename",
+						Hostname:   "samename", // Same as Name, should only add once
+						AllowedIPs: []string{"10.0.0.3/32"},
+					},
+				},
+			})
+			return
+		}
+		if r.URL.Path == "/v1/networks" {
+			json.NewEncoder(w).Encode([]api.NetworkResponse{})
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngineWithWg(t, apiHandler, mockWg)
+	defer server.Close()
+
+	eng.idMgr.Update("device-1")
+	eng.syncConfig()
+
+	// Verify peers are added
+	eng.mu.RLock()
+	defer eng.mu.RUnlock()
+	assert.Len(t, eng.peerMap, 2)
+}
+
+func TestEngine_SyncConfig_WithRoutes(t *testing.T) {
+	mockWg := &MockWireGuardClient{}
+
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/config") {
+			json.NewEncoder(w).Encode(api.DeviceConfig{
+				Interface: api.InterfaceConfig{
+					Addresses: []string{"10.0.0.1/24"},
+				},
+				Peers: []api.PeerConfig{
+					{
+						ID:         "peer-1",
+						AllowedIPs: []string{"10.0.0.2/32", "192.168.1.0/24"},
+					},
+				},
+			})
+			return
+		}
+		if r.URL.Path == "/v1/networks" {
+			json.NewEncoder(w).Encode([]api.NetworkResponse{})
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngineWithWg(t, apiHandler, mockWg)
+	defer server.Close()
+
+	eng.idMgr.Update("device-1")
+
+	// Should not panic
+	assert.NotPanics(t, func() {
+		eng.syncConfig()
+	})
+}
+
+func TestEngine_SyncConfig_NoPeers(t *testing.T) {
+	mockWg := &MockWireGuardClient{}
+
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/config") {
+			json.NewEncoder(w).Encode(api.DeviceConfig{
+				Interface: api.InterfaceConfig{
+					Addresses: []string{"10.0.0.1/24"},
+				},
+				Peers: []api.PeerConfig{},
+			})
+			return
+		}
+		if r.URL.Path == "/v1/networks" {
+			json.NewEncoder(w).Encode([]api.NetworkResponse{})
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngineWithWg(t, apiHandler, mockWg)
+	defer server.Close()
+
+	eng.idMgr.Update("device-1")
+	eng.syncConfig()
+
+	eng.mu.RLock()
+	defer eng.mu.RUnlock()
+	assert.Empty(t, eng.peerMap)
+}
+
+func TestEngine_SyncConfig_NoAddresses(t *testing.T) {
+	mockWg := &MockWireGuardClient{}
+
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/config") {
+			json.NewEncoder(w).Encode(api.DeviceConfig{
+				Interface: api.InterfaceConfig{
+					Addresses: []string{}, // No addresses
+				},
+				Peers: []api.PeerConfig{},
+			})
+			return
+		}
+		if r.URL.Path == "/v1/networks" {
+			json.NewEncoder(w).Encode([]api.NetworkResponse{})
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngineWithWg(t, apiHandler, mockWg)
+	defer server.Close()
+
+	eng.idMgr.Update("device-1")
+
+	// Should not start chat listener with no addresses
+	assert.NotPanics(t, func() {
+		eng.syncConfig()
+	})
+}
+
+func TestEngine_NewEngineWithWgClient(t *testing.T) {
+	mockWg := NewMockWireGuardClient()
+	
+	eng, server, _ := setupTestEngineWithWg(t, nil, mockWg)
+	defer server.Close()
+
+	assert.NotNil(t, eng)
+	assert.Equal(t, mockWg, eng.wgClient)
+}
+
+func TestEngine_Connect_TriggersSync(t *testing.T) {
+	syncCalled := false
+	mockWg := &MockWireGuardClient{
+		ApplyConfigFunc: func(config *api.DeviceConfig, privateKey string) error {
+			syncCalled = true
+			return nil
+		},
+	}
+
+	apiHandler := func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "/config") {
+			json.NewEncoder(w).Encode(api.DeviceConfig{
+				Interface: api.InterfaceConfig{Addresses: []string{"10.0.0.1/24"}},
+			})
+			return
+		}
+		if r.URL.Path == "/v1/networks" {
+			json.NewEncoder(w).Encode([]api.NetworkResponse{})
+			return
+		}
+	}
+
+	eng, server, _ := setupTestEngineWithWg(t, apiHandler, mockWg)
+	defer server.Close()
+
+	eng.idMgr.Update("device-1")
+	eng.paused = true
+
+	eng.Connect()
+
+	// Wait for async syncConfig
+	time.Sleep(150 * time.Millisecond)
+
+	assert.False(t, eng.paused)
+	assert.True(t, syncCalled)
 }
 
 

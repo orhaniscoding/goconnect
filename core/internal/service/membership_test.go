@@ -660,3 +660,206 @@ func TestApprove_NoPendingJoinRequest(t *testing.T) {
 		t.Fatal("expected error when approving user without pending request")
 	}
 }
+
+// ==================== MemberJoined/MemberLeft Notifier Tests ====================
+
+// MockMembershipNotifier tracks calls to MemberJoined and MemberLeft
+type MockMembershipNotifier struct {
+	joinedCalls []struct{ NetworkID, UserID string }
+	leftCalls   []struct{ NetworkID, UserID string }
+}
+
+func (m *MockMembershipNotifier) MemberJoined(networkID, userID string) {
+	m.joinedCalls = append(m.joinedCalls, struct{ NetworkID, UserID string }{networkID, userID})
+}
+
+func (m *MockMembershipNotifier) MemberLeft(networkID, userID string) {
+	m.leftCalls = append(m.leftCalls, struct{ NetworkID, UserID string }{networkID, userID})
+}
+
+func TestMembershipService_JoinNetworkTriggersMemberJoined(t *testing.T) {
+	ctx := context.Background()
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	svc := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+
+	mockNotifier := &MockMembershipNotifier{}
+	svc.SetNotifier(mockNotifier)
+
+	// Create open network
+	net := &domain.Network{
+		ID:         "net-notify-join",
+		TenantID:   "t1",
+		Name:       "NotifyJoinNet",
+		Visibility: domain.NetworkVisibilityPublic,
+		JoinPolicy: domain.JoinPolicyOpen,
+		CIDR:       "10.50.0.0/24",
+		CreatedBy:  "owner",
+	}
+	_ = nrepo.Create(ctx, net)
+
+	t.Run("JoinNetwork with open policy triggers MemberJoined", func(t *testing.T) {
+		mockNotifier.joinedCalls = nil
+
+		m, jr, err := svc.JoinNetwork(ctx, net.ID, "user-join-notify", "t1", domain.GenerateIdempotencyKey())
+
+		if err != nil {
+			t.Fatalf("expected join to succeed, got error: %v", err)
+		}
+		if m == nil {
+			t.Fatal("expected membership for open policy")
+		}
+		if jr != nil {
+			t.Fatal("expected no join request for open policy")
+		}
+
+		// Verify MemberJoined was called
+		if len(mockNotifier.joinedCalls) == 0 {
+			t.Fatal("expected MemberJoined to be called")
+		}
+		found := false
+		for _, call := range mockNotifier.joinedCalls {
+			if call.NetworkID == net.ID && call.UserID == "user-join-notify" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected MemberJoined to be called with networkID=%s, userID=%s", net.ID, "user-join-notify")
+		}
+	})
+}
+
+func TestMembershipService_ApproveTriggersMemberJoined(t *testing.T) {
+	ctx := context.Background()
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	svc := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+
+	mockNotifier := &MockMembershipNotifier{}
+	svc.SetNotifier(mockNotifier)
+
+	// Create approval-required network
+	net := &domain.Network{
+		ID:         "net-notify-approve",
+		TenantID:   "t1",
+		Name:       "NotifyApproveNet",
+		Visibility: domain.NetworkVisibilityPublic,
+		JoinPolicy: domain.JoinPolicyApproval,
+		CIDR:       "10.51.0.0/24",
+		CreatedBy:  "admin",
+	}
+	_ = nrepo.Create(ctx, net)
+
+	// Admin joins directly
+	_, _ = mrepo.UpsertApproved(ctx, net.ID, "admin", domain.RoleAdmin, time.Now())
+
+	// User requests to join
+	_, jr, err := svc.JoinNetwork(ctx, net.ID, "user-to-approve", "t1", domain.GenerateIdempotencyKey())
+	if err != nil {
+		t.Fatalf("join request failed: %v", err)
+	}
+	if jr == nil {
+		t.Fatal("expected join request for approval policy")
+	}
+
+	t.Run("Approve triggers MemberJoined", func(t *testing.T) {
+		mockNotifier.joinedCalls = nil
+
+		_, err := svc.Approve(ctx, net.ID, "user-to-approve", "admin", "t1")
+		if err != nil {
+			t.Fatalf("expected approve to succeed, got error: %v", err)
+		}
+
+		// Verify MemberJoined was called
+		if len(mockNotifier.joinedCalls) == 0 {
+			t.Fatal("expected MemberJoined to be called after approval")
+		}
+		found := false
+		for _, call := range mockNotifier.joinedCalls {
+			if call.NetworkID == net.ID && call.UserID == "user-to-approve" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected MemberJoined to be called with networkID=%s, userID=%s", net.ID, "user-to-approve")
+		}
+	})
+}
+
+func TestMembershipService_KickTriggersMemberLeft(t *testing.T) {
+	ctx := context.Background()
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	svc := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+
+	mockNotifier := &MockMembershipNotifier{}
+	svc.SetNotifier(mockNotifier)
+
+	// Create network
+	net := &domain.Network{
+		ID:         "net-notify-kick",
+		TenantID:   "t1",
+		Name:       "NotifyKickNet",
+		Visibility: domain.NetworkVisibilityPublic,
+		JoinPolicy: domain.JoinPolicyOpen,
+		CIDR:       "10.52.0.0/24",
+		CreatedBy:  "admin",
+	}
+	_ = nrepo.Create(ctx, net)
+
+	// Admin is a member
+	_, _ = mrepo.UpsertApproved(ctx, net.ID, "admin", domain.RoleAdmin, time.Now())
+
+	// User joins
+	_, _, err := svc.JoinNetwork(ctx, net.ID, "user-to-kick", "t1", domain.GenerateIdempotencyKey())
+	if err != nil {
+		t.Fatalf("join failed: %v", err)
+	}
+
+	t.Run("Kick triggers MemberLeft", func(t *testing.T) {
+		mockNotifier.leftCalls = nil
+
+		err := svc.Kick(ctx, net.ID, "user-to-kick", "admin", "t1")
+		if err != nil {
+			t.Fatalf("expected kick to succeed, got error: %v", err)
+		}
+
+		// Verify MemberLeft was called
+		if len(mockNotifier.leftCalls) == 0 {
+			t.Fatal("expected MemberLeft to be called after kick")
+		}
+		found := false
+		for _, call := range mockNotifier.leftCalls {
+			if call.NetworkID == net.ID && call.UserID == "user-to-kick" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("expected MemberLeft to be called with networkID=%s, userID=%s", net.ID, "user-to-kick")
+		}
+	})
+}
+
+func TestNoopNotifier(t *testing.T) {
+	// Test that noopNotifier doesn't panic
+	notifier := noopNotifier{}
+
+	t.Run("MemberJoined does not panic", func(t *testing.T) {
+		// Should not panic
+		notifier.MemberJoined("network-id", "user-id")
+	})
+
+	t.Run("MemberLeft does not panic", func(t *testing.T) {
+		// Should not panic
+		notifier.MemberLeft("network-id", "user-id")
+	})
+}

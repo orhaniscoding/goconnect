@@ -3,6 +3,7 @@ package tui
 import (
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -420,5 +421,315 @@ func TestModel_StateTransitions(t *testing.T) {
 		m.state = StateDashboard
 		m.state = StatePeers
 		assert.Equal(t, StatePeers, m.state)
+	})
+}
+
+// ==================== Tea KeyMsg Update Tests ====================
+
+func TestModel_Update_KeyMsgQuit(t *testing.T) {
+	t.Run("Ctrl+C Quits", func(t *testing.T) {
+		m := NewModel()
+		m.width = 80
+		m.height = 24
+
+		msg := tea.KeyMsg{Type: tea.KeyCtrlC}
+		_, cmd := m.Update(msg)
+
+		// Should return tea.Quit command
+		assert.NotNil(t, cmd)
+	})
+
+	t.Run("Q Key Quits", func(t *testing.T) {
+		m := NewModel()
+		m.width = 80
+		m.height = 24
+
+		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+		_, cmd := m.Update(msg)
+
+		assert.NotNil(t, cmd)
+	})
+}
+
+func TestModel_Update_KeyMsgHelp(t *testing.T) {
+	t.Run("Help Toggle Shows All Help", func(t *testing.T) {
+		m := NewModel()
+		m.width = 80
+		m.height = 24
+		m.help.ShowAll = false
+
+		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}}
+		newModel, _ := m.Update(msg)
+		updated := newModel.(Model)
+
+		assert.True(t, updated.help.ShowAll)
+	})
+
+	t.Run("Help Toggle Hides All Help", func(t *testing.T) {
+		m := NewModel()
+		m.width = 80
+		m.height = 24
+		m.help.ShowAll = true
+
+		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}}
+		newModel, _ := m.Update(msg)
+		updated := newModel.(Model)
+
+		assert.False(t, updated.help.ShowAll)
+	})
+}
+
+func TestModel_Update_WindowSizeMsg(t *testing.T) {
+	t.Run("Updates Dimensions", func(t *testing.T) {
+		m := NewModel()
+
+		msg := tea.WindowSizeMsg{Width: 120, Height: 40}
+		newModel, _ := m.Update(msg)
+		updated := newModel.(Model)
+
+		assert.Equal(t, 120, updated.width)
+		assert.Equal(t, 40, updated.height)
+	})
+}
+
+func TestModel_Update_CreateNetworkState(t *testing.T) {
+	t.Run("Enter Key In CreateNetwork State", func(t *testing.T) {
+		m := NewModelWithState(StateCreateNetwork)
+		m.width = 80
+		m.height = 24
+		m.input.SetValue("TestNetwork")
+
+		msg := tea.KeyMsg{Type: tea.KeyEnter}
+		newModel, cmd := m.Update(msg)
+
+		assert.NotNil(t, newModel)
+		assert.NotNil(t, cmd)
+	})
+
+	t.Run("Esc Key In CreateNetwork Returns To Dashboard", func(t *testing.T) {
+		m := NewModelWithState(StateCreateNetwork)
+		m.width = 80
+		m.height = 24
+
+		msg := tea.KeyMsg{Type: tea.KeyEsc}
+		newModel, _ := m.Update(msg)
+		updated := newModel.(Model)
+
+		assert.Equal(t, StateDashboard, updated.state)
+	})
+
+	t.Run("Input Updates In CreateNetwork State", func(t *testing.T) {
+		m := NewModelWithState(StateCreateNetwork)
+		m.width = 80
+		m.height = 24
+
+		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}}
+		newModel, _ := m.Update(msg)
+		updated := newModel.(Model)
+
+		// Input should have been updated
+		assert.NotNil(t, updated.input)
+	})
+}
+
+func TestModel_Update_JoinNetworkState(t *testing.T) {
+	t.Run("Enter Key In JoinNetwork State", func(t *testing.T) {
+		m := NewModelWithState(StateJoinNetwork)
+		m.width = 80
+		m.height = 24
+		m.input.SetValue("invite-code-123")
+
+		msg := tea.KeyMsg{Type: tea.KeyEnter}
+		newModel, cmd := m.Update(msg)
+
+		assert.NotNil(t, newModel)
+		assert.NotNil(t, cmd)
+	})
+
+	t.Run("Esc Key In JoinNetwork Returns To Dashboard", func(t *testing.T) {
+		m := NewModelWithState(StateJoinNetwork)
+		m.width = 80
+		m.height = 24
+
+		msg := tea.KeyMsg{Type: tea.KeyEsc}
+		newModel, _ := m.Update(msg)
+		updated := newModel.(Model)
+
+		assert.Equal(t, StateDashboard, updated.state)
+	})
+}
+
+func TestModel_Update_LoadingState(t *testing.T) {
+	t.Run("Spinner Updates In Loading State", func(t *testing.T) {
+		m := NewModelWithState(StateDashboard)
+		m.state = StateLoading
+		m.width = 80
+		m.height = 24
+
+		// Simulate spinner tick
+		msg := m.spinner.Tick()
+		newModel, _ := m.Update(msg)
+
+		assert.NotNil(t, newModel)
+	})
+}
+
+func TestModel_Update_PeersState(t *testing.T) {
+	t.Run("Esc Key In Peers Returns To Dashboard", func(t *testing.T) {
+		m := NewModel()
+		m.state = StatePeers
+		m.width = 80
+		m.height = 24
+
+		msg := tea.KeyMsg{Type: tea.KeyEsc}
+		newModel, _ := m.Update(msg)
+		updated := newModel.(Model)
+
+		assert.Equal(t, StateDashboard, updated.state)
+	})
+}
+
+func TestModel_Update_CopyKey(t *testing.T) {
+	t.Run("Copy When Connected Shows Message", func(t *testing.T) {
+		m := NewModel()
+		m.width = 80
+		m.height = 24
+		m.status = &Status{
+			Connected:  true,
+			InviteCode: "test-invite-code",
+		}
+
+		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}}
+		newModel, cmd := m.Update(msg)
+		updated := newModel.(Model)
+
+		// Should have set loading message
+		assert.Equal(t, "Copied to clipboard!", updated.loadingMsg)
+		assert.NotNil(t, cmd)
+	})
+
+	t.Run("Copy When Disconnected Does Nothing", func(t *testing.T) {
+		m := NewModel()
+		m.width = 80
+		m.height = 24
+		m.status = nil
+
+		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}}
+		newModel, _ := m.Update(msg)
+		updated := newModel.(Model)
+
+		assert.Empty(t, updated.loadingMsg)
+	})
+}
+
+// ==================== Command Execution Tests ====================
+
+func TestModel_FetchStatusCmd_Execution(t *testing.T) {
+	t.Run("Returns Error When Client Fails", func(t *testing.T) {
+		m := NewModel()
+		cmd := m.fetchStatusCmd()
+		msg := cmd()
+
+		// Without daemon running, should return errMsg
+		_, isErr := msg.(errMsg)
+		assert.True(t, isErr)
+	})
+}
+
+func TestModel_FetchNetworksCmd_Execution(t *testing.T) {
+	t.Run("Returns Error When Client Fails", func(t *testing.T) {
+		m := NewModel()
+		cmd := m.fetchNetworksCmd()
+		msg := cmd()
+
+		_, isErr := msg.(errMsg)
+		assert.True(t, isErr)
+	})
+}
+
+func TestModel_FetchPeersCmd_Execution(t *testing.T) {
+	t.Run("Returns Error When Client Fails", func(t *testing.T) {
+		m := NewModel()
+		cmd := m.fetchPeersCmd()
+		msg := cmd()
+
+		_, isErr := msg.(errMsg)
+		assert.True(t, isErr)
+	})
+}
+
+func TestModel_CreateNetworkCmd_Execution(t *testing.T) {
+	t.Run("Returns Error When Client Fails", func(t *testing.T) {
+		m := NewModel()
+		cmd := m.createNetworkCmd("test-network")
+		msg := cmd()
+
+		_, isErr := msg.(errMsg)
+		assert.True(t, isErr)
+	})
+}
+
+func TestModel_JoinNetworkCmd_Execution(t *testing.T) {
+	t.Run("Returns Error When Client Fails", func(t *testing.T) {
+		m := NewModel()
+		cmd := m.joinNetworkCmd("invite-code")
+		msg := cmd()
+
+		_, isErr := msg.(errMsg)
+		assert.True(t, isErr)
+	})
+}
+
+// ==================== Model Field Tests ====================
+
+func TestModel_Fields(t *testing.T) {
+	t.Run("Model Has All Required Fields", func(t *testing.T) {
+		m := NewModel()
+
+		assert.NotNil(t, m.client)
+		assert.NotNil(t, m.help)
+		assert.Equal(t, Keys, m.keys)
+	})
+
+	t.Run("Model Stores Error", func(t *testing.T) {
+		m := NewModel()
+		m.err = assert.AnError
+
+		assert.Error(t, m.err)
+	})
+
+	t.Run("Model Stores Loading Message", func(t *testing.T) {
+		m := NewModel()
+		m.loadingMsg = "Loading..."
+
+		assert.Equal(t, "Loading...", m.loadingMsg)
+	})
+}
+
+// ==================== Update Dashboard Enter Key Tests ====================
+
+func TestModel_Update_DashboardListNavigation(t *testing.T) {
+	t.Run("Down Key In Dashboard", func(t *testing.T) {
+		m := NewModel()
+		m.width = 80
+		m.height = 24
+		m.state = StateDashboard
+
+		msg := tea.KeyMsg{Type: tea.KeyDown}
+		newModel, _ := m.Update(msg)
+
+		assert.NotNil(t, newModel)
+	})
+
+	t.Run("Up Key In Dashboard", func(t *testing.T) {
+		m := NewModel()
+		m.width = 80
+		m.height = 24
+		m.state = StateDashboard
+
+		msg := tea.KeyMsg{Type: tea.KeyUp}
+		newModel, _ := m.Update(msg)
+
+		assert.NotNil(t, newModel)
 	})
 }

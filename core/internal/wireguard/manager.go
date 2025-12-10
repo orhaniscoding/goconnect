@@ -9,12 +9,20 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
+// WGClient defines the interface for WireGuard client operations.
+// This abstraction allows for mocking in tests.
+type WGClient interface {
+	Close() error
+	Device(name string) (*wgtypes.Device, error)
+	ConfigureDevice(name string, cfg wgtypes.Config) error
+}
+
 // Manager handles WireGuard interface configuration
 type Manager struct {
 	interfaceName string
 	privateKey    string
 	port          int
-	client        *wgctrl.Client
+	client        WGClient
 }
 
 // NewManager creates a new WireGuard manager

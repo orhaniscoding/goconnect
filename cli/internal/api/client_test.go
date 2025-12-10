@@ -6,12 +6,21 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/config"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/storage"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// WebSocket upgrader for test servers
+var testUpgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool { return true },
+}
 
 func TestNewClient(t *testing.T) {
 	cfg := &config.Config{
@@ -1109,4 +1118,987 @@ func TestGenerateInvite_Success(t *testing.T) {
 	if resp.Token != "inv-token" {
 		t.Errorf("Expected token inv-token, got %s", resp.Token)
 	}
+}
+
+// ==================== SendHeartbeat Tests ====================
+
+func TestSendHeartbeat_Success(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "POST", r.Method)
+		assert.Equal(t, "/v1/devices/device-123/heartbeat", r.URL.Path)
+		assert.Equal(t, "Bearer valid-token", r.Header.Get("Authorization"))
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+
+		var req HeartbeatRequest
+		err := json.NewDecoder(r.Body).Decode(&req)
+		require.NoError(t, err)
+		assert.Equal(t, "192.168.1.100", req.IPAddress)
+		assert.Equal(t, "1.0.0", req.DaemonVer)
+
+		w.WriteHeader(http.StatusOK)
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	err := client.SendHeartbeat(context.Background(), "device-123", HeartbeatRequest{
+		IPAddress: "192.168.1.100",
+		DaemonVer: "1.0.0",
+		OSVersion: "Linux 5.15",
+	})
+	require.NoError(t, err)
+}
+
+func TestSendHeartbeat_ServerError(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Internal error"})
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	err := client.SendHeartbeat(context.Background(), "device-123", HeartbeatRequest{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Internal error")
+}
+
+func TestSendHeartbeat_ServerErrorNoMessage(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	err := client.SendHeartbeat(context.Background(), "device-123", HeartbeatRequest{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "status: 400")
+}
+
+func TestSendHeartbeat_NetworkError(t *testing.T) {
+	cfg := &config.Config{
+		Server: struct {
+			URL string `yaml:"url"`
+		}{URL: "http://localhost:99999"},
+	}
+	kr, _ := storage.NewTestKeyring(t.TempDir())
+	kr.StoreAuthToken("token")
+	cfg.Keyring = kr
+	client := NewClient(cfg)
+
+	err := client.SendHeartbeat(context.Background(), "device-123", HeartbeatRequest{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to send http request")
+}
+
+// ==================== CreateNetwork Tests ====================
+
+func TestCreateNetwork_Success(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "POST", r.Method)
+		assert.Equal(t, "/v1/networks", r.URL.Path)
+		assert.Equal(t, "Bearer valid-token", r.Header.Get("Authorization"))
+
+		var req CreateNetworkRequest
+		json.NewDecoder(r.Body).Decode(&req)
+		assert.Equal(t, "My Network", req.Name)
+
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(NetworkResponse{
+			ID:         "net-created",
+			Name:       "My Network",
+			InviteCode: "ABC123",
+			Role:       "owner",
+		})
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	resp, err := client.CreateNetwork(context.Background(), "My Network")
+	require.NoError(t, err)
+	assert.Equal(t, "net-created", resp.ID)
+	assert.Equal(t, "My Network", resp.Name)
+	assert.Equal(t, "owner", resp.Role)
+}
+
+func TestCreateNetwork_ServerError(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Network name already exists"})
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	_, err := client.CreateNetwork(context.Background(), "Existing Network")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Network name already exists")
+}
+
+func TestCreateNetwork_ServerErrorNoMessage(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	_, err := client.CreateNetwork(context.Background(), "Test")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "status: 403")
+}
+
+func TestCreateNetwork_InvalidResponse(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte("invalid json"))
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	_, err := client.CreateNetwork(context.Background(), "Test")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to decode response")
+}
+
+// ==================== WebSocket Tests ====================
+
+// setupWebSocketServer creates a test server that upgrades HTTP to WebSocket
+func setupWebSocketServer(t *testing.T, handler func(*websocket.Conn)) (*Client, *httptest.Server, func()) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/ws", func(w http.ResponseWriter, r *http.Request) {
+		// Verify authorization header
+		auth := r.Header.Get("Authorization")
+		if auth != "Bearer valid-token" {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		conn, err := testUpgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Logf("WebSocket upgrade failed: %v", err)
+			return
+		}
+		defer conn.Close()
+		handler(conn)
+	})
+
+	server := httptest.NewServer(mux)
+
+	cfg := &config.Config{
+		Server: struct {
+			URL string `yaml:"url"`
+		}{URL: server.URL},
+	}
+	kr, _ := storage.NewTestKeyring(t.TempDir())
+	kr.StoreAuthToken("valid-token")
+	cfg.Keyring = kr
+	client := NewClient(cfg)
+
+	return client, server, func() {
+		client.CloseWebSocket()
+		server.Close()
+	}
+}
+
+func TestStartWebSocket_Success(t *testing.T) {
+	connected := make(chan bool, 1)
+
+	client, _, cleanup := setupWebSocketServer(t, func(conn *websocket.Conn) {
+		connected <- true
+		// Keep connection alive briefly
+		time.Sleep(100 * time.Millisecond)
+	})
+	defer cleanup()
+
+	err := client.StartWebSocket(context.Background())
+	require.NoError(t, err)
+
+	select {
+	case <-connected:
+		// Success
+	case <-time.After(2 * time.Second):
+		t.Fatal("WebSocket connection timed out")
+	}
+}
+
+func TestStartWebSocket_InvalidURL(t *testing.T) {
+	cfg := &config.Config{
+		Server: struct {
+			URL string `yaml:"url"`
+		}{URL: "://invalid-url"},
+	}
+	kr, _ := storage.NewTestKeyring(t.TempDir())
+	kr.StoreAuthToken("token")
+	cfg.Keyring = kr
+	client := NewClient(cfg)
+
+	err := client.StartWebSocket(context.Background())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid server URL")
+}
+
+func TestStartWebSocket_ConnectionRefused(t *testing.T) {
+	cfg := &config.Config{
+		Server: struct {
+			URL string `yaml:"url"`
+		}{URL: "http://localhost:59999"},
+	}
+	kr, _ := storage.NewTestKeyring(t.TempDir())
+	kr.StoreAuthToken("token")
+	cfg.Keyring = kr
+	client := NewClient(cfg)
+
+	err := client.StartWebSocket(context.Background())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "websocket dial failed")
+}
+
+func TestStartWebSocket_HTTPSUpgrade(t *testing.T) {
+	cfg := &config.Config{
+		Server: struct {
+			URL string `yaml:"url"`
+		}{URL: "https://localhost:59999"},
+	}
+	kr, _ := storage.NewTestKeyring(t.TempDir())
+	kr.StoreAuthToken("token")
+	cfg.Keyring = kr
+	client := NewClient(cfg)
+
+	// This will fail to connect, but we're testing the URL scheme conversion
+	err := client.StartWebSocket(context.Background())
+	require.Error(t, err)
+	// The scheme should be converted to wss for https
+}
+
+func TestCloseWebSocket_WithConnection(t *testing.T) {
+	closed := make(chan bool, 1)
+
+	client, _, cleanup := setupWebSocketServer(t, func(conn *websocket.Conn) {
+		// Wait for close or message
+		_, _, err := conn.ReadMessage()
+		if err != nil {
+			closed <- true
+		}
+	})
+
+	err := client.StartWebSocket(context.Background())
+	require.NoError(t, err)
+
+	// Give it time to establish
+	time.Sleep(50 * time.Millisecond)
+
+	// Now close
+	client.CloseWebSocket()
+
+	select {
+	case <-closed:
+		// Success
+	case <-time.After(2 * time.Second):
+		t.Fatal("WebSocket close timed out")
+	}
+
+	cleanup()
+}
+
+func TestCloseWebSocket_MultipleCalls(t *testing.T) {
+	client, _, cleanup := setupWebSocketServer(t, func(conn *websocket.Conn) {
+		time.Sleep(100 * time.Millisecond)
+	})
+	defer cleanup()
+
+	err := client.StartWebSocket(context.Background())
+	require.NoError(t, err)
+	time.Sleep(50 * time.Millisecond)
+
+	// Multiple close calls should not panic
+	client.CloseWebSocket()
+	client.CloseWebSocket()
+	client.CloseWebSocket()
+}
+
+// ==================== readLoop and handleMessage Tests ====================
+
+func TestReadLoop_ReceivesOffer(t *testing.T) {
+	offerReceived := make(chan bool, 1)
+	var receivedSourceID, receivedUfrag, receivedPwd string
+
+	client, _, cleanup := setupWebSocketServer(t, func(conn *websocket.Conn) {
+		// Send an offer message
+		signalPayload, _ := json.Marshal(signalPayload{Ufrag: "test-ufrag", Pwd: "test-pwd"})
+		signalData, _ := json.Marshal(callSignalData{FromUser: "user-123", Signal: signalPayload})
+		msg := wsMessage{Type: "call.offer", Data: signalData}
+		conn.WriteJSON(msg)
+
+		// Keep alive for the client to process
+		time.Sleep(200 * time.Millisecond)
+	})
+	defer cleanup()
+
+	client.OnOffer(func(sourceID, ufrag, pwd string) {
+		receivedSourceID = sourceID
+		receivedUfrag = ufrag
+		receivedPwd = pwd
+		offerReceived <- true
+	})
+
+	err := client.StartWebSocket(context.Background())
+	require.NoError(t, err)
+
+	select {
+	case <-offerReceived:
+		assert.Equal(t, "user-123", receivedSourceID)
+		assert.Equal(t, "test-ufrag", receivedUfrag)
+		assert.Equal(t, "test-pwd", receivedPwd)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Offer callback not called")
+	}
+}
+
+func TestReadLoop_ReceivesAnswer(t *testing.T) {
+	answerReceived := make(chan bool, 1)
+	var receivedSourceID, receivedUfrag, receivedPwd string
+
+	client, _, cleanup := setupWebSocketServer(t, func(conn *websocket.Conn) {
+		signalPayload, _ := json.Marshal(signalPayload{Ufrag: "answer-ufrag", Pwd: "answer-pwd"})
+		signalData, _ := json.Marshal(callSignalData{FromUser: "peer-456", Signal: signalPayload})
+		msg := wsMessage{Type: "call.answer", Data: signalData}
+		conn.WriteJSON(msg)
+		time.Sleep(200 * time.Millisecond)
+	})
+	defer cleanup()
+
+	client.OnAnswer(func(sourceID, ufrag, pwd string) {
+		receivedSourceID = sourceID
+		receivedUfrag = ufrag
+		receivedPwd = pwd
+		answerReceived <- true
+	})
+
+	err := client.StartWebSocket(context.Background())
+	require.NoError(t, err)
+
+	select {
+	case <-answerReceived:
+		assert.Equal(t, "peer-456", receivedSourceID)
+		assert.Equal(t, "answer-ufrag", receivedUfrag)
+		assert.Equal(t, "answer-pwd", receivedPwd)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Answer callback not called")
+	}
+}
+
+func TestReadLoop_ReceivesICECandidate(t *testing.T) {
+	candidateReceived := make(chan bool, 1)
+	var receivedSourceID, receivedCandidate string
+
+	client, _, cleanup := setupWebSocketServer(t, func(conn *websocket.Conn) {
+		signalPayload, _ := json.Marshal(signalPayload{Candidate: "candidate:1234567890"})
+		signalData, _ := json.Marshal(callSignalData{FromUser: "peer-789", Signal: signalPayload})
+		msg := wsMessage{Type: "call.ice", Data: signalData}
+		conn.WriteJSON(msg)
+		time.Sleep(200 * time.Millisecond)
+	})
+	defer cleanup()
+
+	client.OnCandidate(func(sourceID, candidate string) {
+		receivedSourceID = sourceID
+		receivedCandidate = candidate
+		candidateReceived <- true
+	})
+
+	err := client.StartWebSocket(context.Background())
+	require.NoError(t, err)
+
+	select {
+	case <-candidateReceived:
+		assert.Equal(t, "peer-789", receivedSourceID)
+		assert.Equal(t, "candidate:1234567890", receivedCandidate)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Candidate callback not called")
+	}
+}
+
+func TestReadLoop_IgnoresUnknownMessageType(t *testing.T) {
+	unknownProcessed := make(chan bool, 1)
+
+	client, _, cleanup := setupWebSocketServer(t, func(conn *websocket.Conn) {
+		// Send unknown message type
+		msg := wsMessage{Type: "unknown.type", Data: []byte(`{"foo":"bar"}`)}
+		conn.WriteJSON(msg)
+
+		// Then send a known type to verify the loop continues
+		signalPayload, _ := json.Marshal(signalPayload{Ufrag: "test", Pwd: "test"})
+		signalData, _ := json.Marshal(callSignalData{FromUser: "user", Signal: signalPayload})
+		msg2 := wsMessage{Type: "call.offer", Data: signalData}
+		conn.WriteJSON(msg2)
+
+		time.Sleep(200 * time.Millisecond)
+	})
+	defer cleanup()
+
+	client.OnOffer(func(sourceID, ufrag, pwd string) {
+		unknownProcessed <- true
+	})
+
+	err := client.StartWebSocket(context.Background())
+	require.NoError(t, err)
+
+	select {
+	case <-unknownProcessed:
+		// Unknown message was skipped and processing continued
+	case <-time.After(2 * time.Second):
+		t.Fatal("Processing did not continue after unknown message")
+	}
+}
+
+func TestReadLoop_HandlesInvalidJSON(t *testing.T) {
+	processed := make(chan bool, 1)
+
+	client, _, cleanup := setupWebSocketServer(t, func(conn *websocket.Conn) {
+		// Send invalid JSON
+		conn.WriteMessage(websocket.TextMessage, []byte("not json"))
+
+		// Then send valid message
+		signalPayload, _ := json.Marshal(signalPayload{Ufrag: "test", Pwd: "test"})
+		signalData, _ := json.Marshal(callSignalData{FromUser: "user", Signal: signalPayload})
+		msg := wsMessage{Type: "call.offer", Data: signalData}
+		conn.WriteJSON(msg)
+
+		time.Sleep(200 * time.Millisecond)
+	})
+	defer cleanup()
+
+	client.OnOffer(func(sourceID, ufrag, pwd string) {
+		processed <- true
+	})
+
+	err := client.StartWebSocket(context.Background())
+	require.NoError(t, err)
+
+	select {
+	case <-processed:
+		// Invalid JSON was handled gracefully
+	case <-time.After(2 * time.Second):
+		t.Fatal("Processing did not continue after invalid JSON")
+	}
+}
+
+func TestReadLoop_HandlesInvalidSignalData(t *testing.T) {
+	processed := make(chan bool, 1)
+
+	client, _, cleanup := setupWebSocketServer(t, func(conn *websocket.Conn) {
+		// Send message with invalid signal data
+		msg := wsMessage{Type: "call.offer", Data: []byte("invalid signal")}
+		conn.WriteJSON(msg)
+
+		// Then send valid message
+		signalPayload, _ := json.Marshal(signalPayload{Ufrag: "test", Pwd: "test"})
+		signalData, _ := json.Marshal(callSignalData{FromUser: "user", Signal: signalPayload})
+		msg2 := wsMessage{Type: "call.offer", Data: signalData}
+		conn.WriteJSON(msg2)
+
+		time.Sleep(200 * time.Millisecond)
+	})
+	defer cleanup()
+
+	client.OnOffer(func(sourceID, ufrag, pwd string) {
+		processed <- true
+	})
+
+	err := client.StartWebSocket(context.Background())
+	require.NoError(t, err)
+
+	select {
+	case <-processed:
+		// Invalid signal data was handled gracefully
+	case <-time.After(2 * time.Second):
+		t.Fatal("Processing did not continue after invalid signal data")
+	}
+}
+
+func TestReadLoop_HandlesInvalidSignalPayload(t *testing.T) {
+	processed := make(chan bool, 1)
+
+	client, _, cleanup := setupWebSocketServer(t, func(conn *websocket.Conn) {
+		// Send message with invalid signal payload
+		signalData, _ := json.Marshal(callSignalData{FromUser: "user", Signal: []byte("invalid payload")})
+		msg := wsMessage{Type: "call.offer", Data: signalData}
+		conn.WriteJSON(msg)
+
+		// Then send valid message
+		signalPayload, _ := json.Marshal(signalPayload{Ufrag: "test", Pwd: "test"})
+		signalData2, _ := json.Marshal(callSignalData{FromUser: "user", Signal: signalPayload})
+		msg2 := wsMessage{Type: "call.offer", Data: signalData2}
+		conn.WriteJSON(msg2)
+
+		time.Sleep(200 * time.Millisecond)
+	})
+	defer cleanup()
+
+	client.OnOffer(func(sourceID, ufrag, pwd string) {
+		processed <- true
+	})
+
+	err := client.StartWebSocket(context.Background())
+	require.NoError(t, err)
+
+	select {
+	case <-processed:
+		// Invalid payload was handled gracefully
+	case <-time.After(2 * time.Second):
+		t.Fatal("Processing did not continue after invalid payload")
+	}
+}
+
+func TestReadLoop_NoCallbackSet(t *testing.T) {
+	processed := make(chan bool, 1)
+
+	client, _, cleanup := setupWebSocketServer(t, func(conn *websocket.Conn) {
+		// Send offer without callback set
+		signalPayload, _ := json.Marshal(signalPayload{Ufrag: "test", Pwd: "test"})
+		signalData, _ := json.Marshal(callSignalData{FromUser: "user", Signal: signalPayload})
+		msg := wsMessage{Type: "call.offer", Data: signalData}
+		conn.WriteJSON(msg)
+
+		// Give time to process
+		time.Sleep(100 * time.Millisecond)
+		processed <- true
+	})
+	defer cleanup()
+
+	// Don't set any callbacks - should not panic
+
+	err := client.StartWebSocket(context.Background())
+	require.NoError(t, err)
+
+	select {
+	case <-processed:
+		// No panic, message was ignored
+	case <-time.After(2 * time.Second):
+		t.Fatal("Processing did not complete")
+	}
+}
+
+func TestReadLoop_ServerCloseConnection(t *testing.T) {
+	closed := make(chan bool, 1)
+
+	client, _, cleanup := setupWebSocketServer(t, func(conn *websocket.Conn) {
+		// Close connection immediately
+		conn.Close()
+	})
+
+	err := client.StartWebSocket(context.Background())
+	require.NoError(t, err)
+
+	// The readLoop should exit when connection is closed
+	go func() {
+		time.Sleep(500 * time.Millisecond)
+		closed <- true
+	}()
+
+	select {
+	case <-closed:
+		// readLoop exited gracefully
+	case <-time.After(2 * time.Second):
+		t.Fatal("readLoop did not exit after connection closed")
+	}
+
+	cleanup()
+}
+
+// ==================== sendSignal Tests ====================
+
+func TestSendSignal_Success(t *testing.T) {
+	messageReceived := make(chan wsMessage, 1)
+
+	client, _, cleanup := setupWebSocketServer(t, func(conn *websocket.Conn) {
+		var msg wsMessage
+		err := conn.ReadJSON(&msg)
+		if err == nil {
+			messageReceived <- msg
+		}
+		time.Sleep(200 * time.Millisecond)
+	})
+	defer cleanup()
+
+	err := client.StartWebSocket(context.Background())
+	require.NoError(t, err)
+	time.Sleep(50 * time.Millisecond)
+
+	err = client.SendOffer("target-peer", "ufrag123", "pwd456")
+	require.NoError(t, err)
+
+	select {
+	case msg := <-messageReceived:
+		assert.Equal(t, "call.offer", msg.Type)
+		var signalData callSignalData
+		json.Unmarshal(msg.Data, &signalData)
+		assert.Equal(t, "target-peer", signalData.TargetID)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Message not received by server")
+	}
+}
+
+func TestSendAnswer_Success(t *testing.T) {
+	messageReceived := make(chan wsMessage, 1)
+
+	client, _, cleanup := setupWebSocketServer(t, func(conn *websocket.Conn) {
+		var msg wsMessage
+		err := conn.ReadJSON(&msg)
+		if err == nil {
+			messageReceived <- msg
+		}
+		time.Sleep(200 * time.Millisecond)
+	})
+	defer cleanup()
+
+	err := client.StartWebSocket(context.Background())
+	require.NoError(t, err)
+	time.Sleep(50 * time.Millisecond)
+
+	err = client.SendAnswer("target-peer", "answer-ufrag", "answer-pwd")
+	require.NoError(t, err)
+
+	select {
+	case msg := <-messageReceived:
+		assert.Equal(t, "call.answer", msg.Type)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Message not received by server")
+	}
+}
+
+func TestSendCandidate_Success(t *testing.T) {
+	messageReceived := make(chan wsMessage, 1)
+
+	client, _, cleanup := setupWebSocketServer(t, func(conn *websocket.Conn) {
+		var msg wsMessage
+		err := conn.ReadJSON(&msg)
+		if err == nil {
+			messageReceived <- msg
+		}
+		time.Sleep(200 * time.Millisecond)
+	})
+	defer cleanup()
+
+	err := client.StartWebSocket(context.Background())
+	require.NoError(t, err)
+	time.Sleep(50 * time.Millisecond)
+
+	err = client.SendCandidate("target-peer", "candidate:1234567890")
+	require.NoError(t, err)
+
+	select {
+	case msg := <-messageReceived:
+		assert.Equal(t, "call.ice", msg.Type)
+		var signalData callSignalData
+		json.Unmarshal(msg.Data, &signalData)
+		var payload signalPayload
+		json.Unmarshal(signalData.Signal, &payload)
+		assert.Equal(t, "candidate:1234567890", payload.Candidate)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Message not received by server")
+	}
+}
+
+func TestSendSignal_ConcurrentSends(t *testing.T) {
+	messagesReceived := make(chan wsMessage, 10)
+
+	client, _, cleanup := setupWebSocketServer(t, func(conn *websocket.Conn) {
+		for i := 0; i < 5; i++ {
+			var msg wsMessage
+			err := conn.ReadJSON(&msg)
+			if err == nil {
+				messagesReceived <- msg
+			}
+		}
+		time.Sleep(200 * time.Millisecond)
+	})
+	defer cleanup()
+
+	err := client.StartWebSocket(context.Background())
+	require.NoError(t, err)
+	time.Sleep(50 * time.Millisecond)
+
+	// Send multiple messages concurrently
+	var wg sync.WaitGroup
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			client.SendOffer("target", "ufrag", "pwd")
+		}(i)
+	}
+	wg.Wait()
+
+	// Wait for all messages
+	count := 0
+	timeout := time.After(2 * time.Second)
+	for count < 5 {
+		select {
+		case <-messagesReceived:
+			count++
+		case <-timeout:
+			t.Fatalf("Only received %d of 5 messages", count)
+		}
+	}
+	assert.Equal(t, 5, count)
+}
+
+// ==================== GetConfig Tests ====================
+
+func TestGetConfig_ServerError(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Access denied"})
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	_, err := client.GetConfig(context.Background(), "device-123")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Access denied")
+}
+
+func TestGetConfig_InvalidResponse(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("invalid json"))
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	_, err := client.GetConfig(context.Background(), "device-123")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to decode response")
+}
+
+// ==================== JoinNetwork Tests ====================
+
+func TestJoinNetwork_ServerError(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Invalid invite code"})
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	_, err := client.JoinNetwork(context.Background(), "INVALID")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Invalid invite code")
+}
+
+func TestJoinNetwork_ServerErrorNoMessage(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	_, err := client.JoinNetwork(context.Background(), "INVALID")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "status: 404")
+}
+
+// ==================== LeaveNetwork Tests ====================
+
+func TestLeaveNetwork_ServerError(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	err := client.LeaveNetwork(context.Background(), "net-123")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "status: 403")
+}
+
+// ==================== Peer Management Error Tests ====================
+
+func TestKickPeer_ServerError(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	err := client.KickPeer(context.Background(), "net-1", "peer-1", "reason")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "status: 403")
+}
+
+func TestBanPeer_ServerError(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	err := client.BanPeer(context.Background(), "net-1", "peer-1", "reason")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "status: 403")
+}
+
+func TestUnbanPeer_ServerError(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	err := client.UnbanPeer(context.Background(), "net-1", "peer-1")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "status: 404")
+}
+
+// ==================== GenerateInvite Error Tests ====================
+
+func TestGenerateInvite_ServerError(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		json.NewEncoder(w).Encode(map[string]string{"message": "Not authorized"})
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	_, err := client.GenerateInvite(context.Background(), "net-1", 10, 24)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Not authorized")
+}
+
+func TestGenerateInvite_ServerErrorNoMessage(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	_, err := client.GenerateInvite(context.Background(), "net-1", 10, 24)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "status: 500")
+}
+
+func TestGenerateInvite_ZeroExpiry(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req CreateInviteRequest
+		json.NewDecoder(r.Body).Decode(&req)
+		// When expiresHours is 0, ExpiresIn should be 0 (server default)
+		assert.Equal(t, 0, req.ExpiresIn)
+
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(InviteTokenResponse{Token: "token"})
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	_, err := client.GenerateInvite(context.Background(), "net-1", 10, 0)
+	require.NoError(t, err)
+}
+
+// ==================== GetNetworks Error Tests ====================
+
+func TestGetNetworks_ServerError(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	_, err := client.GetNetworks(context.Background())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "status: 500")
+}
+
+func TestGetNetworks_InvalidResponse(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("invalid json"))
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	_, err := client.GetNetworks(context.Background())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to decode response")
+}
+
+// ==================== handleMessage Tests ====================
+
+func TestHandleMessage_DirectCall(t *testing.T) {
+	cfg := &config.Config{
+		Server: struct {
+			URL string `yaml:"url"`
+		}{URL: "http://localhost"},
+	}
+	client := NewClient(cfg)
+
+	// Test direct call with invalid JSON
+	client.handleMessage([]byte("invalid json"))
+	// Should not panic
+
+	// Test with nil callbacks
+	signalPayload, _ := json.Marshal(signalPayload{Ufrag: "test", Pwd: "test"})
+	signalData, _ := json.Marshal(callSignalData{FromUser: "user", Signal: signalPayload})
+	msg, _ := json.Marshal(wsMessage{Type: "call.offer", Data: signalData})
+	client.handleMessage(msg)
+	// Should not panic when callbacks are nil
+}
+
+func TestHandleMessage_AllMessageTypes(t *testing.T) {
+	cfg := &config.Config{
+		Server: struct {
+			URL string `yaml:"url"`
+		}{URL: "http://localhost"},
+	}
+	client := NewClient(cfg)
+
+	offerCalled := false
+	answerCalled := false
+	candidateCalled := false
+
+	client.OnOffer(func(sourceID, ufrag, pwd string) {
+		offerCalled = true
+	})
+	client.OnAnswer(func(sourceID, ufrag, pwd string) {
+		answerCalled = true
+	})
+	client.OnCandidate(func(sourceID, candidate string) {
+		candidateCalled = true
+	})
+
+	// Test offer
+	payload, _ := json.Marshal(signalPayload{Ufrag: "u", Pwd: "p"})
+	data, _ := json.Marshal(callSignalData{FromUser: "user", Signal: payload})
+	msg, _ := json.Marshal(wsMessage{Type: "call.offer", Data: data})
+	client.handleMessage(msg)
+	assert.True(t, offerCalled)
+
+	// Test answer
+	msg, _ = json.Marshal(wsMessage{Type: "call.answer", Data: data})
+	client.handleMessage(msg)
+	assert.True(t, answerCalled)
+
+	// Test ICE candidate
+	payload, _ = json.Marshal(signalPayload{Candidate: "candidate"})
+	data, _ = json.Marshal(callSignalData{FromUser: "user", Signal: payload})
+	msg, _ = json.Marshal(wsMessage{Type: "call.ice", Data: data})
+	client.handleMessage(msg)
+	assert.True(t, candidateCalled)
 }

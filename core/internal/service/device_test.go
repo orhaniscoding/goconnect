@@ -802,3 +802,151 @@ func TestGetUpdatedFields(t *testing.T) {
 		assert.Contains(t, fields, "name")
 	})
 }
+
+// ==================== DeviceOnline/DeviceOffline Notifier Tests ====================
+
+func TestDeviceService_HeartbeatTriggersDeviceOnline(t *testing.T) {
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{}
+	service := NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
+
+	mockNotifier := &MockNotifier{}
+	service.SetNotifier(mockNotifier)
+
+	ctx := context.Background()
+
+	// Create user
+	user := &domain.User{
+		ID:           "user-notify",
+		TenantID:     "tenant-1",
+		Email:        "notify@example.com",
+		PasswordHash: "dummy",
+	}
+	require.NoError(t, userRepo.Create(ctx, user))
+
+	// Register device
+	device, err := service.RegisterDevice(ctx, "user-notify", "tenant-1", &domain.RegisterDeviceRequest{
+		Name:     "Notify Test Device",
+		Platform: "linux",
+		PubKey:   "NotifyKeyABCDEFGHIJKLMNOPQRSTUVWXYZ12345678=",
+	})
+	require.NoError(t, err)
+
+	t.Run("Heartbeat triggers DeviceOnline notification", func(t *testing.T) {
+		// Clear previous calls
+		mockNotifier.onlineCalls = nil
+
+		req := &domain.DeviceHeartbeatRequest{
+			IPAddress: "192.168.1.100",
+		}
+
+		err := service.Heartbeat(ctx, device.ID, "user-notify", "tenant-1", req)
+		require.NoError(t, err)
+
+		// Verify DeviceOnline was called
+		assert.Contains(t, mockNotifier.onlineCalls, device.ID)
+	})
+
+	t.Run("Heartbeat from offline device triggers DeviceOnline", func(t *testing.T) {
+		// Set device as offline (no recent LastSeen)
+		device.LastSeen = time.Time{} // Zero time means never seen
+		deviceRepo.Update(ctx, device)
+
+		// Clear previous calls
+		mockNotifier.onlineCalls = nil
+
+		req := &domain.DeviceHeartbeatRequest{
+			IPAddress: "192.168.1.101",
+		}
+
+		err := service.Heartbeat(ctx, device.ID, "user-notify", "tenant-1", req)
+		require.NoError(t, err)
+
+		// Verify DeviceOnline was called
+		assert.Contains(t, mockNotifier.onlineCalls, device.ID)
+	})
+}
+
+func TestDeviceService_DetectOfflineDevicesTriggersDeviceOffline(t *testing.T) {
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{}
+	service := NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
+
+	mockNotifier := &MockNotifier{}
+	service.SetNotifier(mockNotifier)
+
+	ctx := context.Background()
+
+	// Create user
+	user := &domain.User{ID: "user-offline", TenantID: "tenant-1"}
+	require.NoError(t, userRepo.Create(ctx, user))
+
+	// Create a device with stale last seen time
+	device, err := service.RegisterDevice(ctx, "user-offline", "tenant-1", &domain.RegisterDeviceRequest{
+		Name:     "Stale Device",
+		Platform: "linux",
+		PubKey:   "StaleKeyXABCDEFGHIJKLMNOPQRSTUVWXYZ12345678=",
+	})
+	require.NoError(t, err)
+
+	// Mark as active but stale
+	device.Active = true
+	device.LastSeen = time.Now().Add(-10 * time.Minute) // Stale
+	deviceRepo.Update(ctx, device)
+
+	t.Run("Detect offline triggers DeviceOffline notification", func(t *testing.T) {
+		// Clear previous calls
+		mockNotifier.offlineCalls = nil
+
+		// Run offline detection with 5 minute threshold
+		service.detectOfflineDevices(ctx, 5*time.Minute)
+
+		// Verify DeviceOffline was called for stale device
+		assert.Contains(t, mockNotifier.offlineCalls, device.ID)
+	})
+}
+
+func TestNoopDeviceNotifier(t *testing.T) {
+	// Test that noopDeviceNotifier doesn't panic
+	notifier := noopDeviceNotifier{}
+
+	t.Run("DeviceOnline does not panic", func(t *testing.T) {
+		assert.NotPanics(t, func() {
+			notifier.DeviceOnline("device-id", "user-id")
+		})
+	})
+
+	t.Run("DeviceOffline does not panic", func(t *testing.T) {
+		assert.NotPanics(t, func() {
+			notifier.DeviceOffline("device-id", "user-id")
+		})
+	})
+}
+
+// ==================== SetNotifier Tests ====================
+
+func TestDeviceService_SetNotifier(t *testing.T) {
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{}
+	service := NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
+
+	t.Run("Set Notifier With Nil", func(t *testing.T) {
+		// Setting nil notifier should be a no-op (not panic)
+		service.SetNotifier(nil)
+	})
+
+	t.Run("Set Notifier With Valid Notifier", func(t *testing.T) {
+		mockNotifier := &MockNotifier{}
+		service.SetNotifier(mockNotifier)
+		// Should not panic and notifier should be set
+	})
+}

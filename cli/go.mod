@@ -1,12 +1,14 @@
 module github.com/orhaniscoding/goconnect/client-daemon
 
-go 1.23
+go 1.24.0
+
+toolchain go1.24.11
 
 require (
 	github.com/99designs/keyring v1.2.1
 	github.com/atotto/clipboard v0.1.4
-	github.com/charmbracelet/bubbles v0.21.0
-	github.com/charmbracelet/bubbletea v1.3.10
+	github.com/charmbracelet/bubbles v0.20.0
+	github.com/charmbracelet/bubbletea v1.2.4
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.7.4

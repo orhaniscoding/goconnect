@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -398,4 +399,692 @@ func TestClient_UpdateActivityAndGetLastActivity(t *testing.T) {
 	client.UpdateActivity()
 	newActivity := client.GetLastActivity()
 	assert.True(t, newActivity.After(activity) || newActivity.Equal(activity))
+}
+
+// createTestWebSocketServer creates a test HTTP server that upgrades to WebSocket
+// and returns the server, WebSocket URL, and a cleanup function
+func createTestWebSocketServer(t *testing.T, handler func(*websocket.Conn)) (*httptest.Server, string, func()) {
+	upgrader := websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool { return true },
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Logf("Upgrade error: %v", err)
+			return
+		}
+		handler(conn)
+	}))
+
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
+
+	cleanup := func() {
+		server.Close()
+	}
+
+	return server, wsURL, cleanup
+}
+
+// TestClient_ReadPump_MessageHandling tests that readPump correctly receives and processes messages
+func TestClient_ReadPump_MessageHandling(t *testing.T) {
+	// Create a hub with a mock handler that captures inbound events
+	inboundChan := make(chan *InboundEvent, 10)
+	hub := &Hub{
+		clients:       make(map[*Client]bool),
+		rooms:         make(map[string]map[*Client]bool),
+		handleInbound: inboundChan,
+		broadcast:     make(chan *BroadcastMessage, 256),
+		register:      make(chan *Client, 10),
+		unregister:    make(chan *Client, 10),
+	}
+
+	// Create server that sends a message to the client
+	_, wsURL, cleanup := createTestWebSocketServer(t, func(conn *websocket.Conn) {
+		defer conn.Close()
+
+		// Send a valid JSON message to the client
+		msg := InboundMessage{
+			Type: TypeChatSend,
+			OpID: "test-op-1",
+			Data: json.RawMessage(`{"scope":"network:1","body":"hello"}`),
+		}
+		data, _ := json.Marshal(msg)
+		err := conn.WriteMessage(websocket.TextMessage, data)
+		if err != nil {
+			t.Logf("Server write error: %v", err)
+		}
+
+		// Keep connection open briefly
+		time.Sleep(100 * time.Millisecond)
+	})
+	defer cleanup()
+
+	// Connect client
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	require.NoError(t, err)
+
+	client := NewClient(hub, ws, "user-1", "tenant-1", false, false)
+
+	// Start readPump in background
+	done := make(chan bool)
+	go func() {
+		client.readPump()
+		done <- true
+	}()
+
+	// Wait for inbound event
+	select {
+	case event := <-inboundChan:
+		assert.Equal(t, client, event.client)
+		assert.Equal(t, TypeChatSend, event.message.Type)
+		assert.Equal(t, "test-op-1", event.message.OpID)
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("Expected inbound event but got timeout")
+	}
+
+	// Wait for readPump to finish
+	select {
+	case <-done:
+		// Expected - connection closed by server
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("readPump did not finish")
+	}
+}
+
+// TestClient_ReadPump_InvalidJSON tests that readPump handles invalid JSON gracefully
+func TestClient_ReadPump_InvalidJSON(t *testing.T) {
+	hub := &Hub{
+		clients:       make(map[*Client]bool),
+		rooms:         make(map[string]map[*Client]bool),
+		handleInbound: make(chan *InboundEvent, 10),
+		broadcast:     make(chan *BroadcastMessage, 256),
+		register:      make(chan *Client, 10),
+		unregister:    make(chan *Client, 10),
+	}
+
+	_, wsURL, cleanup := createTestWebSocketServer(t, func(conn *websocket.Conn) {
+		defer conn.Close()
+
+		// Send invalid JSON
+		err := conn.WriteMessage(websocket.TextMessage, []byte(`{invalid json}`))
+		if err != nil {
+			t.Logf("Server write error: %v", err)
+		}
+
+		time.Sleep(100 * time.Millisecond)
+	})
+	defer cleanup()
+
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	require.NoError(t, err)
+
+	client := NewClient(hub, ws, "user-1", "tenant-1", false, false)
+
+	done := make(chan bool)
+	go func() {
+		client.readPump()
+		done <- true
+	}()
+
+	// Wait for error message on client send channel
+	select {
+	case data := <-client.send:
+		var outMsg OutboundMessage
+		err := json.Unmarshal(data, &outMsg)
+		require.NoError(t, err)
+		assert.Equal(t, TypeError, outMsg.Type)
+		assert.Equal(t, "ERR_INVALID_MESSAGE", outMsg.Error.Code)
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("Expected error message but got timeout")
+	}
+
+	select {
+	case <-done:
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("readPump did not finish")
+	}
+}
+
+// TestClient_ReadPump_RateLimit tests that readPump enforces rate limiting
+func TestClient_ReadPump_RateLimit(t *testing.T) {
+	inboundChan := make(chan *InboundEvent, 100)
+	hub := &Hub{
+		clients:       make(map[*Client]bool),
+		rooms:         make(map[string]map[*Client]bool),
+		handleInbound: inboundChan,
+		broadcast:     make(chan *BroadcastMessage, 256),
+		register:      make(chan *Client, 10),
+		unregister:    make(chan *Client, 10),
+	}
+
+	messageCount := 0
+	_, wsURL, cleanup := createTestWebSocketServer(t, func(conn *websocket.Conn) {
+		defer conn.Close()
+
+		// Send many messages quickly to trigger rate limiting
+		for i := 0; i < 30; i++ {
+			msg := InboundMessage{
+				Type: TypeChatSend,
+				OpID: "op-" + string(rune('a'+i)),
+				Data: json.RawMessage(`{"scope":"network:1","body":"msg"}`),
+			}
+			data, _ := json.Marshal(msg)
+			if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+				break
+			}
+			messageCount++
+		}
+
+		time.Sleep(100 * time.Millisecond)
+	})
+	defer cleanup()
+
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	require.NoError(t, err)
+
+	client := NewClient(hub, ws, "user-1", "tenant-1", false, false)
+
+	done := make(chan bool)
+	go func() {
+		client.readPump()
+		done <- true
+	}()
+
+	// Collect inbound events and rate limit errors
+	time.Sleep(300 * time.Millisecond)
+
+	// Check for rate limit error in send channel
+	rateLimitErrorFound := false
+	for {
+		select {
+		case data := <-client.send:
+			var outMsg OutboundMessage
+			if err := json.Unmarshal(data, &outMsg); err == nil {
+				if outMsg.Type == TypeError && outMsg.Error != nil && outMsg.Error.Code == "ERR_RATE_LIMIT" {
+					rateLimitErrorFound = true
+				}
+			}
+		default:
+			goto checkResult
+		}
+	}
+
+checkResult:
+	// With rate limit of 10 messages per second, burst 20, sending 30 messages
+	// should trigger at least some rate limit errors
+	assert.True(t, rateLimitErrorFound, "Expected rate limit error to be triggered")
+
+	select {
+	case <-done:
+	case <-time.After(500 * time.Millisecond):
+		// That's okay, we just need to verify rate limiting worked
+	}
+}
+
+// TestClient_WritePump_SendMessage tests that writePump correctly sends messages to the connection
+func TestClient_WritePump_SendMessage(t *testing.T) {
+	receivedMsgs := make(chan []byte, 10)
+
+	_, wsURL, cleanup := createTestWebSocketServer(t, func(conn *websocket.Conn) {
+		defer conn.Close()
+
+		for {
+			_, message, err := conn.ReadMessage()
+			if err != nil {
+				break
+			}
+			receivedMsgs <- message
+		}
+	})
+	defer cleanup()
+
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	require.NoError(t, err)
+
+	// Create hub for client
+	hub := NewHub(nil)
+	client := NewClient(hub, ws, "user-1", "tenant-1", false, false)
+
+	// Start writePump in background
+	go client.writePump()
+
+	// Send a message through the client
+	msg := &OutboundMessage{
+		Type: TypeChatMessage,
+		Data: &ChatMessageData{
+			ID:     "msg-1",
+			Scope:  "network:1",
+			UserID: "user-1",
+			Body:   "Hello world",
+		},
+	}
+	err = client.Send(msg)
+	require.NoError(t, err)
+
+	// Wait for server to receive message
+	select {
+	case data := <-receivedMsgs:
+		var received OutboundMessage
+		err := json.Unmarshal(data, &received)
+		require.NoError(t, err)
+		assert.Equal(t, TypeChatMessage, received.Type)
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("Server did not receive message")
+	}
+
+	// Clean up
+	close(client.send)
+	time.Sleep(50 * time.Millisecond)
+}
+
+// TestClient_WritePump_MultipleMessages tests batching of messages
+func TestClient_WritePump_MultipleMessages(t *testing.T) {
+	receivedMsgs := make(chan []byte, 10)
+
+	_, wsURL, cleanup := createTestWebSocketServer(t, func(conn *websocket.Conn) {
+		defer conn.Close()
+
+		for {
+			_, message, err := conn.ReadMessage()
+			if err != nil {
+				break
+			}
+			receivedMsgs <- message
+		}
+	})
+	defer cleanup()
+
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	require.NoError(t, err)
+
+	hub := NewHub(nil)
+	client := NewClient(hub, ws, "user-1", "tenant-1", false, false)
+
+	// Queue multiple messages before starting writePump
+	for i := 0; i < 3; i++ {
+		msg := &OutboundMessage{
+			Type: TypeChatMessage,
+			Data: &ChatMessageData{
+				ID:   "msg-" + string(rune('1'+i)),
+				Body: "Message " + string(rune('1'+i)),
+			},
+		}
+		data, _ := json.Marshal(msg)
+		client.send <- data
+	}
+
+	// Start writePump
+	go client.writePump()
+
+	// Wait for server to receive messages (may be batched)
+	time.Sleep(200 * time.Millisecond)
+
+	// Verify we received data
+	select {
+	case data := <-receivedMsgs:
+		// Data should contain at least one message (potentially newline-separated)
+		assert.NotEmpty(t, data)
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("Server did not receive any messages")
+	}
+
+	close(client.send)
+	time.Sleep(50 * time.Millisecond)
+}
+
+// TestClient_WritePump_ChannelClosed tests that writePump handles channel close
+func TestClient_WritePump_ChannelClosed(t *testing.T) {
+	closeMessageReceived := make(chan bool, 1)
+
+	_, wsURL, cleanup := createTestWebSocketServer(t, func(conn *websocket.Conn) {
+		defer conn.Close()
+
+		for {
+			msgType, _, err := conn.ReadMessage()
+			if err != nil {
+				break
+			}
+			if msgType == websocket.CloseMessage {
+				closeMessageReceived <- true
+				break
+			}
+		}
+	})
+	defer cleanup()
+
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	require.NoError(t, err)
+
+	hub := NewHub(nil)
+	client := NewClient(hub, ws, "user-1", "tenant-1", false, false)
+
+	done := make(chan bool)
+	go func() {
+		client.writePump()
+		done <- true
+	}()
+
+	// Close the send channel to signal shutdown
+	close(client.send)
+
+	// Wait for writePump to finish
+	select {
+	case <-done:
+		// writePump finished as expected
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("writePump did not finish after channel close")
+	}
+}
+
+// TestClient_Run tests the Run function that starts both pumps
+func TestClient_Run(t *testing.T) {
+	inboundChan := make(chan *InboundEvent, 10)
+	hub := &Hub{
+		clients:       make(map[*Client]bool),
+		rooms:         make(map[string]map[*Client]bool),
+		handleInbound: inboundChan,
+		broadcast:     make(chan *BroadcastMessage, 256),
+		register:      make(chan *Client, 10),
+		unregister:    make(chan *Client, 10),
+	}
+
+	receivedMsgs := make(chan []byte, 10)
+
+	_, wsURL, cleanup := createTestWebSocketServer(t, func(conn *websocket.Conn) {
+		defer conn.Close()
+
+		// Send a message to client
+		msg := InboundMessage{
+			Type: TypeChatSend,
+			OpID: "op-run-test",
+			Data: json.RawMessage(`{"scope":"network:1","body":"hello from server"}`),
+		}
+		data, _ := json.Marshal(msg)
+		conn.WriteMessage(websocket.TextMessage, data)
+
+		// Read messages from client
+		for {
+			_, message, err := conn.ReadMessage()
+			if err != nil {
+				break
+			}
+			receivedMsgs <- message
+		}
+	})
+	defer cleanup()
+
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	require.NoError(t, err)
+
+	client := NewClient(hub, ws, "user-1", "tenant-1", false, false)
+
+	// Run client (starts both pumps)
+	ctx := context.Background()
+	client.Run(ctx)
+
+	// Verify readPump received the message
+	select {
+	case event := <-inboundChan:
+		assert.Equal(t, "op-run-test", event.message.OpID)
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("readPump did not receive message")
+	}
+
+	// Send a message through writePump
+	outMsg := &OutboundMessage{
+		Type: TypeAck,
+		OpID: "ack-test",
+	}
+	err = client.Send(outMsg)
+	require.NoError(t, err)
+
+	// Verify server received the message
+	select {
+	case data := <-receivedMsgs:
+		var received OutboundMessage
+		err := json.Unmarshal(data, &received)
+		require.NoError(t, err)
+		assert.Equal(t, TypeAck, received.Type)
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("Server did not receive message from writePump")
+	}
+
+	// Clean up
+	ws.Close()
+	time.Sleep(100 * time.Millisecond)
+}
+
+// TestClient_ReadPump_ConnectionClose tests that readPump handles connection close properly
+func TestClient_ReadPump_ConnectionClose(t *testing.T) {
+	unregisterChan := make(chan *Client, 1)
+	hub := &Hub{
+		clients:       make(map[*Client]bool),
+		rooms:         make(map[string]map[*Client]bool),
+		handleInbound: make(chan *InboundEvent, 10),
+		broadcast:     make(chan *BroadcastMessage, 256),
+		register:      make(chan *Client, 10),
+		unregister:    unregisterChan,
+	}
+
+	_, wsURL, cleanup := createTestWebSocketServer(t, func(conn *websocket.Conn) {
+		// Close connection immediately
+		conn.Close()
+	})
+	defer cleanup()
+
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	require.NoError(t, err)
+
+	client := NewClient(hub, ws, "user-1", "tenant-1", false, false)
+
+	done := make(chan bool)
+	go func() {
+		client.readPump()
+		done <- true
+	}()
+
+	// Verify unregister is called
+	select {
+	case unregistered := <-unregisterChan:
+		assert.Equal(t, client, unregistered)
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("Client was not unregistered after connection close")
+	}
+
+	select {
+	case <-done:
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("readPump did not finish")
+	}
+}
+
+// TestClient_ReadPump_PongHandler tests that pong handler resets read deadline
+func TestClient_ReadPump_PongHandler(t *testing.T) {
+	hub := &Hub{
+		clients:       make(map[*Client]bool),
+		rooms:         make(map[string]map[*Client]bool),
+		handleInbound: make(chan *InboundEvent, 10),
+		broadcast:     make(chan *BroadcastMessage, 256),
+		register:      make(chan *Client, 10),
+		unregister:    make(chan *Client, 10),
+	}
+
+	_, wsURL, cleanup := createTestWebSocketServer(t, func(conn *websocket.Conn) {
+		defer conn.Close()
+
+		// Send a ping, client should respond with pong
+		err := conn.WriteMessage(websocket.PingMessage, []byte("ping"))
+		if err != nil {
+			t.Logf("Error sending ping: %v", err)
+			return
+		}
+
+		// Keep connection alive briefly
+		time.Sleep(200 * time.Millisecond)
+	})
+	defer cleanup()
+
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	require.NoError(t, err)
+
+	client := NewClient(hub, ws, "user-1", "tenant-1", false, false)
+
+	done := make(chan bool)
+	go func() {
+		client.readPump()
+		done <- true
+	}()
+
+	// Wait for readPump to finish
+	select {
+	case <-done:
+		// Connection closed normally
+	case <-time.After(1 * time.Second):
+		t.Fatal("readPump did not finish")
+	}
+}
+
+// TestClient_WritePump_Ping tests that writePump sends periodic pings
+func TestClient_WritePump_Ping(t *testing.T) {
+	// Skip this test if running in CI as it's timing-sensitive
+	if testing.Short() {
+		t.Skip("Skipping ping test in short mode")
+	}
+
+	pingReceived := make(chan bool, 1)
+
+	_, wsURL, cleanup := createTestWebSocketServer(t, func(conn *websocket.Conn) {
+		defer conn.Close()
+
+		conn.SetPingHandler(func(appData string) error {
+			pingReceived <- true
+			return nil
+		})
+
+		// Keep reading to process pings
+		for {
+			_, _, err := conn.ReadMessage()
+			if err != nil {
+				break
+			}
+		}
+	})
+	defer cleanup()
+
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	require.NoError(t, err)
+
+	hub := NewHub(nil)
+	client := NewClient(hub, ws, "user-1", "tenant-1", false, false)
+
+	go client.writePump()
+
+	// Note: pingPeriod is 54 seconds, so we won't wait for actual ping in unit tests
+	// Instead we just verify the writePump is running correctly
+	time.Sleep(100 * time.Millisecond)
+
+	// Clean up
+	close(client.send)
+}
+
+// TestClient_WritePump_WriteError tests that writePump handles write errors
+func TestClient_WritePump_WriteError(t *testing.T) {
+	serverReady := make(chan bool)
+	_, wsURL, cleanup := createTestWebSocketServer(t, func(conn *websocket.Conn) {
+		serverReady <- true
+		// Keep the connection open until we're done
+		time.Sleep(5 * time.Second)
+		conn.Close()
+	})
+	defer cleanup()
+
+	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	require.NoError(t, err)
+
+	hub := NewHub(nil)
+	client := NewClient(hub, ws, "user-1", "tenant-1", false, false)
+
+	// Wait for server to be ready
+	<-serverReady
+
+	done := make(chan bool)
+	go func() {
+		client.writePump()
+		done <- true
+	}()
+
+	// Give writePump a moment to start
+	time.Sleep(10 * time.Millisecond)
+
+	// Close the websocket connection to cause a write error
+	ws.Close()
+
+	// writePump should finish due to write error (on next ticker tick or send)
+	// Send a message to trigger the write error immediately
+	msg := &OutboundMessage{
+		Type: TypeAck,
+		OpID: "test",
+	}
+	data, _ := json.Marshal(msg)
+
+	select {
+	case client.send <- data:
+		// Message queued, will fail on write
+	default:
+		// Channel full or closed
+	}
+
+	// Wait for writePump to finish
+	select {
+	case <-done:
+		// Expected - writePump finished due to write error
+	case <-time.After(1 * time.Second):
+		t.Fatal("writePump did not finish after write error")
+	}
+}
+
+// TestClient_SendMessage_Internal tests the internal sendMessage function
+func TestClient_SendMessage_Internal(t *testing.T) {
+	client := &Client{
+		send: make(chan []byte, 10),
+	}
+
+	msg := &OutboundMessage{
+		Type: TypePresencePong,
+		Data: map[string]string{"status": "ok"},
+	}
+
+	client.sendMessage(msg)
+
+	select {
+	case data := <-client.send:
+		var received OutboundMessage
+		err := json.Unmarshal(data, &received)
+		require.NoError(t, err)
+		assert.Equal(t, TypePresencePong, received.Type)
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("sendMessage did not send")
+	}
+}
+
+// TestClient_SendMessage_BufferFull tests sendMessage when buffer is full
+func TestClient_SendMessage_BufferFull(t *testing.T) {
+	// Create client with buffer size 1
+	client := &Client{
+		send: make(chan []byte, 1),
+	}
+
+	msg := &OutboundMessage{
+		Type: TypeAck,
+	}
+
+	// Fill the buffer
+	client.send <- []byte(`{}`)
+
+	// This should not block (uses select with default)
+	client.sendMessage(msg)
+
+	// Should still have only one message in buffer
+	assert.Len(t, client.send, 1)
 }

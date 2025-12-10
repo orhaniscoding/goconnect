@@ -1,9 +1,14 @@
 package chat
 
 import (
+	"encoding/json"
 	"fmt"
+	"net"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewManager(t *testing.T) {
@@ -422,4 +427,480 @@ func TestManager_StoreMessage_GeneratesID(t *testing.T) {
 	if messages[0].ID == "" {
 		t.Error("Expected ID to be generated for message without ID")
 	}
+}
+
+// TestManager_HandleConnection tests the handleConnection method via actual TCP connections
+func TestManager_HandleConnection(t *testing.T) {
+	m := NewManager()
+
+	// Start on a random port
+	err := m.Start("127.0.0.1", 0)
+	require.NoError(t, err)
+	defer m.Stop()
+
+	// Set up a message callback to verify reception
+	received := make(chan Message, 1)
+	m.OnMessage(func(msg Message) {
+		received <- msg
+	})
+
+	// Get the actual address
+	addr := m.listener.Addr().String()
+
+	// Connect and send a message
+	conn, err := net.DialTimeout("tcp", addr, time.Second)
+	require.NoError(t, err)
+	defer conn.Close()
+
+	// Send a valid JSON message
+	msg := Message{
+		ID:        "test-connection-msg",
+		From:      "test-peer",
+		Content:   "Hello from test",
+		Time:      time.Now(),
+		NetworkID: "test-network",
+	}
+	err = json.NewEncoder(conn).Encode(msg)
+	require.NoError(t, err)
+
+	// Wait for the message to be received
+	select {
+	case rcvd := <-received:
+		assert.Equal(t, "test-connection-msg", rcvd.ID)
+		assert.Equal(t, "test-peer", rcvd.From)
+		assert.Equal(t, "Hello from test", rcvd.Content)
+		assert.Equal(t, "test-network", rcvd.NetworkID)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Timeout waiting for message")
+	}
+}
+
+// TestManager_HandleConnection_InvalidJSON tests handling of invalid JSON input
+func TestManager_HandleConnection_InvalidJSON(t *testing.T) {
+	m := NewManager()
+
+	err := m.Start("127.0.0.1", 0)
+	require.NoError(t, err)
+	defer m.Stop()
+
+	addr := m.listener.Addr().String()
+
+	// Connect and send invalid JSON
+	conn, err := net.DialTimeout("tcp", addr, time.Second)
+	require.NoError(t, err)
+
+	_, err = conn.Write([]byte("this is not valid json"))
+	require.NoError(t, err)
+	conn.Close()
+
+	// Give it time to process the invalid input
+	time.Sleep(100 * time.Millisecond)
+
+	// The manager should continue running (not crash)
+	assert.NotNil(t, m.listener)
+}
+
+// TestManager_HandleConnection_NoCallback tests handling when no callback is set
+func TestManager_HandleConnection_NoCallback(t *testing.T) {
+	m := NewManager()
+
+	err := m.Start("127.0.0.1", 0)
+	require.NoError(t, err)
+	defer m.Stop()
+
+	addr := m.listener.Addr().String()
+
+	// Connect and send a message without setting a callback
+	conn, err := net.DialTimeout("tcp", addr, time.Second)
+	require.NoError(t, err)
+	defer conn.Close()
+
+	msg := Message{
+		ID:      "no-callback-msg",
+		From:    "peer",
+		Content: "Test",
+		Time:    time.Now(),
+	}
+	err = json.NewEncoder(conn).Encode(msg)
+	require.NoError(t, err)
+
+	// Give it time to process
+	time.Sleep(100 * time.Millisecond)
+
+	// Message should still be stored even without callback
+	messages := m.GetMessages("", 10, "")
+	assert.Len(t, messages, 1)
+	assert.Equal(t, "no-callback-msg", messages[0].ID)
+}
+
+// TestManager_HandleConnection_SubscriberNotification tests that subscribers are notified
+func TestManager_HandleConnection_SubscriberNotification(t *testing.T) {
+	m := NewManager()
+
+	err := m.Start("127.0.0.1", 0)
+	require.NoError(t, err)
+	defer m.Stop()
+
+	// Subscribe before sending message
+	ch := m.Subscribe()
+	defer m.Unsubscribe(ch)
+
+	addr := m.listener.Addr().String()
+
+	// Connect and send a message
+	conn, err := net.DialTimeout("tcp", addr, time.Second)
+	require.NoError(t, err)
+	defer conn.Close()
+
+	msg := Message{
+		ID:      "subscriber-msg",
+		From:    "peer",
+		Content: "For subscribers",
+		Time:    time.Now(),
+	}
+	err = json.NewEncoder(conn).Encode(msg)
+	require.NoError(t, err)
+
+	// Wait for subscriber notification
+	select {
+	case rcvd := <-ch:
+		assert.Equal(t, "subscriber-msg", rcvd.ID)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Timeout waiting for subscriber notification")
+	}
+}
+
+// TestManager_SendMessage_Success tests successful message sending
+func TestManager_SendMessage_Success(t *testing.T) {
+	// Create a receiver manager
+	receiver := NewManager()
+	err := receiver.Start("127.0.0.1", 0)
+	require.NoError(t, err)
+	defer receiver.Stop()
+
+	// Get the port
+	addr := receiver.listener.Addr().(*net.TCPAddr)
+	port := addr.Port
+
+	// Set up message callback
+	received := make(chan Message, 1)
+	receiver.OnMessage(func(msg Message) {
+		received <- msg
+	})
+
+	// Create sender manager
+	sender := NewManager()
+
+	// Send a message
+	err = sender.SendMessage("127.0.0.1", port, "Hello from sender", "sender-peer-id")
+	require.NoError(t, err)
+
+	// Verify message was received
+	select {
+	case rcvd := <-received:
+		assert.Equal(t, "Hello from sender", rcvd.Content)
+		assert.Equal(t, "sender-peer-id", rcvd.From)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Timeout waiting for sent message")
+	}
+}
+
+// TestManager_SendMessage_InvalidPort tests sending to an invalid port
+func TestManager_SendMessage_InvalidPort(t *testing.T) {
+	m := NewManager()
+
+	// Try to send to an invalid/closed port
+	err := m.SendMessage("127.0.0.1", 59999, "test", "peer")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to dial peer")
+}
+
+// TestManager_SendMessage_InvalidIP tests sending to an invalid IP
+func TestManager_SendMessage_InvalidIP(t *testing.T) {
+	m := NewManager()
+
+	// Try to send to an invalid IP
+	err := m.SendMessage("999.999.999.999", 1234, "test", "peer")
+	assert.Error(t, err)
+}
+
+// TestManager_SearchMessages_WithStorage tests SearchMessages with storage
+func TestManager_SearchMessages_WithStorage(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	m, err := NewManagerWithStorage(tmpDir)
+	require.NoError(t, err)
+	defer m.Stop()
+
+	// Store some messages
+	m.storeMessage(Message{
+		ID:      "search-1",
+		From:    "peer",
+		Content: "Hello world",
+		Time:    time.Now(),
+	})
+	m.storeMessage(Message{
+		ID:      "search-2",
+		From:    "peer",
+		Content: "Goodbye world",
+		Time:    time.Now(),
+	})
+	m.storeMessage(Message{
+		ID:      "search-3",
+		From:    "peer",
+		Content: "Hello again",
+		Time:    time.Now(),
+	})
+
+	// Search for "Hello"
+	results := m.SearchMessages("Hello", 10)
+	assert.Len(t, results, 2)
+}
+
+// TestManager_GetMessages_WithStorage tests GetMessages with storage backend
+func TestManager_GetMessages_WithStorage(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	m, err := NewManagerWithStorage(tmpDir)
+	require.NoError(t, err)
+	defer m.Stop()
+
+	// Store messages
+	for i := 0; i < 5; i++ {
+		m.storeMessage(Message{
+			ID:        fmt.Sprintf("stored-msg-%d", i),
+			From:      "peer",
+			Content:   fmt.Sprintf("Message %d", i),
+			Time:      time.Now().Add(time.Duration(i) * time.Second),
+			NetworkID: "network-1",
+		})
+	}
+
+	// Get messages from storage
+	messages := m.GetMessages("", 3, "")
+	assert.Len(t, messages, 3)
+
+	// Get messages filtered by network
+	networkMsgs := m.GetMessages("network-1", 10, "")
+	assert.Len(t, networkMsgs, 5)
+}
+
+// TestManager_StoreMessage_WithStorage tests message persistence
+func TestManager_StoreMessage_WithStorage(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	m, err := NewManagerWithStorage(tmpDir)
+	require.NoError(t, err)
+
+	// Store a message
+	m.storeMessage(Message{
+		ID:        "persist-msg",
+		From:      "peer",
+		Content:   "Persistent message",
+		Time:      time.Now(),
+		NetworkID: "network",
+	})
+
+	m.Stop()
+
+	// Create a new manager with the same storage
+	m2, err := NewManagerWithStorage(tmpDir)
+	require.NoError(t, err)
+	defer m2.Stop()
+
+	// Message should be loaded from storage
+	messages := m2.GetMessages("", 10, "")
+	assert.Len(t, messages, 1)
+	assert.Equal(t, "persist-msg", messages[0].ID)
+}
+
+// TestManager_LoadRecentMessages tests loading messages into memory cache
+func TestManager_LoadRecentMessages(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// First create a manager and save some messages
+	m1, err := NewManagerWithStorage(tmpDir)
+	require.NoError(t, err)
+
+	for i := 0; i < 10; i++ {
+		m1.storeMessage(Message{
+			ID:      fmt.Sprintf("load-msg-%d", i),
+			From:    "peer",
+			Content: fmt.Sprintf("Message %d", i),
+			Time:    time.Now().Add(time.Duration(i) * time.Second),
+		})
+	}
+	m1.Stop()
+
+	// Create a new manager - messages should be loaded into cache
+	m2, err := NewManagerWithStorage(tmpDir)
+	require.NoError(t, err)
+	defer m2.Stop()
+
+	// Check in-memory cache has messages
+	m2.messagesMu.RLock()
+	cachedCount := len(m2.messages)
+	m2.messagesMu.RUnlock()
+
+	assert.Equal(t, 10, cachedCount)
+}
+
+// TestManager_AcceptLoop_StopChannel tests that acceptLoop handles stopChan correctly
+func TestManager_AcceptLoop_StopChannel(t *testing.T) {
+	m := NewManager()
+
+	err := m.Start("127.0.0.1", 0)
+	require.NoError(t, err)
+
+	// Stop should trigger the stopChan and exit gracefully
+	done := make(chan struct{})
+	go func() {
+		m.Stop()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Success - Stop completed
+	case <-time.After(5 * time.Second):
+		t.Fatal("Timeout waiting for Stop to complete")
+	}
+}
+
+// TestManager_Start_FailsOnBadAddress tests Start with invalid address
+func TestManager_Start_FailsOnBadAddress(t *testing.T) {
+	m := NewManager()
+
+	// Try to start on an invalid address
+	err := m.Start("999.999.999.999", 12345)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to start chat listener")
+}
+
+// TestNewManagerWithStorage_InvalidPath tests creating storage with invalid path
+func TestNewManagerWithStorage_InvalidPath(t *testing.T) {
+	// Try to create storage in a path that doesn't allow writing
+	_, err := NewManagerWithStorage("/nonexistent/deeply/nested/path/that/should/fail")
+	// This might not fail on all systems, but the important thing is it handles the case gracefully
+	if err != nil {
+		assert.Contains(t, err.Error(), "failed to initialize chat storage")
+	}
+}
+
+// TestManager_MultipleSubscribers tests handling multiple subscribers
+func TestManager_MultipleSubscribers(t *testing.T) {
+	m := NewManager()
+
+	// Create multiple subscribers
+	subscribers := make([]chan Message, 5)
+	for i := 0; i < 5; i++ {
+		subscribers[i] = m.Subscribe()
+	}
+
+	// Notify subscribers directly (not via storeMessage to avoid race)
+	msg := Message{
+		ID:      "multi-sub-msg",
+		From:    "peer",
+		Content: "Test",
+		Time:    time.Now(),
+	}
+	m.notifySubscribers(msg)
+
+	// All subscribers should receive the message
+	for i, ch := range subscribers {
+		select {
+		case rcvd := <-ch:
+			assert.Equal(t, "multi-sub-msg", rcvd.ID, "Subscriber %d received wrong message", i)
+		case <-time.After(2 * time.Second):
+			t.Fatalf("Subscriber %d did not receive message", i)
+		}
+	}
+
+	// Unsubscribe all
+	for _, ch := range subscribers {
+		m.Unsubscribe(ch)
+	}
+}
+
+// TestMessage_JSON tests JSON marshaling/unmarshaling of Message
+func TestMessage_JSON(t *testing.T) {
+	original := Message{
+		ID:        "json-test-msg",
+		From:      "peer-123",
+		Content:   "Test content with special chars: <>&\"'",
+		Time:      time.Now().Round(time.Second), // Round for comparison
+		NetworkID: "network-456",
+	}
+
+	// Marshal
+	data, err := json.Marshal(original)
+	require.NoError(t, err)
+
+	// Unmarshal
+	var decoded Message
+	err = json.Unmarshal(data, &decoded)
+	require.NoError(t, err)
+
+	assert.Equal(t, original.ID, decoded.ID)
+	assert.Equal(t, original.From, decoded.From)
+	assert.Equal(t, original.Content, decoded.Content)
+	assert.Equal(t, original.NetworkID, decoded.NetworkID)
+	assert.True(t, original.Time.Equal(decoded.Time))
+}
+
+// TestManager_GetMessages_BeforeID_NotFound tests GetMessages with non-existent beforeID
+func TestManager_GetMessages_BeforeID_NotFound(t *testing.T) {
+	m := NewManager()
+
+	// Add some messages
+	for i := 0; i < 3; i++ {
+		m.storeMessage(Message{
+			ID:      fmt.Sprintf("msg-%d", i),
+			From:    "peer",
+			Content: "test",
+			Time:    time.Now(),
+		})
+	}
+
+	// Try to get messages before a non-existent ID
+	messages := m.GetMessages("", 10, "nonexistent-id")
+	// Should return empty since the beforeID was never found
+	assert.Empty(t, messages)
+}
+
+// TestManager_GetMessages_NetworkFilter_NoMatch tests network filtering with no matches
+func TestManager_GetMessages_NetworkFilter_NoMatch(t *testing.T) {
+	m := NewManager()
+
+	// Add messages to one network
+	m.storeMessage(Message{
+		ID:        "msg-1",
+		From:      "peer",
+		Content:   "test",
+		Time:      time.Now(),
+		NetworkID: "network-1",
+	})
+
+	// Try to get messages from a different network
+	messages := m.GetMessages("network-2", 10, "")
+	assert.Empty(t, messages)
+}
+
+// TestManager_GetMessages_LimitExceedsCount tests limit larger than message count
+func TestManager_GetMessages_LimitExceedsCount(t *testing.T) {
+	m := NewManager()
+
+	// Add 3 messages
+	for i := 0; i < 3; i++ {
+		m.storeMessage(Message{
+			ID:      fmt.Sprintf("msg-%d", i),
+			From:    "peer",
+			Content: "test",
+			Time:    time.Now(),
+		})
+	}
+
+	// Request more messages than exist
+	messages := m.GetMessages("", 100, "")
+	assert.Len(t, messages, 3)
 }

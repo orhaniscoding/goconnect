@@ -23,12 +23,19 @@ import (
 // Version is injected at build time
 var Version = "dev"
 
+// WireGuardClient defines the interface for WireGuard operations
+type WireGuardClient interface {
+	Down() error
+	ApplyConfig(config *api.DeviceConfig, privateKey string) error
+	GetStatus() (*wireguard.Status, error)
+}
+
 // Engine is the core logic controller
 type Engine struct {
 	config        *config.Config
 	idMgr         *identity.Manager
 	apiClient     *api.Client
-	wgClient      *wireguard.Client
+	wgClient      WireGuardClient
 	p2pMgr        *p2p.Manager
 	chatMgr       *chat.Manager
 	transferMgr   *transfer.Manager
@@ -61,7 +68,7 @@ func (e *Engine) SetOnChatMessage(handler func(chat.Message)) {
 }
 
 // NewEngine creates a new Engine instance
-func NewEngine(cfg *config.Config, idMgr *identity.Manager, wgClient *wireguard.Client, apiClient *api.Client, logger service.Logger) (*Engine, error) {
+func NewEngine(cfg *config.Config, idMgr *identity.Manager, wgClient WireGuardClient, apiClient *api.Client, logger service.Logger) (*Engine, error) {
 	sysConf := system.NewConfigurator()
 	hostsMgr := system.NewHostsManager()
 
