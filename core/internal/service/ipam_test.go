@@ -292,3 +292,87 @@ func TestIPAMService_SetAuditor(t *testing.T) {
 		// Should not panic
 	})
 }
+
+// ==================== ListAllocations Edge Case Tests ====================
+
+func TestIPAMService_ListAllocations_NetworkNotFound(t *testing.T) {
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	membershipRepo := repository.NewInMemoryMembershipRepository()
+	ipamRepo := repository.NewInMemoryIPAM()
+	service := NewIPAMService(networkRepo, membershipRepo, ipamRepo)
+
+	_, err := service.ListAllocations(context.Background(), "non-existent", "user1", "t1")
+	if err == nil {
+		t.Fatal("expected error for non-existent network")
+	}
+}
+
+func TestIPAMService_ListAllocations_WrongTenant(t *testing.T) {
+	ctx, svc, _, mRepo, netID := setupIPAMTestNetwork(t, "10.95.0.0/28")
+	_, _ = mRepo.UpsertApproved(ctx, netID, "user1", domain.RoleMember, time.Now())
+
+	_, err := svc.ListAllocations(ctx, netID, "user1", "wrong-tenant")
+	if err == nil {
+		t.Fatal("expected error for wrong tenant")
+	}
+	derr, ok := err.(*domain.Error)
+	if !ok || derr.Code != domain.ErrNotFound {
+		t.Fatalf("expected ErrNotFound got %+v", err)
+	}
+}
+
+// ==================== ReleaseIPForActor Edge Case Tests ====================
+
+func TestIPAMService_ReleaseIPForActor_NetworkNotFound(t *testing.T) {
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	membershipRepo := repository.NewInMemoryMembershipRepository()
+	ipamRepo := repository.NewInMemoryIPAM()
+	service := NewIPAMService(networkRepo, membershipRepo, ipamRepo)
+
+	err := service.ReleaseIPForActor(context.Background(), "non-existent", "admin1", "user1", "t1")
+	if err == nil {
+		t.Fatal("expected error for non-existent network")
+	}
+}
+
+func TestIPAMService_ReleaseIPForActor_WrongTenant(t *testing.T) {
+	ctx, svc, _, mRepo, netID := setupIPAMTestNetwork(t, "10.96.0.0/28")
+	_, _ = mRepo.UpsertApproved(ctx, netID, "admin1", domain.RoleAdmin, time.Now())
+	_, _ = mRepo.UpsertApproved(ctx, netID, "user1", domain.RoleMember, time.Now())
+
+	err := svc.ReleaseIPForActor(ctx, netID, "admin1", "user1", "wrong-tenant")
+	if err == nil {
+		t.Fatal("expected error for wrong tenant")
+	}
+	derr, ok := err.(*domain.Error)
+	if !ok || derr.Code != domain.ErrNotFound {
+		t.Fatalf("expected ErrNotFound got %+v", err)
+	}
+}
+
+func TestIPAMService_ReleaseIPForActor_ActorNotMember(t *testing.T) {
+	ctx, svc, _, _, netID := setupIPAMTestNetwork(t, "10.97.0.0/28")
+
+	err := svc.ReleaseIPForActor(ctx, netID, "non-member", "user1", "t1")
+	if err == nil {
+		t.Fatal("expected error for actor not member")
+	}
+	derr, ok := err.(*domain.Error)
+	if !ok || derr.Code != domain.ErrNotAuthorized {
+		t.Fatalf("expected ErrNotAuthorized got %+v", err)
+	}
+}
+
+func TestIPAMService_ReleaseIPForActor_TargetNotMember(t *testing.T) {
+	ctx, svc, _, mRepo, netID := setupIPAMTestNetwork(t, "10.98.0.0/28")
+	_, _ = mRepo.UpsertApproved(ctx, netID, "admin1", domain.RoleAdmin, time.Now())
+
+	err := svc.ReleaseIPForActor(ctx, netID, "admin1", "non-member", "t1")
+	if err == nil {
+		t.Fatal("expected error for target not member")
+	}
+	derr, ok := err.(*domain.Error)
+	if !ok || derr.Code != domain.ErrNotAuthorized {
+		t.Fatalf("expected ErrNotAuthorized got %+v", err)
+	}
+}
