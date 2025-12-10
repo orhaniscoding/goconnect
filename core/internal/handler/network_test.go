@@ -1230,3 +1230,117 @@ func TestListIPAllocations_Success(t *testing.T) {
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }
+
+// ==================== DeleteNetwork Service Error Path ====================
+
+func TestDeleteNetwork_ServiceError(t *testing.T) {
+	router, _ := setupTestRouter()
+
+	// Create a network that doesn't exist to trigger service error
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("DELETE", "/v1/networks/nonexistent-network-id", nil)
+	req.Header.Set("Authorization", "Bearer dev")
+	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
+
+	router.ServeHTTP(w, req)
+
+	// Should return an error (NotFound or Forbidden)
+	assert.Contains(t, []int{http.StatusNotFound, http.StatusForbidden}, w.Code)
+}
+
+// ==================== Deny/Kick/Ban Service Error Paths ====================
+
+func TestDeny_ServiceError(t *testing.T) {
+	router, _ := setupTestRouter()
+
+	body := `{"user_id": "target-user"}`
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/v1/networks/nonexistent-network/deny", bytes.NewBufferString(body))
+	req.Header.Set("Authorization", "Bearer dev")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
+
+	router.ServeHTTP(w, req)
+
+	// Should return an error from service
+	assert.True(t, w.Code >= 400)
+}
+
+func TestKick_ServiceError(t *testing.T) {
+	router, _ := setupTestRouter()
+
+	body := `{"user_id": "target-user"}`
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/v1/networks/nonexistent-network/kick", bytes.NewBufferString(body))
+	req.Header.Set("Authorization", "Bearer dev")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
+
+	router.ServeHTTP(w, req)
+
+	// Should return an error from service
+	assert.True(t, w.Code >= 400)
+}
+
+func TestBan_ServiceError(t *testing.T) {
+	router, _ := setupTestRouter()
+
+	body := `{"user_id": "target-user"}`
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("POST", "/v1/networks/nonexistent-network/ban", bytes.NewBufferString(body))
+	req.Header.Set("Authorization", "Bearer dev")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
+
+	router.ServeHTTP(w, req)
+
+	// Should return an error from service
+	assert.True(t, w.Code >= 400)
+}
+
+// ==================== ListIPAllocations Error Path ====================
+
+func TestListIPAllocations_NetworkNotFound(t *testing.T) {
+	router, _ := setupTestRouter()
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/v1/networks/nonexistent-network/ip-allocations", nil)
+	req.Header.Set("Authorization", "Bearer dev")
+
+	router.ServeHTTP(w, req)
+
+	// Should return an error (could be 501 NotImplemented if IPAM not set, or 404/403)
+	assert.True(t, w.Code >= 400)
+}
+
+// ==================== ReleaseIP Error Path ====================
+
+func TestReleaseIP_NetworkNotFound(t *testing.T) {
+	router, _ := setupTestRouter()
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("DELETE", "/v1/networks/nonexistent-network/ip-allocation", nil)
+	req.Header.Set("Authorization", "Bearer dev")
+	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
+
+	router.ServeHTTP(w, req)
+
+	// Should return an error
+	assert.True(t, w.Code >= 400)
+}
+
+// ==================== AdminReleaseIP Error Path ====================
+
+func TestAdminReleaseIP_NetworkNotFound(t *testing.T) {
+	router, _ := setupTestRouter()
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("DELETE", "/v1/networks/nonexistent-network/ip-allocations/some-user", nil)
+	req.Header.Set("Authorization", "Bearer dev")
+	req.Header.Set("Idempotency-Key", domain.GenerateIdempotencyKey())
+
+	router.ServeHTTP(w, req)
+
+	// Should return an error (not found or forbidden)
+	assert.True(t, w.Code >= 400)
+}
