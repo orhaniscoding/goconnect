@@ -853,6 +853,59 @@ func TestTenantMembershipService_ListBannedMembers_NotAdmin(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestTenantMembershipService_UnbanMember_NotBanned(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Add a member (not banned)
+	member, _ := svc.JoinTenant(ctx, "not-banned-member", tenantID, &domain.JoinTenantRequest{})
+
+	// Try to unban a member who is not banned
+	err := svc.UnbanMember(ctx, ownerID, tenantID, member.ID)
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrValidation, domainErr.Code)
+}
+
+func TestTenantMembershipService_UnbanMember_MemberNotFound(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, ownerID := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Try to unban a non-existent member
+	err := svc.UnbanMember(ctx, ownerID, tenantID, "nonexistent-member-id")
+	require.Error(t, err)
+}
+
+func TestTenantMembershipService_UnbanMember_WrongTenant(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	// Create two tenants
+	tenantID1, ownerID1 := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	tenant2 := &domain.Tenant{
+		ID:         "tenant-2",
+		Name:       "Second Tenant",
+		Visibility: domain.TenantVisibilityPublic,
+		AccessType: domain.TenantAccessOpen,
+	}
+	require.NoError(t, tenantRepo.Create(ctx, tenant2))
+	svc.JoinTenant(ctx, "owner-2", tenant2.ID, &domain.JoinTenantRequest{})
+
+	// Add and ban a member in tenant1
+	member, _ := svc.JoinTenant(ctx, "member-t1", tenantID1, &domain.JoinTenantRequest{})
+	_ = svc.BanMember(ctx, ownerID1, tenantID1, member.ID)
+
+	// Try to unban from wrong tenant (owner2 tries to unban from tenant2 using member from tenant1)
+	err := svc.UnbanMember(ctx, "owner-2", tenant2.ID, member.ID)
+	require.Error(t, err)
+}
+
 // ==================== INVITE TESTS ====================
 
 func TestTenantMembershipService_ListInvites_Success(t *testing.T) {
@@ -1427,4 +1480,45 @@ func TestTenantMembershipService_BanMember_BannedUserCannotRejoin(t *testing.T) 
 	domainErr, ok := err.(*domain.Error)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
+}
+
+// ==================== DELETE TENANT EDGE CASE TESTS ====================
+
+func TestTenantMembershipService_DeleteTenant_NotMember(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	tenantID, _ := setupTenantWithOwner(ctx, svc, tenantRepo)
+
+	// Non-member tries to delete tenant
+	err := svc.DeleteTenant(ctx, "random-user", tenantID)
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
+}
+
+func TestTenantMembershipService_DeleteTenant_TenantNotFound(t *testing.T) {
+	svc, tenantRepo := createTestTenantMembershipService()
+	ctx := context.Background()
+
+	// Create a tenant and owner first
+	tenant := &domain.Tenant{
+		ID:         "delete-test-tenant",
+		Name:       "Test Tenant",
+		Visibility: domain.TenantVisibilityPublic,
+		AccessType: domain.TenantAccessOpen,
+	}
+	require.NoError(t, tenantRepo.Create(ctx, tenant))
+
+	// Create membership
+	_, _ = svc.JoinTenant(ctx, "owner-user", tenant.ID, &domain.JoinTenantRequest{})
+
+	// Delete tenant from repo directly to simulate inconsistent state
+	_ = tenantRepo.Delete(ctx, tenant.ID)
+
+	// Now try to delete (member exists but tenant doesn't)
+	err := svc.DeleteTenant(ctx, "owner-user", tenant.ID)
+	// Should fail because member lookup will fail or tenant not found
+	require.Error(t, err)
 }
