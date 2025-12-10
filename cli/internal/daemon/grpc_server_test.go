@@ -1611,3 +1611,62 @@ func TestGRPCServer_GetPeers_EmptyResult(t *testing.T) {
 		t.Errorf("Expected 0 peers, got: %d", len(resp.Peers))
 	}
 }
+
+// TestGRPCServer_RejectTransfer_MissingID tests missing transfer_id validation
+func TestGRPCServer_RejectTransfer_MissingID(t *testing.T) {
+	server, addr := newTestGRPCServer(t)
+	defer server.stop()
+
+	token, _ := LoadClientTokenFromPath(server.ipcAuth.GetTokenPath())
+	conn, _ := grpc.NewClient(addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithPerRPCCredentials(NewTokenCredentials(token)),
+	)
+	defer conn.Close()
+
+	client := pb.NewTransferServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err := client.RejectTransfer(ctx, &pb.RejectTransferRequest{
+		TransferId: "",
+	})
+
+	if err == nil {
+		t.Fatal("Expected error for empty transfer_id")
+	}
+	st, _ := status.FromError(err)
+	if st.Code() != codes.InvalidArgument {
+		t.Errorf("Expected InvalidArgument error, got: %v", st.Code())
+	}
+}
+
+// TestGRPCServer_CancelTransfer_MissingID tests missing transfer_id validation
+func TestGRPCServer_CancelTransfer_MissingID(t *testing.T) {
+	server, addr := newTestGRPCServer(t)
+	defer server.stop()
+
+	token, _ := LoadClientTokenFromPath(server.ipcAuth.GetTokenPath())
+	conn, _ := grpc.NewClient(addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithPerRPCCredentials(NewTokenCredentials(token)),
+	)
+	defer conn.Close()
+
+	client := pb.NewTransferServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	_, err := client.CancelTransfer(ctx, &pb.CancelTransferRequest{
+		TransferId: "",
+	})
+
+	if err == nil {
+		t.Fatal("Expected error for empty transfer_id")
+	}
+	st, _ := status.FromError(err)
+	if st.Code() != codes.InvalidArgument {
+		t.Errorf("Expected InvalidArgument error, got: %v", st.Code())
+	}
+}
+
