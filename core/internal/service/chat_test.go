@@ -418,3 +418,61 @@ func TestChatService_SetAuditor(t *testing.T) {
 		// Should not panic
 	})
 }
+
+// ==================== GetEditHistory Edge Case Tests ====================
+
+func TestChatService_GetEditHistory_MessageNotFound(t *testing.T) {
+	chatRepo := repository.NewInMemoryChatRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+	service := NewChatService(chatRepo, userRepo)
+	ctx := context.Background()
+
+	_, err := service.GetEditHistory(ctx, "non-existent-msg", "tenant-1")
+	require.Error(t, err)
+}
+
+func TestChatService_GetEditHistory_WrongTenant(t *testing.T) {
+	chatRepo := repository.NewInMemoryChatRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+	service := NewChatService(chatRepo, userRepo)
+	ctx := context.Background()
+
+	// Create user first
+	userRepo.Create(ctx, &domain.User{ID: "user-123", Email: "user@test.com", TenantID: "tenant-1"})
+
+	// Create a message
+	msg, err := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Test message", nil, "")
+	require.NoError(t, err)
+
+	// Try to get edit history with wrong tenant
+	_, err = service.GetEditHistory(ctx, msg.ID, "wrong-tenant")
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
+}
+
+func TestChatService_GetEditHistory_Success(t *testing.T) {
+	chatRepo := repository.NewInMemoryChatRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+	service := NewChatService(chatRepo, userRepo)
+	ctx := context.Background()
+
+	// Create user first
+	userRepo.Create(ctx, &domain.User{ID: "user-123", Email: "user@test.com", TenantID: "tenant-1"})
+
+	// Create a message and edit it
+	msg, err := service.SendMessage(ctx, "user-123", "tenant-1", "host", "Original text", nil, "")
+	require.NoError(t, err)
+
+	_, err = service.EditMessage(ctx, msg.ID, "user-123", "tenant-1", "Edit 1", false)
+	require.NoError(t, err)
+
+	_, err = service.EditMessage(ctx, msg.ID, "user-123", "tenant-1", "Edit 2", false)
+	require.NoError(t, err)
+
+	// Get edit history
+	edits, err := service.GetEditHistory(ctx, msg.ID, "tenant-1")
+	require.NoError(t, err)
+	assert.Len(t, edits, 2)
+}

@@ -369,3 +369,91 @@ func TestInviteService_GetInviteByID(t *testing.T) {
 		}
 	})
 }
+
+// ==================== REVOKE INVITE EDGE CASE TESTS ====================
+
+func TestInviteService_RevokeInvite_InviteNotFound(t *testing.T) {
+	inviteRepo := repository.NewInMemoryInviteTokenRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	membershipRepo := repository.NewInMemoryMembershipRepository()
+
+	svc := NewInviteService(inviteRepo, networkRepo, membershipRepo, "https://app.example.com")
+	ctx := context.Background()
+
+	err := svc.RevokeInvite(ctx, "non-existent-invite", "net-1", "tenant-1", "user-1")
+	if err == nil {
+		t.Fatal("expected error for non-existent invite")
+	}
+}
+
+func TestInviteService_RevokeInvite_WrongNetwork(t *testing.T) {
+	inviteRepo := repository.NewInMemoryInviteTokenRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	membershipRepo := repository.NewInMemoryMembershipRepository()
+
+	svc := NewInviteService(inviteRepo, networkRepo, membershipRepo, "https://app.example.com")
+	ctx := context.Background()
+
+	// Create test network
+	network := &domain.Network{
+		ID:         "net-wrong-1",
+		TenantID:   "tenant-1",
+		Name:       "Wrong Network Test",
+		CIDR:       "10.60.0.0/24",
+		Visibility: domain.NetworkVisibilityPrivate,
+		JoinPolicy: domain.JoinPolicyInvite,
+		CreatedBy:  "user-owner-1",
+	}
+	networkRepo.Create(ctx, network)
+	membershipRepo.UpsertApproved(ctx, "net-wrong-1", "user-owner-1", domain.RoleOwner, time.Now())
+
+	// Create invite for net-wrong-1
+	opts := CreateInviteOptions{}
+	response, _ := svc.CreateInvite(ctx, "net-wrong-1", "tenant-1", "user-owner-1", opts)
+
+	// Try to revoke using wrong network ID
+	err := svc.RevokeInvite(ctx, response.ID, "different-network", "tenant-1", "user-owner-1")
+	if err == nil {
+		t.Fatal("expected error for wrong network")
+	}
+	domErr, ok := err.(*domain.Error)
+	if !ok || domErr.Code != domain.ErrNotFound {
+		t.Errorf("expected ErrNotFound, got %v", err)
+	}
+}
+
+func TestInviteService_RevokeInvite_UserNotMember(t *testing.T) {
+	inviteRepo := repository.NewInMemoryInviteTokenRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	membershipRepo := repository.NewInMemoryMembershipRepository()
+
+	svc := NewInviteService(inviteRepo, networkRepo, membershipRepo, "https://app.example.com")
+	ctx := context.Background()
+
+	// Create test network
+	network := &domain.Network{
+		ID:         "net-notmember-1",
+		TenantID:   "tenant-1",
+		Name:       "Not Member Test",
+		CIDR:       "10.61.0.0/24",
+		Visibility: domain.NetworkVisibilityPrivate,
+		JoinPolicy: domain.JoinPolicyInvite,
+		CreatedBy:  "user-owner-1",
+	}
+	networkRepo.Create(ctx, network)
+	membershipRepo.UpsertApproved(ctx, "net-notmember-1", "user-owner-1", domain.RoleOwner, time.Now())
+
+	// Create invite
+	opts := CreateInviteOptions{}
+	response, _ := svc.CreateInvite(ctx, "net-notmember-1", "tenant-1", "user-owner-1", opts)
+
+	// Try to revoke with a non-member user
+	err := svc.RevokeInvite(ctx, response.ID, "net-notmember-1", "tenant-1", "random-user")
+	if err == nil {
+		t.Fatal("expected error for non-member user")
+	}
+	domErr, ok := err.(*domain.Error)
+	if !ok || domErr.Code != domain.ErrNotAuthorized {
+		t.Errorf("expected ErrNotAuthorized, got %v", err)
+	}
+}
