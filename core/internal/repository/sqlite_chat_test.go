@@ -267,3 +267,108 @@ func TestSQLiteChatRepository_ListWithFilters(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, list, 1)
 }
+
+func TestSQLiteChatRepository_GetByID_NotFound(t *testing.T) {
+	dir := t.TempDir()
+	db, err := database.ConnectSQLite(filepath.Join(dir, "chat.db"))
+	require.NoError(t, err)
+	defer db.Close()
+	require.NoError(t, database.RunSQLiteMigrations(db, filepath.Join("..", "..", "migrations_sqlite")))
+
+	repo := NewSQLiteChatRepository(db)
+	ctx := context.Background()
+
+	_, err = repo.GetByID(ctx, "non-existent-id")
+	require.Error(t, err)
+}
+
+func TestSQLiteChatRepository_Update_NotFound(t *testing.T) {
+	dir := t.TempDir()
+	db, err := database.ConnectSQLite(filepath.Join(dir, "chat.db"))
+	require.NoError(t, err)
+	defer db.Close()
+	require.NoError(t, database.RunSQLiteMigrations(db, filepath.Join("..", "..", "migrations_sqlite")))
+
+	repo := NewSQLiteChatRepository(db)
+	ctx := context.Background()
+
+	msg := &domain.ChatMessage{
+		ID:   "non-existent",
+		Body: "Updated body",
+	}
+	err = repo.Update(ctx, msg)
+	require.Error(t, err)
+}
+
+func TestSQLiteChatRepository_ListWithPagination(t *testing.T) {
+	dir := t.TempDir()
+	db, err := database.ConnectSQLite(filepath.Join(dir, "chat.db"))
+	require.NoError(t, err)
+	defer db.Close()
+	require.NoError(t, database.RunSQLiteMigrations(db, filepath.Join("..", "..", "migrations_sqlite")))
+
+	repo := NewSQLiteChatRepository(db)
+	ctx := context.Background()
+
+	// Create 5 messages
+	for i := 0; i < 5; i++ {
+		msg := &domain.ChatMessage{
+			Scope:    "network:net-1",
+			TenantID: "tenant-1",
+			UserID:   "user-1",
+			Body:     "Message content",
+		}
+		require.NoError(t, repo.Create(ctx, msg))
+	}
+
+	// Get first page
+	list1, cursor, err := repo.List(ctx, domain.ChatMessageFilter{
+		TenantID: "tenant-1",
+		Limit:    2,
+	})
+	require.NoError(t, err)
+	assert.Len(t, list1, 2)
+	assert.NotEmpty(t, cursor)
+
+	// Get second page using cursor
+	list2, _, err := repo.List(ctx, domain.ChatMessageFilter{
+		TenantID: "tenant-1",
+		Limit:    2,
+		Cursor:   cursor,
+	})
+	require.NoError(t, err)
+	assert.True(t, len(list2) >= 1)
+}
+
+func TestSQLiteChatRepository_ListByScope(t *testing.T) {
+	dir := t.TempDir()
+	db, err := database.ConnectSQLite(filepath.Join(dir, "chat.db"))
+	require.NoError(t, err)
+	defer db.Close()
+	require.NoError(t, database.RunSQLiteMigrations(db, filepath.Join("..", "..", "migrations_sqlite")))
+
+	repo := NewSQLiteChatRepository(db)
+	ctx := context.Background()
+
+	// Create messages in different scopes
+	scopes := []string{"network:net-1", "network:net-2", "dm:user1:user2"}
+	for _, scope := range scopes {
+		msg := &domain.ChatMessage{
+			Scope:    scope,
+			TenantID: "tenant-1",
+			UserID:   "user-1",
+			Body:     "Test message",
+		}
+		require.NoError(t, repo.Create(ctx, msg))
+	}
+
+	// Filter by specific scope
+	list, _, err := repo.List(ctx, domain.ChatMessageFilter{
+		Scope: "network:net-1",
+		Limit: 10,
+	})
+	require.NoError(t, err)
+	assert.Len(t, list, 1)
+	assert.Equal(t, "network:net-1", list[0].Scope)
+}
+
