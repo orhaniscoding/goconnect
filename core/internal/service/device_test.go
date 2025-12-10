@@ -950,3 +950,206 @@ func TestDeviceService_SetNotifier(t *testing.T) {
 		// Should not panic and notifier should be set
 	})
 }
+
+// ==================== WrongTenant Edge Case Tests ====================
+
+func TestDeviceService_UpdateDevice_WrongTenant(t *testing.T) {
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{}
+	service := NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
+
+	ctx := context.Background()
+
+	user := &domain.User{
+		ID:           "user-123",
+		TenantID:     "tenant-1",
+		Email:        "test@example.com",
+		PasswordHash: "dummy",
+	}
+	require.NoError(t, userRepo.Create(ctx, user))
+
+	device, err := service.RegisterDevice(ctx, "user-123", "tenant-1", &domain.RegisterDeviceRequest{
+		Name: "Test Device", Platform: "linux", PubKey: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+	})
+	require.NoError(t, err)
+
+	newName := "Hacked"
+	req := &domain.UpdateDeviceRequest{Name: &newName}
+
+	// Try to update from different tenant
+	_, err = service.UpdateDevice(ctx, device.ID, "user-123", "tenant-2", true, req)
+
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
+}
+
+func TestDeviceService_DeleteDevice_WrongTenant(t *testing.T) {
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{}
+	service := NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
+
+	ctx := context.Background()
+
+	user := &domain.User{
+		ID:           "user-123",
+		TenantID:     "tenant-1",
+		Email:        "test@example.com",
+		PasswordHash: "dummy",
+	}
+	require.NoError(t, userRepo.Create(ctx, user))
+
+	device, err := service.RegisterDevice(ctx, "user-123", "tenant-1", &domain.RegisterDeviceRequest{
+		Name: "Test Device", Platform: "linux", PubKey: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+	})
+	require.NoError(t, err)
+
+	// Try to delete from different tenant (even as admin)
+	err = service.DeleteDevice(ctx, device.ID, "user-123", "tenant-2", true)
+
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
+}
+
+func TestDeviceService_Heartbeat_WrongTenant(t *testing.T) {
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{}
+	service := NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
+
+	ctx := context.Background()
+
+	user := &domain.User{
+		ID:           "user-123",
+		TenantID:     "tenant-1",
+		Email:        "test@example.com",
+		PasswordHash: "dummy",
+	}
+	require.NoError(t, userRepo.Create(ctx, user))
+
+	device, err := service.RegisterDevice(ctx, "user-123", "tenant-1", &domain.RegisterDeviceRequest{
+		Name: "Test Device", Platform: "linux", PubKey: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+	})
+	require.NoError(t, err)
+
+	req := &domain.DeviceHeartbeatRequest{IPAddress: "192.168.1.100"}
+
+	// Try to send heartbeat from different tenant
+	err = service.Heartbeat(ctx, device.ID, "user-123", "tenant-2", req)
+
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
+}
+
+func TestDeviceService_DisableDevice_WrongTenant(t *testing.T) {
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{}
+	service := NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
+
+	ctx := context.Background()
+
+	user := &domain.User{
+		ID:           "user-123",
+		TenantID:     "tenant-1",
+		Email:        "test@example.com",
+		PasswordHash: "dummy",
+	}
+	require.NoError(t, userRepo.Create(ctx, user))
+
+	device, err := service.RegisterDevice(ctx, "user-123", "tenant-1", &domain.RegisterDeviceRequest{
+		Name: "Test Device", Platform: "linux", PubKey: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+	})
+	require.NoError(t, err)
+
+	// Try to disable from different tenant (even as admin)
+	err = service.DisableDevice(ctx, device.ID, "user-123", "tenant-2", true)
+
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
+}
+
+func TestDeviceService_EnableDevice_WrongTenant(t *testing.T) {
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{}
+	service := NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
+
+	ctx := context.Background()
+
+	user := &domain.User{
+		ID:           "user-123",
+		TenantID:     "tenant-1",
+		Email:        "test@example.com",
+		PasswordHash: "dummy",
+	}
+	require.NoError(t, userRepo.Create(ctx, user))
+
+	device, err := service.RegisterDevice(ctx, "user-123", "tenant-1", &domain.RegisterDeviceRequest{
+		Name: "Test Device", Platform: "linux", PubKey: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+	})
+	require.NoError(t, err)
+
+	// First disable the device
+	err = service.DisableDevice(ctx, device.ID, "user-123", "tenant-1", false)
+	require.NoError(t, err)
+
+	// Try to enable from different tenant (even as admin)
+	err = service.EnableDevice(ctx, device.ID, "user-123", "tenant-2", true)
+
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
+}
+
+func TestDeviceService_GetDeviceConfig_DeviceNotOwnedByUser(t *testing.T) {
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	userRepo := repository.NewInMemoryUserRepository()
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{}
+	service := NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
+
+	ctx := context.Background()
+
+	user := &domain.User{
+		ID:           "user-123",
+		TenantID:     "tenant-1",
+		Email:        "test@example.com",
+		PasswordHash: "dummy",
+	}
+	require.NoError(t, userRepo.Create(ctx, user))
+
+	device, err := service.RegisterDevice(ctx, "user-123", "tenant-1", &domain.RegisterDeviceRequest{
+		Name: "Test Device", Platform: "linux", PubKey: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+	})
+	require.NoError(t, err)
+
+	// Try to get config as different user
+	_, err = service.GetDeviceConfig(ctx, device.ID, "other-user")
+
+	require.Error(t, err)
+	domainErr, ok := err.(*domain.Error)
+	require.True(t, ok)
+	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
+}
