@@ -252,9 +252,9 @@ func TestStorage_GetMessageCount(t *testing.T) {
 		t.Errorf("Expected 0 messages initially, got %d", count)
 	}
 
-	storage.SaveMessage(Message{ID: "1", From: "p", Content: "a", Time: time.Now()})
-	storage.SaveMessage(Message{ID: "2", From: "p", Content: "b", Time: time.Now()})
-	storage.SaveMessage(Message{ID: "3", From: "p", Content: "c", Time: time.Now()})
+	_ = storage.SaveMessage(Message{ID: "1", From: "p", Content: "a", Time: time.Now()})
+	_ = storage.SaveMessage(Message{ID: "2", From: "p", Content: "b", Time: time.Now()})
+	_ = storage.SaveMessage(Message{ID: "3", From: "p", Content: "c", Time: time.Now()})
 
 	count, _ = storage.GetMessageCount()
 	if count != 3 {

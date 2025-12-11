@@ -2134,7 +2134,7 @@ func TestGetNetworks_ServerError(t *testing.T) {
 func TestGetNetworks_InvalidResponse(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("invalid json"))
+		_, _ = w.Write([]byte("invalid json"))
 	})
 
 	client, server := setupMockClient(t, handler)
