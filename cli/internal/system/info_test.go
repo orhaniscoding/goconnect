@@ -104,7 +104,7 @@ func TestGetOSVersion_Linux(t *testing.T) {
 		f, err := os.CreateTemp("", "os-release")
 		require.NoError(t, err)
 		defer os.Remove(f.Name())
-		f.WriteString(content)
+		_, _ = f.WriteString(content)
 		f.Close()
 
 		osReleasePath = f.Name()
@@ -118,7 +118,7 @@ func TestGetOSVersion_Linux(t *testing.T) {
 		f, err := os.CreateTemp("", "os-release")
 		require.NoError(t, err)
 		defer os.Remove(f.Name())
-		f.WriteString(content)
+		_, _ = f.WriteString(content)
 		f.Close()
 
 		osReleasePath = f.Name()
@@ -132,7 +132,7 @@ func TestGetOSVersion_Linux(t *testing.T) {
 		f, err := os.CreateTemp("", "os-release")
 		require.NoError(t, err)
 		defer os.Remove(f.Name())
-		f.WriteString(content)
+		_, _ = f.WriteString(content)
 		f.Close()
 
 		osReleasePath = f.Name()

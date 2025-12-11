@@ -468,4 +468,3 @@ func TestSQLiteDeviceRepository_MarkInactive_NotFound(t *testing.T) {
 	err := repo.MarkInactive(ctx, "non-existent")
 	require.Error(t, err)
 }
-

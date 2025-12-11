@@ -129,14 +129,14 @@ func TestSQLiteTenantRepository_Delete(t *testing.T) {
 
 	// Create tenant
 	tenant := &domain.Tenant{
-		ID:          "tenant-1",
-		Name:        "Test Tenant",
-		OwnerID:     "owner-1",
-		MaxMembers:  100,
-		Visibility:  domain.TenantVisibilityPublic,
-		AccessType:  domain.TenantAccessOpen,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:         "tenant-1",
+		Name:       "Test Tenant",
+		OwnerID:    "owner-1",
+		MaxMembers: 100,
+		Visibility: domain.TenantVisibilityPublic,
+		AccessType: domain.TenantAccessOpen,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
 	}
 	require.NoError(t, repo.Create(ctx, tenant))
 
@@ -163,14 +163,14 @@ func TestSQLiteTenantRepository_List(t *testing.T) {
 	// Create multiple tenants
 	for i := 0; i < 5; i++ {
 		tenant := &domain.Tenant{
-			ID:          "tenant-" + string(rune('a'+i)),
-			Name:        "Tenant " + string(rune('A'+i)),
-			OwnerID:     "owner-1",
-			MaxMembers:  100,
-			Visibility:  domain.TenantVisibilityPublic,
-			AccessType:  domain.TenantAccessOpen,
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
+			ID:         "tenant-" + string(rune('a'+i)),
+			Name:       "Tenant " + string(rune('A'+i)),
+			OwnerID:    "owner-1",
+			MaxMembers: 100,
+			Visibility: domain.TenantVisibilityPublic,
+			AccessType: domain.TenantAccessOpen,
+			CreatedAt:  time.Now(),
+			UpdatedAt:  time.Now(),
 		}
 		require.NoError(t, repo.Create(ctx, tenant))
 	}
@@ -191,14 +191,14 @@ func TestSQLiteTenantRepository_ListAll(t *testing.T) {
 	// Create multiple tenants
 	for i := 0; i < 5; i++ {
 		tenant := &domain.Tenant{
-			ID:          "tenant-" + string(rune('a'+i)),
-			Name:        "Tenant " + string(rune('A'+i)),
-			OwnerID:     "owner-1",
-			MaxMembers:  100,
-			Visibility:  domain.TenantVisibilityPublic,
-			AccessType:  domain.TenantAccessOpen,
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
+			ID:         "tenant-" + string(rune('a'+i)),
+			Name:       "Tenant " + string(rune('A'+i)),
+			OwnerID:    "owner-1",
+			MaxMembers: 100,
+			Visibility: domain.TenantVisibilityPublic,
+			AccessType: domain.TenantAccessOpen,
+			CreatedAt:  time.Now(),
+			UpdatedAt:  time.Now(),
 		}
 		require.NoError(t, repo.Create(ctx, tenant))
 	}
@@ -236,14 +236,14 @@ func TestSQLiteTenantRepository_Count(t *testing.T) {
 	// Create tenants
 	for i := 0; i < 3; i++ {
 		tenant := &domain.Tenant{
-			ID:          "tenant-" + string(rune('a'+i)),
-			Name:        "Tenant " + string(rune('A'+i)),
-			OwnerID:     "owner-1",
-			MaxMembers:  100,
-			Visibility:  domain.TenantVisibilityPublic,
-			AccessType:  domain.TenantAccessOpen,
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
+			ID:         "tenant-" + string(rune('a'+i)),
+			Name:       "Tenant " + string(rune('A'+i)),
+			OwnerID:    "owner-1",
+			MaxMembers: 100,
+			Visibility: domain.TenantVisibilityPublic,
+			AccessType: domain.TenantAccessOpen,
+			CreatedAt:  time.Now(),
+			UpdatedAt:  time.Now(),
 		}
 		require.NoError(t, repo.Create(ctx, tenant))
 	}

@@ -983,7 +983,7 @@ func TestGetNetwork_Success(t *testing.T) {
 			t.Errorf("Unexpected Auth header: %s", r.Header.Get("Authorization"))
 		}
 		
-		json.NewEncoder(w).Encode(NetworkResponse{ID: "net-123", Name: "Test Network", Role: "admin"})
+		_ = json.NewEncoder(w).Encode(NetworkResponse{ID: "net-123", Name: "Test Network", Role: "admin"})
 	})
 
 	client, server := setupMockClient(t, handler)
@@ -1139,7 +1139,7 @@ func TestGetConfig_Success(t *testing.T) {
 		cfg := DeviceConfig{
 			Interface: InterfaceConfig{ListenPort: 51820},
 		}
-		json.NewEncoder(w).Encode(cfg)
+		_ = json.NewEncoder(w).Encode(cfg)
 	})
 
 	client, server := setupMockClient(t, handler)
@@ -1258,7 +1258,7 @@ func TestSendHeartbeat_Success(t *testing.T) {
 func TestSendHeartbeat_ServerError(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"message": "Internal error"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"message": "Internal error"})
 	})
 
 	client, server := setupMockClient(t, handler)
@@ -1307,11 +1307,11 @@ func TestCreateNetwork_Success(t *testing.T) {
 		assert.Equal(t, "Bearer valid-token", r.Header.Get("Authorization"))
 
 		var req CreateNetworkRequest
-		json.NewDecoder(r.Body).Decode(&req)
+		_ = json.NewDecoder(r.Body).Decode(&req)
 		assert.Equal(t, "My Network", req.Name)
 
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(NetworkResponse{
+		_ = json.NewEncoder(w).Encode(NetworkResponse{
 			ID:         "net-created",
 			Name:       "My Network",
 			InviteCode: "ABC123",
@@ -1400,7 +1400,7 @@ func setupWebSocketServer(t *testing.T, handler func(*websocket.Conn)) (*Client,
 		}{URL: server.URL},
 	}
 	kr, _ := storage.NewTestKeyring(t.TempDir())
-	kr.StoreAuthToken("valid-token")
+	_ = kr.StoreAuthToken("valid-token")
 	cfg.Keyring = kr
 	client := NewClient(cfg)
 
@@ -1438,7 +1438,7 @@ func TestStartWebSocket_InvalidURL(t *testing.T) {
 		}{URL: "://invalid-url"},
 	}
 	kr, _ := storage.NewTestKeyring(t.TempDir())
-	kr.StoreAuthToken("token")
+	_ = kr.StoreAuthToken("token")
 	cfg.Keyring = kr
 	client := NewClient(cfg)
 
@@ -1454,7 +1454,7 @@ func TestStartWebSocket_ConnectionRefused(t *testing.T) {
 		}{URL: "http://localhost:59999"},
 	}
 	kr, _ := storage.NewTestKeyring(t.TempDir())
-	kr.StoreAuthToken("token")
+	_ = kr.StoreAuthToken("token")
 	cfg.Keyring = kr
 	client := NewClient(cfg)
 
@@ -1470,7 +1470,7 @@ func TestStartWebSocket_HTTPSUpgrade(t *testing.T) {
 		}{URL: "https://localhost:59999"},
 	}
 	kr, _ := storage.NewTestKeyring(t.TempDir())
-	kr.StoreAuthToken("token")
+	_ = kr.StoreAuthToken("token")
 	cfg.Keyring = kr
 	client := NewClient(cfg)
 
