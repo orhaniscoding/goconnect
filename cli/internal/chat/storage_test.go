@@ -270,9 +270,9 @@ func TestStorage_SearchMessages(t *testing.T) {
 	}
 	defer storage.Close()
 
-	storage.SaveMessage(Message{ID: "1", From: "p", Content: "Hello world", Time: time.Now()})
-	storage.SaveMessage(Message{ID: "2", From: "p", Content: "Goodbye world", Time: time.Now()})
-	storage.SaveMessage(Message{ID: "3", From: "p", Content: "Hello again", Time: time.Now()})
+	_ = storage.SaveMessage(Message{ID: "1", From: "p", Content: "Hello world", Time: time.Now()})
+	_ = storage.SaveMessage(Message{ID: "2", From: "p", Content: "Goodbye world", Time: time.Now()})
+	_ = storage.SaveMessage(Message{ID: "3", From: "p", Content: "Hello again", Time: time.Now()})
 
 	// Search for "Hello"
 	results, err := storage.SearchMessages("Hello", 10)

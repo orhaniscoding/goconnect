@@ -176,9 +176,9 @@ func TestEngine_CreateNetwork(t *testing.T) {
 	apiHandler := func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v1/networks" && r.Method == "POST" {
 			var req map[string]string
-			json.NewDecoder(r.Body).Decode(&req)
+			_ = json.NewDecoder(r.Body).Decode(&req)
 			if req["name"] == "My Network" {
-				json.NewEncoder(w).Encode(api.NetworkResponse{
+				_ = json.NewEncoder(w).Encode(api.NetworkResponse{
 					ID:   "net-123",
 					Name: "My Network",
 					Role: "owner",
@@ -202,9 +202,9 @@ func TestEngine_JoinNetwork(t *testing.T) {
 	apiHandler := func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v1/networks/join" && r.Method == "POST" {
 			var req map[string]string
-			json.NewDecoder(r.Body).Decode(&req)
+			_ = json.NewDecoder(r.Body).Decode(&req)
 			if req["invite_code"] == "CODE123" {
-				json.NewEncoder(w).Encode(api.NetworkResponse{
+				_ = json.NewEncoder(w).Encode(api.NetworkResponse{
 					ID:   "net-456",
 					Name: "Joined Network",
 					Role: "member",
@@ -232,12 +232,12 @@ func TestEngine_LeaveNetwork(t *testing.T) {
 		}
 		// for syncConfig triggered after leave
 		if r.URL.Path == "/v1/networks" {
-			json.NewEncoder(w).Encode([]api.NetworkResponse{})
+			_ = json.NewEncoder(w).Encode([]api.NetworkResponse{})
 			return
 		}
 		// for config sync
 		if r.Method == "GET" && len(r.URL.Path) > 0 {
-			json.NewEncoder(w).Encode(api.DeviceConfig{})
+			_ = json.NewEncoder(w).Encode(api.DeviceConfig{})
 			return
 		}
 
@@ -367,10 +367,10 @@ func TestEngine_GenerateInvite(t *testing.T) {
 		expectedPath := "/v1/networks/net-1/invites"
 		if r.URL.Path == expectedPath && r.Method == "POST" {
 			var req api.CreateInviteRequest
-			json.NewDecoder(r.Body).Decode(&req)
+			_ = json.NewDecoder(r.Body).Decode(&req)
 
 			if req.UsesMax == 5 {
-				json.NewEncoder(w).Encode(api.InviteTokenResponse{
+				_ = json.NewEncoder(w).Encode(api.InviteTokenResponse{
 					Token:   "INVITE-5",
 					UsesMax: 5,
 				})
@@ -398,7 +398,7 @@ func TestEngine_SyncConfig(t *testing.T) {
 		// Mock Config Response
 		if strings.Contains(r.URL.Path, "/config") {
 			configCalled = true
-			json.NewEncoder(w).Encode(api.DeviceConfig{
+			_ = json.NewEncoder(w).Encode(api.DeviceConfig{
 				Interface: api.InterfaceConfig{
 					Addresses: []string{"10.0.0.2/24"},
 				},
@@ -411,7 +411,7 @@ func TestEngine_SyncConfig(t *testing.T) {
 		// Mock Networks Response
 		if r.URL.Path == "/v1/networks" {
 			networksCalled = true
-			json.NewEncoder(w).Encode([]api.NetworkResponse{
+			_ = json.NewEncoder(w).Encode([]api.NetworkResponse{
 				{ID: "net-1", Name: "Synced Net"},
 			})
 			return
