@@ -1626,7 +1626,7 @@ func TestStartDownload_FileCreationError(t *testing.T) {
 	tmpfile, err := os.CreateTemp("", "sender_file")
 	require.NoError(t, err)
 	defer os.Remove(tmpfile.Name())
-	tmpfile.Write([]byte("test content"))
+	_, _ = tmpfile.Write([]byte("test content"))
 	tmpfile.Close()
 
 	senderSession, err := senderMgr.CreateSendSession("receiver", tmpfile.Name())
@@ -1675,7 +1675,7 @@ func TestStartDownload_IncompleteSizeCheck(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Remove(tmpfile.Name())
 	content := []byte("short")
-	tmpfile.Write(content)
+	_, _ = tmpfile.Write(content)
 	tmpfile.Close()
 
 	senderSession, err := senderMgr.CreateSendSession("receiver", tmpfile.Name())

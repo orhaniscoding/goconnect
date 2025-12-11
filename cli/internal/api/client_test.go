@@ -1733,13 +1733,13 @@ func TestReadLoop_HandlesInvalidSignalPayload(t *testing.T) {
 		// Send message with invalid signal payload
 		signalData, _ := json.Marshal(callSignalData{FromUser: "user", Signal: []byte("invalid payload")})
 		msg := wsMessage{Type: "call.offer", Data: signalData}
-		conn.WriteJSON(msg)
+		_ = conn.WriteJSON(msg)
 
 		// Then send valid message
 		signalPayload, _ := json.Marshal(signalPayload{Ufrag: "test", Pwd: "test"})
 		signalData2, _ := json.Marshal(callSignalData{FromUser: "user", Signal: signalPayload})
 		msg2 := wsMessage{Type: "call.offer", Data: signalData2}
-		conn.WriteJSON(msg2)
+		_ = conn.WriteJSON(msg2)
 
 		time.Sleep(200 * time.Millisecond)
 	})
@@ -1768,7 +1768,7 @@ func TestReadLoop_NoCallbackSet(t *testing.T) {
 		signalPayload, _ := json.Marshal(signalPayload{Ufrag: "test", Pwd: "test"})
 		signalData, _ := json.Marshal(callSignalData{FromUser: "user", Signal: signalPayload})
 		msg := wsMessage{Type: "call.offer", Data: signalData}
-		conn.WriteJSON(msg)
+		_ = conn.WriteJSON(msg)
 
 		// Give time to process
 		time.Sleep(100 * time.Millisecond)
@@ -1959,7 +1959,7 @@ func TestSendSignal_ConcurrentSends(t *testing.T) {
 func TestGetConfig_ServerError(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
-		json.NewEncoder(w).Encode(map[string]string{"message": "Access denied"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"message": "Access denied"})
 	})
 
 	client, server := setupMockClient(t, handler)
@@ -1973,7 +1973,7 @@ func TestGetConfig_ServerError(t *testing.T) {
 func TestGetConfig_InvalidResponse(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("invalid json"))
+		_, _ = w.Write([]byte("invalid json"))
 	})
 
 	client, server := setupMockClient(t, handler)
@@ -1989,7 +1989,7 @@ func TestGetConfig_InvalidResponse(t *testing.T) {
 func TestJoinNetwork_ServerError(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"message": "Invalid invite code"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"message": "Invalid invite code"})
 	})
 
 	client, server := setupMockClient(t, handler)
@@ -2074,7 +2074,7 @@ func TestUnbanPeer_ServerError(t *testing.T) {
 func TestGenerateInvite_ServerError(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
-		json.NewEncoder(w).Encode(map[string]string{"message": "Not authorized"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"message": "Not authorized"})
 	})
 
 	client, server := setupMockClient(t, handler)
@@ -2101,12 +2101,12 @@ func TestGenerateInvite_ServerErrorNoMessage(t *testing.T) {
 func TestGenerateInvite_ZeroExpiry(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req CreateInviteRequest
-		json.NewDecoder(r.Body).Decode(&req)
+		_ = json.NewDecoder(r.Body).Decode(&req)
 		// When expiresHours is 0, ExpiresIn should be 0 (server default)
 		assert.Equal(t, 0, req.ExpiresIn)
 
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(InviteTokenResponse{Token: "token"})
+		_ = json.NewEncoder(w).Encode(InviteTokenResponse{Token: "token"})
 	})
 
 	client, server := setupMockClient(t, handler)
