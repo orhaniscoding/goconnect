@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/mattn/go-sqlite3" // SQLite driver for database/sql
 )
 
 // Storage provides persistent chat message storage using SQLite

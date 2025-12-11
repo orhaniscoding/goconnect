@@ -107,7 +107,7 @@ func TestNewStdoutAuditorWithHashSecrets(t *testing.T) {
 
 func TestWrapWithMetrics(t *testing.T) {
 	baseAuditor := NewStdoutAuditor()
-	
+
 	callCount := 0
 	lastAction := ""
 	inc := func(action string) {

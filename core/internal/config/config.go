@@ -65,14 +65,14 @@ type RedisConfig struct {
 
 // WireGuardConfig holds WireGuard server configuration
 type WireGuardConfig struct {
-	InterfaceName  string `yaml:"interface_name"`  // Interface name (default: wg0)
-	PrivateKey     string `yaml:"private_key"`     // Server's WireGuard private key
+	InterfaceName  string `yaml:"interface_name"`                         // Interface name (default: wg0)
+	PrivateKey     string `yaml:"private_key"`                            // Server's WireGuard private key
 	ServerEndpoint string `yaml:"server_endpoint" json:"server_endpoint"` // Public endpoint (e.g., "vpn.example.com:51820")
-	ServerPubKey   string `yaml:"server_pubkey" json:"server_pubkey"`   // Server's WireGuard public key (44 chars base64)
-	DNS            string `yaml:"dns"`             // DNS servers for clients (comma-separated)
-	MTU            int    `yaml:"mtu"`             // MTU for the interface
-	Keepalive      int    `yaml:"keepalive"`       // Persistent keepalive in seconds
-	Port           int    `yaml:"port"`            // Listen port (default: 51820)
+	ServerPubKey   string `yaml:"server_pubkey" json:"server_pubkey"`     // Server's WireGuard public key (44 chars base64)
+	DNS            string `yaml:"dns"`                                    // DNS servers for clients (comma-separated)
+	MTU            int    `yaml:"mtu"`                                    // MTU for the interface
+	Keepalive      int    `yaml:"keepalive"`                              // Persistent keepalive in seconds
+	Port           int    `yaml:"port"`                                   // Listen port (default: 51820)
 }
 
 // AuditConfig holds audit logging configuration

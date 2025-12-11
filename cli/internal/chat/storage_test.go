@@ -100,9 +100,9 @@ func TestStorage_GetMessages_FilterByNetwork(t *testing.T) {
 	defer storage.Close()
 	
 	// Save messages to different networks
-	storage.SaveMessage(Message{ID: "msg-1", From: "peer-1", Content: "Net 1", Time: time.Now(), NetworkID: "network-1"})
-	storage.SaveMessage(Message{ID: "msg-2", From: "peer-2", Content: "Net 2", Time: time.Now().Add(time.Second), NetworkID: "network-2"})
-	storage.SaveMessage(Message{ID: "msg-3", From: "peer-1", Content: "Net 1 again", Time: time.Now().Add(2 * time.Second), NetworkID: "network-1"})
+	_ = storage.SaveMessage(Message{ID: "msg-1", From: "peer-1", Content: "Net 1", Time: time.Now(), NetworkID: "network-1"})
+	_ = storage.SaveMessage(Message{ID: "msg-2", From: "peer-2", Content: "Net 2", Time: time.Now().Add(time.Second), NetworkID: "network-2"})
+	_ = storage.SaveMessage(Message{ID: "msg-3", From: "peer-1", Content: "Net 1 again", Time: time.Now().Add(2 * time.Second), NetworkID: "network-1"})
 	
 	// Get all messages
 	all, _ := storage.GetMessages("", 10, "")
@@ -714,7 +714,7 @@ func TestNewStorage_ReadOnlyDirectory(t *testing.T) {
 	if err := os.Mkdir(readOnlyDir, 0555); err != nil {
 		t.Fatalf("Failed to create readonly dir: %v", err)
 	}
-	defer os.Chmod(readOnlyDir, 0755)
+	defer func() { _ = os.Chmod(readOnlyDir, 0755) }()
 
 	// Try to create nested directory in readonly parent
 	nestedDir := filepath.Join(readOnlyDir, "chat")

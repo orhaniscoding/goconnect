@@ -46,7 +46,7 @@ func main() {
 			ID:        "dev-e2e-123",
 			AuthToken: "mock-token-xyz",
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}).Methods("POST")
 
 	// Get Device Config
@@ -55,7 +55,7 @@ func main() {
 			Peers:      []interface{}{},
 			AllowedIPs: []string{"10.0.0.1/32"},
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}).Methods("GET")
 
 	// Get Networks
@@ -63,7 +63,7 @@ func main() {
 		resp := []NetworkResponse{
 			{ID: "net-test-1", Name: "Test Network", Role: "member"},
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}).Methods("GET")
 
 	// WebSocket Mock (Accept and hold)

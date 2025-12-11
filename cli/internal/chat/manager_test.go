@@ -189,7 +189,7 @@ func TestMessageHistoryLimit(t *testing.T) {
 func TestOnMessageCallback(t *testing.T) {
 	m := NewManager()
 
-	m.OnMessage(func(msg Message) {
+	m.OnMessage(func(_ Message) {
 		// Callback set
 	})
 
@@ -246,7 +246,7 @@ func TestManager_StartAndStop(t *testing.T) {
 	}
 }
 
-func TestManager_StopWithoutStart(t *testing.T) {
+func TestManager_StopWithoutStart(_ *testing.T) {
 	m := NewManager()
 
 	// Stop without starting should not panic
@@ -379,7 +379,7 @@ func TestManager_ConcurrentSubscribers(t *testing.T) {
 	m.Unsubscribe(ch3)
 }
 
-func TestManager_SubscriberChannelFull(t *testing.T) {
+func TestManager_SubscriberChannelFull(_ *testing.T) {
 	m := NewManager()
 
 	// Subscribe with a small buffer
