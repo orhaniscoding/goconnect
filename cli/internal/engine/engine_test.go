@@ -826,7 +826,7 @@ func TestEngine_SyncConfig_ConfigFetchError(t *testing.T) {
 	eng, server, _ := setupTestEngine(t, apiHandler)
 	defer server.Close()
 
-	eng.idMgr.Update("device-test-id")
+	_ = eng.idMgr.Update("device-test-id")
 
 	// Should log error but not panic
 	assert.NotPanics(t, func() {
@@ -839,7 +839,7 @@ func TestEngine_SyncConfig_NetworkFetchError(t *testing.T) {
 	apiHandler := func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/config") {
 			configCalled = true
-			json.NewEncoder(w).Encode(api.DeviceConfig{
+			_ = json.NewEncoder(w).Encode(api.DeviceConfig{
 				Interface: api.InterfaceConfig{Addresses: []string{"10.0.0.1/24"}},
 				Peers:     []api.PeerConfig{},
 			})
@@ -854,7 +854,7 @@ func TestEngine_SyncConfig_NetworkFetchError(t *testing.T) {
 	eng, server, _ := setupTestEngine(t, apiHandler)
 	defer server.Close()
 
-	eng.idMgr.Update("device-test-id")
+	_ = eng.idMgr.Update("device-test-id")
 
 	// Should continue without panicking even when network fetch fails
 	assert.NotPanics(t, func() {
@@ -866,7 +866,7 @@ func TestEngine_SyncConfig_NetworkFetchError(t *testing.T) {
 func TestEngine_SyncConfig_WithP2PConnections(t *testing.T) {
 	apiHandler := func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/config") {
-			json.NewEncoder(w).Encode(api.DeviceConfig{
+			_ = json.NewEncoder(w).Encode(api.DeviceConfig{
 				Interface: api.InterfaceConfig{Addresses: []string{"10.0.0.1/24"}},
 				Peers: []api.PeerConfig{
 					{ID: "peer-a", Name: "Peer A", AllowedIPs: []string{"10.0.0.2/32"}},
@@ -876,7 +876,7 @@ func TestEngine_SyncConfig_WithP2PConnections(t *testing.T) {
 			return
 		}
 		if r.URL.Path == "/v1/networks" {
-			json.NewEncoder(w).Encode([]api.NetworkResponse{})
+			_ = json.NewEncoder(w).Encode([]api.NetworkResponse{})
 			return
 		}
 	}
@@ -886,7 +886,7 @@ func TestEngine_SyncConfig_WithP2PConnections(t *testing.T) {
 
 	// Set device ID lower than "peer-z" but higher than "peer-a"
 	// to test deterministic initiator selection
-	eng.idMgr.Update("peer-m")
+	_ = eng.idMgr.Update("peer-m")
 	eng.config.P2P.Enabled = true
 
 	// Call syncConfig

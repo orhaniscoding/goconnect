@@ -68,7 +68,7 @@ func (s *GRPCServer) Start(ctx context.Context) error {
 	var err error
 	s.listener, err = s.createListener()
 	if err != nil {
-		s.ipcAuth.Cleanup() // Clean up token on failure
+		_ = s.ipcAuth.Cleanup() // Clean up token on failure
 		return fmt.Errorf("failed to create listener: %w", err)
 	}
 

@@ -524,7 +524,7 @@ func TestStorage_DeleteOldMessages_NoneToDelete(t *testing.T) {
 	defer storage.Close()
 
 	// Save a recent message
-	storage.SaveMessage(Message{
+	_ = storage.SaveMessage(Message{
 		ID:      "recent-msg",
 		From:    "peer",
 		Content: "Recent",
@@ -547,9 +547,9 @@ func TestStorage_GetMessages_OrderByTimestamp(t *testing.T) {
 	baseTime := time.Now()
 
 	// Save messages in non-chronological order
-	storage.SaveMessage(Message{ID: "mid", From: "p", Content: "b", Time: baseTime.Add(time.Second)})
-	storage.SaveMessage(Message{ID: "first", From: "p", Content: "a", Time: baseTime})
-	storage.SaveMessage(Message{ID: "last", From: "p", Content: "c", Time: baseTime.Add(2 * time.Second)})
+	_ = storage.SaveMessage(Message{ID: "mid", From: "p", Content: "b", Time: baseTime.Add(time.Second)})
+	_ = storage.SaveMessage(Message{ID: "first", From: "p", Content: "a", Time: baseTime})
+	_ = storage.SaveMessage(Message{ID: "last", From: "p", Content: "c", Time: baseTime.Add(2 * time.Second)})
 
 	messages, err := storage.GetMessages("", 10, "")
 	require.NoError(t, err)
