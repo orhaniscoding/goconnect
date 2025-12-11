@@ -67,3 +67,54 @@ func TestRunSQLiteMigrations_NilDB(t *testing.T) {
 	assert.Contains(t, err.Error(), "db is nil")
 }
 
+func TestConnectSQLite_ForeignKeysEnabled(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "fk_test.db")
+
+	db, err := ConnectSQLite(dbPath)
+	require.NoError(t, err)
+	defer db.Close()
+
+	// Check foreign_keys pragma
+	var fkEnabled int
+	err = db.QueryRow("PRAGMA foreign_keys").Scan(&fkEnabled)
+	require.NoError(t, err)
+	assert.Equal(t, 1, fkEnabled, "foreign_keys should be enabled")
+}
+
+func TestConnectSQLite_CanExecuteQueries(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "query_test.db")
+
+	db, err := ConnectSQLite(dbPath)
+	require.NoError(t, err)
+	defer db.Close()
+
+	// Create a table
+	_, err = db.Exec("CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)")
+	require.NoError(t, err)
+
+	// Insert data
+	_, err = db.Exec("INSERT INTO test (name) VALUES (?)", "test_value")
+	require.NoError(t, err)
+
+	// Query data
+	var name string
+	err = db.QueryRow("SELECT name FROM test WHERE id = 1").Scan(&name)
+	require.NoError(t, err)
+	assert.Equal(t, "test_value", name)
+}
+
+func TestRunSQLiteMigrations_InvalidPath(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "test.db")
+
+	db, err := ConnectSQLite(dbPath)
+	require.NoError(t, err)
+	defer db.Close()
+
+	// Invalid migrations path
+	err = RunSQLiteMigrations(db, "/nonexistent/migrations/path")
+	assert.Error(t, err)
+}
+

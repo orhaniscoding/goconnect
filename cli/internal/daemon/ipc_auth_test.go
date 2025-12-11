@@ -224,3 +224,79 @@ func TestTokenCredentials(t *testing.T) {
 		}
 	})
 }
+
+func TestIPCAuth_StreamServerInterceptor(t *testing.T) {
+	tmpDir := t.TempDir()
+	tokenPath := filepath.Join(tmpDir, "test.token")
+	auth := daemon.NewIPCAuthWithPath(tokenPath)
+
+	if err := auth.GenerateAndSave(); err != nil {
+		t.Fatalf("GenerateAndSave failed: %v", err)
+	}
+
+	// Get the interceptor - just ensure it's not nil
+	interceptor := auth.StreamServerInterceptor()
+	if interceptor == nil {
+		t.Fatal("StreamServerInterceptor returned nil")
+	}
+}
+
+func TestIPCAuth_UnaryServerInterceptor(t *testing.T) {
+	tmpDir := t.TempDir()
+	tokenPath := filepath.Join(tmpDir, "test.token")
+	auth := daemon.NewIPCAuthWithPath(tokenPath)
+
+	if err := auth.GenerateAndSave(); err != nil {
+		t.Fatalf("GenerateAndSave failed: %v", err)
+	}
+
+	// Get the interceptor - just ensure it's not nil
+	interceptor := auth.UnaryServerInterceptor()
+	if interceptor == nil {
+		t.Fatal("UnaryServerInterceptor returned nil")
+	}
+}
+
+func TestIPCAuth_GenerateAndSave_CreatesDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Nested path that doesn't exist
+	tokenPath := filepath.Join(tmpDir, "nested", "dir", "test.token")
+	auth := daemon.NewIPCAuthWithPath(tokenPath)
+
+	err := auth.GenerateAndSave()
+	if err != nil {
+		t.Fatalf("GenerateAndSave should create directory: %v", err)
+	}
+
+	// Verify directory was created
+	dir := filepath.Dir(tokenPath)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		t.Error("Directory should have been created")
+	}
+
+	// Verify token file exists
+	if _, err := os.Stat(tokenPath); os.IsNotExist(err) {
+		t.Error("Token file should exist")
+	}
+}
+
+func TestLoadClientTokenFromPath_WithWhitespace(t *testing.T) {
+	tmpDir := t.TempDir()
+	tokenPath := filepath.Join(tmpDir, "test.token")
+
+	// Write token with trailing whitespace
+	tokenWithWhitespace := "abc123def456\n  \t"
+	if err := os.WriteFile(tokenPath, []byte(tokenWithWhitespace), 0600); err != nil {
+		t.Fatalf("Failed to write token file: %v", err)
+	}
+
+	// LoadClientTokenFromPath should trim whitespace
+	token, err := daemon.LoadClientTokenFromPath(tokenPath)
+	if err != nil {
+		t.Fatalf("LoadClientTokenFromPath failed: %v", err)
+	}
+
+	if token != "abc123def456" {
+		t.Errorf("Token should be trimmed, got %q", token)
+	}
+}
