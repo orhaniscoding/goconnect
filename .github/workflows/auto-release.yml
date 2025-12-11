@@ -289,19 +289,19 @@ jobs:
           LDFLAGS="-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE} -X main.builtBy=github-actions"
           
           # Linux
-          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o dist/goconnect_${VERSION}_linux_amd64 ./cmd/goconnect
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o dist/goconnect_${VERSION}_linux_arm64 ./cmd/goconnect
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o dist/goconnect-cli_${VERSION}_linux_amd64 ./cmd/goconnect
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o dist/goconnect-cli_${VERSION}_linux_arm64 ./cmd/goconnect
           
           # macOS
-          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o dist/goconnect_${VERSION}_darwin_amd64 ./cmd/goconnect
-          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o dist/goconnect_${VERSION}_darwin_arm64 ./cmd/goconnect
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o dist/goconnect-cli_${VERSION}_darwin_amd64 ./cmd/goconnect
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="${LDFLAGS}" -o dist/goconnect-cli_${VERSION}_darwin_arm64 ./cmd/goconnect
           
           # Windows
-          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o dist/goconnect_${VERSION}_windows_amd64.exe ./cmd/goconnect
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o dist/goconnect-cli_${VERSION}_windows_amd64.exe ./cmd/goconnect
           
           # Verify binaries
           echo "Verifying CLI binaries..."
-          for binary in dist/goconnect_*; do
+          for binary in dist/goconnect-cli_*; do
             if [ -f "$binary" ]; then
               echo "✅ Created: $binary ($(stat -c%s "$binary") bytes)"
             fi
@@ -309,12 +309,12 @@ jobs:
           
           # Create archives
           cd dist
-          for f in goconnect_*_linux_* goconnect_*_darwin_*; do
+          for f in goconnect-cli_*_linux_* goconnect-cli_*_darwin_*; do
             if [ -f "$f" ] && [[ ! "$f" =~ \.tar\.gz$ ]]; then
               tar -czvf "${f}.tar.gz" "$f" && rm "$f"
             fi
           done
-          for f in goconnect_*_windows_*.exe; do
+          for f in goconnect-cli_*_windows_*.exe; do
             if [ -f "$f" ]; then
               zip "${f%.exe}.zip" "$f" && rm "$f"
             fi
@@ -598,11 +598,11 @@ jobs:
             
             | Platform | Download |
             |----------|----------|
-            | Linux (x64) | `goconnect_v${{ needs.analyze.outputs.new_version }}_linux_amd64.tar.gz` |
-            | Linux (ARM64) | `goconnect_v${{ needs.analyze.outputs.new_version }}_linux_arm64.tar.gz` |
-            | macOS (Apple Silicon) | `goconnect_v${{ needs.analyze.outputs.new_version }}_darwin_arm64.tar.gz` |
-            | macOS (Intel) | `goconnect_v${{ needs.analyze.outputs.new_version }}_darwin_amd64.tar.gz` |
-            | Windows | `goconnect_v${{ needs.analyze.outputs.new_version }}_windows_amd64.zip` |
+            | Linux (x64) | `goconnect-cli_v${{ needs.analyze.outputs.new_version }}_linux_amd64.tar.gz` |
+            | Linux (ARM64) | `goconnect-cli_v${{ needs.analyze.outputs.new_version }}_linux_arm64.tar.gz` |
+            | macOS (Apple Silicon) | `goconnect-cli_v${{ needs.analyze.outputs.new_version }}_darwin_arm64.tar.gz` |
+            | macOS (Intel) | `goconnect-cli_v${{ needs.analyze.outputs.new_version }}_darwin_amd64.tar.gz` |
+            | Windows | `goconnect-cli_v${{ needs.analyze.outputs.new_version }}_windows_amd64.zip` |
             
             ### 🖧 Server (Self-Hosted)
             
@@ -618,10 +618,10 @@ jobs:
             
             | Platform | Download |
             |----------|----------|
-            | macOS (Apple Silicon) | `GoConnect_*_aarch64.dmg` |
-            | macOS (Intel) | `GoConnect_*_x64.dmg` |
-            | Linux (x64) | `GoConnect_*_amd64.deb` / `.AppImage` |
-            | Windows | `GoConnect_*_x64-setup.exe` / `.msi` |
+            | macOS (Apple Silicon) | `GoConnect-Desktop_*_aarch64.dmg` |
+            | macOS (Intel) | `GoConnect-Desktop_*_x64.dmg` |
+            | Linux (x64) | `GoConnect-Desktop_*_amd64.deb` / `.AppImage` |
+            | Windows | `GoConnect-Desktop_*_x64-setup.exe` / `.msi` |
             
             > 💡 Desktop downloads are optional - check the assets below for availability.
             
