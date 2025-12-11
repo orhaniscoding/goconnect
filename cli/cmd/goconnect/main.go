@@ -39,6 +39,9 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  start      Start the system service\n")
 		fmt.Fprintf(os.Stderr, "  stop       Stop the system service\n")
 		fmt.Fprintf(os.Stderr, "  status     Show daemon and connection status\n")
+		fmt.Fprintf(os.Stderr, "  networks   List all networks\n")
+		fmt.Fprintf(os.Stderr, "  peers      List peers in the current network\n")
+		fmt.Fprintf(os.Stderr, "  invite     Generate an invite code for the current network\n")
 		fmt.Fprintf(os.Stderr, "  login      Login via CLI (args: -server <url> -token <jwt>)\n")
 		fmt.Fprintf(os.Stderr, "  -version   Print version and exit\n")
 		flag.PrintDefaults()
@@ -114,6 +117,18 @@ func main() {
 
 		case "status":
 			runStatusCommand()
+			return
+
+		case "networks":
+			runNetworksCommand()
+			return
+
+		case "peers":
+			runPeersCommand()
+			return
+
+		case "invite":
+			runInviteCommand()
 			return
 
 		case "create":
@@ -258,6 +273,205 @@ func runStatusCommand() {
 	}
 
 	fmt.Println()
+}
+
+// runNetworksCommand lists all networks without TUI
+func runNetworksCommand() {
+	fmt.Println()
+	fmt.Println("  🔗 GoConnect Networks")
+	fmt.Println("  ═══════════════════════")
+
+	grpcClient, err := tui.NewGRPCClient()
+	if err != nil {
+		fmt.Println()
+		fmt.Println("  ❌ Daemon is not running")
+		fmt.Println("     Start with: goconnect run")
+		fmt.Println()
+		return
+	}
+	defer grpcClient.Close()
+
+	networks, err := grpcClient.GetNetworks()
+	if err != nil {
+		fmt.Printf("\n  ❌ Failed to get networks: %v\n\n", err)
+		return
+	}
+
+	if len(networks) == 0 {
+		fmt.Println()
+		fmt.Println("  No networks found.")
+		fmt.Println()
+		fmt.Println("  Create a network:  goconnect create")
+		fmt.Println("  Join a network:    goconnect join")
+		fmt.Println()
+		return
+	}
+
+	// Get current status to highlight active network
+	status, _ := grpcClient.GetStatus()
+
+	fmt.Println()
+	fmt.Printf("  %-3s %-30s %-10s %s\n", "", "NAME", "ROLE", "ID")
+	fmt.Println("  " + strings.Repeat("─", 60))
+
+	for _, n := range networks {
+		icon := "⚪"
+		if status != nil && (n.ID == status.NetworkName || n.Name == status.NetworkName) && status.Connected {
+			icon = "🟢"
+		}
+		role := n.Role
+		if role == "" {
+			role = "member"
+		}
+		fmt.Printf("  %s  %-30s %-10s %s\n", icon, n.Name, role, n.ID)
+	}
+
+	fmt.Println()
+	fmt.Printf("  Total: %d network(s)\n", len(networks))
+	fmt.Println()
+}
+
+// runPeersCommand lists peers in the current network
+func runPeersCommand() {
+	fmt.Println()
+	fmt.Println("  👥 GoConnect Peers")
+	fmt.Println("  ══════════════════")
+
+	grpcClient, err := tui.NewGRPCClient()
+	if err != nil {
+		fmt.Println()
+		fmt.Println("  ❌ Daemon is not running")
+		fmt.Println("     Start with: goconnect run")
+		fmt.Println()
+		return
+	}
+	defer grpcClient.Close()
+
+	// Check if connected to a network
+	status, err := grpcClient.GetStatus()
+	if err != nil {
+		fmt.Printf("\n  ❌ Failed to get status: %v\n\n", err)
+		return
+	}
+
+	if !status.Connected {
+		fmt.Println()
+		fmt.Println("  ⚠️  Not connected to any network")
+		fmt.Println("     Use 'goconnect status' to see available networks")
+		fmt.Println()
+		return
+	}
+
+	peers, err := grpcClient.GetPeers()
+	if err != nil {
+		fmt.Printf("\n  ❌ Failed to get peers: %v\n\n", err)
+		return
+	}
+
+	if len(peers) == 0 {
+		fmt.Println()
+		fmt.Printf("  Network: %s\n", status.NetworkName)
+		fmt.Println()
+		fmt.Println("  No other peers in this network yet.")
+		fmt.Println("  Share your invite code to add peers!")
+		fmt.Println()
+		return
+	}
+
+	fmt.Println()
+	fmt.Printf("  Network: %s\n", status.NetworkName)
+	fmt.Println()
+	fmt.Printf("  %-3s %-25s %-15s %s\n", "", "NAME", "IP", "STATUS")
+	fmt.Println("  " + strings.Repeat("─", 55))
+
+	for _, p := range peers {
+		icon := "⚪"
+		statusText := "offline"
+		if p.Status == "online" {
+			icon = "🟢"
+			statusText = "online"
+		} else if p.Status == "idle" {
+			icon = "🟡"
+			statusText = "idle"
+		}
+		fmt.Printf("  %s  %-25s %-15s %s\n", icon, p.Name, p.VirtualIP, statusText)
+	}
+
+	fmt.Println()
+	fmt.Printf("  Total: %d peer(s)\n", len(peers))
+	fmt.Println()
+}
+
+// runInviteCommand generates an invite code for the current network
+func runInviteCommand() {
+	fmt.Println()
+	fmt.Println("  🔗 GoConnect Invite")
+	fmt.Println("  ═══════════════════")
+
+	grpcClient, err := tui.NewGRPCClient()
+	if err != nil {
+		fmt.Println()
+		fmt.Println("  ❌ Daemon is not running")
+		fmt.Println("     Start with: goconnect run")
+		fmt.Println()
+		return
+	}
+	defer grpcClient.Close()
+
+	// Check if connected to a network
+	status, err := grpcClient.GetStatus()
+	if err != nil {
+		fmt.Printf("\n  ❌ Failed to get status: %v\n\n", err)
+		return
+	}
+
+	if !status.Connected || status.NetworkName == "" {
+		fmt.Println()
+		fmt.Println("  ⚠️  Not connected to any network")
+		fmt.Println("     Connect to a network first using the TUI")
+		fmt.Println()
+		return
+	}
+
+	// Find the network ID for the current network
+	var networkID string
+	for _, n := range status.Networks {
+		if n.Name == status.NetworkName || n.ID == status.NetworkName {
+			networkID = n.ID
+			break
+		}
+	}
+
+	if networkID == "" {
+		fmt.Println()
+		fmt.Println("  ⚠️  Could not find current network ID")
+		fmt.Println()
+		return
+	}
+
+	// Generate invite using the status invite code if available
+	if status.InviteCode != "" {
+		fmt.Println()
+		fmt.Printf("  Network: %s\n", status.NetworkName)
+		fmt.Println()
+		fmt.Println("  📋 Invite Code:")
+		fmt.Println()
+		fmt.Printf("     %s\n", status.InviteCode)
+		fmt.Println()
+		fmt.Println("  📎 Invite Link:")
+		fmt.Println()
+		fmt.Printf("     goconnect://join/%s\n", status.InviteCode)
+		fmt.Println()
+		fmt.Println("  Share this code or link with others to let them join!")
+		fmt.Println()
+	} else {
+		fmt.Println()
+		fmt.Printf("  Network: %s\n", status.NetworkName)
+		fmt.Println()
+		fmt.Println("  ⚠️  No invite code available")
+		fmt.Println("     You may need admin permissions to generate invites")
+		fmt.Println()
+	}
 }
 
 // runFirstTimeWelcome shows a friendly welcome for first-time users
