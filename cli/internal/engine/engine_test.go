@@ -262,7 +262,7 @@ func TestEngine_LeaveNetwork(t *testing.T) {
 func TestEngine_GetNetworks(t *testing.T) {
 	apiHandler := func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v1/networks" && r.Method == "GET" {
-			json.NewEncoder(w).Encode([]api.NetworkResponse{
+			_ = json.NewEncoder(w).Encode([]api.NetworkResponse{
 				{ID: "net-1", Name: "Network 1"},
 				{ID: "net-2", Name: "Network 2"},
 			})
@@ -422,7 +422,7 @@ func TestEngine_SyncConfig(t *testing.T) {
 	defer server.Close()
 
 	// Mocking DeviceID to allow sync to proceed
-	eng.idMgr.Update("device-test-id")
+	_ = eng.idMgr.Update("device-test-id")
 
 	// Manually trigger syncConfig (private method, but exposed via configLoop or just call it if we use reflection or if we are in same package)
 	// Since we are in 'package engine', we can access private methods!
@@ -545,7 +545,7 @@ func TestEngine_Heartbeat(t *testing.T) {
 	defer server.Close()
 
 	// Inject identity
-	eng.idMgr.Update("device-1")
+	_ = eng.idMgr.Update("device-1")
 	// Ensure token for API client (setupTestEngine does this)
 
 	eng.sendHeartbeat()
@@ -681,7 +681,7 @@ func TestEngine_SendChatMessage_Success(t *testing.T) {
 			}
 			// Read/Write dummy
 			buf := make([]byte, 1024)
-			conn.Read(buf)
+			_, _ = conn.Read(buf)
 			conn.Close()
 		}
 	}()
@@ -742,14 +742,14 @@ func TestEngine_StartStop(t *testing.T) {
 func TestEngine_ConnectDisconnect(t *testing.T) {
 	apiHandler := func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/config") {
-			json.NewEncoder(w).Encode(api.DeviceConfig{
+			_ = json.NewEncoder(w).Encode(api.DeviceConfig{
 				Interface: api.InterfaceConfig{Addresses: []string{"10.0.0.1/24"}},
 				Peers:     []api.PeerConfig{},
 			})
 			return
 		}
 		if r.URL.Path == "/v1/networks" {
-			json.NewEncoder(w).Encode([]api.NetworkResponse{})
+			_ = json.NewEncoder(w).Encode([]api.NetworkResponse{})
 			return
 		}
 		w.WriteHeader(http.StatusOK)
@@ -809,7 +809,7 @@ func TestEngine_SyncConfig_NoDeviceID(t *testing.T) {
 	defer server.Close()
 
 	// Clear device ID to simulate unregistered device
-	eng.idMgr.Update("")
+	_ = eng.idMgr.Update("")
 
 	// Should return early without calling API
 	eng.syncConfig()

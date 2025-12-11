@@ -406,7 +406,7 @@ func TestStorage_GetMessages_BeforeID_NotFound(t *testing.T) {
 	require.NoError(t, err)
 	defer storage.Close()
 
-	storage.SaveMessage(Message{ID: "msg-1", From: "peer", Content: "test", Time: time.Now()})
+	_ = storage.SaveMessage(Message{ID: "msg-1", From: "peer", Content: "test", Time: time.Now()})
 
 	// Get messages before non-existent ID - should return messages anyway (no timestamp filter applied)
 	messages, err := storage.GetMessages("", 10, "nonexistent-id")
@@ -424,7 +424,7 @@ func TestStorage_GetMessagesByPeer_DefaultLimit(t *testing.T) {
 
 	// Save messages
 	for i := 0; i < 3; i++ {
-		storage.SaveMessage(Message{
+		_ = storage.SaveMessage(Message{
 			ID:      "msg-" + string(rune('a'+i)),
 			From:    "alice",
 			Content: "test",
@@ -451,7 +451,7 @@ func TestStorage_SearchMessages_DefaultLimit(t *testing.T) {
 	defer storage.Close()
 
 	for i := 0; i < 3; i++ {
-		storage.SaveMessage(Message{
+		_ = storage.SaveMessage(Message{
 			ID:      "msg-" + string(rune('a'+i)),
 			From:    "peer",
 			Content: "searchable content",
