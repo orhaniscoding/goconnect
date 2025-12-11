@@ -580,4 +580,3 @@ func TestWireGuardHandler_GetProfile_PendingMembership(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, w.Code)
 	assert.Contains(t, w.Body.String(), "not approved")
 }
-

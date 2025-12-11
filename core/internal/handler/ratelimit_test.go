@@ -360,4 +360,3 @@ func TestNewRateLimiterFromEnv(t *testing.T) {
 		assert.NotNil(t, middleware)
 	})
 }
-

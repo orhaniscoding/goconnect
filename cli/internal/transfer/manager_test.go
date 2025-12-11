@@ -150,7 +150,7 @@ func TestCancelTransfer(t *testing.T) {
 	defer os.Remove(tmpfile.Name())
 
 	content := []byte("hello world for cancel test")
-	tmpfile.Write(content)
+	_, _ = tmpfile.Write(content)
 	tmpfile.Close()
 
 	session, err := tm.CreateSendSession("receiver", tmpfile.Name())
@@ -211,7 +211,7 @@ func TestGetSessions(t *testing.T) {
 	// Create temp file
 	tmpfile, _ := os.CreateTemp("", "testfile")
 	defer os.Remove(tmpfile.Name())
-	tmpfile.Write([]byte("test"))
+	_, _ = tmpfile.Write([]byte("test"))
 	tmpfile.Close()
 
 	// Initially empty
@@ -221,7 +221,7 @@ func TestGetSessions(t *testing.T) {
 	}
 
 	// Create a session
-	tm.CreateSendSession("peer1", tmpfile.Name())
+	_, _ = tm.CreateSendSession("peer1", tmpfile.Name())
 
 	sessions = tm.GetSessions()
 	if len(sessions) != 1 {
@@ -433,7 +433,7 @@ func TestSetCallbacks(t *testing.T) {
 	requestCalled := false
 
 	tm.SetCallbacks(
-		func(s Session) { progressCalled = true },
+		func(_ Session) { progressCalled = true },
 		func(r Request, peer string) { requestCalled = true },
 	)
 
@@ -762,7 +762,7 @@ func TestSendFileData_FileNotFound(t *testing.T) {
 	// Create a session for a file that we'll delete
 	tmpfile, err := os.CreateTemp("", "sendtest")
 	require.NoError(t, err)
-	tmpfile.Write([]byte("content"))
+	_, _ = tmpfile.Write([]byte("content"))
 	tmpfile.Close()
 
 	session, err := tm.CreateSendSession("receiver", tmpfile.Name())
@@ -1373,7 +1373,7 @@ func TestHandleSignalingMessage_Timeout(t *testing.T) {
 	assert.True(t, timerExists, "Timer should be set for request")
 
 	// Clean up by rejecting
-	tm.RejectTransfer("timeout-test")
+	_ = tm.RejectTransfer("timeout-test")
 }
 
 // ==================== Concurrent Write Tests ====================
@@ -1393,9 +1393,9 @@ func TestConcurrentWriteAccess(t *testing.T) {
 				return
 			}
 			defer os.Remove(tmpfile.Name())
-			tmpfile.Write([]byte("test"))
+			_, _ = tmpfile.Write([]byte("test"))
 			tmpfile.Close()
-			tm.CreateSendSession("peer", tmpfile.Name())
+			_, _ = tm.CreateSendSession("peer", tmpfile.Name())
 		}(i)
 	}
 
@@ -1598,11 +1598,11 @@ func TestSendFileData_WriteError(t *testing.T) {
 	for len(paddedID) < 36 {
 		paddedID = "0" + paddedID
 	}
-	conn.Write([]byte(paddedID[:36]))
+	_, _ = conn.Write([]byte(paddedID[:36]))
 
 	// Read a bit then close
 	buf := make([]byte, 100)
-	conn.Read(buf)
+	_, _ = conn.Read(buf)
 	conn.Close()
 
 	// Wait for error to be processed
@@ -1728,7 +1728,7 @@ func TestHandleConnection_ReadIDError(t *testing.T) {
 	require.NoError(t, err)
 
 	// Write partial ID
-	conn.Write([]byte("short"))
+	_, _ = conn.Write([]byte("short"))
 	conn.Close()
 
 	// Should not crash
