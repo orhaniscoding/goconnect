@@ -946,7 +946,7 @@ func TestStartDownload_Success(t *testing.T) {
 	defer os.Remove(tmpfile.Name())
 
 	content := []byte("transfer test content 12345")
-	tmpfile.Write(content)
+	_, _ = tmpfile.Write(content)
 	tmpfile.Close()
 
 	senderSession, err := senderMgr.CreateSendSession("receiver", tmpfile.Name())
@@ -1494,7 +1494,7 @@ func TestFullTransferFlow(t *testing.T) {
 	defer os.Remove(tmpfile.Name())
 
 	content := []byte("This is the file content for the full flow test - make it longer for better testing")
-	tmpfile.Write(content)
+	_, _ = tmpfile.Write(content)
 	tmpfile.Close()
 
 	// Create send session
@@ -1583,7 +1583,7 @@ func TestSendFileData_WriteError(t *testing.T) {
 	for i := range content {
 		content[i] = byte(i % 256)
 	}
-	tmpfile.Write(content)
+	_, _ = tmpfile.Write(content)
 	tmpfile.Close()
 
 	session, err := tm.CreateSendSession("receiver", tmpfile.Name())

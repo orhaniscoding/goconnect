@@ -1634,13 +1634,13 @@ func TestReadLoop_IgnoresUnknownMessageType(t *testing.T) {
 	client, _, cleanup := setupWebSocketServer(t, func(conn *websocket.Conn) {
 		// Send unknown message type
 		msg := wsMessage{Type: "unknown.type", Data: []byte(`{"foo":"bar"}`)}
-		conn.WriteJSON(msg)
+		_ = conn.WriteJSON(msg)
 
 		// Then send a known type to verify the loop continues
 		signalPayload, _ := json.Marshal(signalPayload{Ufrag: "test", Pwd: "test"})
 		signalData, _ := json.Marshal(callSignalData{FromUser: "user", Signal: signalPayload})
 		msg2 := wsMessage{Type: "call.offer", Data: signalData}
-		conn.WriteJSON(msg2)
+		_ = conn.WriteJSON(msg2)
 
 		time.Sleep(200 * time.Millisecond)
 	})
@@ -1699,13 +1699,13 @@ func TestReadLoop_HandlesInvalidSignalData(t *testing.T) {
 	client, _, cleanup := setupWebSocketServer(t, func(conn *websocket.Conn) {
 		// Send message with invalid signal data
 		msg := wsMessage{Type: "call.offer", Data: []byte("invalid signal")}
-		conn.WriteJSON(msg)
+		_ = conn.WriteJSON(msg)
 
 		// Then send valid message
 		signalPayload, _ := json.Marshal(signalPayload{Ufrag: "test", Pwd: "test"})
 		signalData, _ := json.Marshal(callSignalData{FromUser: "user", Signal: signalPayload})
 		msg2 := wsMessage{Type: "call.offer", Data: signalData}
-		conn.WriteJSON(msg2)
+		_ = conn.WriteJSON(msg2)
 
 		time.Sleep(200 * time.Millisecond)
 	})
@@ -1935,7 +1935,7 @@ func TestSendSignal_ConcurrentSends(t *testing.T) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			client.SendOffer("target", "ufrag", "pwd")
+			_ = client.SendOffer("target", "ufrag", "pwd")
 		}(i)
 	}
 	wg.Wait()

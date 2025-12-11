@@ -184,7 +184,7 @@ func TestStorage_DeleteMessage(t *testing.T) {
 	}
 	defer storage.Close()
 
-	storage.SaveMessage(Message{ID: "msg-to-delete", From: "peer", Content: "Delete me", Time: time.Now()})
+	_ = storage.SaveMessage(Message{ID: "msg-to-delete", From: "peer", Content: "Delete me", Time: time.Now()})
 
 	// Verify it exists
 	count, _ := storage.GetMessageCount()
@@ -216,8 +216,8 @@ func TestStorage_DeleteOldMessages(t *testing.T) {
 	oldTime := time.Now().Add(-48 * time.Hour)
 	newTime := time.Now()
 
-	storage.SaveMessage(Message{ID: "old-msg", From: "peer", Content: "Old", Time: oldTime})
-	storage.SaveMessage(Message{ID: "new-msg", From: "peer", Content: "New", Time: newTime})
+	_ = storage.SaveMessage(Message{ID: "old-msg", From: "peer", Content: "Old", Time: oldTime})
+	_ = storage.SaveMessage(Message{ID: "new-msg", From: "peer", Content: "New", Time: newTime})
 
 	// Delete messages older than 24 hours
 	deleted, err := storage.DeleteOldMessages(24 * time.Hour)
