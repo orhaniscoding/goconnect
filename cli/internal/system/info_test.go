@@ -45,7 +45,7 @@ func TestGetOSVersion_Linux(t *testing.T) {
 		f, err := os.CreateTemp("", "os-release")
 		require.NoError(t, err)
 		defer os.Remove(f.Name())
-		f.WriteString(start)
+		_, _ = f.WriteString(start)
 		f.Close()
 
 		osReleasePath = f.Name()
@@ -59,7 +59,7 @@ func TestGetOSVersion_Linux(t *testing.T) {
 		f, err := os.CreateTemp("", "os-release")
 		require.NoError(t, err)
 		defer os.Remove(f.Name())
-		f.WriteString(content)
+		_, _ = f.WriteString(content)
 		f.Close()
 
 		osReleasePath = f.Name()
@@ -73,7 +73,7 @@ func TestGetOSVersion_Linux(t *testing.T) {
 		f, err := os.CreateTemp("", "os-release")
 		require.NoError(t, err)
 		defer os.Remove(f.Name())
-		f.WriteString(content)
+		_, _ = f.WriteString(content)
 		f.Close()
 
 		osReleasePath = f.Name()
@@ -146,7 +146,7 @@ func TestGetWindowsVersion(t *testing.T) {
 	defer func() { execCommand = origExec }()
 
 	t.Run("Success", func(t *testing.T) {
-		execCommand = func(name string, args ...string) *exec.Cmd {
+		execCommand = func(name string, _ ...string) *exec.Cmd {
 			assert.Equal(t, "cmd", name, "Expected 'cmd' command")
 			return exec.Command("echo", "Microsoft Windows [Version 10.0.19045.2965]")
 		}

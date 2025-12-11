@@ -117,4 +117,3 @@ func TestRunSQLiteMigrations_InvalidPath(t *testing.T) {
 	err = RunSQLiteMigrations(db, "/nonexistent/migrations/path")
 	assert.Error(t, err)
 }
-

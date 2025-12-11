@@ -33,7 +33,7 @@ func TestLinuxProtocolHandler_Register(t *testing.T) {
 	defer os.Setenv("HOME", origHome)
 
 	// Mock runCommand to succeed
-	runCommand = func(name string, args ...string) error {
+	runCommand = func(_ string, _ ...string) error {
 		return nil
 	}
 

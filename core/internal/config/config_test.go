@@ -415,7 +415,7 @@ func TestDefaultConfigPath(t *testing.T) {
 		path := DefaultConfigPath()
 		assert.Equal(t, "goconnect.yaml", path)
 	})
-	
+
 	t.Run("EnvOverride", func(t *testing.T) {
 		os.Setenv("GOCONNECT_CONFIG_PATH", "/custom/path/config.yaml")
 		defer os.Unsetenv("GOCONNECT_CONFIG_PATH")
@@ -755,7 +755,7 @@ func TestApplyEnvOverrides_WireGuardExtended(t *testing.T) {
 func TestLoadFromFileOrEnv_FileNotFound(t *testing.T) {
 	// Test LoadFromFileOrEnv when file doesn't exist
 	// It should fall back to Load()
-	
+
 	// Set required env vars for Load() to succeed
 	os.Setenv("SERVER_PORT", "8080")
 	os.Setenv("DB_HOST", "localhost")
@@ -764,7 +764,7 @@ func TestLoadFromFileOrEnv_FileNotFound(t *testing.T) {
 	os.Setenv("JWT_SECRET", "this_is_a_very_secure_secret_key_with_at_least_32_chars")
 	os.Setenv("WG_SERVER_ENDPOINT", "vpn.test.com:51820")
 	os.Setenv("WG_SERVER_PUBKEY", "aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789ABCDEFG=")
-	
+
 	defer func() {
 		os.Unsetenv("SERVER_PORT")
 		os.Unsetenv("DB_HOST")
@@ -783,7 +783,7 @@ func TestLoadFromFileOrEnv_FileNotFound(t *testing.T) {
 func TestLoadFromFileOrEnv_InvalidYAML(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "invalid.yaml")
-	
+
 	// Write invalid YAML
 	require.NoError(t, os.WriteFile(configPath, []byte("{{invalid yaml content"), 0o600))
 
@@ -795,7 +795,7 @@ func TestLoadFromFileOrEnv_InvalidYAML(t *testing.T) {
 func TestLoadFromFileOrEnv_ValidationFailure(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "invalid_config.yaml")
-	
+
 	// Write valid YAML but invalid config (missing required fields)
 	yamlContent := `
 server:
@@ -812,7 +812,7 @@ database:
 
 func TestLoadFromFile_IsDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
-	
+
 	// Try to load a directory as a config file
 	_, err := LoadFromFile(tmpDir)
 	require.Error(t, err)
@@ -822,7 +822,7 @@ func TestLoadFromFile_IsDirectory(t *testing.T) {
 func TestSaveToFile_NilConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "nil.yaml")
-	
+
 	err := SaveToFile(nil, configPath)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "nil")
@@ -831,12 +831,12 @@ func TestSaveToFile_NilConfig(t *testing.T) {
 func TestSaveToFile_InvalidConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "invalid.yaml")
-	
+
 	// Config with invalid values
 	cfg := &Config{
 		Server: ServerConfig{Port: ""}, // Missing required field
 	}
-	
+
 	err := SaveToFile(cfg, configPath)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "SERVER_PORT")

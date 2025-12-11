@@ -169,7 +169,7 @@ func TestLinuxConfigurator_ConfigureInterface_DNS(t *testing.T) {
 	c := newConfigurator()
 	
 	// Mock runCommand
-	runCommand = func(name string, args ...string) error {
+	runCommand = func(_ string, _ ...string) error {
 		return nil
 	}
 
@@ -182,9 +182,8 @@ func TestLinuxConfigurator_ConfigureInterface_DNS(t *testing.T) {
 	}
 
 	// Use TestHelperProcess pattern
-	execCommand = func(name string, args ...string) *exec.Cmd {
-        cs := []string{"-test.run=TestHelperProcess", "--", name}
-        cs = append(cs, args...)
+	execCommand = func(_ string, _ ...string) *exec.Cmd {
+        cs := []string{"-test.run=TestHelperProcess", "--", "echo"}
         cmd := exec.Command(os.Args[0], cs...)
         cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
         return cmd
@@ -205,12 +204,12 @@ func TestLinuxConfigurator_ConfigureInterface_DNSNotAvailable(t *testing.T) {
 
 	c := newConfigurator()
 	
-	runCommand = func(name string, args ...string) error {
+	runCommand = func(_ string, _ ...string) error {
 		return nil
 	}
 
 	// Mock LookPath to simulate resolvconf NOT installed
-	execLookPath = func(file string) (string, error) {
+	execLookPath = func(_ string) (string, error) {
 		return "", fmt.Errorf("not found")
 	}
 
