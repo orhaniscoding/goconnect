@@ -371,4 +371,3 @@ func TestSQLiteChatRepository_ListByScope(t *testing.T) {
 	assert.Len(t, list, 1)
 	assert.Equal(t, "network:net-1", list[0].Scope)
 }
-

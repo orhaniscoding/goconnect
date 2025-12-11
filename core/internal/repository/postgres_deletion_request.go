@@ -170,4 +170,3 @@ func (r *PostgresDeletionRequestRepository) Update(ctx context.Context, req *dom
 	}
 	return nil
 }
-

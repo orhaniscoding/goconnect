@@ -81,7 +81,7 @@ func TestRegister_Success(t *testing.T) {
 		}
 
 		var req RegisterDeviceRequest
-		json.NewDecoder(r.Body).Decode(&req)
+		_ = json.NewDecoder(r.Body).Decode(&req)
 		if req.Name != "test-device" {
 			t.Errorf("Expected name 'test-device', got %s", req.Name)
 		}
@@ -90,7 +90,7 @@ func TestRegister_Success(t *testing.T) {
 		}
 
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(expectedResponse)
+		_ = json.NewEncoder(w).Encode(expectedResponse)
 	}))
 	defer server.Close()
 
@@ -119,7 +119,7 @@ func TestRegister_Success(t *testing.T) {
 func TestRegister_ServerError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"message": "Invalid request"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"message": "Invalid request"})
 	}))
 	defer server.Close()
 
@@ -141,7 +141,7 @@ func TestRegister_ServerError(t *testing.T) {
 func TestRegister_InvalidResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte("invalid json"))
+		_, _ = w.Write([]byte("invalid json"))
 	}))
 	defer server.Close()
 
@@ -949,7 +949,7 @@ func TestGetNetworks_Success(t *testing.T) {
 			t.Errorf("Unexpected Auth header: %s", r.Header.Get("Authorization"))
 		}
 		
-		json.NewEncoder(w).Encode([]NetworkResponse{
+		_ = json.NewEncoder(w).Encode([]NetworkResponse{
 			{ID: "net-1", Name: "Network 1", Role: "admin"},
 			{ID: "net-2", Name: "Network 2", Role: "member"},
 		})
@@ -1087,12 +1087,12 @@ func TestJoinNetwork_Success(t *testing.T) {
 		}
 		
 		var req JoinNetworkRequest
-		json.NewDecoder(r.Body).Decode(&req)
+		_ = json.NewDecoder(r.Body).Decode(&req)
 		if req.InviteCode != "ABC12345" {
 			t.Errorf("Expected invite code ABC12345, got %s", req.InviteCode)
 		}
 
-		json.NewEncoder(w).Encode(NetworkResponse{ID: "net-join", Name: "Joined Net"})
+		_ = json.NewEncoder(w).Encode(NetworkResponse{ID: "net-join", Name: "Joined Net"})
 	})
 
 	client, server := setupMockClient(t, handler)
@@ -1204,14 +1204,14 @@ func TestGenerateInvite_Success(t *testing.T) {
 		}
 
 		var req CreateInviteRequest
-		json.NewDecoder(r.Body).Decode(&req)
+		_ = json.NewDecoder(r.Body).Decode(&req)
 		
 		// 24 hours * 3600
 		if req.ExpiresIn != 86400 {
 			t.Errorf("Expected ExpiresIn 86400, got %d", req.ExpiresIn)
 		}
 
-		json.NewEncoder(w).Encode(InviteTokenResponse{Token: "inv-token"})
+		_ = json.NewEncoder(w).Encode(InviteTokenResponse{Token: "inv-token"})
 	})
 
 	client, server := setupMockClient(t, handler)
@@ -1289,7 +1289,7 @@ func TestSendHeartbeat_NetworkError(t *testing.T) {
 		}{URL: "http://localhost:99999"},
 	}
 	kr, _ := storage.NewTestKeyring(t.TempDir())
-	kr.StoreAuthToken("token")
+	_ = kr.StoreAuthToken("token")
 	cfg.Keyring = kr
 	client := NewClient(cfg)
 
@@ -1359,7 +1359,7 @@ func TestCreateNetwork_ServerErrorNoMessage(t *testing.T) {
 func TestCreateNetwork_InvalidResponse(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte("invalid json"))
+		_, _ = w.Write([]byte("invalid json"))
 	})
 
 	client, server := setupMockClient(t, handler)

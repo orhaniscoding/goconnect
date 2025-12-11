@@ -255,7 +255,7 @@ func TestConfig_Save_ReadOnlyDirectory(t *testing.T) {
 	if err := os.Mkdir(readOnlyDir, 0555); err != nil {
 		t.Fatalf("Failed to create readonly dir: %v", err)
 	}
-	defer os.Chmod(readOnlyDir, 0755)
+	defer func() { _ = os.Chmod(readOnlyDir, 0755) }()
 
 	cfg := &Config{}
 	cfg.Server.URL = "https://test.example.com"

@@ -41,7 +41,7 @@ func TestSQLPostRepository_Create(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), created.ID)
 	assert.Equal(t, post.Content, created.Content)
-	
+
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -93,7 +93,7 @@ func TestSQLPostRepository_GetByID_NotFound(t *testing.T) {
 
 	_, err = repo.GetByID(ctx, 999)
 	require.Error(t, err)
-	
+
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
