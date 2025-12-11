@@ -1,6 +1,6 @@
 [package]
 name = "desktop-client"
-version = "3.6.17"
+version = "3.6.18"
 description = "GoConnect Desktop - Virtual LAN made simple"
 authors = ["orhaniscoding"]
 edition = "2021"
