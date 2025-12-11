@@ -62,7 +62,7 @@ func TestLinuxProtocolHandler_Register_CustomCommand(t *testing.T) {
 	os.Setenv("HOME", tmpHome)
 	defer os.Setenv("HOME", origHome)
 
-	runCommand = func(name string, args ...string) error {
+	runCommand = func(_ string, _ ...string) error {
 		return nil
 	}
 
@@ -89,7 +89,7 @@ func TestLinuxProtocolHandler_Register_XdgMimeFailure(t *testing.T) {
 	defer os.Setenv("HOME", origHome)
 
 	// Make xdg-mime command fail
-	runCommand = func(name string, args ...string) error {
+	runCommand = func(name string, _ ...string) error {
 		if name == "xdg-mime" {
 			return fmt.Errorf("xdg-mime not found")
 		}
@@ -112,7 +112,7 @@ func TestLinuxProtocolHandler_Register_CreatesDirStructure(t *testing.T) {
 	os.Setenv("HOME", tmpHome)
 	defer os.Setenv("HOME", origHome)
 
-	runCommand = func(name string, args ...string) error {
+	runCommand = func(_ string, _ ...string) error {
 		return nil
 	}
 
@@ -217,7 +217,7 @@ func TestLinuxProtocolHandler_Register_MultipleSchemes(t *testing.T) {
 	os.Setenv("HOME", tmpHome)
 	defer os.Setenv("HOME", origHome)
 
-	runCommand = func(name string, args ...string) error {
+	runCommand = func(_ string, _ ...string) error {
 		return nil
 	}
 

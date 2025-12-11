@@ -172,7 +172,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.help.ShowAll = !m.help.ShowAll
 		case key.Matches(msg, m.keys.Copy):
 			if m.status != nil && m.status.Connected {
-				clipboard.WriteAll(m.status.InviteCode)
+				_ = clipboard.WriteAll(m.status.InviteCode)
 				m.loadingMsg = "Copied to clipboard!"
 				return m, tea.Tick(2*time.Second, func(_ time.Time) tea.Msg { return tickMsg{} })
 			}

@@ -192,7 +192,7 @@ func (s *DaemonService) Stop(srk service.Service) error {
 		s.engine.Stop()
 	}
 	if s.localHTTPServer != nil {
-		s.localHTTPServer.Shutdown(context.Background())
+		_ = s.localHTTPServer.Shutdown(context.Background())
 	}
 	s.logf.Info("GoConnect Daemon stopped.")
 	return nil

@@ -222,7 +222,7 @@ func TestLinuxConfigurator_ConfigureInterface_DNSNotAvailable(t *testing.T) {
 }
 
 // TestHelperProcess isn't a real test. It's used to mock exec.Command
-func TestHelperProcess(t *testing.T) {
+func TestHelperProcess(_ *testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
 		return
 	}

@@ -157,7 +157,7 @@ func TestGetWindowsVersion(t *testing.T) {
 
 	t.Run("CommandArgumentsCorrect", func(t *testing.T) {
 		var capturedArgs []string
-		execCommand = func(name string, args ...string) *exec.Cmd {
+		execCommand = func(_ string, args ...string) *exec.Cmd {
 			capturedArgs = args
 			return exec.Command("echo", "Windows Test")
 		}
