@@ -3,6 +3,13 @@ run:
 linters:
   enable: [govet, staticcheck, errcheck, revive]
 
+issues:
+  # Exclude errcheck in test files - test code often ignores errors intentionally
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+
 linters-settings:
   errcheck:
     exclude-functions:
