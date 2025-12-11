@@ -225,7 +225,7 @@ impl DaemonClient {
         let request = self.add_auth(Request::new(proto::GenerateInviteRequest {
             network_id: network_id.to_string(),
             max_uses: 0, // Unlimited
-            expires_in_hours: 0, // No expiry
+            expires_hours: 0, // No expiry
         }));
         
         let response = client.generate_invite(request)
@@ -272,6 +272,7 @@ impl DaemonClient {
         let request = self.add_auth(Request::new(proto::KickPeerRequest {
             network_id: network_id.to_string(),
             peer_id: peer_id.to_string(),
+            reason: String::new(),
         }));
         
         client.kick_peer(request)
@@ -338,11 +339,17 @@ impl DaemonClient {
     pub async fn update_settings(&self, settings: &Settings) -> Result<Settings, DaemonError> {
         let mut client = SettingsServiceClient::new(self.channel.clone());
         let request = self.add_auth(Request::new(proto::UpdateSettingsRequest {
-            auto_connect: Some(settings.auto_connect),
-            start_minimized: Some(settings.start_minimized),
-            notifications_enabled: Some(settings.notifications_enabled),
-            theme: None,
-            download_path: None,
+            settings: Some(proto::Settings {
+                auto_connect: settings.auto_connect,
+                start_minimized: settings.start_minimized,
+                notifications_enabled: settings.notifications_enabled,
+                auto_accept_files: false,
+                download_path: String::new(),
+                max_upload_speed_kbps: 0,
+                max_download_speed_kbps: 0,
+                theme: String::new(),
+                language: String::new(),
+            }),
         }));
         
         let response = client.update_settings(request)
@@ -381,10 +388,10 @@ impl DaemonClient {
     // =========================================================================
 
     /// Get chat messages
-    pub async fn get_messages(&self, peer_id: &str, limit: i32, before: Option<&str>) -> Result<Vec<ChatMessage>, DaemonError> {
+    pub async fn get_messages(&self, network_id: &str, limit: i32, before: Option<&str>) -> Result<Vec<ChatMessage>, DaemonError> {
         let mut client = ChatServiceClient::new(self.channel.clone());
         let request = self.add_auth(Request::new(proto::GetMessagesRequest {
-            peer_id: peer_id.to_string(),
+            network_id: network_id.to_string(),
             limit,
             before_id: before.unwrap_or_default().to_string(),
         }));
@@ -397,10 +404,10 @@ impl DaemonClient {
             .into_iter()
             .map(|m| ChatMessage {
                 id: m.id,
-                peer_id: m.peer_id,
+                peer_id: m.sender_id.clone(),
                 content: m.content,
-                timestamp: m.timestamp,
-                is_self: m.is_self,
+                timestamp: m.sent_at.map(|t| t.seconds.to_string()).unwrap_or_default(),
+                is_self: false, // Determine from sender_id comparison if needed
             })
             .collect();
         
@@ -408,11 +415,12 @@ impl DaemonClient {
     }
 
     /// Send a chat message
-    pub async fn send_message(&self, peer_id: &str, content: &str) -> Result<(), DaemonError> {
+    pub async fn send_message(&self, network_id: &str, content: &str) -> Result<(), DaemonError> {
         let mut client = ChatServiceClient::new(self.channel.clone());
         let request = self.add_auth(Request::new(proto::SendMessageRequest {
-            peer_id: peer_id.to_string(),
+            network_id: network_id.to_string(),
             content: content.to_string(),
+            recipient_id: String::new(), // Empty = broadcast to network
         }));
         
         client.send_message(request)
@@ -427,12 +435,9 @@ impl DaemonClient {
     // =========================================================================
 
     /// List transfers
-    pub async fn list_transfers(&self, status: Option<&str>, peer_id: Option<&str>) -> Result<Vec<TransferInfo>, DaemonError> {
+    pub async fn list_transfers(&self, _status: Option<&str>, _peer_id: Option<&str>) -> Result<Vec<TransferInfo>, DaemonError> {
         let mut client = TransferServiceClient::new(self.channel.clone());
-        let request = self.add_auth(Request::new(proto::ListTransfersRequest {
-            filter_status: status.unwrap_or_default().to_string(),
-            filter_peer_id: peer_id.unwrap_or_default().to_string(),
-        }));
+        let request = self.add_auth(Request::new(()));
         
         let response = client.list_transfers(request)
             .await
@@ -443,20 +448,20 @@ impl DaemonClient {
             .map(|t| TransferInfo {
                 id: t.id,
                 peer_id: t.peer_id,
-                file_name: t.file_name,
-                file_size: t.file_size as u64,
-                transferred: t.transferred as u64,
+                file_name: t.filename,
+                file_size: t.size_bytes as u64,
+                transferred: t.transferred_bytes as u64,
                 status: match t.status {
                     0 => "pending".to_string(),
-                    1 => "active".to_string(),
-                    2 => "completed".to_string(),
-                    3 => "failed".to_string(),
-                    4 => "cancelled".to_string(),
-                    5 => "rejected".to_string(),
+                    1 => "pending".to_string(),
+                    2 => "active".to_string(),
+                    3 => "completed".to_string(),
+                    4 => "failed".to_string(),
+                    5 => "cancelled".to_string(),
                     _ => "unknown".to_string(),
                 },
-                direction: if t.is_upload { "upload".to_string() } else { "download".to_string() },
-                error: if t.error.is_empty() { None } else { Some(t.error) },
+                direction: if t.is_incoming { "download".to_string() } else { "upload".to_string() },
+                error: if t.error_message.is_empty() { None } else { Some(t.error_message) },
             })
             .collect();
         
