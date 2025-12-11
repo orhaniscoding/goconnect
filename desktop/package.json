@@ -1,7 +1,7 @@
 {
   "name": "goconnect-desktop",
   "private": true,
-  "version": "3.6.2",
+  "version": "3.6.3",
   "description": "GoConnect Desktop Client - Virtual LAN made simple",
   "type": "module",
   "scripts": {
