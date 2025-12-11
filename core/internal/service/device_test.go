@@ -690,10 +690,10 @@ func TestDeviceService_GetDeviceConfig(t *testing.T) {
 
 		// Create peer for the device
 		peer := &domain.Peer{
-			ID:        "peer-1",
-			DeviceID:  "device-1",
-			NetworkID: "network-1",
-			PublicKey: "testpubkey123456789012345678901234567890=",
+			ID:         "peer-1",
+			DeviceID:   "device-1",
+			NetworkID:  "network-1",
+			PublicKey:  "testpubkey123456789012345678901234567890=",
 			AllowedIPs: []string{"10.1.0.2/32"},
 		}
 		peerRepo.Create(ctx, peer)

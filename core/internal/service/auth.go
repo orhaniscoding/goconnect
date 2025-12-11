@@ -619,12 +619,12 @@ func (s *AuthService) Logout(ctx context.Context, accessToken, refreshToken stri
 
 	if accessJTI != "" {
 		// Blacklist access token (15 min TTL)
-		s.addToBlacklist(ctx, accessToken)
+		_ = s.addToBlacklist(ctx, accessToken)
 	}
 
 	if refreshJTI != "" {
 		// Blacklist refresh token (7 days TTL)
-		s.addToBlacklist(ctx, refreshToken)
+		_ = s.addToBlacklist(ctx, refreshToken)
 	}
 
 	// Remove from user sessions

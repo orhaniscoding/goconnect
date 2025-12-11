@@ -282,7 +282,7 @@ func TestManager_Save_ReadOnlyDir(t *testing.T) {
 	if err := os.Mkdir(readOnlyDir, 0555); err != nil {
 		t.Fatalf("Failed to create readonly dir: %v", err)
 	}
-	defer os.Chmod(readOnlyDir, 0755) // Cleanup
+	defer func() { _ = os.Chmod(readOnlyDir, 0755) }() // Cleanup
 
 	identityPath := filepath.Join(readOnlyDir, "identity.json")
 	m := NewManager(identityPath)

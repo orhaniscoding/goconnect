@@ -424,7 +424,7 @@ func TestAdminService_ListDevices(t *testing.T) {
 }
 
 // ==================== LIST ALL USERS TESTS ====================
-// NOTE: ListAllUsers, GetUserStats, UpdateLastSeen, UpdateUserRole, SuspendUser, UnsuspendUser, 
+// NOTE: ListAllUsers, GetUserStats, UpdateLastSeen, UpdateUserRole, SuspendUser, UnsuspendUser,
 // GetUserDetails all require AdminRepository which needs SQL DB.
 // These functions are tested via integration tests.
 

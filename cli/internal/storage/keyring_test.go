@@ -38,6 +38,7 @@ func TestKeyringStore_Struct(t *testing.T) {
 	// If keyring is available, verify the store is valid
 	if ks == nil {
 		t.Error("Expected KeyringStore, got nil")
+		return
 	}
 	if ks.kr == nil {
 		t.Error("Expected keyring to be initialized")
@@ -45,17 +46,17 @@ func TestKeyringStore_Struct(t *testing.T) {
 }
 
 // MockKeyringStore tests - testing the interface contract
-func TestKeyringStore_Methods(t *testing.T) {
+func TestKeyringStore_Methods(_ *testing.T) {
 	// This test verifies that KeyringStore has the expected methods
 	// by checking method signatures compile correctly
 	var store *KeyringStore
 
 	// These will panic if called on nil, but they verify the methods exist
-	_ = func() { store.StoreAuthToken("test") }
-	_ = func() { store.RetrieveAuthToken() }
-	_ = func() { store.StoreDeviceID("test") }
-	_ = func() { store.RetrieveDeviceID() }
-	_ = func() { store.RemoveAuthData() }
+	_ = func() { _ = store.StoreAuthToken("test") }
+	_ = func() { _, _ = store.RetrieveAuthToken() }
+	_ = func() { _ = store.StoreDeviceID("test") }
+	_ = func() { _, _ = store.RetrieveDeviceID() }
+	_ = func() { _ = store.RemoveAuthData() }
 
 	// Suppress unused variable warning
 	_ = store
