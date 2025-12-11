@@ -169,7 +169,7 @@ func TestManager_SetNewConnectionCallback(t *testing.T) {
 		mockSignal := new(MockSignalService)
 		mgr := NewManager(mockSignal, "")
 
-		mgr.SetNewConnectionCallback(func(peerID string, conn *ice.Conn) {
+		mgr.SetNewConnectionCallback(func(_ string, _ *ice.Conn) {
 			// Callback set
 		})
 
@@ -231,7 +231,7 @@ func TestP2PConstants(t *testing.T) {
 // ==================== Concurrent Access Tests ====================
 
 func TestManager_ConcurrentAccess(t *testing.T) {
-	t.Run("Safe Concurrent Agent Map Access", func(t *testing.T) {
+	t.Run("Safe Concurrent Agent Map Access", func(_ *testing.T) {
 		mockSignal := new(MockSignalService)
 		mgr := NewManager(mockSignal, "")
 
@@ -262,7 +262,7 @@ func TestManager_ConcurrentAccess(t *testing.T) {
 // ==================== RemovePeer Edge Cases ====================
 
 func TestManager_RemovePeer_EdgeCases(t *testing.T) {
-	t.Run("Safe To Remove Non-Existent Peer", func(t *testing.T) {
+	t.Run("Safe To Remove Non-Existent Peer", func(_ *testing.T) {
 		mockSignal := new(MockSignalService)
 		mgr := NewManager(mockSignal, "")
 
@@ -369,7 +369,7 @@ func TestIntegration_P2P_Connection(t *testing.T) {
 
 	// Metrics for mgr2 to verify callback
 	mgr2Connected := make(chan bool)
-	mgr2.SetNewConnectionCallback(func(peerID string, conn *ice.Conn) {
+	mgr2.SetNewConnectionCallback(func(peerID string, _ *ice.Conn) {
 		if peerID == "peer1" {
 			mgr2Connected <- true
 		}
@@ -445,7 +445,7 @@ func TestManager_handleAnswer(t *testing.T) {
 		}
 	})
 
-	t.Run("Logs When No Pending Connection", func(t *testing.T) {
+	t.Run("Logs When No Pending Connection", func(_ *testing.T) {
 		mockSignal := new(MockSignalService)
 		mgr := NewManager(mockSignal, "")
 

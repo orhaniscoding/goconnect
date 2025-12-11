@@ -61,7 +61,7 @@ func TestAgent_GatherCandidates(t *testing.T) {
 		defer agent.Close()
 
 		// OnCandidate must be set before gathering
-		err = agent.OnCandidate(func(c ice.Candidate) {})
+		err = agent.OnCandidate(func(_ ice.Candidate) {})
 		require.NoError(t, err)
 
 		err = agent.GatherCandidates()
@@ -77,7 +77,7 @@ func TestAgent_OnCandidate(t *testing.T) {
 		require.NoError(t, err)
 		defer agent.Close()
 
-		err = agent.OnCandidate(func(c ice.Candidate) {
+		err = agent.OnCandidate(func(_ ice.Candidate) {
 			// Callback set
 		})
 		require.NoError(t, err)
@@ -95,7 +95,7 @@ func TestAgent_OnConnectionStateChange(t *testing.T) {
 		require.NoError(t, err)
 		defer agent.Close()
 
-		err = agent.OnConnectionStateChange(func(s ice.ConnectionState) {
+		err = agent.OnConnectionStateChange(func(_ ice.ConnectionState) {
 			// Callback set
 		})
 		require.NoError(t, err)

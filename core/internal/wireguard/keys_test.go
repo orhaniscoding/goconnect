@@ -213,7 +213,7 @@ func TestGeneratePresharedKey_Success(t *testing.T) {
 		key, err := GeneratePresharedKey()
 		assert.NoError(t, err)
 		assert.NotEmpty(t, key)
-		
+
 		// Decode and verify length
 		decoded, err := base64.StdEncoding.DecodeString(key)
 		assert.NoError(t, err)

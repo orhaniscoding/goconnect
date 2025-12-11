@@ -152,7 +152,7 @@ func (m *Manager) Connect(ctx context.Context, peerID string) (*ice.Conn, error)
 	}
 
 	// Start gathering candidates
-	agent.OnCandidate(func(c ice.Candidate) {
+	_ = agent.OnCandidate(func(c ice.Candidate) {
 		if c != nil {
 			if err := m.signal.SendCandidate(peerID, c.Marshal()); err != nil {
 				log.Printf("Failed to send candidate to %s: %v", peerID, err)
@@ -206,7 +206,7 @@ func (m *Manager) Accept(ctx context.Context, peerID, ufrag, pwd string) (*ice.C
 	}
 
 	// Handle candidates
-	agent.OnCandidate(func(c ice.Candidate) {
+	_ = agent.OnCandidate(func(c ice.Candidate) {
 		if c != nil {
 			if err := m.signal.SendCandidate(peerID, c.Marshal()); err != nil {
 				log.Printf("Failed to send candidate to %s: %v", peerID, err)

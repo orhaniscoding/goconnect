@@ -251,4 +251,3 @@ func TestProfileRequest_Validate(t *testing.T) {
 		assert.Contains(t, err.Error(), "prefix_len is required")
 	})
 }
-
