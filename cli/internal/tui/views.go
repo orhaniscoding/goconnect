@@ -100,7 +100,7 @@ func (m Model) viewForm(title, label string) string {
 
 func (m Model) viewPeers() string {
 	var content strings.Builder
-	
+
 	content.WriteString(CardTitleStyle.Render("Connected Peers"))
 	content.WriteString("\n\n")
 
@@ -110,7 +110,7 @@ func (m Model) viewPeers() string {
 		for _, peer := range m.peers {
 			statusIcon := "●"
 			statusStyle := StatusValStyle.Foreground(ColorMuted)
-			
+
 			switch peer.Status {
 			case "connected":
 				statusStyle = StatusValStyle.Foreground(ColorSuccess)

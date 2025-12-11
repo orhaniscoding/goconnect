@@ -302,13 +302,13 @@ func setupTestDaemon(t *testing.T) (*DaemonService, *httptest.Server) {
 	svc.apiClient = api.NewClient(cfg)
 	// Initialize Engine properly
 	// We need a do-nothing wgClient? wireguard.NewClient returns error if interface not found?
-	// We can pass nil to wgClient if NewEngine allows it? 
+	// We can pass nil to wgClient if NewEngine allows it?
 	// NewEngine signature: func NewEngine(..., wgClient *wireguard.Client, ...)
 	// It stores it.
-	
+
 	// Create a real engine instance
 	eng, err := engine.NewEngine(cfg, svc.idManager, nil, svc.apiClient.(*api.Client), svc.logf)
-	// If NewEngine fails (e.g. system calls), we might fallback to struct. 
+	// If NewEngine fails (e.g. system calls), we might fallback to struct.
 	// But NewEngine mainly just inits structs.
 	if err == nil {
 		svc.engine = eng
@@ -333,11 +333,11 @@ func setupTestDaemonWithAPI(t *testing.T, apiHandler http.HandlerFunc) (*DaemonS
 	cfg := &config.Config{}
 	cfg.IdentityPath = filepath.Join(tmpDir, "identity.json")
 	cfg.Daemon.LocalPort = 0
-	
+
 	// Keyring
 	kr, _ := storage.NewTestKeyring(t.TempDir())
 	cfg.Keyring = kr
-	
+
 	apiServer := httptest.NewServer(apiHandler)
 	cfg.Server.URL = apiServer.URL
 
@@ -346,7 +346,7 @@ func setupTestDaemonWithAPI(t *testing.T, apiHandler http.HandlerFunc) (*DaemonS
 	svc.idManager = identity.NewManager(cfg.IdentityPath)
 	svc.idManager.LoadOrCreateIdentity()
 	svc.apiClient = api.NewClient(cfg)
-	
+
 	eng, _ := engine.NewEngine(cfg, svc.idManager, nil, svc.apiClient.(*api.Client), svc.logf)
 	svc.engine = eng
 
@@ -383,12 +383,12 @@ func TestDaemonService_HTTP_Register_Success(t *testing.T) {
 	svc.localHTTPServer.Handler.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	
+
 	var resp map[string]string
 	json.Unmarshal(w.Body.Bytes(), &resp)
 	assert.Equal(t, "connected", resp["status"])
-	
-	// Verify ID updated (requires inspecting idManager, but we can't easily given encapsulation, 
+
+	// Verify ID updated (requires inspecting idManager, but we can't easily given encapsulation,
 	// unless we trust the result flow).
 }
 
@@ -418,7 +418,7 @@ func TestDaemonService_HTTP_Networks_Create(t *testing.T) {
 	svc.localHTTPServer.Handler.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	
+
 	var net api.NetworkResponse
 	json.Unmarshal(w.Body.Bytes(), &net)
 	assert.Equal(t, "net-2", net.ID)
@@ -451,7 +451,7 @@ func TestDaemonService_HTTP_Networks_Join(t *testing.T) {
 	svc.localHTTPServer.Handler.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	
+
 	var net api.NetworkResponse
 	json.Unmarshal(w.Body.Bytes(), &net)
 	assert.Equal(t, "net-3", net.ID)
@@ -473,13 +473,13 @@ func TestDaemonService_HTTP_Connect_Disconnect(t *testing.T) {
 	w := httptest.NewRecorder()
 	svc.localHTTPServer.Handler.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
-	
+
 	// Test Disconnect
 	req = httptest.NewRequest("POST", "/disconnect", nil)
 	w = httptest.NewRecorder()
 	svc.localHTTPServer.Handler.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
-	
+
 	mockEng.AssertExpectations(t)
 }
 
@@ -536,7 +536,7 @@ func TestDaemonService_HTTP_Status(t *testing.T) {
 
 	assert.Equal(t, true, resp["running"])
 	assert.Equal(t, "dev", resp["version"]) // "dev" from engine package default
-	
+
 	// Verify device info
 	device, ok := resp["device"].(map[string]interface{})
 	require.True(t, ok)
@@ -573,7 +573,7 @@ func TestDaemonService_HTTP_Config(t *testing.T) {
 	svc.localHTTPServer.Handler.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	
+
 	// Verify config update in memory
 	assert.True(t, svc.config.P2P.Enabled)
 	assert.Equal(t, "stun:test.com", svc.config.P2P.StunServer)
@@ -589,7 +589,7 @@ func TestDaemonService_HTTP_Networks(t *testing.T) {
 	svc.localHTTPServer.Handler.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	
+
 	var networks []api.NetworkResponse
 	err := json.Unmarshal(w.Body.Bytes(), &networks)
 	require.NoError(t, err)
@@ -633,14 +633,14 @@ func TestDaemonService_AutoConnectLoop(t *testing.T) {
 	defer cancel()
 
 	// Verify auto-connect triggers Connect() which sets paused=false.
-    // First, verify we are disconnected (paused=true) or force it.
-    svc.engine.Disconnect()
-    
-    // Check initial state
-    status := svc.engine.GetStatus()
-    if p, ok := status["paused"].(bool); !ok || !p {
-        t.Fatal("Expected engine to be paused after Disconnect")
-    }
+	// First, verify we are disconnected (paused=true) or force it.
+	svc.engine.Disconnect()
+
+	// Check initial state
+	status := svc.engine.GetStatus()
+	if p, ok := status["paused"].(bool); !ok || !p {
+		t.Fatal("Expected engine to be paused after Disconnect")
+	}
 
 	// Run loop in background
 	go svc.autoConnectLoop(ctx)
@@ -665,7 +665,7 @@ func TestDaemonService_RunLoop(t *testing.T) {
 	svc.config.Daemon.HealthCheckInterval = 10 * time.Millisecond
 
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	// Run loop
 	done := make(chan struct{})
 	go func() {
@@ -678,7 +678,7 @@ func TestDaemonService_RunLoop(t *testing.T) {
 
 	// Stop loop
 	cancel()
-	
+
 	select {
 	case <-done:
 		// Success

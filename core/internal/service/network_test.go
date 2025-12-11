@@ -612,7 +612,7 @@ func TestNetworkService_UpdateNetwork_DNS(t *testing.T) {
 	t.Run("Clear DNS with empty string", func(t *testing.T) {
 		// First set DNS
 		service.UpdateNetwork(ctx, "net-dns-test", "user1", "default", map[string]any{"dns": "1.1.1.1"})
-		
+
 		updated, err := service.UpdateNetwork(ctx, "net-dns-test", "user1", "default", map[string]any{
 			"dns": "",
 		})

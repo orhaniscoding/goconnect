@@ -16,7 +16,7 @@ import (
 func TestNewProtocolHandler_ReturnsHandler(t *testing.T) {
 	h := newProtocolHandler()
 	assert.NotNil(t, h, "newProtocolHandler should return a non-nil handler")
-	
+
 	_, ok := h.(*linuxProtocolHandler)
 	assert.True(t, ok, "Should return a linuxProtocolHandler")
 }
@@ -196,7 +196,7 @@ func TestLinuxProtocolHandler_Register_VerifiesXdgMimeCommand(t *testing.T) {
 	assert.Equal(t, "xdg-mime", capturedCmd, "Should call xdg-mime")
 	assert.Contains(t, capturedArgs, "default", "Should use 'default' subcommand")
 	assert.Contains(t, capturedArgs, "testscheme.desktop", "Should reference desktop file")
-	
+
 	// Find the x-scheme-handler argument
 	found := false
 	for _, arg := range capturedArgs {
@@ -222,7 +222,7 @@ func TestLinuxProtocolHandler_Register_MultipleSchemes(t *testing.T) {
 	}
 
 	h := newProtocolHandler()
-	
+
 	// Register multiple schemes
 	schemes := []string{"scheme1", "scheme2", "scheme3"}
 	for _, scheme := range schemes {

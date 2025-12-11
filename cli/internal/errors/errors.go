@@ -68,62 +68,62 @@ type Code string
 
 const (
 	// Network errors
-	CodeConnectionFailed    Code = "CONNECTION_FAILED"
-	CodeConnectionTimeout   Code = "CONNECTION_TIMEOUT"
-	CodeDaemonUnavailable   Code = "DAEMON_UNAVAILABLE"
-	CodeServerUnreachable   Code = "SERVER_UNREACHABLE"
-	CodePeerUnreachable     Code = "PEER_UNREACHABLE"
+	CodeConnectionFailed  Code = "CONNECTION_FAILED"
+	CodeConnectionTimeout Code = "CONNECTION_TIMEOUT"
+	CodeDaemonUnavailable Code = "DAEMON_UNAVAILABLE"
+	CodeServerUnreachable Code = "SERVER_UNREACHABLE"
+	CodePeerUnreachable   Code = "PEER_UNREACHABLE"
 
 	// Auth errors
-	CodeInvalidToken        Code = "INVALID_TOKEN"
-	CodeTokenExpired        Code = "TOKEN_EXPIRED"
-	CodeUnauthorized        Code = "UNAUTHORIZED"
-	CodeInvalidCredentials  Code = "INVALID_CREDENTIALS"
+	CodeInvalidToken       Code = "INVALID_TOKEN"
+	CodeTokenExpired       Code = "TOKEN_EXPIRED"
+	CodeUnauthorized       Code = "UNAUTHORIZED"
+	CodeInvalidCredentials Code = "INVALID_CREDENTIALS"
 
 	// Config errors
-	CodeConfigNotFound      Code = "CONFIG_NOT_FOUND"
-	CodeConfigInvalid       Code = "CONFIG_INVALID"
-	CodeConfigLoadFailed    Code = "CONFIG_LOAD_FAILED"
-	CodeConfigSaveFailed    Code = "CONFIG_SAVE_FAILED"
+	CodeConfigNotFound   Code = "CONFIG_NOT_FOUND"
+	CodeConfigInvalid    Code = "CONFIG_INVALID"
+	CodeConfigLoadFailed Code = "CONFIG_LOAD_FAILED"
+	CodeConfigSaveFailed Code = "CONFIG_SAVE_FAILED"
 
 	// Storage errors
-	CodeDatabaseError       Code = "DATABASE_ERROR"
-	CodeStorageUnavailable  Code = "STORAGE_UNAVAILABLE"
-	CodeDataCorrupted       Code = "DATA_CORRUPTED"
+	CodeDatabaseError      Code = "DATABASE_ERROR"
+	CodeStorageUnavailable Code = "STORAGE_UNAVAILABLE"
+	CodeDataCorrupted      Code = "DATA_CORRUPTED"
 
 	// Validation errors
-	CodeInvalidInput        Code = "INVALID_INPUT"
-	CodeMissingRequired     Code = "MISSING_REQUIRED"
-	CodeInvalidFormat       Code = "INVALID_FORMAT"
+	CodeInvalidInput    Code = "INVALID_INPUT"
+	CodeMissingRequired Code = "MISSING_REQUIRED"
+	CodeInvalidFormat   Code = "INVALID_FORMAT"
 
 	// Not found errors
-	CodeNetworkNotFound     Code = "NETWORK_NOT_FOUND"
-	CodePeerNotFound        Code = "PEER_NOT_FOUND"
-	CodeFileNotFound        Code = "FILE_NOT_FOUND"
-	CodeTransferNotFound    Code = "TRANSFER_NOT_FOUND"
+	CodeNetworkNotFound  Code = "NETWORK_NOT_FOUND"
+	CodePeerNotFound     Code = "PEER_NOT_FOUND"
+	CodeFileNotFound     Code = "FILE_NOT_FOUND"
+	CodeTransferNotFound Code = "TRANSFER_NOT_FOUND"
 
 	// Conflict errors
-	CodeAlreadyExists       Code = "ALREADY_EXISTS"
-	CodeAlreadyJoined       Code = "ALREADY_JOINED"
-	CodeTransferInProgress  Code = "TRANSFER_IN_PROGRESS"
+	CodeAlreadyExists      Code = "ALREADY_EXISTS"
+	CodeAlreadyJoined      Code = "ALREADY_JOINED"
+	CodeTransferInProgress Code = "TRANSFER_IN_PROGRESS"
 
 	// Permission errors
-	CodeAccessDenied        Code = "ACCESS_DENIED"
-	CodeNotOwner            Code = "NOT_OWNER"
-	CodeBanned              Code = "BANNED"
+	CodeAccessDenied Code = "ACCESS_DENIED"
+	CodeNotOwner     Code = "NOT_OWNER"
+	CodeBanned       Code = "BANNED"
 
 	// Internal errors
-	CodeInternalError       Code = "INTERNAL_ERROR"
-	CodeUnexpected          Code = "UNEXPECTED"
+	CodeInternalError Code = "INTERNAL_ERROR"
+	CodeUnexpected    Code = "UNEXPECTED"
 )
 
 // AppError represents a categorized application error with user-friendly message
 type AppError struct {
 	Code     Code
 	Category Category
-	Message  string      // User-friendly message
-	Details  string      // Technical details for logging
-	Cause    error       // Underlying error
+	Message  string // User-friendly message
+	Details  string // Technical details for logging
+	Cause    error  // Underlying error
 }
 
 // Error implements the error interface
@@ -411,12 +411,12 @@ func ToAppError(err error) *AppError {
 	if err == nil {
 		return nil
 	}
-	
+
 	var appErr *AppError
 	if errors.As(err, &appErr) {
 		return appErr
 	}
-	
+
 	// Wrap unknown errors as internal errors
 	return Wrap(err, CodeUnexpected, CategoryInternal,
 		"An unexpected error occurred")

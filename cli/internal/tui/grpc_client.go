@@ -15,14 +15,14 @@ import (
 
 // GRPCClient wraps the gRPC connection to the daemon.
 type GRPCClient struct {
-	conn            *grpc.ClientConn
-	daemonClient    pb.DaemonServiceClient
-	networkClient   pb.NetworkServiceClient
-	peerClient      pb.PeerServiceClient
-	chatClient      pb.ChatServiceClient
-	transferClient  pb.TransferServiceClient
-	settingsClient  pb.SettingsServiceClient
-	defaultTimeout  time.Duration
+	conn           *grpc.ClientConn
+	daemonClient   pb.DaemonServiceClient
+	networkClient  pb.NetworkServiceClient
+	peerClient     pb.PeerServiceClient
+	chatClient     pb.ChatServiceClient
+	transferClient pb.TransferServiceClient
+	settingsClient pb.SettingsServiceClient
+	defaultTimeout time.Duration
 }
 
 // Variables for testing to allow mocking
@@ -47,7 +47,7 @@ func NewGRPCClient(opts ...grpc.DialOption) (*GRPCClient, error) {
 		grpc.WithPerRPCCredentials(daemon.NewTokenCredentials(token)),
 		grpc.WithBlock(),
 	}
-	
+
 	defaultOpts = append(defaultOpts, opts...)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -59,14 +59,14 @@ func NewGRPCClient(opts ...grpc.DialOption) (*GRPCClient, error) {
 	}
 
 	return &GRPCClient{
-		conn:            conn,
-		daemonClient:    pb.NewDaemonServiceClient(conn),
-		networkClient:   pb.NewNetworkServiceClient(conn),
-		peerClient:      pb.NewPeerServiceClient(conn),
-		chatClient:      pb.NewChatServiceClient(conn),
-		transferClient:  pb.NewTransferServiceClient(conn),
-		settingsClient:  pb.NewSettingsServiceClient(conn),
-		defaultTimeout:  5 * time.Second,
+		conn:           conn,
+		daemonClient:   pb.NewDaemonServiceClient(conn),
+		networkClient:  pb.NewNetworkServiceClient(conn),
+		peerClient:     pb.NewPeerServiceClient(conn),
+		chatClient:     pb.NewChatServiceClient(conn),
+		transferClient: pb.NewTransferServiceClient(conn),
+		settingsClient: pb.NewSettingsServiceClient(conn),
+		defaultTimeout: 5 * time.Second,
 	}, nil
 }
 
@@ -305,16 +305,16 @@ func TryConnectGRPC(maxRetries int, retryDelay time.Duration) (*GRPCClient, erro
 // IsGRPCAvailable checks if gRPC daemon is available.
 func IsGRPCAvailable() bool {
 	target := getGRPCTarget()
-	
+
 	var conn net.Conn
 	var err error
-	
+
 	if runtime.GOOS == "windows" {
 		conn, err = net.DialTimeout("tcp", "127.0.0.1:34101", 500*time.Millisecond)
 	} else {
 		conn, err = net.DialTimeout("unix", "/tmp/goconnect-daemon.sock", 500*time.Millisecond)
 	}
-	
+
 	if err != nil {
 		_ = target // suppress unused warning
 		return false

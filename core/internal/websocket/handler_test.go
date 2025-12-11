@@ -1496,11 +1496,11 @@ func TestHandler_HandlePresencePing(t *testing.T) {
 func TestHub_GetActiveConnectionCount_DirectAccess(t *testing.T) {
 	// Create hub with nil handler for testing
 	hub := NewHub(nil)
-	
+
 	// Initially no clients
 	count := hub.GetActiveConnectionCount()
 	assert.Equal(t, 0, count)
-	
+
 	// Add a client directly to the hub's client map (bypassing channels)
 	client := &Client{
 		userID:   "user1",
@@ -1508,15 +1508,15 @@ func TestHub_GetActiveConnectionCount_DirectAccess(t *testing.T) {
 		hub:      hub,
 		send:     make(chan []byte, 10),
 	}
-	
+
 	// Access the internal map directly for testing
 	hub.mu.Lock()
 	hub.clients[client] = true
 	hub.mu.Unlock()
-	
+
 	count = hub.GetActiveConnectionCount()
 	assert.Equal(t, 1, count)
-	
+
 	// Add another client
 	client2 := &Client{
 		userID:   "user2",
@@ -1524,19 +1524,19 @@ func TestHub_GetActiveConnectionCount_DirectAccess(t *testing.T) {
 		hub:      hub,
 		send:     make(chan []byte, 10),
 	}
-	
+
 	hub.mu.Lock()
 	hub.clients[client2] = true
 	hub.mu.Unlock()
-	
+
 	count = hub.GetActiveConnectionCount()
 	assert.Equal(t, 2, count)
-	
+
 	// Remove a client
 	hub.mu.Lock()
 	delete(hub.clients, client)
 	hub.mu.Unlock()
-	
+
 	count = hub.GetActiveConnectionCount()
 	assert.Equal(t, 1, count)
 }
@@ -1546,14 +1546,14 @@ func TestHub_GetActiveConnectionCount_DirectAccess(t *testing.T) {
 func TestDefaultMessageHandler_SetHub(t *testing.T) {
 	// Create handler with nil services for testing
 	handler := NewDefaultMessageHandler(nil, nil, nil, nil, nil)
-	
+
 	// Initially hub should be nil
 	assert.Nil(t, handler.hub)
-	
+
 	// Create and set a hub
 	hub := NewHub(handler)
 	handler.SetHub(hub)
-	
+
 	// Verify hub is set
 	assert.NotNil(t, handler.hub)
 	assert.Equal(t, hub, handler.hub)
@@ -1564,13 +1564,13 @@ func TestDefaultMessageHandler_SetHub(t *testing.T) {
 func TestHandleTenantChatSend_InvalidJSON(t *testing.T) {
 	handler := newTestHandler()
 	client := newTestClient("user-1")
-	
+
 	msg := &InboundMessage{
 		Type: TypeTenantChatSend,
 		OpID: "op-1",
 		Data: json.RawMessage(`{invalid json`),
 	}
-	
+
 	err := handler.HandleMessage(context.Background(), client, msg)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid tenant.chat.send data")
@@ -1579,19 +1579,19 @@ func TestHandleTenantChatSend_InvalidJSON(t *testing.T) {
 func TestHandleTenantChatSend_MissingTenantID(t *testing.T) {
 	handler := newTestHandler()
 	client := newTestClient("user-1")
-	
+
 	data := TenantChatSendData{
 		TenantID: "",
 		Content:  "test",
 	}
 	dataBytes, _ := json.Marshal(data)
-	
+
 	msg := &InboundMessage{
 		Type: TypeTenantChatSend,
 		OpID: "op-1",
 		Data: dataBytes,
 	}
-	
+
 	err := handler.HandleMessage(context.Background(), client, msg)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "tenant_id is required")
@@ -1600,19 +1600,19 @@ func TestHandleTenantChatSend_MissingTenantID(t *testing.T) {
 func TestHandleTenantChatSend_MissingContent(t *testing.T) {
 	handler := newTestHandler()
 	client := newTestClient("user-1")
-	
+
 	data := TenantChatSendData{
 		TenantID: "tenant-1",
 		Content:  "",
 	}
 	dataBytes, _ := json.Marshal(data)
-	
+
 	msg := &InboundMessage{
 		Type: TypeTenantChatSend,
 		OpID: "op-1",
 		Data: dataBytes,
 	}
-	
+
 	err := handler.HandleMessage(context.Background(), client, msg)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "content is required")
@@ -1626,22 +1626,22 @@ func TestHandleTenantChatSend_Success(t *testing.T) {
 		chatService: chatService,
 	}
 	client := newTestClient("user-1")
-	
+
 	data := TenantChatSendData{
 		TenantID: "tenant-1",
 		Content:  "Hello tenant chat!",
 	}
 	dataBytes, _ := json.Marshal(data)
-	
+
 	msg := &InboundMessage{
 		Type: TypeTenantChatSend,
 		OpID: "op-tenant-1",
 		Data: dataBytes,
 	}
-	
+
 	err := handler.HandleMessage(context.Background(), client, msg)
 	require.NoError(t, err)
-	
+
 	// Should receive ack
 	select {
 	case ackMsg := <-client.send:
@@ -1659,13 +1659,13 @@ func TestHandleTenantChatSend_Success(t *testing.T) {
 func TestHandleTenantChatEdit_InvalidJSON(t *testing.T) {
 	handler := newTestHandler()
 	client := newTestClient("user-1")
-	
+
 	msg := &InboundMessage{
 		Type: TypeTenantChatEdit,
 		OpID: "op-1",
 		Data: json.RawMessage(`{invalid json`),
 	}
-	
+
 	err := handler.HandleMessage(context.Background(), client, msg)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid tenant.chat.edit data")
@@ -1674,20 +1674,20 @@ func TestHandleTenantChatEdit_InvalidJSON(t *testing.T) {
 func TestHandleTenantChatEdit_MissingFields(t *testing.T) {
 	handler := newTestHandler()
 	client := newTestClient("user-1")
-	
+
 	data := TenantChatEditData{
 		TenantID:  "",
 		MessageID: "",
 		Content:   "",
 	}
 	dataBytes, _ := json.Marshal(data)
-	
+
 	msg := &InboundMessage{
 		Type: TypeTenantChatEdit,
 		OpID: "op-1",
 		Data: dataBytes,
 	}
-	
+
 	err := handler.HandleMessage(context.Background(), client, msg)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "tenant_id, message_id and content are required")
@@ -1701,27 +1701,27 @@ func TestHandleTenantChatEdit_Success(t *testing.T) {
 		chatService: chatService,
 	}
 	client := newTestClient("user-1")
-	
+
 	// First, create a message to edit
 	chatMsg, err := chatService.SendMessage(context.Background(), "user-1", "tenant-1", "tenant:tenant-1", "Original message", nil, "")
 	require.NoError(t, err)
-	
+
 	data := TenantChatEditData{
 		TenantID:  "tenant-1",
 		MessageID: chatMsg.ID,
 		Content:   "Edited message",
 	}
 	dataBytes, _ := json.Marshal(data)
-	
+
 	msg := &InboundMessage{
 		Type: TypeTenantChatEdit,
 		OpID: "op-edit-1",
 		Data: dataBytes,
 	}
-	
+
 	err = handler.HandleMessage(context.Background(), client, msg)
 	require.NoError(t, err)
-	
+
 	// Should receive ack
 	select {
 	case ackMsg := <-client.send:
@@ -1736,13 +1736,13 @@ func TestHandleTenantChatEdit_Success(t *testing.T) {
 func TestHandleTenantChatDelete_InvalidJSON(t *testing.T) {
 	handler := newTestHandler()
 	client := newTestClient("user-1")
-	
+
 	msg := &InboundMessage{
 		Type: TypeTenantChatDelete,
 		OpID: "op-1",
 		Data: json.RawMessage(`{invalid json`),
 	}
-	
+
 	err := handler.HandleMessage(context.Background(), client, msg)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid tenant.chat.delete data")
@@ -1751,19 +1751,19 @@ func TestHandleTenantChatDelete_InvalidJSON(t *testing.T) {
 func TestHandleTenantChatDelete_MissingFields(t *testing.T) {
 	handler := newTestHandler()
 	client := newTestClient("user-1")
-	
+
 	data := TenantChatDeleteData{
 		TenantID:  "",
 		MessageID: "",
 	}
 	dataBytes, _ := json.Marshal(data)
-	
+
 	msg := &InboundMessage{
 		Type: TypeTenantChatDelete,
 		OpID: "op-1",
 		Data: dataBytes,
 	}
-	
+
 	err := handler.HandleMessage(context.Background(), client, msg)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "tenant_id and message_id are required")
@@ -1777,26 +1777,26 @@ func TestHandleTenantChatDelete_Success(t *testing.T) {
 		chatService: chatService,
 	}
 	client := newTestClient("user-1")
-	
+
 	// Create a message to delete
 	chatMsg, err := chatService.SendMessage(context.Background(), "user-1", "tenant-1", "tenant:tenant-1", "Message to delete", nil, "")
 	require.NoError(t, err)
-	
+
 	data := TenantChatDeleteData{
 		TenantID:  "tenant-1",
 		MessageID: chatMsg.ID,
 	}
 	dataBytes, _ := json.Marshal(data)
-	
+
 	msg := &InboundMessage{
 		Type: TypeTenantChatDelete,
 		OpID: "op-del-1",
 		Data: dataBytes,
 	}
-	
+
 	err = handler.HandleMessage(context.Background(), client, msg)
 	require.NoError(t, err)
-	
+
 	// Should receive ack
 	select {
 	case ackMsg := <-client.send:
@@ -1811,13 +1811,13 @@ func TestHandleTenantChatDelete_Success(t *testing.T) {
 func TestHandleTenantChatTyping_InvalidJSON(t *testing.T) {
 	handler := newTestHandler()
 	client := newTestClient("user-1")
-	
+
 	msg := &InboundMessage{
 		Type: TypeTenantChatTyping,
 		OpID: "op-1",
 		Data: json.RawMessage(`{invalid json`),
 	}
-	
+
 	err := handler.HandleMessage(context.Background(), client, msg)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid tenant.chat.typing data")
@@ -1826,19 +1826,19 @@ func TestHandleTenantChatTyping_InvalidJSON(t *testing.T) {
 func TestHandleTenantChatTyping_MissingTenantID(t *testing.T) {
 	handler := newTestHandler()
 	client := newTestClient("user-1")
-	
+
 	data := TenantChatTypingData{
 		TenantID: "",
 		Typing:   true,
 	}
 	dataBytes, _ := json.Marshal(data)
-	
+
 	msg := &InboundMessage{
 		Type: TypeTenantChatTyping,
 		OpID: "op-1",
 		Data: dataBytes,
 	}
-	
+
 	err := handler.HandleMessage(context.Background(), client, msg)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "tenant_id is required")
@@ -1850,19 +1850,19 @@ func TestHandleTenantChatTyping_Success(t *testing.T) {
 		hub: hub,
 	}
 	client := newTestClient("user-1")
-	
+
 	data := TenantChatTypingData{
 		TenantID: "tenant-1",
 		Typing:   true,
 	}
 	dataBytes, _ := json.Marshal(data)
-	
+
 	msg := &InboundMessage{
 		Type: TypeTenantChatTyping,
 		OpID: "op-typing-1",
 		Data: dataBytes,
 	}
-	
+
 	err := handler.HandleMessage(context.Background(), client, msg)
 	require.NoError(t, err)
 }
@@ -1870,13 +1870,13 @@ func TestHandleTenantChatTyping_Success(t *testing.T) {
 func TestHandleTenantJoin_InvalidJSON(t *testing.T) {
 	handler := newTestHandler()
 	client := newTestClient("user-1")
-	
+
 	msg := &InboundMessage{
 		Type: TypeTenantJoin,
 		OpID: "op-1",
 		Data: json.RawMessage(`{invalid json`),
 	}
-	
+
 	err := handler.HandleMessage(context.Background(), client, msg)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid tenant.join data")
@@ -1885,18 +1885,18 @@ func TestHandleTenantJoin_InvalidJSON(t *testing.T) {
 func TestHandleTenantJoin_MissingTenantID(t *testing.T) {
 	handler := newTestHandler()
 	client := newTestClient("user-1")
-	
+
 	data := TenantJoinData{
 		TenantID: "",
 	}
 	dataBytes, _ := json.Marshal(data)
-	
+
 	msg := &InboundMessage{
 		Type: TypeTenantJoin,
 		OpID: "op-1",
 		Data: dataBytes,
 	}
-	
+
 	err := handler.HandleMessage(context.Background(), client, msg)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "tenant_id is required")
@@ -1905,18 +1905,18 @@ func TestHandleTenantJoin_MissingTenantID(t *testing.T) {
 func TestHandleTenantJoin_AccessDenied(t *testing.T) {
 	handler := newTestHandler()
 	client := newTestClient("user-1") // client.tenantID = "tenant-1"
-	
+
 	data := TenantJoinData{
 		TenantID: "other-tenant", // Different from client's tenantID
 	}
 	dataBytes, _ := json.Marshal(data)
-	
+
 	msg := &InboundMessage{
 		Type: TypeTenantJoin,
 		OpID: "op-1",
 		Data: dataBytes,
 	}
-	
+
 	err := handler.HandleMessage(context.Background(), client, msg)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "access denied")
@@ -1936,24 +1936,24 @@ func TestHandleTenantJoin_Success(t *testing.T) {
 		rooms:       make(map[string]bool),
 		hub:         hub,
 	}
-	
+
 	data := TenantJoinData{
 		TenantID: "tenant-1",
 	}
 	dataBytes, _ := json.Marshal(data)
-	
+
 	msg := &InboundMessage{
 		Type: TypeTenantJoin,
 		OpID: "op-join-1",
 		Data: dataBytes,
 	}
-	
+
 	err := handler.HandleMessage(context.Background(), client, msg)
 	require.NoError(t, err)
-	
+
 	// Client should be in the room
 	assert.True(t, client.IsInRoom("tenant:tenant-1"))
-	
+
 	// Should receive ack
 	select {
 	case ackMsg := <-client.send:
@@ -1968,13 +1968,13 @@ func TestHandleTenantJoin_Success(t *testing.T) {
 func TestHandleTenantLeave_InvalidJSON(t *testing.T) {
 	handler := newTestHandler()
 	client := newTestClient("user-1")
-	
+
 	msg := &InboundMessage{
 		Type: TypeTenantLeave,
 		OpID: "op-1",
 		Data: json.RawMessage(`{invalid json`),
 	}
-	
+
 	err := handler.HandleMessage(context.Background(), client, msg)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid tenant.leave data")
@@ -1983,18 +1983,18 @@ func TestHandleTenantLeave_InvalidJSON(t *testing.T) {
 func TestHandleTenantLeave_MissingTenantID(t *testing.T) {
 	handler := newTestHandler()
 	client := newTestClient("user-1")
-	
+
 	data := TenantLeaveData{
 		TenantID: "",
 	}
 	dataBytes, _ := json.Marshal(data)
-	
+
 	msg := &InboundMessage{
 		Type: TypeTenantLeave,
 		OpID: "op-1",
 		Data: dataBytes,
 	}
-	
+
 	err := handler.HandleMessage(context.Background(), client, msg)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "tenant_id is required")
@@ -2014,28 +2014,28 @@ func TestHandleTenantLeave_Success(t *testing.T) {
 		rooms:       make(map[string]bool),
 		hub:         hub,
 	}
-	
+
 	// First join the room
 	client.JoinRoom("tenant:tenant-1")
 	assert.True(t, client.IsInRoom("tenant:tenant-1"))
-	
+
 	data := TenantLeaveData{
 		TenantID: "tenant-1",
 	}
 	dataBytes, _ := json.Marshal(data)
-	
+
 	msg := &InboundMessage{
 		Type: TypeTenantLeave,
 		OpID: "op-leave-1",
 		Data: dataBytes,
 	}
-	
+
 	err := handler.HandleMessage(context.Background(), client, msg)
 	require.NoError(t, err)
-	
+
 	// Client should not be in the room
 	assert.False(t, client.IsInRoom("tenant:tenant-1"))
-	
+
 	// Should receive ack
 	select {
 	case ackMsg := <-client.send:
@@ -2591,7 +2591,7 @@ func TestHandleFileUpload_MissingFilename(t *testing.T) {
 	// File upload requires scope validation
 	data := FileUploadData{
 		FileName: "test.png",
-		Scope:    "",  // Empty scope should fail
+		Scope:    "", // Empty scope should fail
 	}
 	dataBytes, _ := json.Marshal(data)
 

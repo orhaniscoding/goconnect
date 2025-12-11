@@ -65,10 +65,10 @@ func (k KeyMap) FullHelp() [][]key.Binding {
 
 // Model is the main application model
 type Model struct {
-	client  *UnifiedClient
-	state   SessionState
-	width   int
-	height  int
+	client *UnifiedClient
+	state  SessionState
+	width  int
+	height int
 
 	// Components
 	list    list.Model

@@ -131,7 +131,7 @@ func TestManager_Update(t *testing.T) {
 
 func TestManager_Update_NoIdentity(t *testing.T) {
 	m := NewManager("/path/to/identity.json")
-	
+
 	err := m.Update("device-id")
 	if err == nil {
 		t.Error("Expected error when updating without identity")

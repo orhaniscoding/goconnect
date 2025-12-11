@@ -30,7 +30,7 @@ func TestNewClient(t *testing.T) {
 			URL: "http://localhost:8080",
 		},
 	}
-	
+
 	client := NewClient(cfg)
 	if client == nil {
 		t.Fatal("Expected client to be created")
@@ -403,7 +403,7 @@ func TestJoinNetwork_NoKeyring(t *testing.T) {
 	}
 }
 
-// Test that GetNetworks fails when keyring is not initialized  
+// Test that GetNetworks fails when keyring is not initialized
 func TestGetNetworks_NoKeyring(t *testing.T) {
 	cfg := &config.Config{
 		Server: struct {
@@ -771,7 +771,7 @@ func TestHeartbeatRequestStruct(t *testing.T) {
 	t.Run("Empty Fields Are Omitted", func(t *testing.T) {
 		req := HeartbeatRequest{}
 		data, _ := json.Marshal(req)
-		
+
 		// All fields have omitempty, so empty request should be "{}" or close to it
 		if len(data) > 50 {
 			t.Errorf("Expected small JSON for empty request, got %s", string(data))
@@ -925,7 +925,7 @@ func setupMockClient(t *testing.T, handler http.Handler) (*Client, *httptest.Ser
 			URL string `yaml:"url"`
 		}{URL: server.URL},
 	}
-	
+
 	// Initialize memory keyring for tests
 	kr, err := storage.NewTestKeyring(t.TempDir())
 	require.NoError(t, err)
@@ -948,7 +948,7 @@ func TestGetNetworks_Success(t *testing.T) {
 		if r.Header.Get("Authorization") != "Bearer valid-token" {
 			t.Errorf("Unexpected Auth header: %s", r.Header.Get("Authorization"))
 		}
-		
+
 		_ = json.NewEncoder(w).Encode([]NetworkResponse{
 			{ID: "net-1", Name: "Network 1", Role: "admin"},
 			{ID: "net-2", Name: "Network 2", Role: "member"},
@@ -982,7 +982,7 @@ func TestGetNetwork_Success(t *testing.T) {
 		if r.Header.Get("Authorization") != "Bearer valid-token" {
 			t.Errorf("Unexpected Auth header: %s", r.Header.Get("Authorization"))
 		}
-		
+
 		_ = json.NewEncoder(w).Encode(NetworkResponse{ID: "net-123", Name: "Test Network", Role: "admin"})
 	})
 
@@ -1030,7 +1030,7 @@ func TestDeleteNetwork_Success(t *testing.T) {
 		if r.Header.Get("Authorization") != "Bearer valid-token" {
 			t.Errorf("Unexpected Auth header: %s", r.Header.Get("Authorization"))
 		}
-		
+
 		w.WriteHeader(http.StatusNoContent)
 	})
 
@@ -1085,7 +1085,7 @@ func TestJoinNetwork_Success(t *testing.T) {
 		if r.URL.Path != "/v1/networks/join" {
 			t.Errorf("Unexpected path: %s", r.URL.Path)
 		}
-		
+
 		var req JoinNetworkRequest
 		_ = json.NewDecoder(r.Body).Decode(&req)
 		if req.InviteCode != "ABC12345" {
@@ -1135,7 +1135,7 @@ func TestGetConfig_Success(t *testing.T) {
 		if r.URL.Path != "/v1/devices/dev-123/config" {
 			t.Errorf("Unexpected path: %s", r.URL.Path)
 		}
-		
+
 		cfg := DeviceConfig{
 			Interface: InterfaceConfig{ListenPort: 51820},
 		}
@@ -1205,7 +1205,7 @@ func TestGenerateInvite_Success(t *testing.T) {
 
 		var req CreateInviteRequest
 		_ = json.NewDecoder(r.Body).Decode(&req)
-		
+
 		// 24 hours * 3600
 		if req.ExpiresIn != 86400 {
 			t.Errorf("Expected ExpiresIn 86400, got %d", req.ExpiresIn)

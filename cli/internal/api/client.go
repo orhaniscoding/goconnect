@@ -724,7 +724,9 @@ func (c *Client) GenerateInvite(ctx context.Context, networkID string, maxUses i
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-		var errorBody struct{ Message string `json:"message"` }
+		var errorBody struct {
+			Message string `json:"message"`
+		}
 		if err := json.NewDecoder(resp.Body).Decode(&errorBody); err == nil && errorBody.Message != "" {
 			return nil, fmt.Errorf("generate invite failed: %s", errorBody.Message)
 		}

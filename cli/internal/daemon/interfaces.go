@@ -33,7 +33,7 @@ type DaemonEngine interface {
 	UnsubscribeTransfers(ch chan transfer.Session)
 	SubscribeChatMessages() chan chat.Message
 	UnsubscribeChatMessages(ch chan chat.Message)
-	
+
 	// Network management through engine
 	CreateNetwork(name string) (*api.NetworkResponse, error)
 	JoinNetwork(inviteCode string) (*api.NetworkResponse, error)

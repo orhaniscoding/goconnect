@@ -450,20 +450,20 @@ func TestUserRepository_ListAll_Search(t *testing.T) {
 }
 
 func TestUserRepository_Count(t *testing.T) {
-repo := NewInMemoryUserRepository()
-ctx := context.Background()
+	repo := NewInMemoryUserRepository()
+	ctx := context.Background()
 
-// Count empty
-count, err := repo.Count(ctx)
-require.NoError(t, err)
-assert.Equal(t, 0, count)
+	// Count empty
+	count, err := repo.Count(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 0, count)
 
-// Add users
-_ = repo.Create(ctx, &domain.User{ID: "u1", Email: "user1@test.com"})
-_ = repo.Create(ctx, &domain.User{ID: "u2", Email: "user2@test.com"})
-_ = repo.Create(ctx, &domain.User{ID: "u3", Email: "user3@test.com"})
+	// Add users
+	_ = repo.Create(ctx, &domain.User{ID: "u1", Email: "user1@test.com"})
+	_ = repo.Create(ctx, &domain.User{ID: "u2", Email: "user2@test.com"})
+	_ = repo.Create(ctx, &domain.User{ID: "u3", Email: "user3@test.com"})
 
-count, err = repo.Count(ctx)
-require.NoError(t, err)
-assert.Equal(t, 3, count)
+	count, err = repo.Count(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 3, count)
 }

@@ -205,7 +205,7 @@ func TestSendMessage(t *testing.T) {
 	// SendMessage requires a running listener on the target
 	// This is more of an integration test, so we just verify the function exists
 	m := NewManager()
-	
+
 	// Calling SendMessage to non-existent target should fail gracefully
 	err := m.SendMessage("192.168.1.1", 0, "test", "peer-1")
 	if err == nil {

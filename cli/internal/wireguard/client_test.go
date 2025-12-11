@@ -11,8 +11,8 @@ func TestStatus_Fields(t *testing.T) {
 		PublicKey:     "test-public-key",
 		ListenPort:    51820,
 		Peers:         3,
-		TotalRx:       1024 * 1024,     // 1 MB
-		TotalTx:       512 * 1024,      // 512 KB
+		TotalRx:       1024 * 1024, // 1 MB
+		TotalTx:       512 * 1024,  // 512 KB
 		LastHandshake: time.Now(),
 	}
 

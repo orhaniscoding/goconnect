@@ -17,7 +17,7 @@ func TestGetOSVersion_ReturnsNonEmpty(t *testing.T) {
 
 func TestGetOSVersion_ContainsOSIdentifier(t *testing.T) {
 	version := GetOSVersion()
-	
+
 	switch runtime.GOOS {
 	case "windows":
 		assert.Contains(t, version, "Windows", "Windows version should contain 'Windows'")
@@ -35,7 +35,7 @@ func TestGetOSVersion_ContainsOSIdentifier(t *testing.T) {
 func TestGetOSVersion_Linux(t *testing.T) {
 	// Only valid on Linux runtime for GetOSVersion call
 	// But we can test getLinuxVersion directly everywhere since it's in info.go without build constraints
-	
+
 	// Save/Restore
 	origPath := osReleasePath
 	defer func() { osReleasePath = origPath }()
@@ -49,7 +49,7 @@ func TestGetOSVersion_Linux(t *testing.T) {
 		f.Close()
 
 		osReleasePath = f.Name()
-		
+
 		version := getLinuxVersion()
 		assert.Equal(t, "Ubuntu 22.04 LTS", version)
 	})

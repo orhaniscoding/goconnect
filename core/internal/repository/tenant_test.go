@@ -234,19 +234,19 @@ func TestTenantRepository_ListAll_Search(t *testing.T) {
 }
 
 func TestTenantRepository_Count(t *testing.T) {
-repo := NewInMemoryTenantRepository()
-ctx := context.Background()
+	repo := NewInMemoryTenantRepository()
+	ctx := context.Background()
 
-// Count empty
-count, err := repo.Count(ctx)
-require.NoError(t, err)
-assert.Equal(t, 0, count)
+	// Count empty
+	count, err := repo.Count(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 0, count)
 
-// Add tenants
-_ = repo.Create(ctx, &domain.Tenant{ID: "t1", Name: "Tenant 1"})
-_ = repo.Create(ctx, &domain.Tenant{ID: "t2", Name: "Tenant 2"})
+	// Add tenants
+	_ = repo.Create(ctx, &domain.Tenant{ID: "t1", Name: "Tenant 1"})
+	_ = repo.Create(ctx, &domain.Tenant{ID: "t2", Name: "Tenant 2"})
 
-count, err = repo.Count(ctx)
-require.NoError(t, err)
-assert.Equal(t, 2, count)
+	count, err = repo.Count(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 2, count)
 }

@@ -438,7 +438,7 @@ func (s *GRPCServer) GenerateInvite(ctx context.Context, req *pb.GenerateInviteR
 
 	resp := &pb.GenerateInviteResponse{
 		InviteCode: invite.Token,
-		InviteUrl: invite.InviteURL,
+		InviteUrl:  invite.InviteURL,
 	}
 	if !invite.ExpiresAt.IsZero() {
 		resp.ExpiresAt = timestamppb.New(invite.ExpiresAt)
@@ -580,9 +580,9 @@ func (s *GRPCServer) GetMessages(ctx context.Context, req *pb.GetMessagesRequest
 	if limit <= 0 {
 		limit = 50
 	}
-	
+
 	messages := s.daemon.engine.GetChatMessages(req.NetworkId, limit, req.BeforeId)
-	
+
 	pbMessages := make([]*pb.ChatMessage, len(messages))
 	for i, msg := range messages {
 		pbMessages[i] = &pb.ChatMessage{
@@ -592,7 +592,7 @@ func (s *GRPCServer) GetMessages(ctx context.Context, req *pb.GetMessagesRequest
 			SentAt:   timestamppb.New(msg.Time),
 		}
 	}
-	
+
 	return &pb.GetMessagesResponse{
 		Messages: pbMessages,
 		HasMore:  len(messages) == limit,
@@ -604,30 +604,30 @@ func (s *GRPCServer) SubscribeMessages(req *pb.SubscribeMessagesRequest, stream 
 	// Subscribe to chat manager
 	msgChan := s.daemon.engine.SubscribeChatMessages()
 	defer s.daemon.engine.UnsubscribeChatMessages(msgChan)
-	
+
 	for {
 		select {
 		case msg, ok := <-msgChan:
 			if !ok {
 				return nil
 			}
-			
+
 			// Filter by network if specified
 			if req.NetworkId != "" && msg.NetworkID != req.NetworkId {
 				continue
 			}
-			
+
 			pbMsg := &pb.ChatMessage{
 				Id:       msg.ID,
 				SenderId: msg.From,
 				Content:  msg.Content,
 				SentAt:   timestamppb.New(msg.Time),
 			}
-			
+
 			if err := stream.Send(pbMsg); err != nil {
 				return err
 			}
-			
+
 		case <-stream.Context().Done():
 			return stream.Context().Err()
 		}
@@ -695,7 +695,7 @@ func (s *GRPCServer) CancelTransfer(ctx context.Context, req *pb.CancelTransferR
 // ListTransfers returns all active/recent transfers.
 func (s *GRPCServer) ListTransfers(ctx context.Context, req *emptypb.Empty) (*pb.ListTransfersResponse, error) {
 	transfers := s.daemon.engine.GetTransfers()
-	
+
 	pbTransfers := make([]*pb.FileTransfer, len(transfers))
 	for i, t := range transfers {
 		pbTransfers[i] = &pb.FileTransfer{
@@ -708,7 +708,7 @@ func (s *GRPCServer) ListTransfers(ctx context.Context, req *emptypb.Empty) (*pb
 			IsIncoming:       !t.IsSender,
 		}
 	}
-	
+
 	return &pb.ListTransfersResponse{Transfers: pbTransfers}, nil
 }
 
@@ -717,14 +717,14 @@ func (s *GRPCServer) SubscribeTransfers(req *emptypb.Empty, stream pb.TransferSe
 	// Subscribe to transfer manager
 	transferChan := s.daemon.engine.SubscribeTransfers()
 	defer s.daemon.engine.UnsubscribeTransfers(transferChan)
-	
+
 	for {
 		select {
 		case session, ok := <-transferChan:
 			if !ok {
 				return nil
 			}
-			
+
 			event := &pb.TransferEvent{
 				Transfer: &pb.FileTransfer{
 					Id:               session.ID,
@@ -736,11 +736,11 @@ func (s *GRPCServer) SubscribeTransfers(req *emptypb.Empty, stream pb.TransferSe
 					IsIncoming:       !session.IsSender,
 				},
 			}
-			
+
 			if err := stream.Send(event); err != nil {
 				return err
 			}
-			
+
 		case <-stream.Context().Done():
 			return stream.Context().Err()
 		}

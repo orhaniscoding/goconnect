@@ -277,7 +277,7 @@ func TestManager_RemovePeer_EdgeCases(t *testing.T) {
 type ForwardingSignalService struct {
 	peers map[string]*ForwardingSignalService // Routing table: peerID -> service
 	id    string                              // ID of the peer using this service
-	
+
 	// Callbacks set by the manager
 	onOffer     func(sourceID, ufrag, pwd string)
 	onAnswer    func(sourceID, ufrag, pwd string)
@@ -359,7 +359,7 @@ func TestIntegration_P2P_Connection(t *testing.T) {
 
 	// Create Managers (using empty STUN to force host candidates which works locally)
 	// Note: We need a valid STUN URL format or empty? NewAgent handles empty by using default.
-	// But default uses google stun. We want to avoid external deps if possible, but for integration 
+	// But default uses google stun. We want to avoid external deps if possible, but for integration
 	// we rely on ICE. Host candidates should be gathered regardless.
 	mgr1 := NewManager(sig1, "")
 	mgr2 := NewManager(sig2, "")
@@ -378,7 +378,7 @@ func TestIntegration_P2P_Connection(t *testing.T) {
 	// Initiate connection from peer1 to peer2
 	ctx := context.Background()
 	mgr1Connected := make(chan bool)
-	
+
 	// We run Connect in goroutine because it blocks until connected
 	go func() {
 		conn, err := mgr1.Connect(ctx, "peer2")
@@ -411,7 +411,7 @@ func TestIntegration_P2P_Connection(t *testing.T) {
 	// Verify status
 	status1 := mgr1.GetPeerStatus("peer2")
 	assert.True(t, status1.Connected)
-	// ConnectionState can be "Connected" or "Completed" 
+	// ConnectionState can be "Connected" or "Completed"
 	assert.Contains(t, []string{"Connected", "Completed"}, status1.ConnectionState)
 
 	status2 := mgr2.GetPeerStatus("peer1")
@@ -517,7 +517,7 @@ func TestManager_handleOffer(t *testing.T) {
 	t.Run("Handles Incoming Offer", func(t *testing.T) {
 		sig := NewForwardingSignalService("peer2")
 		sig.RegisterPeer("peer1", NewForwardingSignalService("peer1"))
-		
+
 		mgr := NewManager(sig, "")
 
 		callbackCalled := make(chan bool, 1)
@@ -556,7 +556,7 @@ func TestManager_Accept_AlreadyConnected(t *testing.T) {
 func TestManager_Accept_ContextCancelled(t *testing.T) {
 	sig := NewForwardingSignalService("peer2")
 	sig.RegisterPeer("peer1", NewForwardingSignalService("peer1"))
-	
+
 	mgr := NewManager(sig, "")
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -749,7 +749,7 @@ func TestForwardingSignalService_NilCallbacks(t *testing.T) {
 
 		err := sig1.SendOffer("peer2", "ufrag", "pwd")
 		assert.NoError(t, err)
-		
+
 		// Give time for goroutine to run
 		time.Sleep(10 * time.Millisecond)
 	})
@@ -762,7 +762,7 @@ func TestForwardingSignalService_NilCallbacks(t *testing.T) {
 
 		err := sig1.SendAnswer("peer2", "ufrag", "pwd")
 		assert.NoError(t, err)
-		
+
 		time.Sleep(10 * time.Millisecond)
 	})
 
@@ -774,7 +774,7 @@ func TestForwardingSignalService_NilCallbacks(t *testing.T) {
 
 		err := sig1.SendCandidate("peer2", "candidate")
 		assert.NoError(t, err)
-		
+
 		time.Sleep(10 * time.Millisecond)
 	})
 }

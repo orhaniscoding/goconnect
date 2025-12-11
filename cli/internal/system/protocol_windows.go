@@ -59,7 +59,7 @@ func (h *windowsProtocolHandler) Register(scheme string, command string) error {
 	if cmdStr == "" {
 		cmdStr = fmt.Sprintf("\"%s\" \"%%1\"", exePath)
 	}
-	
+
 	if err := cmdKey.SetStringValue("", cmdStr); err != nil {
 		return fmt.Errorf("failed to set command value: %w", err)
 	}

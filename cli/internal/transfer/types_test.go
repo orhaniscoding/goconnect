@@ -318,7 +318,7 @@ func TestSession_AllFields(t *testing.T) {
 			EndTime:   now.Add(10 * time.Second),
 			Error:     "",
 		}
-		
+
 		if s.ID != "test-session" {
 			t.Errorf("Expected ID 'test-session', got %s", s.ID)
 		}

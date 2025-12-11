@@ -24,8 +24,8 @@ type Identity struct {
 // Manager handles identity storage and generation
 type Manager struct {
 	identityPath string // Path to the identity file
-	identity   *Identity
-	mu         sync.RWMutex
+	identity     *Identity
+	mu           sync.RWMutex
 }
 
 // NewManager creates a new identity manager.
@@ -70,7 +70,6 @@ func (m *Manager) LoadOrCreateIdentity() (*Identity, error) {
 	log.Printf("Generated and saved new device identity with public key: %s", m.identity.PublicKey)
 	return m.identity, nil
 }
-
 
 // Get returns the current identity
 func (m *Manager) Get() *Identity {

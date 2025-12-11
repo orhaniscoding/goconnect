@@ -234,7 +234,7 @@ func TestSession_Progress(t *testing.T) {
 	if s.Progress() != 50.0 {
 		t.Errorf("Expected 50%% progress, got %.2f%%", s.Progress())
 	}
-	
+
 	// Zero file size
 	s2 := &Session{FileSize: 0, SentBytes: 0}
 	if s2.Progress() != 0 {
@@ -253,7 +253,7 @@ func TestSession_IsActive(t *testing.T) {
 		{StatusFailed, false},
 		{StatusCancelled, false},
 	}
-	
+
 	for _, tt := range tests {
 		s := &Session{Status: tt.status}
 		if s.IsActive() != tt.expected {
@@ -273,7 +273,7 @@ func TestSession_IsFinished(t *testing.T) {
 		{StatusFailed, true},
 		{StatusCancelled, true},
 	}
-	
+
 	for _, tt := range tests {
 		s := &Session{Status: tt.status}
 		if s.IsFinished() != tt.expected {
@@ -284,26 +284,26 @@ func TestSession_IsFinished(t *testing.T) {
 
 func TestListSessions_Filtering(t *testing.T) {
 	tm := NewManager()
-	
+
 	// Add test sessions directly
 	tm.mu.Lock()
 	tm.sessions["1"] = &Session{ID: "1", PeerID: "alice", Status: StatusPending, IsSender: true}
 	tm.sessions["2"] = &Session{ID: "2", PeerID: "bob", Status: StatusCompleted, IsSender: false}
 	tm.sessions["3"] = &Session{ID: "3", PeerID: "alice", Status: StatusInProgress, IsSender: true}
 	tm.mu.Unlock()
-	
+
 	// Filter by status
 	result := tm.ListSessions(ListOptions{Status: []Status{StatusPending}})
 	if len(result.Sessions) != 1 {
 		t.Errorf("Expected 1 pending session, got %d", len(result.Sessions))
 	}
-	
+
 	// Filter by peer
 	result = tm.ListSessions(ListOptions{PeerID: "alice"})
 	if len(result.Sessions) != 2 {
 		t.Errorf("Expected 2 sessions for alice, got %d", len(result.Sessions))
 	}
-	
+
 	// Filter by direction
 	sender := true
 	result = tm.ListSessions(ListOptions{IsSender: &sender})
@@ -314,7 +314,7 @@ func TestListSessions_Filtering(t *testing.T) {
 
 func TestListSessions_Pagination(t *testing.T) {
 	tm := NewManager()
-	
+
 	// Add 5 test sessions
 	tm.mu.Lock()
 	for i := 0; i < 5; i++ {
@@ -325,7 +325,7 @@ func TestListSessions_Pagination(t *testing.T) {
 		}
 	}
 	tm.mu.Unlock()
-	
+
 	// Get first 2
 	result := tm.ListSessions(ListOptions{Limit: 2})
 	if len(result.Sessions) != 2 {
@@ -337,13 +337,13 @@ func TestListSessions_Pagination(t *testing.T) {
 	if !result.HasMore {
 		t.Error("Expected HasMore to be true")
 	}
-	
+
 	// Get page 2
 	result = tm.ListSessions(ListOptions{Limit: 2, Offset: 2})
 	if len(result.Sessions) != 2 {
 		t.Errorf("Expected 2 sessions on page 2, got %d", len(result.Sessions))
 	}
-	
+
 	// Get last page
 	result = tm.ListSessions(ListOptions{Limit: 2, Offset: 4})
 	if len(result.Sessions) != 1 {
@@ -356,16 +356,16 @@ func TestListSessions_Pagination(t *testing.T) {
 
 func TestGetStats(t *testing.T) {
 	tm := NewManager()
-	
+
 	// Add test sessions
 	tm.mu.Lock()
 	tm.sessions["1"] = &Session{ID: "1", Status: StatusCompleted, SentBytes: 1000, IsSender: true}
 	tm.sessions["2"] = &Session{ID: "2", Status: StatusInProgress, SentBytes: 500, IsSender: false}
 	tm.sessions["3"] = &Session{ID: "3", Status: StatusFailed, SentBytes: 200, IsSender: true}
 	tm.mu.Unlock()
-	
+
 	stats := tm.GetStats()
-	
+
 	if stats.TotalTransfers != 3 {
 		t.Errorf("Expected 3 total transfers, got %d", stats.TotalTransfers)
 	}
@@ -388,23 +388,23 @@ func TestGetStats(t *testing.T) {
 
 func TestCleanupOld(t *testing.T) {
 	tm := NewManager()
-	
+
 	now := time.Now()
-	
+
 	// Add sessions with different end times
 	tm.mu.Lock()
 	tm.sessions["old"] = &Session{ID: "old", Status: StatusCompleted, EndTime: now.Add(-2 * time.Hour)}
 	tm.sessions["recent"] = &Session{ID: "recent", Status: StatusCompleted, EndTime: now.Add(-30 * time.Minute)}
 	tm.sessions["active"] = &Session{ID: "active", Status: StatusInProgress}
 	tm.mu.Unlock()
-	
+
 	// Cleanup sessions older than 1 hour
 	removed := tm.CleanupOld(1 * time.Hour)
-	
+
 	if removed != 1 {
 		t.Errorf("Expected 1 removed, got %d", removed)
 	}
-	
+
 	sessions := tm.GetSessions()
 	if len(sessions) != 2 {
 		t.Errorf("Expected 2 remaining sessions, got %d", len(sessions))
@@ -413,13 +413,13 @@ func TestCleanupOld(t *testing.T) {
 
 func TestGetActiveCount(t *testing.T) {
 	tm := NewManager()
-	
+
 	tm.mu.Lock()
 	tm.sessions["1"] = &Session{ID: "1", Status: StatusPending}
 	tm.sessions["2"] = &Session{ID: "2", Status: StatusInProgress}
 	tm.sessions["3"] = &Session{ID: "3", Status: StatusCompleted}
 	tm.mu.Unlock()
-	
+
 	count := tm.GetActiveCount()
 	if count != 2 {
 		t.Errorf("Expected 2 active, got %d", count)
@@ -1815,4 +1815,3 @@ func TestCleanupOld_NoEndTime(t *testing.T) {
 	removed := tm.CleanupOld(0) // 0 duration means everything old should be removed
 	assert.Equal(t, 0, removed, "Session without EndTime should not be cleaned")
 }
-

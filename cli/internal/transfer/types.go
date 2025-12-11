@@ -83,14 +83,14 @@ type Request struct {
 // ListOptions configures how sessions are listed
 type ListOptions struct {
 	// Filter options
-	Status    []Status // Filter by status (empty = all)
-	IsSender  *bool    // Filter by direction (nil = both)
-	PeerID    string   // Filter by peer ID (empty = all)
-	
+	Status   []Status // Filter by status (empty = all)
+	IsSender *bool    // Filter by direction (nil = both)
+	PeerID   string   // Filter by peer ID (empty = all)
+
 	// Pagination
 	Limit  int // Max results (0 = no limit)
 	Offset int // Skip first N results
-	
+
 	// Sorting
 	SortBy    SortField // Field to sort by
 	SortOrder SortOrder // Ascending or descending
@@ -117,10 +117,10 @@ const (
 
 // ListResult contains paginated session results
 type ListResult struct {
-	Sessions   []Session `json:"sessions"`
-	Total      int       `json:"total"`       // Total matching sessions
-	HasMore    bool      `json:"has_more"`    // More results available
-	ActiveCount int      `json:"active_count"` // Number of active transfers
+	Sessions    []Session `json:"sessions"`
+	Total       int       `json:"total"`        // Total matching sessions
+	HasMore     bool      `json:"has_more"`     // More results available
+	ActiveCount int       `json:"active_count"` // Number of active transfers
 }
 
 // Stats contains transfer statistics

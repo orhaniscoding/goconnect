@@ -20,20 +20,20 @@ type Message struct {
 
 // Manager handles chat operations
 type Manager struct {
-	listener    net.Listener
-	onMessage   func(msg Message)
-	stopChan    chan struct{}
-	wg          sync.WaitGroup
-	mu          sync.Mutex
-	
+	listener  net.Listener
+	onMessage func(msg Message)
+	stopChan  chan struct{}
+	wg        sync.WaitGroup
+	mu        sync.Mutex
+
 	// Message history (in-memory cache)
 	messages    []Message
 	messagesMu  sync.RWMutex
 	maxMessages int
-	
+
 	// Persistent storage (optional)
-	storage     *Storage
-	
+	storage *Storage
+
 	// Subscribers for real-time updates
 	subscribers   map[chan Message]struct{}
 	subscribersMu sync.RWMutex
@@ -55,7 +55,7 @@ func NewManagerWithStorage(dataDir string) (*Manager, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize chat storage: %w", err)
 	}
-	
+
 	m := &Manager{
 		stopChan:    make(chan struct{}),
 		messages:    make([]Message, 0, 100),
@@ -63,12 +63,12 @@ func NewManagerWithStorage(dataDir string) (*Manager, error) {
 		subscribers: make(map[chan Message]struct{}),
 		storage:     storage,
 	}
-	
+
 	// Load recent messages into memory cache
 	if err := m.loadRecentMessages(); err != nil {
 		log.Printf("Warning: failed to load recent messages: %v", err)
 	}
-	
+
 	return m, nil
 }
 
@@ -77,20 +77,20 @@ func (m *Manager) loadRecentMessages() error {
 	if m.storage == nil {
 		return nil
 	}
-	
+
 	messages, err := m.storage.GetMessages("", m.maxMessages, "")
 	if err != nil {
 		return err
 	}
-	
+
 	m.messagesMu.Lock()
 	defer m.messagesMu.Unlock()
-	
+
 	// Messages are returned newest first, reverse for chronological order
 	for i := len(messages) - 1; i >= 0; i-- {
 		m.messages = append(m.messages, messages[i])
 	}
-	
+
 	return nil
 }
 
@@ -167,10 +167,10 @@ func (m *Manager) handleConnection(conn net.Conn) {
 	if callback != nil {
 		callback(msg)
 	}
-	
+
 	// Store message in history
 	m.storeMessage(msg)
-	
+
 	// Notify subscribers
 	m.notifySubscribers(msg)
 }
@@ -204,22 +204,22 @@ func (m *Manager) GetMessages(networkID string, limit int, beforeID string) []Me
 			return messages
 		}
 	}
-	
+
 	// Fall back to in-memory cache
 	m.messagesMu.RLock()
 	defer m.messagesMu.RUnlock()
-	
+
 	if limit <= 0 || limit > len(m.messages) {
 		limit = len(m.messages)
 	}
-	
+
 	result := make([]Message, 0, limit)
 	foundBefore := beforeID == ""
-	
+
 	// Iterate in reverse to get most recent first
 	for i := len(m.messages) - 1; i >= 0 && len(result) < limit; i-- {
 		msg := m.messages[i]
-		
+
 		// Skip until we find the beforeID
 		if !foundBefore {
 			if msg.ID == beforeID {
@@ -227,15 +227,15 @@ func (m *Manager) GetMessages(networkID string, limit int, beforeID string) []Me
 			}
 			continue
 		}
-		
+
 		// Filter by network if specified
 		if networkID != "" && msg.NetworkID != networkID {
 			continue
 		}
-		
+
 		result = append(result, msg)
 	}
-	
+
 	return result
 }
 
@@ -260,20 +260,20 @@ func (m *Manager) GetStorage() *Storage {
 func (m *Manager) storeMessage(msg Message) {
 	m.messagesMu.Lock()
 	defer m.messagesMu.Unlock()
-	
+
 	// Generate ID if not set
 	if msg.ID == "" {
 		msg.ID = fmt.Sprintf("%d-%s", msg.Time.UnixNano(), msg.From)
 	}
-	
+
 	// Store in memory cache
 	m.messages = append(m.messages, msg)
-	
+
 	// Trim if over limit
 	if len(m.messages) > m.maxMessages {
 		m.messages = m.messages[len(m.messages)-m.maxMessages:]
 	}
-	
+
 	// Persist to storage if available
 	if m.storage != nil {
 		if err := m.storage.SaveMessage(msg); err != nil {
@@ -285,7 +285,7 @@ func (m *Manager) storeMessage(msg Message) {
 func (m *Manager) notifySubscribers(msg Message) {
 	m.subscribersMu.RLock()
 	defer m.subscribersMu.RUnlock()
-	
+
 	for ch := range m.subscribers {
 		select {
 		case ch <- msg:

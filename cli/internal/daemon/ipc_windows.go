@@ -32,24 +32,24 @@ const (
 )
 
 var (
-	kernel32                 = syscall.NewLazyDLL("kernel32.dll")
-	createNamedPipeW         = kernel32.NewProc("CreateNamedPipeW")
-	connectNamedPipe         = kernel32.NewProc("ConnectNamedPipe")
-	disconnectNamedPipe      = kernel32.NewProc("DisconnectNamedPipe")
-	waitNamedPipeW           = kernel32.NewProc("WaitNamedPipeW")
-	createFileW              = kernel32.NewProc("CreateFileW")
-	setNamedPipeHandleState  = kernel32.NewProc("SetNamedPipeHandleState")
+	kernel32                    = syscall.NewLazyDLL("kernel32.dll")
+	createNamedPipeW            = kernel32.NewProc("CreateNamedPipeW")
+	connectNamedPipe            = kernel32.NewProc("ConnectNamedPipe")
+	disconnectNamedPipe         = kernel32.NewProc("DisconnectNamedPipe")
+	waitNamedPipeW              = kernel32.NewProc("WaitNamedPipeW")
+	createFileW                 = kernel32.NewProc("CreateFileW")
+	setNamedPipeHandleState     = kernel32.NewProc("SetNamedPipeHandleState")
 	getNamedPipeClientProcessId = kernel32.NewProc("GetNamedPipeClientProcessId")
 )
 
 // PipeListener implements net.Listener for Windows Named Pipes.
 type PipeListener struct {
-	pipeName   string
-	closed     bool
-	closeMu    sync.Mutex
-	acceptCh   chan *PipeConn
-	closeCh    chan struct{}
-	acceptErr  error
+	pipeName  string
+	closed    bool
+	closeMu   sync.Mutex
+	acceptCh  chan *PipeConn
+	closeCh   chan struct{}
+	acceptErr error
 }
 
 // NewPipeListener creates a new Named Pipe listener.

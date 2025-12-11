@@ -94,7 +94,7 @@ func (m *HostsManager) UpdateHosts(entries []HostEntry) error {
 
 	// Write back
 	output := strings.Join(newLines, "\n")
-	
+
 	// On Windows, we might need to handle line endings, but Go's os.WriteFile usually handles \n fine.
 	// However, standard Windows hosts file uses CRLF.
 	if runtime.GOOS == "windows" {

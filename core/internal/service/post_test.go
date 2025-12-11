@@ -246,7 +246,7 @@ func TestPostService_GetPost(t *testing.T) {
 		// Setup user & post
 		user := &domain.User{ID: "1", Email: "test@example.com"}
 		userRepo.Create(ctx, user)
-		
+
 		created, _ := postRepo.Create(ctx, &domain.Post{UserID: 1, Content: "Post 1"})
 
 		post, err := svc.GetPost(ctx, created.ID)
@@ -372,12 +372,12 @@ func TestPostService_Likes(t *testing.T) {
 		updated, _ := postRepo.GetByID(ctx, created.ID)
 		assert.Equal(t, 0, updated.Likes)
 	})
-	
+
 	t.Run("Like Error", func(t *testing.T) {
 		svc, postRepo, _ := setupPostServiceTest()
 		postRepo.likeErr = errors.New("db error")
 		ctx := context.Background()
-		
+
 		err := svc.LikePost(ctx, 1) // id doesn't matter for mock error
 		require.Error(t, err)
 	})
@@ -398,7 +398,7 @@ func TestPostService_AuthorLookupFailure(t *testing.T) {
 	t.Run("CreatePost Only Warns On Author Lookup Fail", func(t *testing.T) {
 		svc, _, _ := setupPostServiceTest()
 		// We don't create the user in userRepo, so lookup will fail
-		
+
 		req := &domain.CreatePostRequest{UserID: 1, Content: "No author"}
 		post, err := svc.CreatePost(context.Background(), req)
 		require.NoError(t, err)
@@ -408,7 +408,7 @@ func TestPostService_AuthorLookupFailure(t *testing.T) {
 	t.Run("GetPost Only Warns On Author Lookup Fail", func(t *testing.T) {
 		svc, postRepo, _ := setupPostServiceTest()
 		created, _ := postRepo.Create(context.Background(), &domain.Post{UserID: 1, Content: "No author"})
-		
+
 		post, err := svc.GetPost(context.Background(), created.ID)
 		require.NoError(t, err)
 		assert.Nil(t, post.Author)
@@ -418,9 +418,9 @@ func TestPostService_AuthorLookupFailure(t *testing.T) {
 		svc, postRepo, userRepo := setupPostServiceTest()
 		// Make sure initial user exists so we can update
 		userRepo.Create(context.Background(), &domain.User{ID: "1", Email: "@"})
-		
+
 		created, _ := postRepo.Create(context.Background(), &domain.Post{UserID: 1, Content: "Original"})
-		
+
 		// Delete user to cause lookup fail during Update
 		userRepo.Delete(context.Background(), "1")
 
@@ -455,12 +455,12 @@ func TestPostService_RepoErrors(t *testing.T) {
 		ctx := context.Background()
 
 		created, _ := postRepo.Create(ctx, &domain.Post{UserID: 1, Content: "To delete"})
-		
+
 		err := svc.DeletePost(ctx, created.ID, 1)
 		require.Error(t, err)
 		assert.Equal(t, domain.ErrInternalServer, err.(*domain.Error).Code)
 	})
-	
+
 	t.Run("DeleteRepo Get Post Error", func(t *testing.T) {
 		svc, postRepo, _ := setupPostServiceTest()
 		postRepo.getErr = errors.New("db error")
@@ -470,7 +470,7 @@ func TestPostService_RepoErrors(t *testing.T) {
 		require.Error(t, err)
 		assert.Equal(t, domain.ErrNotFound, err.(*domain.Error).Code)
 	})
-	
+
 	t.Run("UpdateRepo Get Post Error", func(t *testing.T) {
 		svc, postRepo, _ := setupPostServiceTest()
 		postRepo.getErr = errors.New("db error")

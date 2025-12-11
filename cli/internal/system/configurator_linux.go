@@ -8,8 +8,6 @@ import (
 
 type linuxConfigurator struct{}
 
-
-
 func newConfigurator() Configurator {
 	return &linuxConfigurator{}
 }

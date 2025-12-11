@@ -50,9 +50,9 @@ type PeerResult struct {
 
 // InviteResult for mock engine
 type InviteResult struct {
-    Code      string
-    URL       string
-    ExpiresAt time.Time
+	Code      string
+	URL       string
+	ExpiresAt time.Time
 }
 
 func (m *mockEngine) GetStatus() map[string]interface{} {
@@ -192,12 +192,12 @@ func (m *mockEngine) CancelTransfer(transferID string) error {
 // mockLogger implements service.Logger
 type mockLogger struct{}
 
-func (m *mockLogger) Error(args ...interface{})                    {}
-func (m *mockLogger) Warning(args ...interface{})                  {}
-func (m *mockLogger) Info(args ...interface{})                     {}
-func (m *mockLogger) Errorf(format string, args ...interface{})    {}
-func (m *mockLogger) Warningf(format string, args ...interface{})  {}
-func (m *mockLogger) Infof(format string, args ...interface{})     {}
+func (m *mockLogger) Error(args ...interface{})                   {}
+func (m *mockLogger) Warning(args ...interface{})                 {}
+func (m *mockLogger) Info(args ...interface{})                    {}
+func (m *mockLogger) Errorf(format string, args ...interface{})   {}
+func (m *mockLogger) Warningf(format string, args ...interface{}) {}
+func (m *mockLogger) Infof(format string, args ...interface{})    {}
 
 // testGRPCServer is a simplified server for testing without full daemon
 type testGRPCServer struct {
@@ -1669,4 +1669,3 @@ func TestGRPCServer_CancelTransfer_MissingID(t *testing.T) {
 		t.Errorf("Expected InvalidArgument error, got: %v", st.Code())
 	}
 }
-

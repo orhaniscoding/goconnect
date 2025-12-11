@@ -40,9 +40,9 @@ func NewKeyringStore() (*KeyringStore, error) {
 // StoreAuthToken stores the authentication token in the keyring.
 func (ks *KeyringStore) StoreAuthToken(token string) error {
 	return ks.kr.Set(keyring.Item{
-		Key:  tokenKey,
-		Data: []byte(token),
-		Label: "GoConnect Daemon Auth Token",
+		Key:         tokenKey,
+		Data:        []byte(token),
+		Label:       "GoConnect Daemon Auth Token",
 		Description: "Authentication token for GoConnect server API access",
 	})
 }
@@ -59,9 +59,9 @@ func (ks *KeyringStore) RetrieveAuthToken() (string, error) {
 // StoreDeviceID stores the device ID in the keyring (optional, could be in identity.json).
 func (ks *KeyringStore) StoreDeviceID(id string) error {
 	return ks.kr.Set(keyring.Item{
-		Key:  deviceIDKey,
-		Data: []byte(id),
-		Label: "GoConnect Device ID",
+		Key:         deviceIDKey,
+		Data:        []byte(id),
+		Label:       "GoConnect Device ID",
 		Description: "Unique identifier for this GoConnect client device",
 	})
 }
@@ -90,8 +90,8 @@ func (ks *KeyringStore) RemoveAuthData() error {
 // NewTestKeyring creates a new KeyringStore backed by file (for testing).
 func NewTestKeyring(dir string) (*KeyringStore, error) {
 	kr, err := keyring.Open(keyring.Config{
-		AllowedBackends: []keyring.BackendType{keyring.FileBackend},
-		FileDir:         dir,
+		AllowedBackends:  []keyring.BackendType{keyring.FileBackend},
+		FileDir:          dir,
 		FilePasswordFunc: func(_ string) (string, error) { return "test", nil },
 	})
 	if err != nil {

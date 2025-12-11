@@ -114,7 +114,7 @@ func TestKeyringStore_Integration(t *testing.T) {
 
 func TestNewTestKeyring(t *testing.T) {
 	dir := t.TempDir()
-	
+
 	ks, err := NewTestKeyring(dir)
 	if err != nil {
 		t.Fatalf("NewTestKeyring failed: %v", err)

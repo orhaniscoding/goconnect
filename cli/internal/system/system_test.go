@@ -165,9 +165,9 @@ func TestHostsManager_UpdateHosts_SkipsEmpty(t *testing.T) {
 
 	entries := []HostEntry{
 		{IP: "10.0.0.1", Hostname: "valid.goconnect"},
-		{IP: "", Hostname: "no-ip.goconnect"},      // Should be skipped
-		{IP: "10.0.0.2", Hostname: ""},             // Should be skipped
-		{IP: "  ", Hostname: "  "},                 // Should be skipped (whitespace only)
+		{IP: "", Hostname: "no-ip.goconnect"}, // Should be skipped
+		{IP: "10.0.0.2", Hostname: ""},        // Should be skipped
+		{IP: "  ", Hostname: "  "},            // Should be skipped (whitespace only)
 	}
 
 	err = m.UpdateHosts(entries)
@@ -205,7 +205,7 @@ func TestHostsManager_ReadHosts(t *testing.T) {
 
 func TestHostsManager_ReadHosts_FileNotExist(t *testing.T) {
 	m := &HostsManager{filePath: "/nonexistent/path/hosts"}
-	
+
 	lines, err := m.ReadHosts()
 	assert.Error(t, err, "Expected error when file doesn't exist")
 	assert.Nil(t, lines, "Lines should be nil on error")
@@ -285,7 +285,7 @@ func TestHostsManager_UpdateHosts_MultipleBlocks(t *testing.T) {
 	require.NoError(t, err)
 
 	contentStr := string(content)
-	
+
 	// Should have exactly one pair of markers now
 	assert.Equal(t, 1, strings.Count(contentStr, startMarker), "Should have exactly 1 start marker")
 	assert.Equal(t, 1, strings.Count(contentStr, endMarker), "Should have exactly 1 end marker")
@@ -314,7 +314,7 @@ func TestHostsManager_UpdateHosts_NoTrailingNewline(t *testing.T) {
 	require.NoError(t, err)
 
 	contentStr := string(content)
-	
+
 	// Verify markers and entries are properly separated
 	assert.Contains(t, contentStr, "127.0.0.1 localhost", "Original entry should be preserved")
 	assert.Contains(t, contentStr, startMarker, "Start marker should be present")

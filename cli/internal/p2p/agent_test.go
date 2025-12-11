@@ -264,9 +264,9 @@ func TestAgent_Dial_And_Accept(t *testing.T) {
 	// We just want to ensure the agent logic ran.
 	state := agentA.ConnectionState()
 	assert.Contains(t, []ice.ConnectionState{
-		ice.ConnectionStateNew, 
-		ice.ConnectionStateChecking, 
-		ice.ConnectionStateConnected, 
+		ice.ConnectionStateNew,
+		ice.ConnectionStateChecking,
+		ice.ConnectionStateConnected,
 		ice.ConnectionStateCompleted,
 	}, state)
 }

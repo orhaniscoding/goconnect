@@ -167,7 +167,7 @@ func TestLinuxConfigurator_ConfigureInterface_DNS(t *testing.T) {
 	defer func() { execCommand = origExecCommand }()
 
 	c := newConfigurator()
-	
+
 	// Mock runCommand
 	runCommand = func(_ string, _ ...string) error {
 		return nil
@@ -183,15 +183,15 @@ func TestLinuxConfigurator_ConfigureInterface_DNS(t *testing.T) {
 
 	// Use TestHelperProcess pattern
 	execCommand = func(_ string, _ ...string) *exec.Cmd {
-        cs := []string{"-test.run=TestHelperProcess", "--", "echo"}
-        cmd := exec.Command(os.Args[0], cs...)
-        cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
-        return cmd
-    }
+		cs := []string{"-test.run=TestHelperProcess", "--", "echo"}
+		cmd := exec.Command(os.Args[0], cs...)
+		cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+		return cmd
+	}
 
 	addresses := []string{"10.0.0.1/24"}
 	dns := []string{"8.8.8.8", "1.1.1.1"}
-	
+
 	err := c.ConfigureInterface("wg0", addresses, dns, 1420)
 	assert.NoError(t, err, "ConfigureInterface should succeed with DNS")
 }
@@ -203,7 +203,7 @@ func TestLinuxConfigurator_ConfigureInterface_DNSNotAvailable(t *testing.T) {
 	defer func() { execLookPath = origExecLookPath }()
 
 	c := newConfigurator()
-	
+
 	runCommand = func(_ string, _ ...string) error {
 		return nil
 	}
@@ -215,7 +215,7 @@ func TestLinuxConfigurator_ConfigureInterface_DNSNotAvailable(t *testing.T) {
 
 	addresses := []string{"10.0.0.1/24"}
 	dns := []string{"8.8.8.8"}
-	
+
 	// Should succeed but skip DNS configuration
 	err := c.ConfigureInterface("wg0", addresses, dns, 1420)
 	assert.NoError(t, err, "ConfigureInterface should succeed even without resolvconf")
@@ -223,27 +223,27 @@ func TestLinuxConfigurator_ConfigureInterface_DNSNotAvailable(t *testing.T) {
 
 // TestHelperProcess isn't a real test. It's used to mock exec.Command
 func TestHelperProcess(t *testing.T) {
-    if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
-        return
-    }
-    
-    args := os.Args
-    for len(args) > 0 {
-        if args[0] == "--" {
-            args = args[1:]
-            break
-        }
-        args = args[1:]
-    }
-    
-    if len(args) == 0 {
-        fmt.Fprintf(os.Stderr, "No command\n")
-        os.Exit(2)
-    }
-    
-    cmd := args[0]
-    switch cmd {
-    case "resolvconf":
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	args := os.Args
+	for len(args) > 0 {
+		if args[0] == "--" {
+			args = args[1:]
+			break
+		}
+		args = args[1:]
+	}
+
+	if len(args) == 0 {
+		fmt.Fprintf(os.Stderr, "No command\n")
+		os.Exit(2)
+	}
+
+	cmd := args[0]
+	switch cmd {
+	case "resolvconf":
 		// Read stdin
 		input, _ := io.ReadAll(os.Stdin)
 		content := string(input)
@@ -255,10 +255,10 @@ func TestHelperProcess(t *testing.T) {
 			fmt.Fprintf(os.Stderr, "Expected nameserver 1.1.1.1 in stdin\n")
 			os.Exit(1)
 		}
-        os.Exit(0)
+		os.Exit(0)
 	default:
 		os.Exit(0)
-    }
+	}
 }
 
 func TestLinuxConfigurator_AddRoutes(t *testing.T) {
@@ -343,7 +343,7 @@ func TestLinuxConfigurator_AddRoutes(t *testing.T) {
 func TestNewConfigurator_ReturnsLinuxConfigurator(t *testing.T) {
 	c := newConfigurator()
 	assert.NotNil(t, c, "newConfigurator should return a non-nil configurator")
-	
+
 	_, ok := c.(*linuxConfigurator)
 	assert.True(t, ok, "Should return a linuxConfigurator")
 }

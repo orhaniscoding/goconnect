@@ -31,7 +31,7 @@ type Manager struct {
 
 	pendingReqs map[string]pendingRequest // ID -> pendingRequest
 	reqTimers   map[string]*time.Timer
-	
+
 	// Subscribers for real-time updates
 	subscribers   map[chan Session]struct{}
 	subscribersMu sync.RWMutex
@@ -405,7 +405,7 @@ func (m *Manager) Unsubscribe(ch chan Session) {
 func (m *Manager) GetSessions() []Session {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	sessions := make([]Session, 0, len(m.sessions))
 	for _, s := range m.sessions {
 		sessions = append(sessions, *s)
@@ -417,45 +417,45 @@ func (m *Manager) GetSessions() []Session {
 func (m *Manager) ListSessions(opts ListOptions) ListResult {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	// Collect all sessions that match filters
 	var filtered []*Session
 	activeCount := 0
-	
+
 	for _, s := range m.sessions {
 		if s.IsActive() {
 			activeCount++
 		}
-		
+
 		// Apply filters
 		if !m.matchesFilter(s, opts) {
 			continue
 		}
 		filtered = append(filtered, s)
 	}
-	
+
 	total := len(filtered)
-	
+
 	// Sort
 	m.sortSessions(filtered, opts.SortBy, opts.SortOrder)
-	
+
 	// Apply pagination
 	start := opts.Offset
 	if start > len(filtered) {
 		start = len(filtered)
 	}
-	
+
 	end := len(filtered)
 	if opts.Limit > 0 && start+opts.Limit < end {
 		end = start + opts.Limit
 	}
-	
+
 	// Copy to result
 	result := make([]Session, 0, end-start)
 	for i := start; i < end; i++ {
 		result = append(result, *filtered[i])
 	}
-	
+
 	return ListResult{
 		Sessions:    result,
 		Total:       total,
@@ -478,17 +478,17 @@ func (m *Manager) matchesFilter(s *Session, opts ListOptions) bool {
 			return false
 		}
 	}
-	
+
 	// Filter by direction
 	if opts.IsSender != nil && s.IsSender != *opts.IsSender {
 		return false
 	}
-	
+
 	// Filter by peer
 	if opts.PeerID != "" && s.PeerID != opts.PeerID {
 		return false
 	}
-	
+
 	return true
 }
 
@@ -499,7 +499,7 @@ func (m *Manager) sortSessions(sessions []*Session, by SortField, order SortOrde
 	if order == "" {
 		order = SortDesc
 	}
-	
+
 	// Simple bubble sort (fine for small lists, could use sort.Slice for larger)
 	n := len(sessions)
 	for i := 0; i < n-1; i++ {
@@ -513,7 +513,7 @@ func (m *Manager) sortSessions(sessions []*Session, by SortField, order SortOrde
 
 func (m *Manager) shouldSwap(a, b *Session, by SortField, order SortOrder) bool {
 	var less bool
-	
+
 	switch by {
 	case SortByStartTime:
 		less = a.StartTime.Before(b.StartTime)
@@ -528,7 +528,7 @@ func (m *Manager) shouldSwap(a, b *Session, by SortField, order SortOrder) bool 
 	default:
 		less = a.StartTime.Before(b.StartTime)
 	}
-	
+
 	if order == SortDesc {
 		return less
 	}
@@ -539,14 +539,14 @@ func (m *Manager) shouldSwap(a, b *Session, by SortField, order SortOrder) bool 
 func (m *Manager) GetStats() Stats {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	var stats Stats
 	var totalSpeed float64
 	speedCount := 0
-	
+
 	for _, s := range m.sessions {
 		stats.TotalTransfers++
-		
+
 		switch s.Status {
 		case StatusPending, StatusInProgress:
 			stats.ActiveTransfers++
@@ -555,23 +555,23 @@ func (m *Manager) GetStats() Stats {
 		case StatusFailed, StatusCancelled:
 			stats.FailedTransfers++
 		}
-		
+
 		if s.IsSender {
 			stats.TotalBytesSent += s.SentBytes
 		} else {
 			stats.TotalBytesReceived += s.SentBytes
 		}
-		
+
 		if s.Status == StatusCompleted && s.Elapsed() > 0 {
 			totalSpeed += s.Speed()
 			speedCount++
 		}
 	}
-	
+
 	if speedCount > 0 {
 		stats.AverageSpeed = totalSpeed / float64(speedCount)
 	}
-	
+
 	return stats
 }
 
@@ -579,17 +579,17 @@ func (m *Manager) GetStats() Stats {
 func (m *Manager) CleanupOld(olderThan time.Duration) int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	cutoff := time.Now().Add(-olderThan)
 	removed := 0
-	
+
 	for id, s := range m.sessions {
 		if s.IsFinished() && !s.EndTime.IsZero() && s.EndTime.Before(cutoff) {
 			delete(m.sessions, id)
 			removed++
 		}
 	}
-	
+
 	return removed
 }
 
@@ -597,7 +597,7 @@ func (m *Manager) CleanupOld(olderThan time.Duration) int {
 func (m *Manager) GetActiveCount() int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	count := 0
 	for _, s := range m.sessions {
 		if s.IsActive() {
@@ -610,7 +610,7 @@ func (m *Manager) GetActiveCount() int {
 func (m *Manager) notifySubscribers(session *Session) {
 	m.subscribersMu.RLock()
 	defer m.subscribersMu.RUnlock()
-	
+
 	for ch := range m.subscribers {
 		select {
 		case ch <- *session:

@@ -86,7 +86,7 @@ func TestPostgresUserRepository_GetByID(t *testing.T) {
 	// Note: pq array parsing might need integration test, but for unit test string representation is often returned by mock.
 	// Actually sqlmock driver doesn't fully simulate pq.Array scanning logic perfectly if rely on pq.Array wrapper.
 	// But since we are mocking the *DB*, we mock what Scan receives.
-	
+
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -221,7 +221,7 @@ func TestPostgresUserRepository_ListAll_Search(t *testing.T) {
 
 	repo := NewPostgresUserRepository(db)
 	ctx := context.Background()
-	
+
 	// Expect WHERE clause due to search
 	countQuery := `SELECT COUNT(*) FROM users WHERE email ILIKE $1`
 	mock.ExpectQuery(regexp.QuoteMeta(countQuery)).
@@ -229,7 +229,7 @@ func TestPostgresUserRepository_ListAll_Search(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
 
 	listQuery := `SELECT id, tenant_id, email, password_hash, locale, is_admin, created_at, updated_at FROM users WHERE email ILIKE $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
-	
+
 	mock.ExpectQuery(regexp.QuoteMeta(listQuery)).
 		WithArgs("%test%", 10, 0).
 		WillReturnRows(sqlmock.NewRows([]string{

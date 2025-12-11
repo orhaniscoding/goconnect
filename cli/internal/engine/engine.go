@@ -669,30 +669,30 @@ func (e *Engine) LeaveNetwork(networkID string) error {
 
 // GenerateInvite creates an invite token for a network
 func (e *Engine) GenerateInvite(networkID string, maxUses int, expiresHours int) (*api.InviteTokenResponse, error) {
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
-    return e.apiClient.GenerateInvite(ctx, networkID, maxUses, expiresHours)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return e.apiClient.GenerateInvite(ctx, networkID, maxUses, expiresHours)
 }
 
 // KickPeer removes a peer from a network
 func (e *Engine) KickPeer(networkID, peerID, reason string) error {
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
-    return e.apiClient.KickPeer(ctx, networkID, peerID, reason)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return e.apiClient.KickPeer(ctx, networkID, peerID, reason)
 }
 
 // BanPeer bans a peer from a network
 func (e *Engine) BanPeer(networkID, peerID, reason string) error {
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
-    return e.apiClient.BanPeer(ctx, networkID, peerID, reason)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return e.apiClient.BanPeer(ctx, networkID, peerID, reason)
 }
 
 // UnbanPeer unbans a peer from a network
 func (e *Engine) UnbanPeer(networkID, peerID string) error {
-    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-    defer cancel()
-    return e.apiClient.UnbanPeer(ctx, networkID, peerID)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return e.apiClient.UnbanPeer(ctx, networkID, peerID)
 }
 
 // =============================================================================
