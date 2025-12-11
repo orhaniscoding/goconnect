@@ -562,6 +562,76 @@ func (c *Client) GetNetworks(ctx context.Context) ([]NetworkResponse, error) {
 	return result, nil
 }
 
+// GetNetwork returns details of a specific network
+func (c *Client) GetNetwork(ctx context.Context, networkID string) (*NetworkResponse, error) {
+	authToken, err := c.getAuthToken()
+	if err != nil {
+		return nil, fmt.Errorf("get network failed: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/v1/networks/%s", c.config.Server.URL, networkID)
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create http request: %w", err)
+	}
+
+	httpReq.Header.Set("Authorization", "Bearer "+authToken)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send http request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("network not found")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("get network failed with status: %d", resp.StatusCode)
+	}
+
+	var result NetworkResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &result, nil
+}
+
+// DeleteNetwork deletes a network (owner only)
+func (c *Client) DeleteNetwork(ctx context.Context, networkID string) error {
+	authToken, err := c.getAuthToken()
+	if err != nil {
+		return fmt.Errorf("delete network failed: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/v1/networks/%s", c.config.Server.URL, networkID)
+	httpReq, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create http request: %w", err)
+	}
+
+	httpReq.Header.Set("Authorization", "Bearer "+authToken)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("failed to send http request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("network not found")
+	}
+	if resp.StatusCode == http.StatusForbidden {
+		return fmt.Errorf("only the network owner can delete the network")
+	}
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("delete network failed with status: %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
 // LeaveNetwork removes the current device from a network
 func (c *Client) LeaveNetwork(ctx context.Context, networkID string) error {
 	authToken, err := c.getAuthToken()

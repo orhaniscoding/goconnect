@@ -971,6 +971,112 @@ func TestGetNetworks_Success(t *testing.T) {
 	}
 }
 
+func TestGetNetwork_Success(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			t.Errorf("Expected GET, got %s", r.Method)
+		}
+		if r.URL.Path != "/v1/networks/net-123" {
+			t.Errorf("Unexpected path: %s", r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "Bearer valid-token" {
+			t.Errorf("Unexpected Auth header: %s", r.Header.Get("Authorization"))
+		}
+		
+		json.NewEncoder(w).Encode(NetworkResponse{ID: "net-123", Name: "Test Network", Role: "admin"})
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	network, err := client.GetNetwork(context.Background(), "net-123")
+	if err != nil {
+		t.Fatalf("GetNetwork failed: %v", err)
+	}
+
+	if network.ID != "net-123" {
+		t.Errorf("Expected net-123, got %s", network.ID)
+	}
+	if network.Name != "Test Network" {
+		t.Errorf("Expected Test Network, got %s", network.Name)
+	}
+}
+
+func TestGetNetwork_NotFound(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	_, err := client.GetNetwork(context.Background(), "net-unknown")
+	if err == nil {
+		t.Fatal("Expected error for not found network")
+	}
+	if err.Error() != "network not found" {
+		t.Errorf("Expected 'network not found', got: %s", err.Error())
+	}
+}
+
+func TestDeleteNetwork_Success(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "DELETE" {
+			t.Errorf("Expected DELETE, got %s", r.Method)
+		}
+		if r.URL.Path != "/v1/networks/net-123" {
+			t.Errorf("Unexpected path: %s", r.URL.Path)
+		}
+		if r.Header.Get("Authorization") != "Bearer valid-token" {
+			t.Errorf("Unexpected Auth header: %s", r.Header.Get("Authorization"))
+		}
+		
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	err := client.DeleteNetwork(context.Background(), "net-123")
+	if err != nil {
+		t.Fatalf("DeleteNetwork failed: %v", err)
+	}
+}
+
+func TestDeleteNetwork_NotFound(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	err := client.DeleteNetwork(context.Background(), "net-unknown")
+	if err == nil {
+		t.Fatal("Expected error for not found network")
+	}
+	if err.Error() != "network not found" {
+		t.Errorf("Expected 'network not found', got: %s", err.Error())
+	}
+}
+
+func TestDeleteNetwork_Forbidden(t *testing.T) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	})
+
+	client, server := setupMockClient(t, handler)
+	defer server.Close()
+
+	err := client.DeleteNetwork(context.Background(), "net-other")
+	if err == nil {
+		t.Fatal("Expected error for forbidden")
+	}
+	if err.Error() != "only the network owner can delete the network" {
+		t.Errorf("Expected permission error, got: %s", err.Error())
+	}
+}
+
 func TestJoinNetwork_Success(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {

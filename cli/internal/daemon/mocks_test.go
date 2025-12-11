@@ -175,6 +175,19 @@ func (m *MockEngine) GetNetworks() ([]api.NetworkResponse, error) {
 	return args.Get(0).([]api.NetworkResponse), args.Error(1)
 }
 
+func (m *MockEngine) GetNetwork(networkID string) (*api.NetworkResponse, error) {
+	args := m.Called(networkID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*api.NetworkResponse), args.Error(1)
+}
+
+func (m *MockEngine) DeleteNetwork(networkID string) error {
+	args := m.Called(networkID)
+	return args.Error(0)
+}
+
 // MockAPIClient is a mock implementation of DaemonAPIClient
 type MockAPIClient struct {
 	mock.Mock

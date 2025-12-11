@@ -389,8 +389,18 @@ func (s *GRPCServer) GetNetwork(ctx context.Context, req *pb.GetNetworkRequest) 
 		return nil, status.Error(codes.InvalidArgument, "network_id is required")
 	}
 
-	// TODO: Implement via engine
-	return nil, status.Error(codes.Unimplemented, "GetNetwork not yet implemented")
+	result, err := s.daemon.engine.GetNetwork(req.NetworkId)
+	if err != nil {
+		if err.Error() == "network not found" {
+			return nil, status.Error(codes.NotFound, "network not found")
+		}
+		return nil, status.Errorf(codes.Internal, "failed to get network: %v", err)
+	}
+
+	return &pb.Network{
+		Id:   result.ID,
+		Name: result.Name,
+	}, nil
 }
 
 // DeleteNetwork deletes a network (owner only).
@@ -399,8 +409,17 @@ func (s *GRPCServer) DeleteNetwork(ctx context.Context, req *pb.DeleteNetworkReq
 		return nil, status.Error(codes.InvalidArgument, "network_id is required")
 	}
 
-	// TODO: Implement via engine
-	return nil, status.Error(codes.Unimplemented, "DeleteNetwork not yet implemented")
+	if err := s.daemon.engine.DeleteNetwork(req.NetworkId); err != nil {
+		if err.Error() == "network not found" {
+			return nil, status.Error(codes.NotFound, "network not found")
+		}
+		if err.Error() == "only the network owner can delete the network" {
+			return nil, status.Error(codes.PermissionDenied, "only the network owner can delete the network")
+		}
+		return nil, status.Errorf(codes.Internal, "failed to delete network: %v", err)
+	}
+
+	return &emptypb.Empty{}, nil
 }
 
 // GenerateInvite creates an invite code for a network.

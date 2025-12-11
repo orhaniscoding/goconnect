@@ -2,6 +2,7 @@ package daemon
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -238,7 +239,7 @@ func TestGRPCServer_ListNetworks_Real(t *testing.T) {
 }
 
 func TestGRPCServer_GetNetwork_Real(t *testing.T) {
-	srv, _ := setupRealGRPCServer(t)
+	srv, mockEng := setupRealGRPCServer(t)
 
 	t.Run("empty network_id", func(t *testing.T) {
 		_, err := srv.GetNetwork(context.Background(), &pb.GetNetworkRequest{
@@ -249,18 +250,34 @@ func TestGRPCServer_GetNetwork_Real(t *testing.T) {
 		assert.Equal(t, codes.InvalidArgument, st.Code())
 	})
 
-	t.Run("unimplemented", func(t *testing.T) {
-		_, err := srv.GetNetwork(context.Background(), &pb.GetNetworkRequest{
+	t.Run("success", func(t *testing.T) {
+		mockEng.On("GetNetwork", "net-1").Return(&api.NetworkResponse{
+			ID:   "net-1",
+			Name: "Test Network",
+		}, nil).Once()
+
+		resp, err := srv.GetNetwork(context.Background(), &pb.GetNetworkRequest{
 			NetworkId: "net-1",
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, "net-1", resp.Id)
+		assert.Equal(t, "Test Network", resp.Name)
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		mockEng.On("GetNetwork", "net-unknown").Return(nil, fmt.Errorf("network not found")).Once()
+
+		_, err := srv.GetNetwork(context.Background(), &pb.GetNetworkRequest{
+			NetworkId: "net-unknown",
 		})
 		assert.Error(t, err)
 		st, _ := status.FromError(err)
-		assert.Equal(t, codes.Unimplemented, st.Code())
+		assert.Equal(t, codes.NotFound, st.Code())
 	})
 }
 
 func TestGRPCServer_DeleteNetwork_Real(t *testing.T) {
-	srv, _ := setupRealGRPCServer(t)
+	srv, mockEng := setupRealGRPCServer(t)
 
 	t.Run("empty network_id", func(t *testing.T) {
 		_, err := srv.DeleteNetwork(context.Background(), &pb.DeleteNetworkRequest{
@@ -271,13 +288,35 @@ func TestGRPCServer_DeleteNetwork_Real(t *testing.T) {
 		assert.Equal(t, codes.InvalidArgument, st.Code())
 	})
 
-	t.Run("unimplemented", func(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		mockEng.On("DeleteNetwork", "net-1").Return(nil).Once()
+
 		_, err := srv.DeleteNetwork(context.Background(), &pb.DeleteNetworkRequest{
 			NetworkId: "net-1",
 		})
+		assert.NoError(t, err)
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		mockEng.On("DeleteNetwork", "net-unknown").Return(fmt.Errorf("network not found")).Once()
+
+		_, err := srv.DeleteNetwork(context.Background(), &pb.DeleteNetworkRequest{
+			NetworkId: "net-unknown",
+		})
 		assert.Error(t, err)
 		st, _ := status.FromError(err)
-		assert.Equal(t, codes.Unimplemented, st.Code())
+		assert.Equal(t, codes.NotFound, st.Code())
+	})
+
+	t.Run("permission denied", func(t *testing.T) {
+		mockEng.On("DeleteNetwork", "net-other").Return(fmt.Errorf("only the network owner can delete the network")).Once()
+
+		_, err := srv.DeleteNetwork(context.Background(), &pb.DeleteNetworkRequest{
+			NetworkId: "net-other",
+		})
+		assert.Error(t, err)
+		st, _ := status.FromError(err)
+		assert.Equal(t, codes.PermissionDenied, st.Code())
 	})
 }
 

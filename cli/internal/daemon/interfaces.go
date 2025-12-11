@@ -39,6 +39,8 @@ type DaemonEngine interface {
 	JoinNetwork(inviteCode string) (*api.NetworkResponse, error)
 	LeaveNetwork(networkID string) error
 	GetNetworks() ([]api.NetworkResponse, error)
+	GetNetwork(networkID string) (*api.NetworkResponse, error)
+	DeleteNetwork(networkID string) error
 }
 
 // DaemonAPIClient defines the interface for the API client used by the daemon.

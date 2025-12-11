@@ -583,6 +583,40 @@ func (e *Engine) GetNetworks() ([]api.NetworkResponse, error) {
 	return networks, nil
 }
 
+// GetNetwork returns details of a specific network
+func (e *Engine) GetNetwork(networkID string) (*api.NetworkResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	return e.apiClient.GetNetwork(ctx, networkID)
+}
+
+// DeleteNetwork deletes a network (owner only)
+func (e *Engine) DeleteNetwork(networkID string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := e.apiClient.DeleteNetwork(ctx, networkID); err != nil {
+		return err
+	}
+
+	// Remove network from local cache
+	e.mu.Lock()
+	newNetworks := make([]api.NetworkResponse, 0)
+	for _, n := range e.networks {
+		if n.ID != networkID {
+			newNetworks = append(newNetworks, n)
+		}
+	}
+	e.networks = newNetworks
+	e.mu.Unlock()
+
+	// Trigger config resync
+	go e.syncConfig()
+
+	return nil
+}
+
 // GetPeers returns the list of connected peers
 func (e *Engine) GetPeers() []api.PeerConfig {
 	e.mu.RLock()
