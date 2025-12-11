@@ -572,7 +572,7 @@ pub struct PeerInfo {
     pub latency_ms: i64,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Settings {
     pub auto_connect: bool,
     pub start_minimized: bool,
