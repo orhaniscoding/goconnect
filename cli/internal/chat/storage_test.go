@@ -134,7 +134,7 @@ func TestStorage_GetMessages_Pagination(t *testing.T) {
 	// Save 5 messages
 	baseTime := time.Now()
 	for i := 0; i < 5; i++ {
-		storage.SaveMessage(Message{
+		_ = storage.SaveMessage(Message{
 			ID:      "msg-" + string(rune('a'+i)),
 			From:    "peer-1",
 			Content: "Message " + string(rune('A'+i)),
@@ -162,9 +162,9 @@ func TestStorage_GetMessagesByPeer(t *testing.T) {
 	}
 	defer storage.Close()
 
-	storage.SaveMessage(Message{ID: "msg-1", From: "alice", Content: "From Alice", Time: time.Now()})
-	storage.SaveMessage(Message{ID: "msg-2", From: "bob", Content: "From Bob", Time: time.Now()})
-	storage.SaveMessage(Message{ID: "msg-3", From: "alice", Content: "Alice again", Time: time.Now()})
+	_ = storage.SaveMessage(Message{ID: "msg-1", From: "alice", Content: "From Alice", Time: time.Now()})
+	_ = storage.SaveMessage(Message{ID: "msg-2", From: "bob", Content: "From Bob", Time: time.Now()})
+	_ = storage.SaveMessage(Message{ID: "msg-3", From: "alice", Content: "Alice again", Time: time.Now()})
 
 	aliceMsgs, err := storage.GetMessagesByPeer("alice", 10)
 	if err != nil {

@@ -1332,7 +1332,7 @@ func TestCreateNetwork_Success(t *testing.T) {
 func TestCreateNetwork_ServerError(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"message": "Network name already exists"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"message": "Network name already exists"})
 	})
 
 	client, server := setupMockClient(t, handler)
@@ -1537,7 +1537,7 @@ func TestReadLoop_ReceivesOffer(t *testing.T) {
 		signalPayload, _ := json.Marshal(signalPayload{Ufrag: "test-ufrag", Pwd: "test-pwd"})
 		signalData, _ := json.Marshal(callSignalData{FromUser: "user-123", Signal: signalPayload})
 		msg := wsMessage{Type: "call.offer", Data: signalData}
-		conn.WriteJSON(msg)
+		_ = conn.WriteJSON(msg)
 
 		// Keep alive for the client to process
 		time.Sleep(200 * time.Millisecond)
@@ -1572,7 +1572,7 @@ func TestReadLoop_ReceivesAnswer(t *testing.T) {
 		signalPayload, _ := json.Marshal(signalPayload{Ufrag: "answer-ufrag", Pwd: "answer-pwd"})
 		signalData, _ := json.Marshal(callSignalData{FromUser: "peer-456", Signal: signalPayload})
 		msg := wsMessage{Type: "call.answer", Data: signalData}
-		conn.WriteJSON(msg)
+		_ = conn.WriteJSON(msg)
 		time.Sleep(200 * time.Millisecond)
 	})
 	defer cleanup()
@@ -1605,7 +1605,7 @@ func TestReadLoop_ReceivesICECandidate(t *testing.T) {
 		signalPayload, _ := json.Marshal(signalPayload{Candidate: "candidate:1234567890"})
 		signalData, _ := json.Marshal(callSignalData{FromUser: "peer-789", Signal: signalPayload})
 		msg := wsMessage{Type: "call.ice", Data: signalData}
-		conn.WriteJSON(msg)
+		_ = conn.WriteJSON(msg)
 		time.Sleep(200 * time.Millisecond)
 	})
 	defer cleanup()
@@ -1666,13 +1666,13 @@ func TestReadLoop_HandlesInvalidJSON(t *testing.T) {
 
 	client, _, cleanup := setupWebSocketServer(t, func(conn *websocket.Conn) {
 		// Send invalid JSON
-		conn.WriteMessage(websocket.TextMessage, []byte("not json"))
+		_ = conn.WriteMessage(websocket.TextMessage, []byte("not json"))
 
 		// Then send valid message
 		signalPayload, _ := json.Marshal(signalPayload{Ufrag: "test", Pwd: "test"})
 		signalData, _ := json.Marshal(callSignalData{FromUser: "user", Signal: signalPayload})
 		msg := wsMessage{Type: "call.offer", Data: signalData}
-		conn.WriteJSON(msg)
+		_ = conn.WriteJSON(msg)
 
 		time.Sleep(200 * time.Millisecond)
 	})
@@ -1842,7 +1842,7 @@ func TestSendSignal_Success(t *testing.T) {
 	case msg := <-messageReceived:
 		assert.Equal(t, "call.offer", msg.Type)
 		var signalData callSignalData
-		json.Unmarshal(msg.Data, &signalData)
+		_ = json.Unmarshal(msg.Data, &signalData)
 		assert.Equal(t, "target-peer", signalData.TargetID)
 	case <-time.After(2 * time.Second):
 		t.Fatal("Message not received by server")
@@ -1901,9 +1901,9 @@ func TestSendCandidate_Success(t *testing.T) {
 	case msg := <-messageReceived:
 		assert.Equal(t, "call.ice", msg.Type)
 		var signalData callSignalData
-		json.Unmarshal(msg.Data, &signalData)
+		_ = json.Unmarshal(msg.Data, &signalData)
 		var payload signalPayload
-		json.Unmarshal(signalData.Signal, &payload)
+		_ = json.Unmarshal(signalData.Signal, &payload)
 		assert.Equal(t, "candidate:1234567890", payload.Candidate)
 	case <-time.After(2 * time.Second):
 		t.Fatal("Message not received by server")
