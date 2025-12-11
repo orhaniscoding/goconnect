@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -15,6 +14,7 @@ import (
 	"github.com/kardianos/service"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/config"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/daemon"
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/deeplink"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/system"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/tui"
 )
@@ -265,23 +265,95 @@ func runQuickSetup(action string) {
 
 func handleDeepLink(uri string) {
 	log.Printf("Processing deep link: %s", uri)
-	u, err := url.Parse(uri)
+	
+	// Parse using the deeplink package
+	dl, err := deeplink.Parse(uri)
 	if err != nil {
-		log.Fatalf("Invalid URL: %v", err)
+		log.Fatalf("Invalid deep link: %v", err)
 	}
 
-	switch u.Host {
-	case "login":
-		handleLoginDeepLink(u)
+	log.Printf("Action: %s, Target: %s", dl.Action, dl.Target)
+
+	switch dl.Action {
+	case deeplink.ActionLogin:
+		handleLoginDeepLink(dl)
+	case deeplink.ActionJoin:
+		handleJoinDeepLink(dl)
+	case deeplink.ActionNetwork:
+		handleNetworkDeepLink(dl)
+	case deeplink.ActionConnect:
+		handleConnectDeepLink(dl)
 	default:
-		log.Fatalf("Unknown action: %s", u.Host)
+		log.Fatalf("Unknown action: %s", dl.Action)
 	}
 }
 
-func handleLoginDeepLink(u *url.URL) {
-	q := u.Query()
-	token := q.Get("token")
-	server := q.Get("server")
+func handleJoinDeepLink(dl *deeplink.DeepLink) {
+	fmt.Printf("🔗 Joining network with invite code: %s\n", dl.Target)
+	
+	handler := deeplink.NewHandler()
+	result, err := handler.Handle(dl)
+	if err != nil {
+		log.Fatalf("Failed to process join link: %v", err)
+	}
+
+	if result.Success {
+		fmt.Printf("✅ %s\n", result.Message)
+		if networkName, ok := result.Data["network_name"].(string); ok {
+			fmt.Printf("   Network: %s\n", networkName)
+		}
+		if role, ok := result.Data["role"].(string); ok {
+			fmt.Printf("   Your role: %s\n", role)
+		}
+	} else {
+		fmt.Printf("❌ %s\n", result.Message)
+		os.Exit(1)
+	}
+}
+
+func handleNetworkDeepLink(dl *deeplink.DeepLink) {
+	fmt.Printf("🔗 Opening network: %s\n", dl.Target)
+	
+	handler := deeplink.NewHandler()
+	result, err := handler.Handle(dl)
+	if err != nil {
+		log.Fatalf("Failed to process network link: %v", err)
+	}
+
+	if result.Success {
+		fmt.Printf("✅ %s\n", result.Message)
+		if networkName, ok := result.Data["network_name"].(string); ok {
+			fmt.Printf("   Network: %s\n", networkName)
+		}
+		if connected, ok := result.Data["connected"].(bool); ok && connected {
+			fmt.Printf("   Status: Connected\n")
+		}
+	} else {
+		fmt.Printf("❌ %s\n", result.Message)
+		os.Exit(1)
+	}
+}
+
+func handleConnectDeepLink(dl *deeplink.DeepLink) {
+	fmt.Printf("🔗 Connecting to peer: %s\n", dl.Target)
+	
+	handler := deeplink.NewHandler()
+	result, err := handler.Handle(dl)
+	if err != nil {
+		log.Fatalf("Failed to process connect link: %v", err)
+	}
+
+	if result.Success {
+		fmt.Printf("✅ %s\n", result.Message)
+	} else {
+		fmt.Printf("❌ %s\n", result.Message)
+		os.Exit(1)
+	}
+}
+
+func handleLoginDeepLink(dl *deeplink.DeepLink) {
+	token := dl.Params["token"]
+	server := dl.Params["server"]
 
 	if token == "" || server == "" {
 		log.Fatal("Login link missing token or server params")
