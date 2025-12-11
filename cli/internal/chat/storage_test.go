@@ -609,7 +609,7 @@ func TestStorage_WALMode(t *testing.T) {
 	defer storage.Close()
 
 	// WAL files should exist after write
-	storage.SaveMessage(Message{ID: "wal-test", From: "p", Content: "test", Time: time.Now()})
+	_ = storage.SaveMessage(Message{ID: "wal-test", From: "p", Content: "test", Time: time.Now()})
 
 	// Check that the main db file exists (WAL files may or may not be visible)
 	_, err = os.Stat(filepath.Join(tmpDir, "chat.db"))
@@ -677,7 +677,7 @@ func TestStorage_SearchMessages_EmptyQuery(t *testing.T) {
 	require.NoError(t, err)
 	defer storage.Close()
 
-	storage.SaveMessage(Message{ID: "1", From: "p", Content: "test", Time: time.Now()})
+	_ = storage.SaveMessage(Message{ID: "1", From: "p", Content: "test", Time: time.Now()})
 
 	// Empty query should match all (LIKE '%%')
 	results, err := storage.SearchMessages("", 10)
@@ -692,7 +692,7 @@ func TestStorage_GetMessagesByPeer_NotFound(t *testing.T) {
 	require.NoError(t, err)
 	defer storage.Close()
 
-	storage.SaveMessage(Message{ID: "1", From: "alice", Content: "test", Time: time.Now()})
+	_ = storage.SaveMessage(Message{ID: "1", From: "alice", Content: "test", Time: time.Now()})
 
 	messages, err := storage.GetMessagesByPeer("bob", 10)
 	require.NoError(t, err)

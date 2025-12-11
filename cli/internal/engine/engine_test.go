@@ -903,7 +903,7 @@ func TestEngine_SyncConfig_WithP2PConnections(t *testing.T) {
 func TestEngine_SyncConfig_P2PDisabled(t *testing.T) {
 	apiHandler := func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/config") {
-			json.NewEncoder(w).Encode(api.DeviceConfig{
+			_ = json.NewEncoder(w).Encode(api.DeviceConfig{
 				Interface: api.InterfaceConfig{Addresses: []string{"10.0.0.1/24"}},
 				Peers: []api.PeerConfig{
 					{ID: "peer-a", Name: "Peer A"},
@@ -912,7 +912,7 @@ func TestEngine_SyncConfig_P2PDisabled(t *testing.T) {
 			return
 		}
 		if r.URL.Path == "/v1/networks" {
-			json.NewEncoder(w).Encode([]api.NetworkResponse{})
+			_ = json.NewEncoder(w).Encode([]api.NetworkResponse{})
 			return
 		}
 	}
@@ -920,7 +920,7 @@ func TestEngine_SyncConfig_P2PDisabled(t *testing.T) {
 	eng, server, _ := setupTestEngine(t, apiHandler)
 	defer server.Close()
 
-	eng.idMgr.Update("device-test-id")
+	_ = eng.idMgr.Update("device-test-id")
 	eng.config.P2P.Enabled = false
 
 	// Should not panic when P2P is disabled
@@ -932,7 +932,7 @@ func TestEngine_SyncConfig_P2PDisabled(t *testing.T) {
 func TestEngine_SyncConfig_EmptyPeerID(t *testing.T) {
 	apiHandler := func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/config") {
-			json.NewEncoder(w).Encode(api.DeviceConfig{
+			_ = json.NewEncoder(w).Encode(api.DeviceConfig{
 				Interface: api.InterfaceConfig{Addresses: []string{"10.0.0.1/24"}},
 				Peers: []api.PeerConfig{
 					{ID: "", Name: "Empty ID Peer"}, // Should be skipped
@@ -942,7 +942,7 @@ func TestEngine_SyncConfig_EmptyPeerID(t *testing.T) {
 			return
 		}
 		if r.URL.Path == "/v1/networks" {
-			json.NewEncoder(w).Encode([]api.NetworkResponse{})
+			_ = json.NewEncoder(w).Encode([]api.NetworkResponse{})
 			return
 		}
 	}
@@ -950,7 +950,7 @@ func TestEngine_SyncConfig_EmptyPeerID(t *testing.T) {
 	eng, server, _ := setupTestEngine(t, apiHandler)
 	defer server.Close()
 
-	eng.idMgr.Update("device-test-id")
+	_ = eng.idMgr.Update("device-test-id")
 	eng.syncConfig()
 
 	// Only valid peer should be in the map
@@ -1187,7 +1187,7 @@ func TestEngine_SendHeartbeat_NoDeviceID(t *testing.T) {
 	defer server.Close()
 
 	// Clear device ID
-	eng.idMgr.Update("")
+	_ = eng.idMgr.Update("")
 
 	eng.sendHeartbeat()
 	assert.False(t, heartbeatCalled, "Heartbeat should not be sent when device is not registered")

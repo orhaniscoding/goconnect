@@ -38,7 +38,7 @@ func setupRealGRPCServer(t *testing.T) (*GRPCServer, *MockEngine) {
 		sseClients:    make(map[chan string]bool),
 	}
 	daemon.idManager = identity.NewManager(cfg.IdentityPath)
-	daemon.idManager.LoadOrCreateIdentity()
+	_, _ = daemon.idManager.LoadOrCreateIdentity()
 
 	mockEng := new(MockEngine)
 	daemon.engine = mockEng
