@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/orhaniscoding/goconnect/server/internal/audit"
@@ -15,6 +16,7 @@ type MembershipService struct {
 	members          repository.MembershipRepository
 	joins            repository.JoinRequestRepository
 	idempotency      repository.IdempotencyRepository
+	invites          repository.InviteTokenRepository
 	peerProvisioning *PeerProvisioningService
 	aud              Auditor
 	notifier         MembershipNotifier
@@ -53,6 +55,11 @@ func (s *MembershipService) SetNotifier(n MembershipNotifier) {
 	if n != nil {
 		s.notifier = n
 	}
+}
+
+// SetInviteTokenRepository sets the invite token repository
+func (s *MembershipService) SetInviteTokenRepository(r repository.InviteTokenRepository) {
+	s.invites = r
 }
 
 // SetPeerProvisioning sets the peer provisioning service
@@ -305,3 +312,40 @@ func (s *MembershipService) IsMember(ctx context.Context, networkID, userID stri
 	}
 	return m.Status == domain.StatusApproved, nil
 }
+
+// JoinByInviteCode handles joining a network using an invite code (CLI compat)
+// The invite code is resolved to a network ID, then JoinNetwork is called
+func (s *MembershipService) JoinByInviteCode(ctx context.Context, inviteCode, userID, tenantID, idempotencyKey string) (*domain.Membership, *domain.JoinRequest, error) {
+	if inviteCode == "" {
+		return nil, nil, domain.NewError(domain.ErrInvalidRequest, "invite_code is required", nil)
+	}
+
+	// Compat: if code starts with "net_", treat as direct Network ID
+	if strings.HasPrefix(inviteCode, "net_") {
+		return s.JoinNetwork(ctx, inviteCode, userID, tenantID, idempotencyKey)
+	}
+
+	// If we have an invite repo, try to resolve the token
+	if s.invites != nil {
+		token, err := s.invites.UseToken(ctx, inviteCode)
+		if err == nil && token != nil {
+			// Token valid and used successfully
+			return s.JoinNetwork(ctx, token.NetworkID, userID, tenantID, idempotencyKey)
+		}
+		// If token not found or invalid, fall through to error handling
+		// But for now, we returning the error from token usage/lookup if it wasn't a "not found"
+		// Actually, if UseToken fails, we should probably fail unless we want to fallback
+		// strict behavior: if not net_, must be valid token.
+		if err != nil {
+			return nil, nil, domain.NewError(domain.ErrInvalidRequest, fmt.Sprintf("Invalid invite code: %v", err), nil)
+		}
+	}
+
+	// Fallback/Legacy behavior (if no repo or unknown format):
+	// behave as if the code IS the network ID (for very old clients sending UUIDs maybe?)
+	// But "net_" check handles standard IDs. UUIDs don't have prefix.
+	// We'll trust JoinNetwork to return Not Found if it's garbage.
+	return s.JoinNetwork(ctx, inviteCode, userID, tenantID, idempotencyKey)
+
+}
+

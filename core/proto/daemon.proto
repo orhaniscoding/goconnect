@@ -108,6 +108,17 @@ service TransferService {
 }
 
 // =============================================================================
+// VOICE SERVICE - WebRTC signaling for voice chat
+// =============================================================================
+service VoiceService {
+  // SendSignal routes a WebRTC signal to a peer.
+  rpc SendSignal(SendSignalRequest) returns (google.protobuf.Empty);
+  
+  // SubscribeSignals streams incoming WebRTC signals.
+  rpc SubscribeSignals(google.protobuf.Empty) returns (stream VoiceSignal);
+}
+
+// =============================================================================
 // SETTINGS SERVICE - Configuration management
 // =============================================================================
 service SettingsService {
@@ -298,6 +309,7 @@ message SubscribeRequest {
 message CreateNetworkRequest {
   string name = 1;
   string description = 2;
+  string cidr = 3;
 }
 
 message CreateNetworkResponse {
@@ -443,4 +455,21 @@ message ListTransfersResponse {
 
 message UpdateSettingsRequest {
   Settings settings = 1;
+}
+
+// =============================================================================
+// VOICE SERVICE MESSAGES
+// =============================================================================
+
+message VoiceSignal {
+  string type = 1; // "offer", "answer", "candidate"
+  string sdp = 2;       // JSON encoded SDP
+  string candidate = 3; // JSON encoded ICE candidate
+  string sender_id = 4;
+  string target_id = 5;
+  string network_id = 6;
+}
+
+message SendSignalRequest {
+  VoiceSignal signal = 1;
 }

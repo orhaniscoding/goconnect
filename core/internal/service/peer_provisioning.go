@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
@@ -54,7 +54,7 @@ func (s *PeerProvisioningService) ProvisionPeersForNewMember(ctx context.Context
 
 	if len(devices) == 0 {
 		// No devices to provision, not an error
-		log.Printf("User %s has no devices to provision in network %s", userID, networkID)
+		slog.Info("User has no devices to provision in network", "user_id", userID, "network_id", networkID)
 		return nil
 	}
 
@@ -63,13 +63,13 @@ func (s *PeerProvisioningService) ProvisionPeersForNewMember(ctx context.Context
 	for _, device := range devices {
 		if err := s.provisionPeerForDevice(ctx, network, device); err != nil {
 			// Log error but continue with other devices
-			log.Printf("Failed to provision peer for device %s in network %s: %v", device.ID, networkID, err)
+			slog.Error("Failed to provision peer for device", "device_id", device.ID, "network_id", networkID, "error", err)
 			continue
 		}
 		successCount++
 	}
 
-	log.Printf("Provisioned %d/%d peers for user %s in network %s", successCount, len(devices), userID, networkID)
+	slog.Info("Provisioned peers for user", "success_count", successCount, "total_devices", len(devices), "user_id", userID, "network_id", networkID)
 	return nil
 }
 
@@ -85,7 +85,7 @@ func (s *PeerProvisioningService) ProvisionPeersForNewDevice(ctx context.Context
 	}
 
 	if len(networks) == 0 {
-		log.Printf("Device %s: no networks found in tenant", device.ID)
+		slog.Info("No networks found in tenant for device", "device_id", device.ID)
 		return nil
 	}
 
@@ -102,7 +102,7 @@ func (s *PeerProvisioningService) ProvisionPeersForNewDevice(ctx context.Context
 	}
 
 	if len(approvedNetworks) == 0 {
-		log.Printf("Device %s: user %s has no approved memberships", device.ID, device.UserID)
+		slog.Info("User has no approved memberships for device", "device_id", device.ID, "user_id", device.UserID)
 		return nil
 	}
 
@@ -110,13 +110,13 @@ func (s *PeerProvisioningService) ProvisionPeersForNewDevice(ctx context.Context
 	successCount := 0
 	for _, network := range approvedNetworks {
 		if err := s.provisionPeerForDevice(ctx, network, device); err != nil {
-			log.Printf("Failed to provision peer for device %s in network %s: %v", device.ID, network.ID, err)
+			slog.Error("Failed to provision peer for device", "device_id", device.ID, "network_id", network.ID, "error", err)
 			continue
 		}
 		successCount++
 	}
 
-	log.Printf("Provisioned %d/%d peers for device %s", successCount, len(approvedNetworks), device.ID)
+	slog.Info("Provisioned peers for device", "success_count", successCount, "total_networks", len(approvedNetworks), "device_id", device.ID)
 	return nil
 }
 
@@ -141,13 +141,13 @@ func (s *PeerProvisioningService) DeprovisionPeersForRemovedMember(ctx context.C
 
 		// Soft delete the peer
 		if err := s.peerRepo.Delete(ctx, peer.ID); err != nil {
-			log.Printf("Failed to delete peer %s: %v", peer.ID, err)
+			slog.Error("Failed to delete peer", "peer_id", peer.ID, "error", err)
 			continue
 		}
 		successCount++
 	}
 
-	log.Printf("Deprovisioned %d peers for user %s in network %s", successCount, userID, networkID)
+	slog.Info("Deprovisioned peers for user", "count", successCount, "user_id", userID, "network_id", networkID)
 	return nil
 }
 
@@ -157,7 +157,7 @@ func (s *PeerProvisioningService) provisionPeerForDevice(ctx context.Context, ne
 	existing, err := s.peerRepo.GetByNetworkAndDevice(ctx, network.ID, device.ID)
 	if err == nil && existing != nil {
 		// Peer already exists, not an error
-		log.Printf("Peer already exists for device %s in network %s", device.ID, network.ID)
+		slog.Info("Peer already exists", "device_id", device.ID, "network_id", network.ID)
 		return nil
 	}
 
@@ -190,8 +190,7 @@ func (s *PeerProvisioningService) provisionPeerForDevice(ctx context.Context, ne
 		return fmt.Errorf("failed to create peer: %w", err)
 	}
 
-	log.Printf("Provisioned peer %s for device %s in network %s (IP: %s)",
-		peer.ID, device.ID, network.ID, allocation.IP)
+	slog.Info("Provisioned peer for device", "peer_id", peer.ID, "device_id", device.ID, "network_id", network.ID, "ip", allocation.IP)
 	return nil
 }
 

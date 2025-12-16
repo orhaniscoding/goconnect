@@ -47,14 +47,28 @@ const (
 )
 
 // CreateNetworkRequest represents the request to create a network
+// For CLI compatibility: only name is required, others have sensible defaults
 type CreateNetworkRequest struct {
 	Name        string            `json:"name" binding:"required,min=3,max=64"`
-	Visibility  NetworkVisibility `json:"visibility" binding:"required,oneof=public private"`
-	JoinPolicy  JoinPolicy        `json:"join_policy" binding:"required,oneof=open invite approval"`
-	CIDR        string            `json:"cidr" binding:"required"`
+	Visibility  NetworkVisibility `json:"visibility"`                           // Default: private
+	JoinPolicy  JoinPolicy        `json:"join_policy"`                          // Default: approval
+	CIDR        string            `json:"cidr"`                                 // Default: 10.100.0.0/24
 	DNS         *string           `json:"dns,omitempty"`
 	MTU         *int              `json:"mtu,omitempty"`
 	SplitTunnel *bool             `json:"split_tunnel,omitempty"`
+}
+
+// ApplyDefaults sets default values for optional fields in CreateNetworkRequest
+func (r *CreateNetworkRequest) ApplyDefaults() {
+	if r.Visibility == "" {
+		r.Visibility = NetworkVisibilityPrivate
+	}
+	if r.JoinPolicy == "" {
+		r.JoinPolicy = JoinPolicyApproval
+	}
+	if r.CIDR == "" {
+		r.CIDR = "10.100.0.0/24" // Default VPN CIDR
+	}
 }
 
 // ListNetworksRequest represents query parameters for listing networks

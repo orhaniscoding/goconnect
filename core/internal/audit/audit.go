@@ -2,9 +2,7 @@ package audit
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"time"
+	"log/slog"
 )
 
 // Auditor defines a sink for audit events. PII must not be logged.
@@ -47,17 +45,15 @@ func (s *stdoutAuditor) Event(ctx context.Context, tenantID, action, actor, obje
 		actorOut = s.hasher(actor)
 		objectOut = s.hasher(object)
 	}
-	payload := map[string]any{
-		"ts":         time.Now().UTC().Format(time.RFC3339Nano),
-		"request_id": rid,
-		"tenant_id":  tenantID,
-		"action":     action,
-		"actor":      actorOut,
-		"object":     objectOut,
-		"details":    details,
-	}
-	b, _ := json.Marshal(payload)
-	fmt.Println(string(b))
+
+	slog.Info("AUDIT_EVENT",
+		"request_id", rid,
+		"tenant_id", tenantID,
+		"action", action,
+		"actor", actorOut,
+		"object", objectOut,
+		"details", details,
+	)
 }
 
 // metricsAuditor wraps another Auditor to collect per-action counts.

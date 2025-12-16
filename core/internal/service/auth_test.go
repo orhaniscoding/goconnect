@@ -13,7 +13,7 @@ import (
 func TestAuthService_Register(t *testing.T) {
 	userRepo := repository.NewInMemoryUserRepository()
 	tenantRepo := repository.NewInMemoryTenantRepository()
-	authService := NewAuthService(userRepo, tenantRepo, nil)
+	authService := NewAuthServiceWithSecret(userRepo, tenantRepo, nil, "12345678901234567890123456789012")
 
 	tests := []struct {
 		name    string

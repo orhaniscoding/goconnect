@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net"
 	"time"
 
@@ -41,7 +41,7 @@ func (s *WireGuardSyncService) Sync(ctx context.Context) error {
 	for _, p := range peers {
 		key, err := wgtypes.ParseKey(p.PublicKey)
 		if err != nil {
-			log.Printf("Invalid key for peer %s: %v", p.ID, err)
+			slog.Error("Invalid key for peer", "peer_id", p.ID, "error", err)
 			continue
 		}
 
@@ -76,11 +76,11 @@ func (s *WireGuardSyncService) StartSyncLoop(ctx context.Context, interval time.
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	log.Printf("Starting WireGuard sync loop (interval: %v)", interval)
+	slog.Info("Starting WireGuard sync loop", "interval", interval)
 
 	// Initial sync
 	if err := s.Sync(ctx); err != nil {
-		log.Printf("Initial WireGuard sync failed: %v", err)
+		slog.Error("Initial WireGuard sync failed", "error", err)
 	}
 
 	for {
@@ -89,7 +89,7 @@ func (s *WireGuardSyncService) StartSyncLoop(ctx context.Context, interval time.
 			return
 		case <-ticker.C:
 			if err := s.Sync(ctx); err != nil {
-				log.Printf("Failed to sync WireGuard peers: %v", err)
+				slog.Error("Failed to sync WireGuard peers", "error", err)
 			}
 		}
 	}

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -31,7 +32,7 @@ func NewPeerHandler(peerService *service.PeerService) *PeerHandler {
 // @Failure 400 {object} domain.Error
 // @Failure 409 {object} domain.Error
 // @Failure 500 {object} domain.Error
-// @Router /api/v1/peers [post]
+// @Router /v1/peers [post]
 func (h *PeerHandler) CreatePeer(c *gin.Context) {
 	var req domain.CreatePeerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -45,10 +46,12 @@ func (h *PeerHandler) CreatePeer(c *gin.Context) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}
+		slog.Error("CreatePeer: Failed to create peer", "error", err)
 		c.JSON(http.StatusInternalServerError, domain.NewError(domain.ErrInternalServer, "failed to create peer", nil))
 		return
 	}
 
+	slog.Info("Peer created successfully", "peer_id", peer.ID)
 	c.JSON(http.StatusCreated, peer)
 }
 
@@ -61,7 +64,7 @@ func (h *PeerHandler) CreatePeer(c *gin.Context) {
 // @Success 200 {object} domain.Peer
 // @Failure 404 {object} domain.Error
 // @Failure 500 {object} domain.Error
-// @Router /api/v1/peers/{id} [get]
+// @Router /v1/peers/{id} [get]
 func (h *PeerHandler) GetPeer(c *gin.Context) {
 	peerID := c.Param("id")
 
@@ -87,7 +90,7 @@ func (h *PeerHandler) GetPeer(c *gin.Context) {
 // @Success 200 {array} domain.Peer
 // @Failure 404 {object} domain.Error
 // @Failure 500 {object} domain.Error
-// @Router /api/v1/networks/{network_id}/peers [get]
+// @Router /v1/networks/{network_id}/peers [get]
 func (h *PeerHandler) GetPeersByNetwork(c *gin.Context) {
 	networkID := c.Param("network_id")
 
@@ -113,7 +116,7 @@ func (h *PeerHandler) GetPeersByNetwork(c *gin.Context) {
 // @Success 200 {array} domain.Peer
 // @Failure 404 {object} domain.Error
 // @Failure 500 {object} domain.Error
-// @Router /api/v1/devices/{device_id}/peers [get]
+// @Router /v1/devices/{device_id}/peers [get]
 func (h *PeerHandler) GetPeersByDevice(c *gin.Context) {
 	deviceID := c.Param("device_id")
 
@@ -139,7 +142,7 @@ func (h *PeerHandler) GetPeersByDevice(c *gin.Context) {
 // @Success 200 {array} domain.Peer
 // @Failure 404 {object} domain.Error
 // @Failure 500 {object} domain.Error
-// @Router /api/v1/networks/{network_id}/peers/active [get]
+// @Router /v1/networks/{network_id}/peers/active [get]
 func (h *PeerHandler) GetActivePeers(c *gin.Context) {
 	networkID := c.Param("network_id")
 
@@ -168,7 +171,7 @@ func (h *PeerHandler) GetActivePeers(c *gin.Context) {
 // @Failure 400 {object} domain.Error
 // @Failure 404 {object} domain.Error
 // @Failure 500 {object} domain.Error
-// @Router /api/v1/peers/{id} [patch]
+// @Router /v1/peers/{id} [patch]
 func (h *PeerHandler) UpdatePeer(c *gin.Context) {
 	peerID := c.Param("id")
 
@@ -203,7 +206,7 @@ func (h *PeerHandler) UpdatePeer(c *gin.Context) {
 // @Failure 400 {object} domain.Error
 // @Failure 404 {object} domain.Error
 // @Failure 500 {object} domain.Error
-// @Router /api/v1/peers/{id}/stats [post]
+// @Router /v1/peers/{id}/stats [post]
 func (h *PeerHandler) UpdatePeerStats(c *gin.Context) {
 	peerID := c.Param("id")
 
@@ -234,7 +237,7 @@ func (h *PeerHandler) UpdatePeerStats(c *gin.Context) {
 // @Success 204
 // @Failure 404 {object} domain.Error
 // @Failure 500 {object} domain.Error
-// @Router /api/v1/peers/{id} [delete]
+// @Router /v1/peers/{id} [delete]
 func (h *PeerHandler) DeletePeer(c *gin.Context) {
 	peerID := c.Param("id")
 
@@ -259,7 +262,7 @@ func (h *PeerHandler) DeletePeer(c *gin.Context) {
 // @Success 200 {object} domain.PeerStats
 // @Failure 404 {object} domain.Error
 // @Failure 500 {object} domain.Error
-// @Router /api/v1/peers/{id}/stats [get]
+// @Router /v1/peers/{id}/stats [get]
 func (h *PeerHandler) GetPeerStats(c *gin.Context) {
 	peerID := c.Param("id")
 
@@ -285,7 +288,7 @@ func (h *PeerHandler) GetPeerStats(c *gin.Context) {
 // @Success 200 {array} domain.PeerStats
 // @Failure 404 {object} domain.Error
 // @Failure 500 {object} domain.Error
-// @Router /api/v1/networks/{network_id}/peers/stats [get]
+// @Router /v1/networks/{network_id}/peers/stats [get]
 func (h *PeerHandler) GetNetworkPeerStats(c *gin.Context) {
 	networkID := c.Param("network_id")
 
@@ -311,7 +314,7 @@ func (h *PeerHandler) GetNetworkPeerStats(c *gin.Context) {
 // @Success 200 {object} domain.Peer
 // @Failure 404 {object} domain.Error
 // @Failure 500 {object} domain.Error
-// @Router /api/v1/peers/{id}/rotate-keys [post]
+// @Router /v1/peers/{id}/rotate-keys [post]
 func (h *PeerHandler) RotatePeerKeys(c *gin.Context) {
 	peerID := c.Param("id")
 

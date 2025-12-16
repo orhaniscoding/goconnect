@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
@@ -31,14 +31,14 @@ func (m *IPFilterMiddleware) Middleware(next http.Handler) http.Handler {
 
 		clientIP := getClientIP(r)
 		if clientIP == "" {
-			log.Printf("WARN: Could not determine client IP for request")
+			slog.Warn("Could not determine client IP for request")
 			next.ServeHTTP(w, r)
 			return
 		}
 
 		allowed, matchedRule, err := m.svc.CheckIP(r.Context(), tenantID, clientIP)
 		if err != nil {
-			log.Printf("ERROR: IP check failed: %v", err)
+			slog.Error("IP check failed", "error", err)
 			// Fail open on error to avoid blocking legitimate traffic
 			next.ServeHTTP(w, r)
 			return
@@ -49,7 +49,7 @@ func (m *IPFilterMiddleware) Middleware(next http.Handler) http.Handler {
 			if matchedRule != nil {
 				ruleInfo = "matched deny rule: " + matchedRule.CIDR
 			}
-			log.Printf("INFO: IP %s blocked for tenant %s: %s", clientIP, tenantID, ruleInfo)
+			slog.Info("IP blocked for tenant", "client_ip", clientIP, "tenant_id", tenantID, "rule_info", ruleInfo)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusForbidden)
 			w.Write([]byte(`{"error":"access_denied","message":"IP address is not allowed"}`))

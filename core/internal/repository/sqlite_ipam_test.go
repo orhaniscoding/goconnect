@@ -160,7 +160,7 @@ func TestSQLiteIPAMRepository_ListAllocations(t *testing.T) {
 	// Verify allocation data
 	ips := make(map[string]string)
 	for _, a := range allocs {
-		ips[a.UserID] = a.IP
+		ips[a.DeviceID] = a.IP  // Changed from UserID to DeviceID
 		assert.Equal(t, "net-1", a.NetworkID)
 	}
 	assert.Equal(t, "10.0.0.1", ips["user-1"])
@@ -183,13 +183,13 @@ func TestSQLiteIPAMRepository_ListAllocations_DifferentNetworks(t *testing.T) {
 	allocs1, err := repo.ListAllocations(ctx, "net-1")
 	require.NoError(t, err)
 	assert.Len(t, allocs1, 1)
-	assert.Equal(t, "user-1", allocs1[0].UserID)
+	assert.Equal(t, "user-1", allocs1[0].DeviceID) // Changed from UserID to DeviceID
 
 	// List net-2 allocations
 	allocs2, err := repo.ListAllocations(ctx, "net-2")
 	require.NoError(t, err)
 	assert.Len(t, allocs2, 1)
-	assert.Equal(t, "user-2", allocs2[0].UserID)
+	assert.Equal(t, "user-2", allocs2[0].DeviceID) // Changed from UserID to DeviceID
 }
 
 func TestSQLiteIPAMRepository_GetOrAllocate_ExistingAllocation(t *testing.T) {
@@ -327,7 +327,7 @@ func TestSQLiteIPAMRepository_FullWorkflow(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "10.0.0.1", alloc1.IP)
 	assert.Equal(t, "net-1", alloc1.NetworkID)
-	assert.Equal(t, "user-1", alloc1.UserID)
+	assert.Equal(t, "user-1", alloc1.DeviceID) // Changed from UserID to DeviceID
 
 	// 3. GetOrAllocate for same user returns same IP
 	alloc1Again, err := repo.GetOrAllocate(ctx, "net-1", "user-1", "10.0.0.0/24")
@@ -352,7 +352,7 @@ func TestSQLiteIPAMRepository_FullWorkflow(t *testing.T) {
 	allocs, err = repo.ListAllocations(ctx, "net-1")
 	require.NoError(t, err)
 	assert.Len(t, allocs, 1)
-	assert.Equal(t, "user-2", allocs[0].UserID)
+	assert.Equal(t, "user-2", allocs[0].DeviceID) // Changed from UserID to DeviceID
 
 	// 8. Allocate for user-3 - should reuse released IP
 	alloc3, err := repo.AllocateIP(ctx, "net-1", "user-3", "10.0.0.0/24")

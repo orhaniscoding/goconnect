@@ -3,7 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -28,13 +28,13 @@ func RunMigrations(db *sql.DB, migrationsPath string) error {
 
 	if err := m.Up(); err != nil {
 		if err == migrate.ErrNoChange {
-			log.Println("No new migrations to apply")
+			slog.Info("No new migrations to apply")
 			return nil
 		}
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 
-	log.Println("Migrations applied successfully")
+	slog.Info("Migrations applied successfully")
 	return nil
 }
 
@@ -56,12 +56,12 @@ func RollbackMigration(db *sql.DB, migrationsPath string) error {
 
 	if err := m.Down(); err != nil {
 		if err == migrate.ErrNoChange {
-			log.Println("No migrations to rollback")
+			slog.Info("No migrations to rollback")
 			return nil
 		}
 		return fmt.Errorf("failed to rollback migration: %w", err)
 	}
 
-	log.Println("Migration rolled back successfully")
+	slog.Info("Migration rolled back successfully")
 	return nil
 }

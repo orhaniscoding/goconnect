@@ -31,21 +31,22 @@ func TestPostgresIPAMRepository_GetOrAllocate(t *testing.T) {
 	repo := NewPostgresIPAMRepository(db)
 	ctx := context.Background()
 
-	existingQuery := `SELECT network_id, user_id, ip_address
+	// Updated SQL queries to match the new device_id based schema
+	existingQuery := `SELECT network_id, COALESCE(device_id, user_id) as subject_id, ip_address
 		FROM ip_allocations
-		WHERE network_id = $1 AND user_id = $2`
+		WHERE network_id = $1 AND (device_id = $2 OR user_id = $2)`
 
 	allocatedQuery := `SELECT ip_address FROM ip_allocations
 		WHERE network_id = $1
 		FOR UPDATE`
 
-	insertQuery := `INSERT INTO ip_allocations (id, network_id, user_id, ip_address, allocated_at)
-		VALUES ($1, $2, $3, $4, NOW())`
+	insertQuery := `INSERT INTO ip_allocations (id, network_id, device_id, user_id, ip_address, allocated_at)
+		VALUES ($1, $2, $3, $3, $4, NOW())`
 
 	t.Run("returns existing allocation", func(t *testing.T) {
 		mock.ExpectBegin()
 
-		rows := sqlmock.NewRows([]string{"network_id", "user_id", "ip_address"}).
+		rows := sqlmock.NewRows([]string{"network_id", "subject_id", "ip_address"}).
 			AddRow("network-1", "user-1", "10.0.0.2")
 
 		mock.ExpectQuery(regexp.QuoteMeta(existingQuery)).
@@ -57,7 +58,7 @@ func TestPostgresIPAMRepository_GetOrAllocate(t *testing.T) {
 		allocation, err := repo.GetOrAllocate(ctx, "network-1", "user-1", "10.0.0.0/24")
 		require.NoError(t, err)
 		assert.Equal(t, "network-1", allocation.NetworkID)
-		assert.Equal(t, "user-1", allocation.UserID)
+		assert.Equal(t, "user-1", allocation.DeviceID) // subjectID is now stored in DeviceID
 		assert.Equal(t, "10.0.0.2", allocation.IP)
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
@@ -86,7 +87,7 @@ func TestPostgresIPAMRepository_GetOrAllocate(t *testing.T) {
 		allocation, err := repo.GetOrAllocate(ctx, "network-1", "user-2", "10.0.0.0/24")
 		require.NoError(t, err)
 		assert.Equal(t, "network-1", allocation.NetworkID)
-		assert.Equal(t, "user-2", allocation.UserID)
+		assert.Equal(t, "user-2", allocation.DeviceID) // subjectID is now stored in DeviceID
 		assert.Equal(t, "10.0.0.2", allocation.IP)
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
@@ -310,16 +311,17 @@ func TestPostgresIPAMRepository_List(t *testing.T) {
 	repo := NewPostgresIPAMRepository(db)
 	ctx := context.Background()
 
-	query := `SELECT network_id, user_id, ip_address
+	// Query now includes device_id column
+	query := `SELECT network_id, device_id, user_id, ip_address
 		FROM ip_allocations
 		WHERE network_id = $1
 		ORDER BY allocated_at ASC`
 
 	t.Run("success with multiple allocations", func(t *testing.T) {
-		rows := sqlmock.NewRows([]string{"network_id", "user_id", "ip_address"}).
-			AddRow("network-1", "user-1", "10.0.0.2").
-			AddRow("network-1", "user-2", "10.0.0.3").
-			AddRow("network-1", "user-3", "10.0.0.4")
+		rows := sqlmock.NewRows([]string{"network_id", "device_id", "user_id", "ip_address"}).
+			AddRow("network-1", "user-1", "user-1", "10.0.0.2").
+			AddRow("network-1", "user-2", "user-2", "10.0.0.3").
+			AddRow("network-1", "user-3", "user-3", "10.0.0.4")
 
 		mock.ExpectQuery(regexp.QuoteMeta(query)).
 			WithArgs("network-1").
@@ -328,17 +330,17 @@ func TestPostgresIPAMRepository_List(t *testing.T) {
 		allocations, err := repo.List(ctx, "network-1")
 		require.NoError(t, err)
 		require.Len(t, allocations, 3)
-		assert.Equal(t, "user-1", allocations[0].UserID)
+		assert.Equal(t, "user-1", allocations[0].DeviceID)
 		assert.Equal(t, "10.0.0.2", allocations[0].IP)
-		assert.Equal(t, "user-2", allocations[1].UserID)
+		assert.Equal(t, "user-2", allocations[1].DeviceID)
 		assert.Equal(t, "10.0.0.3", allocations[1].IP)
-		assert.Equal(t, "user-3", allocations[2].UserID)
+		assert.Equal(t, "user-3", allocations[2].DeviceID)
 		assert.Equal(t, "10.0.0.4", allocations[2].IP)
 		require.NoError(t, mock.ExpectationsWereMet())
 	})
 
 	t.Run("success with empty result", func(t *testing.T) {
-		rows := sqlmock.NewRows([]string{"network_id", "user_id", "ip_address"})
+		rows := sqlmock.NewRows([]string{"network_id", "device_id", "user_id", "ip_address"})
 
 		mock.ExpectQuery(regexp.QuoteMeta(query)).
 			WithArgs("network-2").
@@ -387,7 +389,8 @@ func TestPostgresIPAMRepository_Release(t *testing.T) {
 	repo := NewPostgresIPAMRepository(db)
 	ctx := context.Background()
 
-	query := `DELETE FROM ip_allocations WHERE network_id = $1 AND user_id = $2`
+	// Release query now checks both device_id and user_id
+	query := `DELETE FROM ip_allocations WHERE network_id = $1 AND (device_id = $2 OR user_id = $2)`
 
 	t.Run("success", func(t *testing.T) {
 		mock.ExpectExec(regexp.QuoteMeta(query)).

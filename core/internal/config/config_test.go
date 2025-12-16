@@ -442,11 +442,11 @@ func TestApplyEnvOverrides(t *testing.T) {
 	})
 
 	t.Run("OverrideJWTSecret", func(t *testing.T) {
-		os.Setenv("JWT_SECRET", "supersecret123")
+		os.Setenv("JWT_SECRET", "supersecret12345678901234567890ab") // 32+ chars
 		defer os.Unsetenv("JWT_SECRET")
 		cfg := baseValidConfig()
 		applyEnvOverrides(&cfg)
-		assert.Equal(t, "supersecret123", cfg.JWT.Secret)
+		assert.Equal(t, "supersecret12345678901234567890ab", cfg.JWT.Secret)
 	})
 
 	t.Run("OverrideDatabaseBackend", func(t *testing.T) {

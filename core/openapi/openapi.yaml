@@ -156,6 +156,126 @@ components:
           type: [boolean, "null"]
       additionalProperties: false
 
+    VoiceSignal:
+      type: object
+      required: [type, target_id, network_id]
+      properties:
+        type:
+          type: string
+          enum: [offer, answer, candidate]
+        sdp:
+          type: object
+        candidate:
+          type: object
+        target_id:
+          type: string
+        sender_id:
+          type: string
+        network_id:
+          type: string
+
+    IPRule:
+      type: object
+      properties:
+        id:
+          type: string
+        tenant_id:
+          type: string
+        type:
+          type: string
+          enum: [allow, block]
+        cidr:
+          type: string
+        description:
+          type: string
+
+    CreateIPRuleRequest:
+      type: object
+      required: [type, cidr]
+      properties:
+        type:
+          type: string
+          enum: [allow, block]
+        cidr:
+          type: string
+        description:
+          type: string
+
+    CheckIPRequest:
+      type: object
+      required: [ip]
+      properties:
+        ip:
+          type: string
+
+    CheckIPResponse:
+      type: object
+      properties:
+        allowed:
+          type: boolean
+        matched_rule:
+          $ref: "#/components/schemas/IPRule"
+
+    VoiceSignal:
+      type: object
+      required: [type, target_id, network_id]
+      properties:
+        type:
+          type: string
+          enum: [offer, answer, candidate]
+        sdp:
+          type: object
+        candidate:
+          type: object
+        target_id:
+          type: string
+        sender_id:
+          type: string
+        network_id:
+          type: string
+
+    IPRule:
+      type: object
+      properties:
+        id:
+          type: string
+        tenant_id:
+          type: string
+        type:
+          type: string
+          enum: [allow, block]
+        cidr:
+          type: string
+        description:
+          type: string
+
+    CreateIPRuleRequest:
+      type: object
+      required: [type, cidr]
+      properties:
+        type:
+          type: string
+          enum: [allow, block]
+        cidr:
+          type: string
+        description:
+          type: string
+
+    CheckIPRequest:
+      type: object
+      required: [ip]
+      properties:
+        ip:
+          type: string
+
+    CheckIPResponse:
+      type: object
+      properties:
+        allowed:
+          type: boolean
+        matched_rule:
+          $ref: "#/components/schemas/IPRule"
+
     NetworkUpdateRequest:
       type: object
       properties:
@@ -1395,6 +1515,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /v1/voice/signal:
+    post:
+      summary: Send voice signal
+      tags: [Voice]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoiceSignal"
+      responses:
+        "202":
+          description: Signal accepted
+
+  /v1/admin/ip-rules:
+    post:
+      summary: Create IP Rule
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateIPRuleRequest"
+      responses:
+        "201":
+          description: Created
+    get:
+      summary: List IP Rules
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of rules
+
   /v1/networks:
     get:
       summary: List networks

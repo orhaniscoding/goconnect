@@ -45,7 +45,7 @@ func TestDefaultMessageHandler_HandleAuthRefresh(t *testing.T) {
 		"type":    "refresh",
 		"exp":     time.Now().Add(time.Hour).Unix(),
 	})
-	secret := []byte("dev-secret-change-in-production")
+	secret := []byte("test-secret-at-least-32-chars-long-for-jwt")
 	tokenString, _ := token.SignedString(secret)
 
 	msg := &InboundMessage{

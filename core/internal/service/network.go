@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net"
 	"time"
 
@@ -90,7 +91,7 @@ func (s *NetworkService) CreateNetwork(ctx context.Context, req *domain.CreateNe
 	if idempotencyKey != "" {
 		if err := s.storeIdempotencyRecord(ctx, idempotencyKey, req, network); err != nil {
 			// Log error but don't fail the request
-			fmt.Printf("Failed to store idempotency record: %v\n", err)
+			slog.Error("Failed to store idempotency record", "error", err)
 		}
 	}
 

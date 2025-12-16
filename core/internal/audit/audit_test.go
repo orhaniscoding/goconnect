@@ -3,6 +3,7 @@ package audit
 import (
 	"bytes"
 	"context"
+	"log/slog"
 	"os"
 	"testing"
 
@@ -13,16 +14,19 @@ func TestNewStdoutAuditor(t *testing.T) {
 	auditor := NewStdoutAuditor()
 	assert.NotNil(t, auditor)
 
-	// Capture stdout
-	old := os.Stdout
+	// Capture stderr (slog.Info writes to stderr by default)
+	old := os.Stderr
 	r, w, _ := os.Pipe()
-	os.Stdout = w
+	os.Stderr = w
+
+	// Configure slog to use the captured stderr
+	slog.SetDefault(slog.New(slog.NewJSONHandler(w, nil)))
 
 	ctx := context.Background()
 	auditor.Event(ctx, "tenant-1", "user.login", "user-1", "session-1", nil)
 
 	w.Close()
-	os.Stdout = old
+	os.Stderr = old
 
 	var buf bytes.Buffer
 	buf.ReadFrom(r)
@@ -40,16 +44,17 @@ func TestNewStdoutAuditorWithHashing(t *testing.T) {
 		auditor := NewStdoutAuditorWithHashing(secret)
 		assert.NotNil(t, auditor)
 
-		// Capture stdout
-		old := os.Stdout
+		// Capture stderr with slog JSON handler
+		old := os.Stderr
 		r, w, _ := os.Pipe()
-		os.Stdout = w
+		os.Stderr = w
+		slog.SetDefault(slog.New(slog.NewJSONHandler(w, nil)))
 
 		ctx := context.Background()
 		auditor.Event(ctx, "tenant-1", "user.login", "user-1", "session-1", map[string]any{"ip": "192.168.1.1"})
 
 		w.Close()
-		os.Stdout = old
+		os.Stderr = old
 
 		var buf bytes.Buffer
 		buf.ReadFrom(r)
@@ -76,16 +81,17 @@ func TestNewStdoutAuditorWithHashSecrets(t *testing.T) {
 		auditor := NewStdoutAuditorWithHashSecrets(secrets...)
 		assert.NotNil(t, auditor)
 
-		// Capture stdout
-		old := os.Stdout
+		// Capture stderr with slog JSON handler
+		old := os.Stderr
 		r, w, _ := os.Pipe()
-		os.Stdout = w
+		os.Stderr = w
+		slog.SetDefault(slog.New(slog.NewJSONHandler(w, nil)))
 
 		ctx := context.Background()
 		auditor.Event(ctx, "tenant-1", "user.logout", "user-2", "session-2", nil)
 
 		w.Close()
-		os.Stdout = old
+		os.Stderr = old
 
 		var buf bytes.Buffer
 		buf.ReadFrom(r)
@@ -118,17 +124,18 @@ func TestWrapWithMetrics(t *testing.T) {
 	metricsAuditor := WrapWithMetrics(baseAuditor, inc)
 	assert.NotNil(t, metricsAuditor)
 
-	// Capture stdout to suppress output
-	old := os.Stdout
+	// Capture stderr to suppress output
+	old := os.Stderr
 	_, w, _ := os.Pipe()
-	os.Stdout = w
+	os.Stderr = w
+	slog.SetDefault(slog.New(slog.NewJSONHandler(w, nil)))
 
 	ctx := context.Background()
 	metricsAuditor.Event(ctx, "tenant-1", "device.register", "user-1", "device-1", nil)
 	metricsAuditor.Event(ctx, "tenant-1", "device.delete", "user-1", "device-2", nil)
 
 	w.Close()
-	os.Stdout = old
+	os.Stderr = old
 
 	assert.Equal(t, 2, callCount)
 	assert.Equal(t, "device.delete", lastAction)
@@ -140,14 +147,15 @@ func TestWrapWithMetrics_NilInc(t *testing.T) {
 	assert.NotNil(t, metricsAuditor)
 
 	// Should not panic with nil inc function
-	// Capture stdout to suppress output
-	old := os.Stdout
+	// Capture stderr to suppress output
+	old := os.Stderr
 	_, w, _ := os.Pipe()
-	os.Stdout = w
+	os.Stderr = w
+	slog.SetDefault(slog.New(slog.NewJSONHandler(w, nil)))
 
 	ctx := context.Background()
 	metricsAuditor.Event(ctx, "tenant-1", "test.action", "actor", "object", nil)
 
 	w.Close()
-	os.Stdout = old
+	os.Stderr = old
 }

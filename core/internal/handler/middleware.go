@@ -105,11 +105,13 @@ func RequestIDMiddleware() gin.HandlerFunc {
 }
 
 // CORSMiddleware handles CORS headers
+// DEPRECATED: Use NewCORSMiddleware(&cfg.CORS) instead - this function has hard-coded origins
+// This exists only for backward compatibility and should not be used in new code.
 func CORSMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
 
-		// Allow specific origins (simplified for development)
+		// DEPRECATED: Hard-coded origins - use NewCORSMiddleware with config instead
 		allowedOrigins := []string{
 			"https://app.goconnect.example",
 			"http://localhost:3000",

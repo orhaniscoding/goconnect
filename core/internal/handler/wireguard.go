@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"strings"
@@ -61,11 +62,13 @@ func NewWireGuardHandler(
 }
 
 // GetProfile handles GET /v1/networks/:id/wg/profile
+// SECURITY: This endpoint no longer accepts private_key as a query parameter.
+// The client must inject their locally-stored private key into the config.
+// Only JSON responses are supported (Accept: application/json required).
 func (h *WireGuardHandler) GetProfile(c *gin.Context) {
 	networkID := c.Param("id")
 	userID := c.GetString("user_id")
-	deviceID := c.Query("device_id")     // Required query parameter
-	privateKey := c.Query("private_key") // Client's WireGuard private key
+	deviceID := c.Query("device_id") // Required query parameter
 
 	if userID == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{
@@ -83,12 +86,21 @@ func (h *WireGuardHandler) GetProfile(c *gin.Context) {
 		return
 	}
 
-	if privateKey == "" {
+	// SECURITY: Only JSON API is supported - private keys should NEVER be sent to server
+	acceptHeader := c.GetHeader("Accept")
+	// Allow typical Accept variants like "application/json, */*"
+	if !strings.Contains(acceptHeader, "application/json") {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"code":    "ERR_VALIDATION",
-			"message": "private_key query parameter is required",
+			"message": "Only JSON API is supported (Accept: application/json). Private keys should never leave the device.",
 		})
 		return
+	}
+
+	// Log if someone tries to send private_key (deprecated, ignored)
+	if c.Query("private_key") != "" {
+		slog.Warn("SECURITY: private_key in URL is ignored for security. Client must inject key locally.",
+			"user_id", userID, "device_id", deviceID, "network_id", networkID)
 	}
 
 	// Get network
@@ -185,13 +197,6 @@ func (h *WireGuardHandler) GetProfile(c *gin.Context) {
 		return
 	}
 
-	// Get user for email
-	user, err := h.userRepo.GetByID(c.Request.Context(), userID)
-	if err != nil {
-		// Fallback if user service unavailable
-		user = &domain.User{Email: "unknown@example.com"}
-	}
-
 	// Calculate prefix length from CIDR
 	_, ipnet, err := net.ParseCIDR(network.CIDR)
 	prefixLen := 24 // Default
@@ -200,138 +205,50 @@ func (h *WireGuardHandler) GetProfile(c *gin.Context) {
 		prefixLen = ones
 	}
 
-	// Generate WireGuard profile
-	req := &wireguard.ProfileRequest{
-		NetworkID:        network.ID,
-		NetworkName:      network.Name,
-		NetworkCIDR:      network.CIDR,
-		DeviceID:         device.ID,
-		DeviceName:       device.Name,
-		DeviceIP:         deviceIP,
-		DevicePrivateKey: privateKey, // Client provides their own private key
-		PrefixLen:        prefixLen,
-		UserID:           userID,
-		UserEmail:        user.Email,
-		IncludeHostScope: false, // Option for future enhancement
-	}
+	// JSON-only response: return device config WITHOUT private key (client must inject locally).
+	meshPeers, meshErr := h.peerService.GetActivePeersConfig(c.Request.Context(), networkID)
 
-	// Generate base config
-	configTemplate, err := h.profileGenerator.GenerateClientConfig(c.Request.Context(), req)
-	if err != nil {
-		if domainErr, ok := err.(*domain.Error); ok {
-			c.JSON(domainErr.ToHTTPStatus(), domainErr)
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    "ERR_INTERNAL_SERVER",
-			"message": "Failed to generate WireGuard profile",
-		})
-		return
-	}
-
-	// Add mesh peer configuration (other active peers in the network)
-	meshPeers, err := h.peerService.GetActivePeersConfig(c.Request.Context(), networkID)
-
-	// Check for JSON request (used by Client Daemon for rich metadata)
-	if c.GetHeader("Accept") == "application/json" {
-		// Build DNS list from network config
-		dnsServers := []string{}
-		if network.DNS != nil && *network.DNS != "" {
-			for _, s := range strings.Split(*network.DNS, ",") {
-				if trimmed := strings.TrimSpace(s); trimmed != "" {
-					dnsServers = append(dnsServers, trimmed)
-				}
+	// Build DNS list from network config
+	dnsServers := []string{}
+	if network.DNS != nil && *network.DNS != "" {
+		for _, s := range strings.Split(*network.DNS, ",") {
+			if trimmed := strings.TrimSpace(s); trimmed != "" {
+				dnsServers = append(dnsServers, trimmed)
 			}
 		}
-
-		// Construct Interface Config
-		interfaceConfig := domain.InterfaceConfig{
-			PrivateKey: privateKey,
-			ListenPort: 51820, // Default, client can override
-			Addresses:  []string{deviceIP + "/" + fmt.Sprintf("%d", prefixLen)},
-			DNS:        dnsServers,
-		}
-
-		// Filter out self from peers
-		peers := make([]domain.PeerConfig, 0)
-		if err == nil {
-			for _, p := range meshPeers {
-				// We can't easily check DeviceID here because PeerConfig doesn't have it
-				// But we can check PublicKey
-				if p.PublicKey == device.PubKey {
-					continue
-				}
-				peers = append(peers, p)
-			}
-		}
-
-		c.JSON(http.StatusOK, domain.DeviceConfig{
-			Interface: interfaceConfig,
-			Peers:     peers,
-		})
-
-		// Audit the profile generation
-		h.auditor.Event(c.Request.Context(), tenantID, "PROFILE_RENDERED_JSON", userID, networkID, map[string]any{
-			"device_id":   deviceID,
-			"device_name": device.Name,
-			"peers_count": len(peers),
-		})
-		return
 	}
 
-	if err == nil && len(meshPeers) > 0 {
-		var meshConfig strings.Builder
-		meshConfig.WriteString("\n# Mesh Peers (other devices in this network)\n")
+	// Construct Interface Config
+	// NOTE: PrivateKey is intentionally empty - client MUST inject locally
+	interfaceConfig := domain.InterfaceConfig{
+		PrivateKey: "", // SECURITY: Client must inject their locally-stored private key
+		ListenPort: 51820,
+		Addresses:  []string{deviceIP + "/" + fmt.Sprintf("%d", prefixLen)},
+		DNS:        dnsServers,
+	}
 
-		for _, meshPeer := range meshPeers {
-			// Skip self (check by public key since we don't have DeviceID in PeerConfig)
-			if meshPeer.PublicKey == device.PubKey {
+	// Filter out self from peers
+	peers := make([]domain.PeerConfig, 0)
+	if meshErr == nil {
+		for _, p := range meshPeers {
+			// Skip self (check by public key since PeerConfig doesn't have DeviceID)
+			if p.PublicKey == device.PubKey {
 				continue
 			}
-
-			// Add peer configuration
-			meshConfig.WriteString("\n[Peer]\n")
-			if meshPeer.Name != "" {
-				meshConfig.WriteString(fmt.Sprintf("# Name: %s\n", meshPeer.Name))
-			}
-			if meshPeer.Hostname != "" {
-				meshConfig.WriteString(fmt.Sprintf("# Hostname: %s\n", meshPeer.Hostname))
-			}
-			meshConfig.WriteString(fmt.Sprintf("PublicKey = %s\n", meshPeer.PublicKey))
-			meshConfig.WriteString(fmt.Sprintf("AllowedIPs = %s\n", strings.Join(meshPeer.AllowedIPs, ", ")))
-
-			// Add endpoint if known (for direct peer-to-peer connection)
-			if meshPeer.Endpoint != "" {
-				meshConfig.WriteString(fmt.Sprintf("Endpoint = %s\n", meshPeer.Endpoint))
-			}
-
-			// Add persistent keepalive for NAT traversal
-			if meshPeer.PersistentKeepalive > 0 {
-				meshConfig.WriteString(fmt.Sprintf("PersistentKeepalive = %d\n", meshPeer.PersistentKeepalive))
-			}
-
-			// Add preshared key if configured
-			if meshPeer.PresharedKey != "" {
-				meshConfig.WriteString(fmt.Sprintf("PresharedKey = %s\n", meshPeer.PresharedKey))
-			}
+			peers = append(peers, p)
 		}
-
-		configTemplate += meshConfig.String()
 	}
 
-	// Audit the profile generation
-	h.auditor.Event(c.Request.Context(), tenantID, "PROFILE_RENDERED", userID, networkID, map[string]any{
-		"device_id":   deviceID,
-		"device_name": device.Name,
-		"device_ip":   deviceIP,
-		"network":     network.Name,
-		"mesh_peers":  len(meshPeers) - 1, // Excluding self (approx)
+	c.JSON(http.StatusOK, domain.DeviceConfig{
+		Interface: interfaceConfig,
+		Peers:     peers,
 	})
 
-	// Return config as plain text with proper content type
-	c.Header("Content-Type", "text/plain; charset=utf-8")
-	c.Header("Content-Disposition", "attachment; filename=goconnect-"+network.Name+"-"+device.Name+".conf")
-	c.String(http.StatusOK, configTemplate)
+	h.auditor.Event(c.Request.Context(), tenantID, "PROFILE_RENDERED_JSON", userID, networkID, map[string]any{
+		"device_id":   deviceID,
+		"device_name": device.Name,
+		"peers_count": len(peers),
+	})
 }
 
 // RegisterWireGuardRoutes registers WireGuard routes

@@ -9,11 +9,14 @@ import (
 	"github.com/orhaniscoding/goconnect/server/internal/service"
 )
 
+// testSecret is a 32-byte secret for testing
+const testSecret = "12345678901234567890123456789012"
+
 // newMockAuthService creates a mock auth service for testing
 func newMockAuthService() *service.AuthService {
 	userRepo := repository.NewInMemoryUserRepository()
 	tenantRepo := repository.NewInMemoryTenantRepository()
-	return service.NewAuthService(userRepo, tenantRepo, nil)
+	return service.NewAuthServiceWithSecret(userRepo, tenantRepo, nil, testSecret)
 }
 
 // mockAuthServiceWithValidToken creates a mock auth service that accepts "dev" and "admin" tokens

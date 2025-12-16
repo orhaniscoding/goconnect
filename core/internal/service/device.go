@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/orhaniscoding/goconnect/server/internal/config"
@@ -517,14 +518,14 @@ func (s *DeviceService) StartOfflineDetection(ctx context.Context, checkInterval
 func (s *DeviceService) detectOfflineDevices(ctx context.Context, threshold time.Duration) {
 	devices, err := s.deviceRepo.GetStaleDevices(ctx, threshold)
 	if err != nil {
-		fmt.Printf("Error detecting offline devices: %v\n", err)
+		slog.Error("Error detecting offline devices", "error", err)
 		return
 	}
 
 	for _, device := range devices {
 		// Mark as inactive
 		if err := s.deviceRepo.MarkInactive(ctx, device.ID); err != nil {
-			fmt.Printf("Error marking device %s as inactive: %v\n", device.ID, err)
+			slog.Error("Error marking device as inactive", "device_id", device.ID, "error", err)
 			continue
 		}
 

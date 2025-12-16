@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -21,7 +22,7 @@ type UploadHandler struct {
 func NewUploadHandler(uploadDir, baseURL string) *UploadHandler {
 	// Ensure upload directory exists
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		fmt.Printf("Failed to create upload directory: %v\n", err)
+		slog.Error("Failed to create upload directory", "error", err)
 	}
 
 	return &UploadHandler{

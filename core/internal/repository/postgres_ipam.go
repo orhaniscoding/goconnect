@@ -19,8 +19,9 @@ func NewPostgresIPAMRepository(db *sql.DB) *PostgresIPAMRepository {
 	return &PostgresIPAMRepository{db: db}
 }
 
-// GetOrAllocate returns existing allocation for user or allocates next available IP
-func (r *PostgresIPAMRepository) GetOrAllocate(ctx context.Context, networkID, userID, cidr string) (*domain.IPAllocation, error) {
+// GetOrAllocate returns existing allocation for subject (device/user) or allocates next available IP
+// subjectID is preferably a device ID (for device-based allocation) but can be user ID for legacy
+func (r *PostgresIPAMRepository) GetOrAllocate(ctx context.Context, networkID, subjectID, cidr string) (*domain.IPAllocation, error) {
 	// Start transaction
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -28,18 +29,20 @@ func (r *PostgresIPAMRepository) GetOrAllocate(ctx context.Context, networkID, u
 	}
 	defer tx.Rollback()
 
-	// Check if user already has allocation
+	// Check if subject already has allocation (try device_id first, then user_id for legacy)
 	existingQuery := `
-		SELECT network_id, user_id, ip_address
+		SELECT network_id, COALESCE(device_id, user_id) as subject_id, ip_address
 		FROM ip_allocations
-		WHERE network_id = $1 AND user_id = $2
+		WHERE network_id = $1 AND (device_id = $2 OR user_id = $2)
 	`
 	allocation := &domain.IPAllocation{}
-	err = tx.QueryRowContext(ctx, existingQuery, networkID, userID).Scan(
+	var subjectIDFromDB string
+	err = tx.QueryRowContext(ctx, existingQuery, networkID, subjectID).Scan(
 		&allocation.NetworkID,
-		&allocation.UserID,
+		&subjectIDFromDB,
 		&allocation.IP,
 	)
+	allocation.DeviceID = subjectIDFromDB // Use DeviceID field for subject
 	if err == nil {
 		// Existing allocation found
 		return allocation, tx.Commit()
@@ -127,21 +130,22 @@ func (r *PostgresIPAMRepository) GetOrAllocate(ctx context.Context, networkID, u
 			map[string]string{"network_id": networkID})
 	}
 
-	// Create allocation
+	// Create allocation with device_id (preferred) and user_id for compatibility
 	allocation = &domain.IPAllocation{
 		NetworkID: networkID,
-		UserID:    userID,
+		DeviceID:  subjectID,
 		IP:        allocatedIP,
 	}
 
+	// Insert with device_id column (migration 000012 adds this column)
 	insertQuery := `
-		INSERT INTO ip_allocations (id, network_id, user_id, ip_address, allocated_at)
-		VALUES ($1, $2, $3, $4, NOW())
+		INSERT INTO ip_allocations (id, network_id, device_id, user_id, ip_address, allocated_at)
+		VALUES ($1, $2, $3, $3, $4, NOW())
 	`
 	_, err = tx.ExecContext(ctx, insertQuery,
 		domain.GenerateNetworkID(), // Generate ID for database
 		allocation.NetworkID,
-		allocation.UserID,
+		allocation.DeviceID,
 		allocation.IP,
 	)
 	if err != nil {
@@ -158,7 +162,7 @@ func (r *PostgresIPAMRepository) GetOrAllocate(ctx context.Context, networkID, u
 // List returns all allocations for a network
 func (r *PostgresIPAMRepository) List(ctx context.Context, networkID string) ([]*domain.IPAllocation, error) {
 	query := `
-		SELECT network_id, user_id, ip_address
+		SELECT network_id, device_id, user_id, ip_address
 		FROM ip_allocations
 		WHERE network_id = $1
 		ORDER BY allocated_at ASC
@@ -172,13 +176,22 @@ func (r *PostgresIPAMRepository) List(ctx context.Context, networkID string) ([]
 	var allocations []*domain.IPAllocation
 	for rows.Next() {
 		allocation := &domain.IPAllocation{}
+		var deviceID, userID sql.NullString
 		err := rows.Scan(
 			&allocation.NetworkID,
-			&allocation.UserID,
+			&deviceID,
+			&userID,
 			&allocation.IP,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan allocation: %w", err)
+		}
+		// Prefer device_id, fallback to user_id
+		if deviceID.Valid {
+			allocation.DeviceID = deviceID.String
+		}
+		if userID.Valid {
+			allocation.UserID = userID.String
 		}
 		allocations = append(allocations, allocation)
 	}
@@ -190,10 +203,10 @@ func (r *PostgresIPAMRepository) List(ctx context.Context, networkID string) ([]
 	return allocations, nil
 }
 
-// Release removes a user's allocation (idempotent)
-func (r *PostgresIPAMRepository) Release(ctx context.Context, networkID, userID string) error {
-	query := `DELETE FROM ip_allocations WHERE network_id = $1 AND user_id = $2`
-	result, err := r.db.ExecContext(ctx, query, networkID, userID)
+// Release removes a subject's allocation (idempotent, supports both device_id and user_id)
+func (r *PostgresIPAMRepository) Release(ctx context.Context, networkID, subjectID string) error {
+	query := `DELETE FROM ip_allocations WHERE network_id = $1 AND (device_id = $2 OR user_id = $2)`
+	result, err := r.db.ExecContext(ctx, query, networkID, subjectID)
 	if err != nil {
 		return fmt.Errorf("failed to release allocation: %w", err)
 	}

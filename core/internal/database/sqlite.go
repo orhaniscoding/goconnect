@@ -3,7 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -81,6 +81,6 @@ func RunSQLiteMigrations(db *sql.DB, migrationsPath string) error {
 		return fmt.Errorf("sqlite migrations: up: %w", err)
 	}
 
-	log.Printf("SQLite migrations applied (path=%s)", migrationsPath)
+	slog.Info("SQLite migrations applied", "path", migrationsPath)
 	return nil
 }

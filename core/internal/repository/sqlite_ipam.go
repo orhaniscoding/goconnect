@@ -24,22 +24,24 @@ func NewSQLiteIPAMRepository(db *sql.DB) *SQLiteIPAMRepository {
 	return &SQLiteIPAMRepository{db: db}
 }
 
-// GetOrAllocate returns existing allocation for user or allocates next available.
-func (r *SQLiteIPAMRepository) GetOrAllocate(ctx context.Context, networkID, userID, cidr string) (*domain.IPAllocation, error) {
+// GetOrAllocate returns existing allocation for subject or allocates next available.
+// subjectID can be either a user ID (legacy) or device ID (preferred for device-based allocation).
+func (r *SQLiteIPAMRepository) GetOrAllocate(ctx context.Context, networkID, subjectID, cidr string) (*domain.IPAllocation, error) {
 	allocs, err := r.ListAllocations(ctx, networkID)
 	if err != nil {
 		return nil, err
 	}
+	// Check both DeviceID and UserID for backward compatibility
 	for _, a := range allocs {
-		if a.UserID == userID {
+		if a.DeviceID == subjectID || a.UserID == subjectID {
 			return a, nil
 		}
 	}
-	ip, err := r.AllocateIP(ctx, networkID, userID, cidr)
+	ip, err := r.AllocateIP(ctx, networkID, subjectID, cidr)
 	if err != nil {
 		return nil, err
 	}
-	return &domain.IPAllocation{NetworkID: networkID, UserID: userID, IP: ip}, nil
+	return &domain.IPAllocation{NetworkID: networkID, DeviceID: subjectID, IP: ip}, nil
 }
 
 func (r *SQLiteIPAMRepository) AllocateIP(ctx context.Context, networkID, userID string, cidr string) (string, error) {
@@ -85,11 +87,12 @@ func (r *SQLiteIPAMRepository) AllocateIP(ctx context.Context, networkID, userID
 	return "", domain.NewError(domain.ErrIPExhausted, "no available IP addresses", nil)
 }
 
-func (r *SQLiteIPAMRepository) saveAllocation(ctx context.Context, networkID, userID, ip string) error {
+func (r *SQLiteIPAMRepository) saveAllocation(ctx context.Context, networkID, subjectID, ip string) error {
+	// Insert with both device_id and user_id for compatibility
 	_, err := r.db.ExecContext(ctx, `
-		INSERT INTO ip_allocations (id, network_id, user_id, ip_address, allocated_at)
-		VALUES (?, ?, ?, ?, ?)
-	`, domain.GenerateNetworkID(), networkID, userID, ip, time.Now())
+		INSERT INTO ip_allocations (id, network_id, device_id, user_id, ip_address, allocated_at)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`, domain.GenerateNetworkID(), networkID, subjectID, subjectID, ip, time.Now())
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "unique") {
 			return domain.NewError(domain.ErrIPExhausted, "IP already allocated", nil)
@@ -114,7 +117,7 @@ func (r *SQLiteIPAMRepository) ReleaseIP(ctx context.Context, networkID, userID 
 
 func (r *SQLiteIPAMRepository) ListAllocations(ctx context.Context, networkID string) ([]*domain.IPAllocation, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT network_id, user_id, ip_address
+		SELECT network_id, COALESCE(device_id, user_id), ip_address
 		FROM ip_allocations
 		WHERE network_id = ?
 	`, networkID)
@@ -126,10 +129,11 @@ func (r *SQLiteIPAMRepository) ListAllocations(ctx context.Context, networkID st
 	var result []*domain.IPAllocation
 	for rows.Next() {
 		var alloc domain.IPAllocation
-		var ip string
-		if err := rows.Scan(&alloc.NetworkID, &alloc.UserID, &ip); err != nil {
+		var subjectID, ip string
+		if err := rows.Scan(&alloc.NetworkID, &subjectID, &ip); err != nil {
 			return nil, fmt.Errorf("failed to scan allocation: %w", err)
 		}
+		alloc.DeviceID = subjectID // Use DeviceID for new allocations
 		alloc.IP = ip
 		result = append(result, &alloc)
 	}
@@ -151,8 +155,9 @@ func (r *SQLiteIPAMRepository) List(ctx context.Context, networkID string) ([]*d
 	return r.ListAllocations(ctx, networkID)
 }
 
-func (r *SQLiteIPAMRepository) Release(ctx context.Context, networkID, userID string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM ip_allocations WHERE network_id = ? AND user_id = ?`, networkID, userID)
+// Release removes a subject's allocation (idempotent, supports both device_id and user_id)
+func (r *SQLiteIPAMRepository) Release(ctx context.Context, networkID, subjectID string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM ip_allocations WHERE network_id = ? AND (device_id = ? OR user_id = ?)`, networkID, subjectID, subjectID)
 	if err != nil {
 		return fmt.Errorf("failed to release ip: %w", err)
 	}

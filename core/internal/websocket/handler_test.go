@@ -31,7 +31,8 @@ func newTestHandler() *DefaultMessageHandler {
 		panic(err)
 	}
 
-	authService := service.NewAuthService(userRepo, tenantRepo, nil)
+	// Use NewAuthServiceWithSecret with a valid 32+ char test secret
+	authService := service.NewAuthServiceWithSecret(userRepo, tenantRepo, nil, "test-secret-at-least-32-chars-long-for-jwt")
 
 	handler := &DefaultMessageHandler{
 		hub:         hub,
@@ -77,7 +78,7 @@ func TestHandleAuthRefresh_SendsAck(t *testing.T) {
 		"type":    "refresh",
 		"exp":     time.Now().Add(time.Hour).Unix(),
 	})
-	secret := []byte("dev-secret-change-in-production")
+	secret := []byte("test-secret-at-least-32-chars-long-for-jwt")
 	tokenString, _ := token.SignedString(secret)
 
 	msg := &InboundMessage{
@@ -277,7 +278,7 @@ func TestHandleMessage_RoutesCorrectly(t *testing.T) {
 		"type":    "refresh",
 		"exp":     time.Now().Add(time.Hour).Unix(),
 	})
-	secret := []byte("dev-secret-change-in-production")
+	secret := []byte("test-secret-at-least-32-chars-long-for-jwt")
 	tokenString, _ := token.SignedString(secret)
 	validRefreshData := []byte(fmt.Sprintf(`{"refresh_token":"%s"}`, tokenString))
 
@@ -622,7 +623,8 @@ func setupAuthorizationTest() (*DefaultMessageHandler, *repository.InMemoryMembe
 	joinRepo := repository.NewInMemoryJoinRequestRepository()
 	idemRepo := repository.NewInMemoryIdempotencyRepository()
 
-	authService := service.NewAuthService(userRepo, tenantRepo, nil)
+	// Use NewAuthServiceWithSecret with a valid 32+ char test secret
+	authService := service.NewAuthServiceWithSecret(userRepo, tenantRepo, nil, "test-secret-at-least-32-chars-long-for-jwt")
 	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idemRepo)
 
 	handler := NewDefaultMessageHandler(hub, nil, membershipService, nil, authService)
@@ -785,7 +787,8 @@ func setupMembershipTest() (*DefaultMessageHandler, *service.MembershipService, 
 	joinRepo := repository.NewInMemoryJoinRequestRepository()
 	idemRepo := repository.NewInMemoryIdempotencyRepository()
 
-	authService := service.NewAuthService(userRepo, tenantRepo, nil)
+	// Use NewAuthServiceWithSecret with a valid 32+ char test secret
+	authService := service.NewAuthServiceWithSecret(userRepo, tenantRepo, nil, "test-secret-at-least-32-chars-long-for-jwt")
 	membershipService := service.NewMembershipService(networkRepo, membershipRepo, joinRepo, idemRepo)
 
 	handler := NewDefaultMessageHandler(hub, nil, membershipService, nil, authService)
@@ -856,7 +859,7 @@ func setupDeviceTest() (*DefaultMessageHandler, *service.DeviceService, *reposit
 
 	wgConfig := config.WireGuardConfig{}
 
-	authService := service.NewAuthService(userRepo, tenantRepo, nil)
+	authService := service.NewAuthServiceWithSecret(userRepo, tenantRepo, nil, "12345678901234567890123456789012")
 	deviceService := service.NewDeviceService(deviceRepo, userRepo, peerRepo, networkRepo, wgConfig)
 
 	handler := NewDefaultMessageHandler(hub, nil, nil, deviceService, authService)
@@ -919,7 +922,7 @@ func setupChatTest() (*DefaultMessageHandler, *service.ChatService, *repository.
 	tenantRepo := repository.NewInMemoryTenantRepository()
 	chatRepo := repository.NewInMemoryChatRepository()
 
-	authService := service.NewAuthService(userRepo, tenantRepo, nil)
+	authService := service.NewAuthServiceWithSecret(userRepo, tenantRepo, nil, "12345678901234567890123456789012")
 	chatService := service.NewChatService(chatRepo, userRepo)
 
 	handler := NewDefaultMessageHandler(hub, chatService, nil, nil, authService)

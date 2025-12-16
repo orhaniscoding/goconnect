@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -36,6 +37,7 @@ func (h *DeviceHandler) RegisterDevice(c *gin.Context) {
 
 	var req domain.RegisterDeviceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		slog.Warn("RegisterDevice: Invalid request body", "error", err, "user_id", userID, "tenant_id", tenantID)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"code":    "ERR_VALIDATION",
 			"message": "Invalid request body",
@@ -47,9 +49,11 @@ func (h *DeviceHandler) RegisterDevice(c *gin.Context) {
 	device, err := h.deviceService.RegisterDevice(c.Request.Context(), userID, tenantID, &req)
 	if err != nil {
 		if domainErr, ok := err.(*domain.Error); ok {
+			slog.Error("RegisterDevice: Service returned domain error", "error", domainErr, "user_id", userID, "tenant_id", tenantID)
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}
+		slog.Error("RegisterDevice: Failed to register device", "error", err, "user_id", userID, "tenant_id", tenantID)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    "ERR_INTERNAL_SERVER",
 			"message": "Failed to register device",
@@ -57,6 +61,7 @@ func (h *DeviceHandler) RegisterDevice(c *gin.Context) {
 		return
 	}
 
+	slog.Info("Device registered successfully", "device_id", device.ID, "user_id", userID, "tenant_id", tenantID)
 	c.JSON(http.StatusCreated, device)
 }
 
@@ -81,6 +86,8 @@ func (h *DeviceHandler) ListDevices(c *gin.Context) {
 	if limitStr := c.Query("limit"); limitStr != "" {
 		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
 			limit = l
+		} else {
+			slog.Warn("ListDevices: Invalid limit parameter", "limit_str", limitStr, "error", err, "user_id", userID, "tenant_id", tenantID)
 		}
 	}
 
@@ -97,6 +104,12 @@ func (h *DeviceHandler) ListDevices(c *gin.Context) {
 
 	devices, nextCursor, err := h.deviceService.ListDevices(c.Request.Context(), userID, tenantID, isAdmin, filter)
 	if err != nil {
+		if domainErr, ok := err.(*domain.Error); ok {
+			slog.Error("ListDevices: Service returned domain error", "error", domainErr, "user_id", userID, "tenant_id", tenantID, "filter", filter)
+			c.JSON(domainErr.ToHTTPStatus(), domainErr)
+			return
+		}
+		slog.Error("ListDevices: Failed to list devices", "error", err, "user_id", userID, "tenant_id", tenantID, "filter", filter)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    "ERR_INTERNAL_SERVER",
 			"message": "Failed to list devices",
@@ -104,6 +117,7 @@ func (h *DeviceHandler) ListDevices(c *gin.Context) {
 		return
 	}
 
+	slog.Info("Devices listed successfully", "count", len(devices), "user_id", userID, "tenant_id", tenantID)
 	c.JSON(http.StatusOK, gin.H{
 		"devices":     devices,
 		"next_cursor": nextCursor,
@@ -124,12 +138,14 @@ func (h *DeviceHandler) GetDevice(c *gin.Context) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}
+		slog.Error("GetDevice: Failed to get device", "error", err, "device_id", deviceID, "user_id", userID)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    "ERR_INTERNAL_SERVER",
 			"message": "Failed to get device",
 		})
 		return
 	}
+	slog.Info("Device retrieved successfully", "device_id", deviceID, "user_id", userID)
 
 	c.JSON(http.StatusOK, device)
 }

@@ -19,6 +19,10 @@ func NewAdminRepository(db *sql.DB) *AdminRepository {
 	return &AdminRepository{db: db}
 }
 
+func (r *AdminRepository) PingContext(ctx context.Context) error {
+	return r.db.PingContext(ctx)
+}
+
 // ListAllUsers retrieves all users with filtering and pagination
 func (r *AdminRepository) ListAllUsers(ctx context.Context, filters domain.UserFilters, pagination domain.PaginationParams) ([]*domain.UserListItem, int, error) {
 	// Build query with filters

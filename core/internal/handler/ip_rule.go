@@ -1,11 +1,11 @@
 package handler
 
 import (
-	"encoding/json"
-	"errors"
+	"log/slog"
 	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/service"
 )
@@ -22,8 +22,8 @@ func NewIPRuleHandler(svc *service.IPRuleService) *IPRuleHandler {
 
 // CreateIPRuleRequest is the request body for creating an IP rule
 type CreateIPRuleRequest struct {
-	Type        string     `json:"type"`
-	CIDR        string     `json:"cidr"`
+	Type        string     `json:"type" binding:"required"`
+	CIDR        string     `json:"cidr" binding:"required"`
 	Description string     `json:"description,omitempty"`
 	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
 }
@@ -59,30 +59,27 @@ func toIPRuleResponse(rule *domain.IPRule) IPRuleResponse {
 	}
 }
 
-// httpErrorResponse writes a JSON error response
-func httpErrorResponse(w http.ResponseWriter, statusCode int, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(map[string]string{
-		"error":   http.StatusText(statusCode),
-		"message": message,
-	})
-}
-
 // CreateIPRule handles POST /v1/admin/ip-rules
-func (h *IPRuleHandler) CreateIPRule(w http.ResponseWriter, r *http.Request) {
+func (h *IPRuleHandler) CreateIPRule(c *gin.Context) {
 	var req CreateIPRuleRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpErrorResponse(w, http.StatusBadRequest, "invalid request body")
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, domain.NewError(domain.ErrValidation, "Invalid request body: "+err.Error(), nil))
 		return
 	}
 
 	// Get tenant ID and user ID from context (set by auth middleware)
-	tenantID := r.Header.Get("X-Tenant-ID")
-	userID := r.Header.Get("X-User-ID")
+	// Fallback to headers for compatibility/testing if context keys missing (though middleware should set them)
+	tenantID := c.GetString("tenant_id")
+	if tenantID == "" {
+		tenantID = c.GetHeader("X-Tenant-ID")
+	}
+	userID := c.GetString("user_id")
+	if userID == "" {
+		userID = c.GetHeader("X-User-ID")
+	}
 
 	if tenantID == "" {
-		httpErrorResponse(w, http.StatusBadRequest, "tenant ID is required")
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Tenant ID is required", nil))
 		return
 	}
 
@@ -95,40 +92,34 @@ func (h *IPRuleHandler) CreateIPRule(w http.ResponseWriter, r *http.Request) {
 		ExpiresAt:   req.ExpiresAt,
 	}
 
-	rule, err := h.svc.CreateIPRule(r.Context(), createReq)
+	rule, err := h.svc.CreateIPRule(c.Request.Context(), createReq)
 	if err != nil {
-		var domainErr *domain.Error
-		if errors.As(err, &domainErr) {
-			switch domainErr.Code {
-			case domain.ErrValidation, domain.ErrInvalidRequest:
-				httpErrorResponse(w, http.StatusBadRequest, domainErr.Message)
-			case domain.ErrConflict:
-				httpErrorResponse(w, http.StatusConflict, domainErr.Message)
-			default:
-				httpErrorResponse(w, http.StatusInternalServerError, "internal server error")
-			}
+		if domainErr, ok := err.(*domain.Error); ok {
+			errorResponse(c, domainErr)
 			return
 		}
-		httpErrorResponse(w, http.StatusInternalServerError, "internal server error")
+		slog.Error("CreateIPRule: Failed to create rule", "error", err, "user_id", userID, "tenant_id", tenantID)
+		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(toIPRuleResponse(rule))
+	slog.Info("IP rule created successfully", "rule_id", rule.ID, "user_id", userID, "tenant_id", tenantID)
+	c.JSON(http.StatusCreated, toIPRuleResponse(rule))
 }
 
 // ListIPRules handles GET /v1/admin/ip-rules
-func (h *IPRuleHandler) ListIPRules(w http.ResponseWriter, r *http.Request) {
-	tenantID := r.Header.Get("X-Tenant-ID")
+func (h *IPRuleHandler) ListIPRules(c *gin.Context) {
+	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		httpErrorResponse(w, http.StatusBadRequest, "tenant ID is required")
+		tenantID = c.GetHeader("X-Tenant-ID")
+	}
+	if tenantID == "" {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Tenant ID is required", nil))
 		return
 	}
 
-	rules, err := h.svc.ListIPRules(r.Context(), tenantID)
+	rules, err := h.svc.ListIPRules(c.Request.Context(), tenantID)
 	if err != nil {
-		httpErrorResponse(w, http.StatusInternalServerError, "internal server error")
+		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
 		return
 	}
 
@@ -137,80 +128,83 @@ func (h *IPRuleHandler) ListIPRules(w http.ResponseWriter, r *http.Request) {
 		responses = append(responses, toIPRuleResponse(rule))
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(IPRulesListResponse{
+	c.JSON(http.StatusOK, IPRulesListResponse{
 		Rules: responses,
 		Total: len(responses),
 	})
 }
 
 // GetIPRule handles GET /v1/admin/ip-rules/{id}
-func (h *IPRuleHandler) GetIPRule(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
+func (h *IPRuleHandler) GetIPRule(c *gin.Context) {
+	id := c.Param("id")
 	if id == "" {
-		httpErrorResponse(w, http.StatusBadRequest, "rule ID is required")
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Rule ID is required", nil))
 		return
 	}
 
-	rule, err := h.svc.GetIPRule(r.Context(), id)
+	rule, err := h.svc.GetIPRule(c.Request.Context(), id)
 	if err != nil {
-		var domainErr *domain.Error
-		if errors.As(err, &domainErr) && domainErr.Code == domain.ErrNotFound {
-			httpErrorResponse(w, http.StatusNotFound, "IP rule not found")
+		if domainErr, ok := err.(*domain.Error); ok {
+			errorResponse(c, domainErr)
 			return
 		}
-		httpErrorResponse(w, http.StatusInternalServerError, "internal server error")
+		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
 		return
 	}
 
 	// Verify tenant ownership
-	tenantID := r.Header.Get("X-Tenant-ID")
+	tenantID := c.GetString("tenant_id")
+	if tenantID == "" {
+		tenantID = c.GetHeader("X-Tenant-ID")
+	}
+
 	if rule.TenantID != tenantID {
-		httpErrorResponse(w, http.StatusNotFound, "IP rule not found")
+		errorResponse(c, domain.NewError(domain.ErrNotFound, "IP rule not found", nil))
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(toIPRuleResponse(rule))
+	c.JSON(http.StatusOK, toIPRuleResponse(rule))
 }
 
 // DeleteIPRule handles DELETE /v1/admin/ip-rules/{id}
-func (h *IPRuleHandler) DeleteIPRule(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
+func (h *IPRuleHandler) DeleteIPRule(c *gin.Context) {
+	id := c.Param("id")
 	if id == "" {
-		httpErrorResponse(w, http.StatusBadRequest, "rule ID is required")
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Rule ID is required", nil))
 		return
 	}
 
 	// Verify tenant ownership before deleting
-	rule, err := h.svc.GetIPRule(r.Context(), id)
+	rule, err := h.svc.GetIPRule(c.Request.Context(), id)
 	if err != nil {
-		var domainErr *domain.Error
-		if errors.As(err, &domainErr) && domainErr.Code == domain.ErrNotFound {
-			httpErrorResponse(w, http.StatusNotFound, "IP rule not found")
+		if domainErr, ok := err.(*domain.Error); ok {
+			errorResponse(c, domainErr)
 			return
 		}
-		httpErrorResponse(w, http.StatusInternalServerError, "internal server error")
+		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
 		return
 	}
 
-	tenantID := r.Header.Get("X-Tenant-ID")
+	tenantID := c.GetString("tenant_id")
+	if tenantID == "" {
+		tenantID = c.GetHeader("X-Tenant-ID")
+	}
 	if rule.TenantID != tenantID {
-		httpErrorResponse(w, http.StatusNotFound, "IP rule not found")
+		errorResponse(c, domain.NewError(domain.ErrNotFound, "IP rule not found", nil))
 		return
 	}
 
-	if err := h.svc.DeleteIPRule(r.Context(), id); err != nil {
-		httpErrorResponse(w, http.StatusInternalServerError, "internal server error")
+	if err := h.svc.DeleteIPRule(c.Request.Context(), id); err != nil {
+		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	c.Status(http.StatusNoContent)
 }
 
 // CheckIPRequest is the request body for checking an IP
 type CheckIPRequest struct {
-	IP string `json:"ip"`
+	IP string `json:"ip" binding:"required"`
 }
 
 // CheckIPResponse is the response for IP check
@@ -220,27 +214,25 @@ type CheckIPResponse struct {
 }
 
 // CheckIP handles POST /v1/admin/ip-rules/check
-func (h *IPRuleHandler) CheckIP(w http.ResponseWriter, r *http.Request) {
+func (h *IPRuleHandler) CheckIP(c *gin.Context) {
 	var req CheckIPRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpErrorResponse(w, http.StatusBadRequest, "invalid request body")
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, domain.NewError(domain.ErrValidation, "Invalid request body: "+err.Error(), nil))
 		return
 	}
 
-	if req.IP == "" {
-		httpErrorResponse(w, http.StatusBadRequest, "IP address is required")
-		return
-	}
-
-	tenantID := r.Header.Get("X-Tenant-ID")
+	tenantID := c.GetString("tenant_id")
 	if tenantID == "" {
-		httpErrorResponse(w, http.StatusBadRequest, "tenant ID is required")
+		tenantID = c.GetHeader("X-Tenant-ID")
+	}
+	if tenantID == "" {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Tenant ID is required", nil))
 		return
 	}
 
-	allowed, matchedRule, err := h.svc.CheckIP(r.Context(), tenantID, req.IP)
+	allowed, matchedRule, err := h.svc.CheckIP(c.Request.Context(), tenantID, req.IP)
 	if err != nil {
-		httpErrorResponse(w, http.StatusInternalServerError, "internal server error")
+		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
 		return
 	}
 
@@ -250,6 +242,5 @@ func (h *IPRuleHandler) CheckIP(w http.ResponseWriter, r *http.Request) {
 		response.MatchedRule = &ruleResponse
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	c.JSON(http.StatusOK, response)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -76,7 +77,7 @@ func (h *Hub) Run(ctx context.Context) {
 		case client := <-h.register:
 			h.mu.Lock()
 			h.clients[client] = true
-			fmt.Printf("Client registered: %s (total: %d)\n", client.userID, len(h.clients))
+			slog.Info("Client registered", "user_id", client.userID, "total_clients", len(h.clients))
 			h.mu.Unlock()
 
 		case client := <-h.unregister:
@@ -109,7 +110,7 @@ func (h *Hub) Run(ctx context.Context) {
 					}
 				}
 				close(client.send)
-				fmt.Printf("Client unregistered: %s (total: %d)\n", client.userID, len(h.clients))
+				slog.Info("Client unregistered", "user_id", client.userID, "total_clients", len(h.clients))
 			}
 			h.mu.Unlock()
 
@@ -189,7 +190,7 @@ func (h *Hub) JoinRoom(client *Client, room string) {
 	}
 	h.rooms[room][client] = true
 	client.JoinRoom(room)
-	fmt.Printf("Client %s joined room %s\n", client.userID, room)
+	slog.Info("Client joined room", "user_id", client.userID, "room", room)
 }
 
 // LeaveRoom removes a client from a room
@@ -203,7 +204,7 @@ func (h *Hub) LeaveRoom(client *Client, room string) {
 			delete(h.rooms, room)
 		}
 		client.LeaveRoom(room)
-		fmt.Printf("Client %s left room %s\n", client.userID, room)
+		slog.Info("Client left room", "user_id", client.userID, "room", room)
 	}
 }
 

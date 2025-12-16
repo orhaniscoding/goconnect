@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
@@ -234,7 +234,7 @@ func (s *GDPRService) StartWorker(ctx context.Context, interval time.Duration) {
 func (s *GDPRService) processPendingRequests(ctx context.Context) {
 	requests, err := s.deletionRepo.ListPending(ctx)
 	if err != nil {
-		log.Printf("Failed to list pending deletion requests: %v", err)
+		slog.Error("Failed to list pending deletion requests", "error", err)
 		return
 	}
 
@@ -247,7 +247,7 @@ func (s *GDPRService) processRequest(ctx context.Context, req *domain.DeletionRe
 	// Update status to processing
 	req.Status = domain.DeletionRequestStatusProcessing
 	if err := s.deletionRepo.Update(ctx, req); err != nil {
-		log.Printf("Failed to update request status to processing: %v", err)
+		slog.Error("Failed to update request status to processing", "error", err)
 		return
 	}
 
@@ -282,7 +282,7 @@ func (s *GDPRService) processRequest(ctx context.Context, req *domain.DeletionRe
 	}
 
 	if err := s.deletionRepo.Update(ctx, req); err != nil {
-		log.Printf("Failed to update request status to completed/failed: %v", err)
+		slog.Error("Failed to update request status to completed/failed", "error", err)
 	}
 }
 

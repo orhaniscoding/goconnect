@@ -24,7 +24,8 @@ func TestIPAMRepository_GetOrAllocate_FirstAllocation(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, alloc)
 	assert.Equal(t, "network-1", alloc.NetworkID)
-	assert.Equal(t, "user-1", alloc.UserID)
+	// subjectID is now stored in DeviceID field (device-based allocation)
+	assert.Equal(t, "user-1", alloc.DeviceID)
 	assert.NotEmpty(t, alloc.IP)
 	assert.Equal(t, "10.0.0.1", alloc.IP) // First usable IP
 	assert.Equal(t, uint32(1), alloc.Offset)

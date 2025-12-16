@@ -27,15 +27,31 @@ type AuthService struct {
 }
 
 // NewAuthService creates a new authentication service
+// DEPRECATED: Use NewAuthServiceWithSecret with config-provided secret instead
+// This constructor will panic if JWT_SECRET env var is not set (no weak default)
 func NewAuthService(userRepo repository.UserRepository, tenantRepo repository.TenantRepository, redisClient *redis.Client) *AuthService {
-	// Get JWT secret from environment or use default (NOT for production!)
-	jwtSecret := []byte(getEnvOrDefault("JWT_SECRET", "dev-secret-change-in-production"))
+	// Get JWT secret from environment - PANIC if not set (no weak default for production safety)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		panic("JWT_SECRET environment variable is required. Use NewAuthServiceWithSecret with config-provided secret instead.")
+	}
 
 	return &AuthService{
 		userRepo:    userRepo,
 		tenantRepo:  tenantRepo,
 		redisClient: redisClient,
-		jwtSecret:   jwtSecret,
+		jwtSecret:   []byte(jwtSecret),
+	}
+}
+
+// NewAuthServiceWithSecret creates an AuthService with an explicitly provided JWT secret
+// This is the preferred constructor - pass cfg.JWT.Secret from config
+func NewAuthServiceWithSecret(userRepo repository.UserRepository, tenantRepo repository.TenantRepository, redisClient *redis.Client, jwtSecret string) *AuthService {
+	return &AuthService{
+		userRepo:    userRepo,
+		tenantRepo:  tenantRepo,
+		redisClient: redisClient,
+		jwtSecret:   []byte(jwtSecret),
 	}
 }
 

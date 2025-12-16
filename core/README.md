@@ -167,19 +167,19 @@ API documentation available at `/docs` when running the server, or see [openapi/
 ### Key Endpoints
 
 ```
-POST   /api/v1/auth/register     # Register new user
-POST   /api/v1/auth/login        # Login
-POST   /api/v1/auth/refresh      # Refresh token
+POST   /v1/auth/register         # Register new user
+POST   /v1/auth/login            # Login
+POST   /v1/auth/refresh          # Refresh token
 
-GET    /api/v1/networks          # List networks
-POST   /api/v1/networks          # Create network
-GET    /api/v1/networks/:id      # Get network
-DELETE /api/v1/networks/:id      # Delete network
+GET    /v1/networks              # List networks
+POST   /v1/networks              # Create network
+GET    /v1/networks/:id          # Get network
+DELETE /v1/networks/:id          # Delete network
 
-POST   /api/v1/networks/:id/join # Join network
-POST   /api/v1/networks/:id/leave # Leave network
+POST   /v1/networks/:id/join     # Join network
+POST   /v1/networks/:id/leave    # Leave network
 
-WS     /api/v1/ws                # WebSocket connection
+WS     /v1/ws                    # WebSocket connection
 ```
 
 ---

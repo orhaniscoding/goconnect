@@ -125,7 +125,7 @@ func TestWireGuardHandler_GetProfile(t *testing.T) {
 		handler := NewWireGuardHandler(networkRepo, membershipRepo, nil, nil, userRepo, nil, auditor)
 		r.GET("/v1/networks/:id/wg/profile", wireguardAuthMiddleware(), handler.GetProfile)
 
-		req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1&private_key=pk1", nil)
+		req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1", nil)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 
@@ -152,7 +152,7 @@ func TestWireGuardHandler_GetProfile(t *testing.T) {
 
 		r.GET("/v1/networks/:id/wg/profile", emptyUserMiddleware, handler.GetProfile)
 
-		req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1&private_key=pk1", nil)
+		req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1", nil)
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 
@@ -171,8 +171,9 @@ func TestWireGuardHandler_GetProfile(t *testing.T) {
 		handler := NewWireGuardHandler(networkRepo, membershipRepo, nil, nil, userRepo, nil, auditor)
 		r.GET("/v1/networks/:id/wg/profile", wireguardAuthMiddleware(), handler.GetProfile)
 
-		req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?private_key=pk1", nil)
+		req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile", nil)
 		req.Header.Set("Authorization", "Bearer user-token")
+		req.Header.Set("Accept", "application/json")
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 
@@ -180,7 +181,7 @@ func TestWireGuardHandler_GetProfile(t *testing.T) {
 		assert.Contains(t, w.Body.String(), "device_id")
 	})
 
-	t.Run("Missing Private Key", func(t *testing.T) {
+	t.Run("Reject Non-JSON Accept", func(t *testing.T) {
 		gin.SetMode(gin.TestMode)
 		r := gin.New()
 
@@ -194,11 +195,12 @@ func TestWireGuardHandler_GetProfile(t *testing.T) {
 
 		req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1", nil)
 		req.Header.Set("Authorization", "Bearer user-token")
+		req.Header.Set("Accept", "text/plain")
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
-		assert.Contains(t, w.Body.String(), "private_key")
+		assert.Contains(t, w.Body.String(), "Only JSON API")
 	})
 
 	t.Run("Network Not Found", func(t *testing.T) {
@@ -213,8 +215,9 @@ func TestWireGuardHandler_GetProfile(t *testing.T) {
 		handler := NewWireGuardHandler(networkRepo, membershipRepo, nil, nil, userRepo, nil, auditor)
 		r.GET("/v1/networks/:id/wg/profile", wireguardAuthMiddleware(), handler.GetProfile)
 
-		req := httptest.NewRequest("GET", "/v1/networks/nonexistent/wg/profile?device_id=d1&private_key=pk1", nil)
+		req := httptest.NewRequest("GET", "/v1/networks/nonexistent/wg/profile?device_id=d1", nil)
 		req.Header.Set("Authorization", "Bearer user-token")
+		req.Header.Set("Accept", "application/json")
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 
@@ -239,8 +242,9 @@ func TestWireGuardHandler_GetProfile(t *testing.T) {
 		handler := NewWireGuardHandler(networkRepo, membershipRepo, nil, nil, userRepo, nil, auditor)
 		r.GET("/v1/networks/:id/wg/profile", wireguardAuthMiddleware(), handler.GetProfile)
 
-		req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1&private_key=pk1", nil)
+		req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1", nil)
 		req.Header.Set("Authorization", "Bearer wrong-tenant-token") // User from t2
+		req.Header.Set("Accept", "application/json")
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 
@@ -266,8 +270,9 @@ func TestWireGuardHandler_GetProfile(t *testing.T) {
 		handler := NewWireGuardHandler(networkRepo, membershipRepo, nil, nil, userRepo, nil, auditor)
 		r.GET("/v1/networks/:id/wg/profile", wireguardAuthMiddleware(), handler.GetProfile)
 
-		req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1&private_key=pk1", nil)
+		req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1", nil)
 		req.Header.Set("Authorization", "Bearer user-token")
+		req.Header.Set("Accept", "application/json")
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 
@@ -300,8 +305,9 @@ func TestWireGuardHandler_GetProfile(t *testing.T) {
 		handler := NewWireGuardHandler(networkRepo, membershipRepo, nil, nil, userRepo, nil, auditor)
 		r.GET("/v1/networks/:id/wg/profile", wireguardAuthMiddleware(), handler.GetProfile)
 
-		req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1&private_key=pk1", nil)
+		req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1", nil)
 		req.Header.Set("Authorization", "Bearer user-token")
+		req.Header.Set("Accept", "application/json")
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
 
@@ -355,7 +361,8 @@ func TestRegisterWireGuardRoutes(t *testing.T) {
 		RegisterWireGuardRoutes(r, handler, wireguardAuthMiddleware())
 
 		// Test that route is registered - should return unauthorized (not 404)
-		req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1&private_key=pk1", nil)
+		req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1", nil)
+		req.Header.Set("Accept", "application/json")
 		// No auth header - should get 401, not 404
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, req)
@@ -381,8 +388,9 @@ func TestWireGuardHandler_GetProfile_NetworkDomainError(t *testing.T) {
 	handler := NewWireGuardHandler(customNetworkRepo, membershipRepo, nil, nil, userRepo, nil, auditor)
 	r.GET("/v1/networks/:id/wg/profile", wireguardAuthMiddleware(), handler.GetProfile)
 
-	req := httptest.NewRequest("GET", "/v1/networks/error-net/wg/profile?device_id=d1&private_key=pk1", nil)
+	req := httptest.NewRequest("GET", "/v1/networks/error-net/wg/profile?device_id=d1", nil)
 	req.Header.Set("Authorization", "Bearer user-token")
+	req.Header.Set("Accept", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -424,8 +432,9 @@ func TestWireGuardHandler_GetProfile_RejectedMembership(t *testing.T) {
 	handler := NewWireGuardHandler(networkRepo, membershipRepo, nil, nil, userRepo, nil, auditor)
 	r.GET("/v1/networks/:id/wg/profile", wireguardAuthMiddleware(), handler.GetProfile)
 
-	req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1&private_key=pk1", nil)
+	req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1", nil)
 	req.Header.Set("Authorization", "Bearer user-token")
+	req.Header.Set("Accept", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -460,8 +469,9 @@ func TestWireGuardHandler_GetProfile_BannedMembership(t *testing.T) {
 	handler := NewWireGuardHandler(networkRepo, membershipRepo, nil, nil, userRepo, nil, auditor)
 	r.GET("/v1/networks/:id/wg/profile", wireguardAuthMiddleware(), handler.GetProfile)
 
-	req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1&private_key=pk1", nil)
+	req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1", nil)
 	req.Header.Set("Authorization", "Bearer user-token")
+	req.Header.Set("Accept", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -505,8 +515,9 @@ func TestWireGuardHandler_GetProfile_WrongTenant(t *testing.T) {
 	r.GET("/v1/networks/:id/wg/profile", wireguardAuthMiddleware(), handler.GetProfile)
 
 	// Request with wrong tenant token
-	req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1&private_key=pk1", nil)
+	req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1", nil)
 	req.Header.Set("Authorization", "Bearer wrong-tenant-token")
+	req.Header.Set("Accept", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -536,8 +547,9 @@ func TestWireGuardHandler_GetProfile_MembershipNotFound(t *testing.T) {
 	handler := NewWireGuardHandler(networkRepo, membershipRepo, nil, nil, userRepo, nil, auditor)
 	r.GET("/v1/networks/:id/wg/profile", wireguardAuthMiddleware(), handler.GetProfile)
 
-	req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1&private_key=pk1", nil)
+	req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1", nil)
 	req.Header.Set("Authorization", "Bearer user-token")
+	req.Header.Set("Accept", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
@@ -572,8 +584,9 @@ func TestWireGuardHandler_GetProfile_PendingMembership(t *testing.T) {
 	handler := NewWireGuardHandler(networkRepo, membershipRepo, nil, nil, userRepo, nil, auditor)
 	r.GET("/v1/networks/:id/wg/profile", wireguardAuthMiddleware(), handler.GetProfile)
 
-	req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1&private_key=pk1", nil)
+	req := httptest.NewRequest("GET", "/v1/networks/net1/wg/profile?device_id=d1", nil)
 	req.Header.Set("Authorization", "Bearer user-token")
+	req.Header.Set("Accept", "application/json")
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 

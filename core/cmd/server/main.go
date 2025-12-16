@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -18,6 +18,7 @@ import (
 	"github.com/orhaniscoding/goconnect/server/internal/config"
 	"github.com/orhaniscoding/goconnect/server/internal/database"
 	"github.com/orhaniscoding/goconnect/server/internal/handler"
+	"github.com/orhaniscoding/goconnect/server/internal/logger"
 	"github.com/orhaniscoding/goconnect/server/internal/metrics"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
 	"github.com/orhaniscoding/goconnect/server/internal/service"
@@ -37,6 +38,8 @@ func main() {
 	// Parse command-line flags
 	showVersion := flag.Bool("version", false, "Print version information and exit")
 	configPath := flag.String("config", "", "Path to configuration file (optional)")
+	runMigrate := flag.Bool("migrate", false, "Run database migrations and exit")
+	autoMigrate := flag.Bool("auto-migrate", false, "Run database migrations before starting server")
 	flag.Parse()
 
 	if *showVersion {
@@ -57,8 +60,16 @@ func main() {
 		cfg, err = config.LoadFromFileOrEnv(config.DefaultConfigPath())
 	}
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		slog.Error("Failed to load configuration", "error", err)
+		os.Exit(1)
 	}
+
+	// Initialize structured logging
+	logger.Init(logger.Config{
+		Environment: cfg.Server.Environment,
+		Level:       "info", // Could actully pull from config if available, default to info
+	})
+	logger.Info("Configuration loaded", "environment", cfg.Server.Environment)
 
 	// Set Gin mode based on environment
 	if cfg.Server.IsProduction() {
@@ -68,9 +79,32 @@ func main() {
 	// Initialize database
 	db, err := initDatabase(cfg)
 	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+		slog.Error("Failed to initialize database", "error", err)
+		os.Exit(1)
 	}
 	defer db.Close()
+
+	// Run migrations if requested
+	shouldMigrate := *runMigrate || *autoMigrate || strings.ToLower(os.Getenv("AUTO_MIGRATE")) == "true"
+	if shouldMigrate {
+		migrationsPath := getMigrationsPath(cfg)
+		if migrationsPath != "" {
+			slog.Info("Running database migrations", "path", migrationsPath)
+			if err := database.RunMigrations(db, migrationsPath); err != nil {
+				slog.Error("Migration failed", "error", err)
+				os.Exit(1)
+			}
+			slog.Info("Database migrations completed successfully")
+		} else {
+			slog.Warn("Migrations requested but no migrations path found for backend", "backend", cfg.Database.Backend)
+		}
+
+		// Exit if only running migrations
+		if *runMigrate {
+			slog.Info("Migrations completed, exiting")
+			return
+		}
+	}
 
 	// Register Prometheus metrics
 	metrics.Register()
@@ -96,17 +130,22 @@ func main() {
 
 	// Start server in goroutine
 	go func() {
-		log.Printf("GoConnect Server %s starting on %s", version, cfg.Server.Address())
-		log.Printf("Environment: %s", cfg.Server.Environment)
-		log.Printf("Database: %s", cfg.Database.Backend)
-		log.Printf("Audit: %s", func() string {
-			if cfg.Audit.SQLiteDSN != "" {
-				return "SQLite (" + cfg.Audit.SQLiteDSN + ")"
-			}
-			return "stdout"
-		}())
+		logger.Info("GoConnect Server starting", 
+			"version", version, 
+			"address", cfg.Server.Address(),
+			"environment", cfg.Server.Environment,
+			"database", cfg.Database.Backend,
+		)
+		
+		auditType := "stdout"
+		if cfg.Audit.SQLiteDSN != "" {
+			auditType = "sqlite"
+		}
+		logger.Info("Audit initialized", "type", auditType)
+
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server failed: %v", err)
+			logger.Error("Server failed", "error", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -115,17 +154,17 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Shutting down server...")
+	slog.Info("Shutting down server...")
 
 	// Give outstanding requests 30 seconds to complete
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Printf("Server forced to shutdown: %v", err)
+		slog.Error("Server forced to shutdown", "error", err)
 	}
 
-	log.Println("Server exited")
+	slog.Info("Server exited")
 }
 
 // buildBaseURL constructs the base URL from server configuration
@@ -203,6 +242,7 @@ type Services struct {
 	Post             *service.PostService
 	IPRule           *service.IPRuleService
 	PeerProvisioning *service.PeerProvisioningService
+	Redis            *redis.Client
 }
 
 // Handlers holds all handler instances
@@ -221,6 +261,7 @@ type Handlers struct {
 	Post      *handler.PostHandler
 	IPRule    *handler.IPRuleHandler
 	Upload    *handler.UploadHandler
+	Voice     *handler.VoiceHandler
 }
 
 // initRepositories initializes all repositories based on database backend
@@ -298,7 +339,7 @@ func initServices(repos *Repositories, cfg *config.Config) (*Services, audit.Aud
 		var err error
 		auditor, err = audit.NewSqliteAuditor(cfg.Audit.SQLiteDSN)
 		if err != nil {
-			log.Printf("Warning: Failed to initialize SQLite auditor, falling back to stdout: %v", err)
+			slog.Warn("Failed to initialize SQLite auditor, falling back to stdout", "error", err)
 			auditor = audit.NewStdoutAuditor()
 		}
 	} else {
@@ -306,10 +347,11 @@ func initServices(repos *Repositories, cfg *config.Config) (*Services, audit.Aud
 	}
 
 	// Initialize services
-	authService := service.NewAuthService(repos.User, repos.Tenant, redisClient)
+	authService := service.NewAuthServiceWithSecret(repos.User, repos.Tenant, redisClient, cfg.JWT.Secret)
 	tenantMembershipService := service.NewTenantMembershipService(repos.TenantMember, repos.TenantInvite, repos.TenantAnnounce, repos.TenantChat, repos.Tenant, repos.User)
 	networkService := service.NewNetworkService(repos.Network, repos.Idempotency)
 	membershipService := service.NewMembershipService(repos.Network, repos.Membership, repos.JoinRequest, repos.Idempotency)
+	membershipService.SetInviteTokenRepository(repos.InviteToken)
 	deviceService := service.NewDeviceService(repos.Device, repos.User, repos.Peer, repos.Network, cfg.WireGuard)
 	peerService := service.NewPeerService(repos.Peer, repos.Device, repos.Network)
 	chatService := service.NewChatService(repos.Chat, repos.User)
@@ -345,6 +387,7 @@ func initServices(repos *Repositories, cfg *config.Config) (*Services, audit.Aud
 		Post:             postService,
 		IPRule:           ipRuleService,
 		PeerProvisioning: peerProvisioningService,
+		Redis:            redisClient,
 	}, auditor
 }
 
@@ -383,6 +426,7 @@ func initHandlers(svcs *Services, repos *Repositories, cfg *config.Config, audit
 	// Build base URL from config
 	baseURL := buildBaseURL(cfg)
 	uploadHandler := handler.NewUploadHandler("/tmp/uploads", baseURL+"/uploads")
+	voiceHandler := handler.NewVoiceHandler(svcs.Redis)
 
 	return &Handlers{
 		Auth:      authHandler,
@@ -399,6 +443,7 @@ func initHandlers(svcs *Services, repos *Repositories, cfg *config.Config, audit
 		Post:      postHandler,
 		IPRule:    ipRuleHandler,
 		Upload:    uploadHandler,
+		Voice:     voiceHandler,
 	}
 }
 
@@ -409,22 +454,56 @@ func setupRouter(cfg *config.Config, handlers *Handlers, svcs *Services, repos *
 	// Global middleware
 	router.Use(gin.Recovery())
 	router.Use(handler.RequestIDMiddleware())
-	router.Use(handler.CORSMiddleware())
+	router.Use(handler.NewCORSMiddleware(&cfg.CORS)) // Use config-based CORS
 	router.Use(metrics.GinMiddleware())
 
 	// Health check endpoint
 	router.GET("/health", func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(c.Request.Context(), 1*time.Second)
+		defer cancel()
+
+		dbStatus := "up"
+		var pingErr error
+		if repos.Admin == nil {
+			pingErr = fmt.Errorf("admin repository not initialized")
+		} else {
+			pingErr = repos.Admin.PingContext(ctx)
+		}
+		if pingErr != nil {
+			slog.Error("Health check failed: database unreachable", "error", pingErr)
+			dbStatus = "down"
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"status":      "unhealthy",
+				"database":    dbStatus,
+				"version":     version,
+				"environment": cfg.Server.Environment,
+			})
+			return
+		}
+
 		c.JSON(http.StatusOK, gin.H{
-			"status":  "healthy",
-			"version": version,
+			"status":      "healthy",
+			"database":    dbStatus,
+			"version":     version,
+			"environment": cfg.Server.Environment,
 		})
 	})
 
 	// Metrics endpoint (Prometheus)
 	router.GET("/metrics", metrics.Handler())
 
-	// API v1 routes
-	v1 := router.Group("/api/v1")
+	// API v1 routes (canonical prefix)
+	v1 := router.Group("/v1")
+
+	// Backward compatibility: redirect /api/v1/* to /v1/*
+	router.Any("/api/v1/*path", func(c *gin.Context) {
+		path := c.Param("path")
+		newURL := "/v1" + path
+		if c.Request.URL.RawQuery != "" {
+			newURL += "?" + c.Request.URL.RawQuery
+		}
+		c.Redirect(http.StatusPermanentRedirect, newURL)
+	})
 
 	// Auth middleware (used for protected routes)
 	authMiddleware := handler.AuthMiddleware(svcs.Auth)
@@ -473,9 +552,25 @@ func setupRouter(cfg *config.Config, handlers *Handlers, svcs *Services, repos *
 		postGroup.DELETE("/:id", handlers.Post.DeletePost)
 	}
 
-	// IP Rule routes (using standard HTTP handlers, not Gin)
-	// Note: IPRuleHandler uses standard http.Handler interface, not Gin
-	// These routes would need to be adapted or IPRuleHandler needs Gin support
+	// Voice routes
+	voiceGroup := v1.Group("/voice")
+	voiceGroup.Use(authMiddleware)
+	{
+		voiceGroup.POST("/signal", handlers.Voice.Signal)
+		voiceGroup.GET("/signals", handlers.Voice.GetSignals)
+	}
+
+	// IP Rule routes
+	ipRuleGroup := v1.Group("/ip-rules")
+	ipRuleGroup.Use(authMiddleware)
+	ipRuleGroup.Use(handler.RequireAdmin())
+	{
+		ipRuleGroup.POST("", handlers.IPRule.CreateIPRule)
+		ipRuleGroup.GET("", handlers.IPRule.ListIPRules)
+		ipRuleGroup.POST("/check", handlers.IPRule.CheckIP)
+		ipRuleGroup.GET("/:id", handlers.IPRule.GetIPRule)
+		ipRuleGroup.DELETE("/:id", handlers.IPRule.DeleteIPRule)
+	}
 
 	// Health/Info
 	v1.GET("/info", func(c *gin.Context) {
@@ -487,4 +582,34 @@ func setupRouter(cfg *config.Config, handlers *Handlers, svcs *Services, repos *
 	})
 
 	return router
+}
+
+// getMigrationsPath returns the path to database migrations based on the database backend.
+// Returns empty string if migrations are not supported for the backend.
+func getMigrationsPath(cfg *config.Config) string {
+	switch cfg.Database.Backend {
+	case "postgres":
+		// Check for migrations in standard locations
+		paths := []string{"migrations", "./migrations", "../migrations", "core/migrations"}
+		for _, p := range paths {
+			if _, err := os.Stat(p); err == nil {
+				return p
+			}
+		}
+		return "migrations" // Default fallback
+	case "sqlite":
+		// SQLite has separate simplified migrations
+		paths := []string{"migrations_sqlite", "./migrations_sqlite", "../migrations_sqlite", "core/migrations_sqlite"}
+		for _, p := range paths {
+			if _, err := os.Stat(p); err == nil {
+				return p
+			}
+		}
+		return "migrations_sqlite" // Default fallback
+	case "memory":
+		// In-memory database doesn't need migrations (schema created on connect)
+		return ""
+	default:
+		return ""
+	}
 }
