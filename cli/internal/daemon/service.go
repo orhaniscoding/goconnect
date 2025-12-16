@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"runtime"
@@ -18,6 +18,7 @@ import (
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/config"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/engine"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/identity"
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/logger"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/system"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/transfer"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/wireguard"
@@ -73,8 +74,7 @@ func (s *DaemonService) Start(srv service.Service) error {
 
 	// Initialize logger (already set in RunDaemon for interactive/service mode)
 	if s.logf == nil { // Fallback, should ideally not happen if RunDaemon sets it
-		stdLogger := log.New(os.Stderr, "[goconnect-daemon] ", log.LstdFlags)
-		s.logf = &fallbackServiceLogger{stdLogger}
+		s.logf = &fallbackServiceLogger{}
 	}
 
 	s.logf.Info("GoConnect Daemon starting...")
@@ -332,6 +332,7 @@ func (s *DaemonService) setupLocalhostBridgeHandlers(mux *http.ServeMux) {
 
 		var req struct {
 			Token string `json:"token"`
+			Name  string `json:"name"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -344,9 +345,13 @@ func (s *DaemonService) setupLocalhostBridgeHandlers(mux *http.ServeMux) {
 		}
 
 		hostname, _ := os.Hostname()
+		displayName := req.Name
+		if displayName == "" {
+			displayName = hostname
+		}
 
 		regReq := api.RegisterDeviceRequest{
-			Name:      hostname,
+			Name:      displayName,
 			Platform:  runtime.GOOS,
 			PubKey:    s.idManager.Get().PublicKey,
 			HostName:  hostname,
@@ -598,7 +603,7 @@ func (s *DaemonService) setupLocalhostBridgeHandlers(mux *http.ServeMux) {
 			return
 		}
 
-		network, err := s.apiClient.CreateNetwork(r.Context(), req.Name)
+		network, err := s.apiClient.CreateNetwork(r.Context(), req.Name, "")
 		if err != nil {
 			s.logf.Errorf("Failed to create network: %v", err)
 			http.Error(w, fmt.Sprintf("Failed to create network: %v", err), http.StatusInternalServerError)
@@ -681,14 +686,13 @@ type program struct {
 // Start is the service Start method for kardianos/service
 func (p *program) Start(s service.Service) error {
 	// Get the logger from the service instance and set it to the daemonService
-	logger, err := s.Logger(nil)
+	svcLogger, err := s.Logger(nil)
 	if err != nil {
-		log.Printf("Failed to get logger from service: %v", err)
+		logger.Warn("Failed to get logger from service", "error", err)
 		// Fallback to stderr logger if service logger is unavailable
-		stdLogger := log.New(os.Stderr, "[goconnect-daemon] ", log.LstdFlags)
-		p.daemon.logf = &fallbackServiceLogger{stdLogger}
+		p.daemon.logf = &fallbackServiceLogger{}
 	} else {
-		p.daemon.logf = logger
+		p.daemon.logf = svcLogger
 	}
 	return p.daemon.Start(s)
 }
@@ -696,50 +700,48 @@ func (p *program) Start(s service.Service) error {
 // Stop is the service Stop method for kardianos/service
 func (p *program) Stop(s service.Service) error {
 	// Get the logger from the service instance and set it to the daemonService
-	logger, err := s.Logger(nil)
+	svcLogger, err := s.Logger(nil)
 	if err != nil {
-		log.Printf("Failed to get logger from service: %v", err)
+		logger.Warn("Failed to get logger from service", "error", err)
 		// Fallback to stderr logger if service logger is unavailable
-		stdLogger := log.New(os.Stderr, "[goconnect-daemon] ", log.LstdFlags)
-		p.daemon.logf = &fallbackServiceLogger{stdLogger}
+		p.daemon.logf = &fallbackServiceLogger{}
 	} else {
-		p.daemon.logf = logger
+		p.daemon.logf = svcLogger
 	}
 	return p.daemon.Stop(s)
 }
 
 // fallbackServiceLogger provides a simple implementation of service.Logger using stdlib log.
-type fallbackServiceLogger struct {
-	*log.Logger
-}
+type fallbackServiceLogger struct{}
+
 
 func (l *fallbackServiceLogger) Info(v ...interface{}) error {
-	l.Logger.Println("[INFO]", fmt.Sprintln(v...))
+	logger.Info(fmt.Sprint(v...))
 	return nil
 }
 
 func (l *fallbackServiceLogger) Infof(format string, v ...interface{}) error {
-	l.Logger.Printf("[INFO] "+format, v...)
+	logger.Info(fmt.Sprintf(format, v...))
 	return nil
 }
 
 func (l *fallbackServiceLogger) Warning(v ...interface{}) error {
-	l.Logger.Println("[WARNING]", fmt.Sprintln(v...))
+	logger.Warn(fmt.Sprint(v...))
 	return nil
 }
 
 func (l *fallbackServiceLogger) Warningf(format string, v ...interface{}) error {
-	l.Logger.Printf("[WARNING] "+format, v...)
+	logger.Warn(fmt.Sprintf(format, v...))
 	return nil
 }
 
 func (l *fallbackServiceLogger) Error(v ...interface{}) error {
-	l.Logger.Println("[ERROR]", fmt.Sprintln(v...))
+	logger.Error(fmt.Sprint(v...))
 	return nil
 }
 
 func (l *fallbackServiceLogger) Errorf(format string, v ...interface{}) error {
-	l.Logger.Printf("[ERROR] "+format, v...)
+	logger.Error(fmt.Sprintf(format, v...))
 	return nil
 }
 
@@ -769,15 +771,13 @@ func RunDaemon(cfg *config.Config, daemonVersion string, options map[string]inte
 	// Use the service logger if available, otherwise fallback to stderr
 	if service.Interactive() {
 		// In interactive mode, log to stderr with the fallback logger
-		stdLogger := log.New(os.Stderr, "[goconnect-daemon] ", log.LstdFlags)
-		daemonService.logf = &fallbackServiceLogger{stdLogger}
+		daemonService.logf = &fallbackServiceLogger{}
 	} else {
-		// In service mode, get the logger from svc.Logger()
+	// In service mode, get the logger from svc.Logger()
 		logger, err := svc.Logger(nil)
 		if err != nil {
-			log.Printf("Failed to get logger from service in non-interactive mode: %v", err)
-			stdLogger := log.New(os.Stderr, "[goconnect-daemon] ", log.LstdFlags)
-			daemonService.logf = &fallbackServiceLogger{stdLogger}
+			slog.Warn("Failed to get logger from service in non-interactive mode", "error", err)
+			daemonService.logf = &fallbackServiceLogger{}
 		} else {
 			daemonService.logf = logger
 		}

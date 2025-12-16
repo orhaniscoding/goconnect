@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"sync"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/config"
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/logger"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/storage"
 )
 
@@ -290,7 +290,7 @@ func (c *Client) readLoop() {
 			}
 			_, message, err := c.wsConn.ReadMessage()
 			if err != nil {
-				log.Printf("WebSocket read error: %v", err)
+				logger.Error("WebSocket read error", "error", err)
 				return
 			}
 			c.handleMessage(message)
@@ -318,7 +318,7 @@ type signalPayload struct {
 func (c *Client) handleMessage(data []byte) {
 	var msg wsMessage
 	if err := json.Unmarshal(data, &msg); err != nil {
-		log.Printf("Failed to unmarshal websocket message: %v", err)
+		logger.Error("Failed to unmarshal websocket message", "error", err)
 		return
 	}
 
@@ -326,13 +326,13 @@ func (c *Client) handleMessage(data []byte) {
 	case "call.offer", "call.answer", "call.ice":
 		var signalData callSignalData
 		if err := json.Unmarshal(msg.Data, &signalData); err != nil {
-			log.Printf("Failed to unmarshal signal data: %v", err)
+			logger.Error("Failed to unmarshal signal data", "error", err)
 			return
 		}
 
 		var payload signalPayload
 		if err := json.Unmarshal(signalData.Signal, &payload); err != nil {
-			log.Printf("Failed to unmarshal signal payload: %v", err)
+			logger.Error("Failed to unmarshal signal payload", "error", err)
 			return
 		}
 
@@ -427,6 +427,7 @@ func (c *Client) OnCandidate(f func(sourceID, candidate string)) {
 
 type CreateNetworkRequest struct {
 	Name string `json:"name"`
+	CIDR string `json:"cidr,omitempty"`
 }
 
 type NetworkResponse struct {
@@ -436,13 +437,13 @@ type NetworkResponse struct {
 	Role       string `json:"role"`
 }
 
-func (c *Client) CreateNetwork(ctx context.Context, name string) (*NetworkResponse, error) {
+func (c *Client) CreateNetwork(ctx context.Context, name, cidr string) (*NetworkResponse, error) {
 	authToken, err := c.getAuthToken()
 	if err != nil {
 		return nil, fmt.Errorf("create network failed: %w", err)
 	}
 
-	req := CreateNetworkRequest{Name: name}
+	req := CreateNetworkRequest{Name: name, CIDR: cidr}
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)

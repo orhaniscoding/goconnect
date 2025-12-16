@@ -5,11 +5,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log" // Using log for now, will replace with service.Logger
 	"os"
 	"path/filepath"
 	"sync"
 
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/logger"
 	"golang.org/x/crypto/curve25519"
 )
 
@@ -50,14 +50,14 @@ func (m *Manager) LoadOrCreateIdentity() (*Identity, error) {
 
 	// Try to load
 	if err := m.load(); err == nil {
-		log.Printf("Loaded existing device identity from %s", m.identityPath)
+		logger.Info("Loaded existing device identity", "path", m.identityPath)
 		return m.identity, nil
 	} else if !os.IsNotExist(err) {
-		log.Printf("Failed to load identity from %s: %v", m.identityPath, err)
+		logger.Error("Failed to load identity", "path", m.identityPath, "error", err)
 	}
 
 	// Generate new if load failed or file didn't exist
-	log.Printf("Generating new device identity.")
+	logger.Info("Generating new device identity")
 	if err := m.generate(); err != nil {
 		return nil, err
 	}
@@ -67,7 +67,7 @@ func (m *Manager) LoadOrCreateIdentity() (*Identity, error) {
 		return nil, fmt.Errorf("failed to save new identity to %s: %w", m.identityPath, err)
 	}
 
-	log.Printf("Generated and saved new device identity with public key: %s", m.identity.PublicKey)
+	logger.Info("Generated and saved new device identity", "public_key", m.identity.PublicKey)
 	return m.identity, nil
 }
 

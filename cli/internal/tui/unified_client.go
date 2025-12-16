@@ -19,7 +19,7 @@ type DaemonClient interface {
 	GetStatus() (*Status, error)
 
 	// Networks
-	CreateNetwork(name string) (*Network, error)
+	CreateNetwork(name, cidr string) (*Network, error)
 	JoinNetwork(inviteCode string) (*Network, error)
 	GetNetworks() ([]Network, error)
 	LeaveNetwork(networkID string) error
@@ -155,14 +155,14 @@ func (u *UnifiedClient) GetStatus() (*Status, error) {
 }
 
 // CreateNetwork creates a new network.
-func (u *UnifiedClient) CreateNetwork(name string) (*Network, error) {
+func (u *UnifiedClient) CreateNetwork(name, cidr string) (*Network, error) {
 	u.mu.RLock()
 	defer u.mu.RUnlock()
 
 	if u.useGRPC && u.grpcClient != nil {
-		return u.grpcClient.CreateNetwork(name)
+		return u.grpcClient.CreateNetwork(name, cidr)
 	}
-	return u.httpClient.CreateNetwork(name)
+	return u.httpClient.CreateNetwork(name, cidr)
 }
 
 // JoinNetwork joins an existing network.

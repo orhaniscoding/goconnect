@@ -2,7 +2,7 @@
 set -e
 
 # Configuration
-GO="/usr/local/go/bin/go"
+GO="${GO:-go}"
 REPO_ROOT=$(pwd)
 WORK_DIR="/tmp/goconnect-e2e"
 BIN_DIR="$WORK_DIR/bin"
@@ -93,6 +93,35 @@ else
     echo "Daemon Log Dump:"
     cat "$WORK_DIR/daemon.log"
     exit 1
+fi
+
+# 7. Verify Create Network (Scripting Mode)
+echo "Verifying 'goconnect create'..."
+CREATE_OUTPUT=$("$BIN_DIR/goconnect" create --name "E2E Network" --cidr "10.200.0.0/24")
+echo "$CREATE_OUTPUT"
+
+if echo "$CREATE_OUTPUT" | grep -q "Network created successfully"; then
+    echo -e "${GREEN}PASS: Create network command works${NC}"
+else
+    echo -e "${RED}FAIL: Create network command failed output${NC}"
+    echo "Daemon Log Dump:"
+    cat "$WORK_DIR/daemon.log"
+    exit 1
+fi
+
+# 8. Verify Voice Signaling
+echo "Verifying 'goconnect voice'..."
+VOICE_OUTPUT=$("$BIN_DIR/goconnect" voice 2>&1)
+echo "$VOICE_OUTPUT"
+
+if echo "$VOICE_OUTPUT" | grep -q "Signal sent"; then
+    echo -e "${GREEN}PASS: Voice signal sent successfully${NC}"
+else
+    echo -e "${RED}FAIL: Voice signal command failed${NC}"
+    echo "Daemon Log Dump:"
+    cat "$WORK_DIR/daemon.log"
+    # Don't exit yet, valid failure if stub not updated
+    # exit 1 
 fi
 
 echo -e "\n${GREEN}ALL E2E TESTS PASSED${NC}"

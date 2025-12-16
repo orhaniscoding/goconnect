@@ -345,7 +345,7 @@ func (m Model) createNetworkCmd(name string) tea.Cmd {
 	m.state = StateLoading
 	m.loadingMsg = "Creating network..."
 	return func() tea.Msg {
-		_, err := m.client.CreateNetwork(name)
+		_, err := m.client.CreateNetwork(name, "")
 		if err != nil {
 			return errMsg{err}
 		}

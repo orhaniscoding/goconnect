@@ -1,11 +1,11 @@
 package config
 
 import (
-	"log"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/logger"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/storage"
 	"gopkg.in/yaml.v3"
 )
@@ -82,7 +82,7 @@ func LoadConfig(path string) (*Config, error) {
 	// Initialize Keyring
 	keyring, err := storage.NewKeyringStore()
 	if err != nil {
-		log.Printf("Warning: Failed to initialize keyring: %v", err)
+		logger.Warn("Failed to initialize keyring", "error", err)
 	}
 	cfg.Keyring = keyring
 

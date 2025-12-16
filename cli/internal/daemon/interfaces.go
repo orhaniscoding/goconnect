@@ -5,6 +5,7 @@ import (
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/api"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/chat"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/transfer"
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/voice"
 )
 
 // DaemonEngine defines the interface for the P2P engine used by the daemon.
@@ -34,8 +35,13 @@ type DaemonEngine interface {
 	SubscribeChatMessages() chan chat.Message
 	UnsubscribeChatMessages(ch chan chat.Message)
 
+	// Voice signaling
+	SendVoiceSignal(peerID string, sig voice.Signal) error
+	SubscribeVoiceSignals() chan voice.Signal
+	UnsubscribeVoiceSignals(ch chan voice.Signal)
+
 	// Network management through engine
-	CreateNetwork(name string) (*api.NetworkResponse, error)
+	CreateNetwork(name, cidr string) (*api.NetworkResponse, error)
 	JoinNetwork(inviteCode string) (*api.NetworkResponse, error)
 	LeaveNetwork(networkID string) error
 	GetNetworks() ([]api.NetworkResponse, error)
@@ -47,6 +53,6 @@ type DaemonEngine interface {
 type DaemonAPIClient interface {
 	Register(ctx context.Context, authToken string, req api.RegisterDeviceRequest) (*api.RegisterDeviceResponse, error)
 	GetNetworks(ctx context.Context) ([]api.NetworkResponse, error)
-	CreateNetwork(ctx context.Context, name string) (*api.NetworkResponse, error)
+	CreateNetwork(ctx context.Context, name, cidr string) (*api.NetworkResponse, error)
 	JoinNetwork(ctx context.Context, inviteCode string) (*api.NetworkResponse, error)
 }

@@ -124,18 +124,20 @@ func (c *GRPCClient) GetStatus() (*Status, error) {
 // GetVersion returns the daemon version information.
 func (c *GRPCClient) GetVersion() (*pb.VersionResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.defaultTimeout)
+
 	defer cancel()
 
 	return c.daemonClient.GetVersion(ctx, nil)
 }
 
 // CreateNetwork creates a new network.
-func (c *GRPCClient) CreateNetwork(name string) (*Network, error) {
+func (c *GRPCClient) CreateNetwork(name, cidr string) (*Network, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.defaultTimeout)
 	defer cancel()
 
 	resp, err := c.networkClient.CreateNetwork(ctx, &pb.CreateNetworkRequest{
 		Name: name,
+		Cidr: cidr,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create network: %w", err)

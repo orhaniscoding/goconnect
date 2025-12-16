@@ -3,8 +3,6 @@ package daemon
 import (
 	"context"
 	"fmt"
-	"log"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -33,7 +31,7 @@ func setupRealGRPCServer(t *testing.T) (*GRPCServer, *MockEngine) {
 
 	daemon := &DaemonService{
 		config:        cfg,
-		logf:          &fallbackServiceLogger{log.New(os.Stderr, "[test] ", log.LstdFlags)},
+		logf:          &fallbackServiceLogger{},
 		daemonVersion: "1.0.0-test",
 		sseClients:    make(map[chan string]bool),
 	}

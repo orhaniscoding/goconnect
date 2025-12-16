@@ -11,6 +11,7 @@ import (
 
 	"github.com/kardianos/service"
 	pb "github.com/orhaniscoding/goconnect/client-daemon/internal/proto"
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/voice"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -26,6 +27,7 @@ type GRPCServer struct {
 	pb.UnimplementedChatServiceServer
 	pb.UnimplementedTransferServiceServer
 	pb.UnimplementedSettingsServiceServer
+	pb.UnimplementedVoiceServiceServer
 
 	daemon     *DaemonService
 	grpcServer *grpc.Server
@@ -91,6 +93,7 @@ func (s *GRPCServer) Start(ctx context.Context) error {
 	pb.RegisterChatServiceServer(s.grpcServer, s)
 	pb.RegisterTransferServiceServer(s.grpcServer, s)
 	pb.RegisterSettingsServiceServer(s.grpcServer, s)
+	pb.RegisterVoiceServiceServer(s.grpcServer, s)
 
 	// Start server
 	go func() {
@@ -127,6 +130,7 @@ func (s *GRPCServer) Stop() {
 }
 
 // createListener creates a platform-specific listener.
+// On Linux/macOS, we create BOTH Unix socket (for CLI) and TCP (for Desktop app).
 func (s *GRPCServer) createListener() (net.Listener, error) {
 	switch runtime.GOOS {
 	case "windows":
@@ -147,11 +151,55 @@ func (s *GRPCServer) createListener() (net.Listener, error) {
 		port := s.daemon.config.Daemon.LocalPort + 1 // Use next port for gRPC
 		return net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	default:
-		// Use Unix Domain Socket for Linux/macOS
+		// Use Unix Domain Socket for Linux/macOS (primary - for CLI clients)
 		socketPath := "/tmp/goconnect-daemon.sock"
 		// Remove existing socket file if it exists
 		// In production, use a more secure path like /var/run/goconnect/daemon.sock
+
+		// Also start TCP listener for Desktop app compatibility
+		// Desktop (Tauri/Rust) can't easily use Unix sockets, so we provide TCP fallback
+		go s.startTCPFallbackListener()
+
 		return net.Listen("unix", socketPath)
+	}
+}
+
+// startTCPFallbackListener starts a secondary TCP listener for Desktop app compatibility.
+// This runs alongside the Unix socket listener on Linux/macOS.
+func (s *GRPCServer) startTCPFallbackListener() {
+	const tcpPort = 34101 // Fixed port for Desktop app
+
+	listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", tcpPort))
+	if err != nil {
+		s.logf.Warningf("TCP fallback listener failed (Desktop may not connect): %v", err)
+		return
+	}
+	s.logf.Infof("TCP fallback listener for Desktop app on 127.0.0.1:%d", tcpPort)
+
+	// Create a separate gRPC server for TCP (reuses same handlers)
+	// We need to share the same service implementations
+	tcpServer := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			s.ipcAuth.UnaryServerInterceptor(),
+			s.loggingUnaryInterceptor,
+		),
+		grpc.ChainStreamInterceptor(
+			s.ipcAuth.StreamServerInterceptor(),
+			s.loggingStreamInterceptor,
+		),
+	)
+
+	// Register all services on TCP server too
+	pb.RegisterDaemonServiceServer(tcpServer, s)
+	pb.RegisterNetworkServiceServer(tcpServer, s)
+	pb.RegisterPeerServiceServer(tcpServer, s)
+	pb.RegisterChatServiceServer(tcpServer, s)
+	pb.RegisterTransferServiceServer(tcpServer, s)
+	pb.RegisterSettingsServiceServer(tcpServer, s)
+	pb.RegisterVoiceServiceServer(tcpServer, s)
+
+	if err := tcpServer.Serve(listener); err != nil {
+		s.logf.Warningf("TCP fallback server error: %v", err)
 	}
 }
 
@@ -317,7 +365,7 @@ func (s *GRPCServer) CreateNetwork(ctx context.Context, req *pb.CreateNetworkReq
 		return nil, status.Error(codes.InvalidArgument, "network name is required")
 	}
 
-	result, err := s.daemon.engine.CreateNetwork(req.Name)
+	result, err := s.daemon.engine.CreateNetwork(req.Name, req.Cidr)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to create network: %v", err)
 	}
@@ -799,6 +847,63 @@ func (s *GRPCServer) ResetSettings(ctx context.Context, req *emptypb.Empty) (*pb
 	}
 
 	return s.GetSettings(ctx, &emptypb.Empty{})
+}
+
+// =============================================================================
+// VOICE SERVICE IMPLEMENTATION
+// =============================================================================
+
+// SendSignal routes a WebRTC signal to a peer.
+func (s *GRPCServer) SendSignal(ctx context.Context, req *pb.SendSignalRequest) (*emptypb.Empty, error) {
+	if req.Signal == nil {
+		return nil, status.Error(codes.InvalidArgument, "signal is required")
+	}
+
+	sig := voice.Signal{
+		Type:      req.Signal.Type,
+		SDP:       req.Signal.Sdp,
+		Candidate: req.Signal.Candidate,
+		SenderID:  req.Signal.SenderId,
+		TargetID:  req.Signal.TargetId,
+		NetworkID: req.Signal.NetworkId,
+	}
+
+	if err := s.daemon.engine.SendVoiceSignal(req.Signal.TargetId, sig); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to send signal: %v", err)
+	}
+
+	return &emptypb.Empty{}, nil
+}
+
+// SubscribeSignals streams incoming WebRTC signals.
+func (s *GRPCServer) SubscribeSignals(req *emptypb.Empty, stream pb.VoiceService_SubscribeSignalsServer) error {
+	ch := s.daemon.engine.SubscribeVoiceSignals()
+	defer s.daemon.engine.UnsubscribeVoiceSignals(ch)
+
+	for {
+		select {
+		case sig, ok := <-ch:
+			if !ok {
+				return nil
+			}
+
+			pbSig := &pb.VoiceSignal{
+				Type:      sig.Type,
+				Sdp:       sig.SDP,
+				Candidate: sig.Candidate,
+				SenderId:  sig.SenderID,
+				TargetId:  sig.TargetID,
+				NetworkId: sig.NetworkID,
+			}
+
+			if err := stream.Send(pbSig); err != nil {
+				return err
+			}
+
+		case <-stream.Context().Done():
+			return stream.Context().Err()
+		}
+	}
 }
 
 // =============================================================================

@@ -3,9 +3,9 @@ package daemon
 import (
 	"bytes"
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/api"
@@ -15,7 +15,6 @@ import (
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/identity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"os"
 )
 
 func setupIsolatedDaemon() (*DaemonService, *MockEngine, *MockAPIClient, *http.ServeMux) {
@@ -36,7 +35,7 @@ func setupIsolatedDaemon() (*DaemonService, *MockEngine, *MockAPIClient, *http.S
 	cfg.Keyring = testKeyring
 
 	svc := NewDaemonService(cfg, "test-version")
-	svc.logf = &fallbackServiceLogger{log.New(os.Stderr, "[test-daemon] ", log.LstdFlags)}
+	svc.logf = &fallbackServiceLogger{}
 
 	// Mock ID Manager?
 	// DaemonService.idManager is private.
@@ -93,7 +92,7 @@ func TestDaemonService_Isolated_CreateNetwork(t *testing.T) {
 		ID:   "net1",
 		Name: "test-net",
 	}
-	mockAPI.On("CreateNetwork", mock.Anything, "test-net").Return(mockNet, nil)
+	mockAPI.On("CreateNetwork", mock.Anything, "test-net", mock.Anything).Return(mockNet, nil)
 
 	body := map[string]string{"name": "test-net"}
 	jsonBody, _ := json.Marshal(body)

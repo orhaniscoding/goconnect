@@ -274,7 +274,7 @@ func TestClient_CreateNetwork_Success(t *testing.T) {
 		baseURL:    server.URL,
 	}
 
-	network, err := client.CreateNetwork("MyNetwork")
+	network, err := client.CreateNetwork("MyNetwork", "")
 	if err != nil {
 		t.Fatalf("CreateNetwork failed: %v", err)
 	}

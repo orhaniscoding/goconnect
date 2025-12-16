@@ -16,6 +16,7 @@ import (
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/p2p"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/system"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/transfer"
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/voice"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/wireguard"
 	"github.com/pion/ice/v2"
 )
@@ -39,6 +40,7 @@ type Engine struct {
 	p2pMgr        *p2p.Manager
 	chatMgr       *chat.Manager
 	transferMgr   *transfer.Manager
+	voiceMgr      *voice.Manager
 	sysConf       system.Configurator
 	hostsMgr      *system.HostsManager
 	stopChan      chan struct{}
@@ -81,6 +83,9 @@ func NewEngine(cfg *config.Config, idMgr *identity.Manager, wgClient WireGuardCl
 	// Initialize Transfer Manager
 	transferMgr := transfer.NewManager()
 
+	// Initialize Voice Manager
+	voiceMgr := voice.NewManager()
+
 	return &Engine{
 		config:        cfg,
 		idMgr:         idMgr,
@@ -89,6 +94,7 @@ func NewEngine(cfg *config.Config, idMgr *identity.Manager, wgClient WireGuardCl
 		p2pMgr:        p2pMgr,
 		chatMgr:       chatMgr,
 		transferMgr:   transferMgr,
+		voiceMgr:      voiceMgr,
 		sysConf:       sysConf,
 		hostsMgr:      hostsMgr,
 		stopChan:      make(chan struct{}),
@@ -136,6 +142,9 @@ func (e *Engine) Stop() {
 			e.logf.Error("Failed to bring down WireGuard interface: ", err.Error())
 		}
 	}
+	if e.voiceMgr != nil {
+		e.voiceMgr.Stop()
+	}
 	if e.chatMgr != nil {
 		e.chatMgr.Stop()
 	}
@@ -159,6 +168,9 @@ func (e *Engine) Disconnect() {
 		} else {
 			e.logf.Info("WireGuard interface cleared successfully.")
 		}
+	}
+	if e.voiceMgr != nil {
+		e.voiceMgr.Stop()
 	}
 	if e.chatMgr != nil {
 		e.chatMgr.Stop()
@@ -340,6 +352,18 @@ func (e *Engine) syncConfig() {
 
 				if err := e.transferMgr.Start(ip); err != nil {
 					e.logf.Error("Failed to start transfer listener: ", err.Error())
+				}
+
+				// Start Voice Manager
+				e.voiceMgr.Stop()
+				e.voiceMgr = voice.NewManager()
+				// Add log hook for debug
+				e.voiceMgr.OnSignal(func(sig voice.Signal) {
+					e.logf.Infof("Received voice signal %s from %s", sig.Type, sig.SenderID)
+				})
+
+				if err := e.voiceMgr.Start(ip, 3001); err != nil { // Port 3001 for voice signaling
+					e.logf.Error("Failed to start voice listener: ", err.Error())
 				}
 			}
 		}
@@ -551,11 +575,11 @@ func (e *Engine) AcceptFile(transferID, savePath string) error {
 // =============================================================================
 
 // CreateNetwork creates a new network via the API
-func (e *Engine) CreateNetwork(name string) (*api.NetworkResponse, error) {
+func (e *Engine) CreateNetwork(name, cidr string) (*api.NetworkResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	return e.apiClient.CreateNetwork(ctx, name)
+	return e.apiClient.CreateNetwork(ctx, name, cidr)
 }
 
 // JoinNetwork joins an existing network via invite code
@@ -738,7 +762,44 @@ func (e *Engine) RejectTransfer(transferID string) error {
 	return e.transferMgr.RejectTransfer(transferID)
 }
 
-// CancelTransfer cancels an ongoing file transfer
+// CancelTransfer cancels an ongoing transfer
 func (e *Engine) CancelTransfer(transferID string) error {
 	return e.transferMgr.CancelTransfer(transferID)
+}
+
+// =============================================================================
+// VOICE SIGNALING METHODS
+// =============================================================================
+
+// SendVoiceSignal sends a voice signal to a peer
+func (e *Engine) SendVoiceSignal(peerID string, sig voice.Signal) error {
+	e.mu.RLock()
+	peer, ok := e.peerMap[peerID]
+	e.mu.RUnlock()
+
+	if !ok {
+		return fmt.Errorf("unknown peer ID: %s", peerID)
+	}
+
+	if len(peer.AllowedIPs) == 0 {
+		return fmt.Errorf("peer %s has no allowed IPs", peerID)
+	}
+
+	// Use the first allowed IP
+	ip := peer.AllowedIPs[0]
+	if idx := strings.Index(ip, "/"); idx != -1 {
+		ip = ip[:idx]
+	}
+
+	return e.voiceMgr.SendSignal(ip, 3001, sig)
+}
+
+// SubscribeVoiceSignals returns a channel for real-time voice signals
+func (e *Engine) SubscribeVoiceSignals() chan voice.Signal {
+	return e.voiceMgr.Subscribe()
+}
+
+// UnsubscribeVoiceSignals removes a voice signal subscription
+func (e *Engine) UnsubscribeVoiceSignals(ch chan voice.Signal) {
+	e.voiceMgr.Unsubscribe(ch)
 }

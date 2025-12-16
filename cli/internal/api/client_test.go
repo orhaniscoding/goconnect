@@ -376,7 +376,7 @@ func TestCreateNetwork_NoKeyring(t *testing.T) {
 	}
 	client := NewClient(cfg)
 
-	_, err := client.CreateNetwork(context.Background(), "Test Network")
+	_, err := client.CreateNetwork(context.Background(), "Test Network", "")
 	if err == nil {
 		t.Error("Expected error when keyring is not initialized")
 	}

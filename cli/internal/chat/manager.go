@@ -3,10 +3,11 @@ package chat
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/logger"
 )
 
 // Message represents a chat message
@@ -66,7 +67,7 @@ func NewManagerWithStorage(dataDir string) (*Manager, error) {
 
 	// Load recent messages into memory cache
 	if err := m.loadRecentMessages(); err != nil {
-		log.Printf("Warning: failed to load recent messages: %v", err)
+		logger.Warn("Failed to load recent messages", "error", err)
 	}
 
 	return m, nil
@@ -102,7 +103,8 @@ func (m *Manager) Start(ip string, port int) error {
 		return fmt.Errorf("failed to start chat listener: %w", err)
 	}
 	m.listener = l
-	log.Printf("Chat listener started on %s", addr)
+	logger.Info("Chat listener started", "addr", addr)
+
 
 	m.wg.Add(1)
 	go m.acceptLoop()
@@ -139,7 +141,7 @@ func (m *Manager) acceptLoop() {
 			case <-m.stopChan:
 				return
 			default:
-				log.Printf("Chat accept error: %v", err)
+				logger.Error("Chat accept error", "error", err)
 				continue
 			}
 		}
@@ -153,7 +155,7 @@ func (m *Manager) handleConnection(conn net.Conn) {
 
 	var msg Message
 	if err := json.NewDecoder(conn).Decode(&msg); err != nil {
-		log.Printf("Failed to decode chat message: %v", err)
+		logger.Error("Failed to decode chat message", "error", err)
 		return
 	}
 
@@ -198,7 +200,7 @@ func (m *Manager) GetMessages(networkID string, limit int, beforeID string) []Me
 	if m.storage != nil {
 		messages, err := m.storage.GetMessages(networkID, limit, beforeID)
 		if err != nil {
-			log.Printf("Warning: failed to get messages from storage: %v", err)
+			logger.Warn("Failed to get messages from storage", "error", err)
 			// Fall through to memory cache
 		} else {
 			return messages
@@ -244,7 +246,7 @@ func (m *Manager) SearchMessages(query string, limit int) []Message {
 	if m.storage != nil {
 		messages, err := m.storage.SearchMessages(query, limit)
 		if err != nil {
-			log.Printf("Warning: failed to search messages: %v", err)
+			logger.Warn("Failed to search messages", "error", err)
 			return nil
 		}
 		return messages
@@ -277,7 +279,7 @@ func (m *Manager) storeMessage(msg Message) {
 	// Persist to storage if available
 	if m.storage != nil {
 		if err := m.storage.SaveMessage(msg); err != nil {
-			log.Printf("Warning: failed to persist message: %v", err)
+			logger.Warn("Failed to persist message", "error", err)
 		}
 	}
 }

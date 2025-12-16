@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const DaemonURL = "http://localhost:12345"
+const DaemonURL = "http://localhost:34100"
 
 type Client struct {
 	httpClient *http.Client
@@ -74,8 +74,8 @@ func (c *Client) GetStatus() (*Status, error) {
 }
 
 // CreateNetwork creates a new network
-func (c *Client) CreateNetwork(name string) (*Network, error) {
-	req := map[string]string{"name": name}
+func (c *Client) CreateNetwork(name, cidr string) (*Network, error) {
+	req := map[string]string{"name": name, "cidr": cidr}
 	body, _ := json.Marshal(req)
 
 	resp, err := c.httpClient.Post(c.baseURL+"/networks/create", "application/json", bytes.NewBuffer(body))

@@ -3,8 +3,9 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"log"
+	"log/slog" // Changed from "log" to "log/slog"
 	"net/http"
+	"os" // Added for os.Exit
 
 	"github.com/gorilla/mux"
 )
@@ -21,9 +22,10 @@ type DeviceConfigResponse struct {
 }
 
 type NetworkResponse struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Role string `json:"role"`
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	InviteCode string `json:"invite_code,omitempty"`
+	Role       string `json:"role"`
 }
 
 func main() {
@@ -35,7 +37,7 @@ func main() {
 	// Logger middleware
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			log.Printf("[STUB] %s %s", r.Method, r.URL.Path)
+			slog.Info("[STUB]", "method", r.Method, "path", r.URL.Path)
 			next.ServeHTTP(w, r)
 		})
 	})
@@ -66,6 +68,27 @@ func main() {
 		_ = json.NewEncoder(w).Encode(resp)
 	}).Methods("GET")
 
+	// Create Network (for E2E)
+	r.HandleFunc("/v1/networks", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Name string `json:"name"`
+			CIDR string `json:"cidr"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		slog.Info("[STUB] CreateNetwork", "name", req.Name, "cidr", req.CIDR)
+		
+		resp := NetworkResponse{
+			ID:         "net-created-e2e",
+			Name:       req.Name,
+			InviteCode: "inv-e2e-code",
+			Role:       "owner",
+		}
+		_ = json.NewEncoder(w).Encode(resp)
+	}).Methods("POST")
+
 	// WebSocket Mock (Accept and hold)
 	r.HandleFunc("/v1/ws", func(w http.ResponseWriter, r *http.Request) {
 		// Just upgrade connection and do nothing to simulate active connection
@@ -82,8 +105,9 @@ func main() {
 	})
 
 	addr := ":" + *port
-	log.Printf("Stub server listening on %s", addr)
-	if err := http.ListenAndServe(addr, r); err != nil {
-		log.Fatal(err)
+	slog.Info("Stub server listening", "addr", addr) // Changed from log.Printf to slog.Info
+	if err := http.ListenAndServe(addr, r); err != nil { // Kept 'r' as the handler, not 'nil'
+		slog.Error("Server error", "error", err) // Changed from log.Fatal to slog.Error
+		os.Exit(1)                               // Added os.Exit(1)
 	}
 }

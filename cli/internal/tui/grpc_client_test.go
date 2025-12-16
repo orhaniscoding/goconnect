@@ -231,7 +231,7 @@ func TestGRPCClient_CreateNetwork(t *testing.T) {
 	client := setupTestGRPCClient(t, mock, lis)
 	defer client.Close()
 
-	net, err := client.CreateNetwork("New Net")
+	net, err := client.CreateNetwork("New Net", "")
 	if err != nil {
 		t.Fatalf("CreateNetwork failed: %v", err)
 	}

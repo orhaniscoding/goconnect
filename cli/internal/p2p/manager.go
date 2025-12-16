@@ -3,10 +3,10 @@ package p2p
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/logger"
 	"github.com/pion/ice/v2"
 )
 
@@ -69,12 +69,12 @@ func (m *Manager) Start() {
 }
 
 func (m *Manager) handleOffer(sourceID, ufrag, pwd string) {
-	log.Printf("Received offer from %s", sourceID)
+	logger.Info("Received offer", "sourceID", sourceID)
 	// Handle incoming offer in a separate goroutine to not block the signal loop
 	go func() {
 		conn, err := m.Accept(context.Background(), sourceID, ufrag, pwd)
 		if err != nil {
-			log.Printf("Failed to accept connection from %s: %v", sourceID, err)
+			logger.Error("Failed to accept connection", "source", sourceID, "error", err)
 			return
 		}
 		if m.onNewConnection != nil {
@@ -84,7 +84,7 @@ func (m *Manager) handleOffer(sourceID, ufrag, pwd string) {
 }
 
 func (m *Manager) handleAnswer(sourceID, ufrag, pwd string) {
-	log.Printf("Received answer from %s", sourceID)
+	logger.Info("Received answer", "sourceID", sourceID)
 	m.answersMu.Lock()
 	ch, ok := m.pendingAnswers[sourceID]
 	m.answersMu.Unlock()
@@ -92,12 +92,12 @@ func (m *Manager) handleAnswer(sourceID, ufrag, pwd string) {
 	if ok {
 		ch <- answerData{ufrag, pwd}
 	} else {
-		log.Printf("No pending connection for answer from %s", sourceID)
+		logger.Warn("No pending connection for answer", "sourceID", sourceID)
 	}
 }
 
 func (m *Manager) handleCandidate(sourceID, candidate string) {
-	log.Printf("Received candidate from %s: %s", sourceID, candidate)
+	logger.Debug("Received candidate", "sourceID", sourceID, "candidate", candidate)
 	m.mu.RLock()
 	agent, ok := m.agents[sourceID]
 	m.mu.RUnlock()
@@ -105,14 +105,14 @@ func (m *Manager) handleCandidate(sourceID, candidate string) {
 	if ok {
 		c, err := ice.UnmarshalCandidate(candidate)
 		if err != nil {
-			log.Printf("Failed to unmarshal candidate from %s: %v", sourceID, err)
+			logger.Error("Failed to unmarshal candidate", "source", sourceID, "error", err)
 			return
 		}
 		if err := agent.AddRemoteCandidate(c); err != nil {
-			log.Printf("Failed to add remote candidate from %s: %v", sourceID, err)
+			logger.Error("Failed to add remote candidate", "source", sourceID, "error", err)
 		}
 	} else {
-		log.Printf("No agent found for candidate from %s", sourceID)
+		logger.Warn("No agent found for candidate", "sourceID", sourceID)
 	}
 }
 
@@ -155,7 +155,7 @@ func (m *Manager) Connect(ctx context.Context, peerID string) (*ice.Conn, error)
 	_ = agent.OnCandidate(func(c ice.Candidate) {
 		if c != nil {
 			if err := m.signal.SendCandidate(peerID, c.Marshal()); err != nil {
-				log.Printf("Failed to send candidate to %s: %v", peerID, err)
+				logger.Error("Failed to send candidate", "peer", peerID, "error", err)
 			}
 		}
 	})
@@ -209,7 +209,7 @@ func (m *Manager) Accept(ctx context.Context, peerID, ufrag, pwd string) (*ice.C
 	_ = agent.OnCandidate(func(c ice.Candidate) {
 		if c != nil {
 			if err := m.signal.SendCandidate(peerID, c.Marshal()); err != nil {
-				log.Printf("Failed to send candidate to %s: %v", peerID, err)
+				logger.Error("Failed to send candidate", "peer", peerID, "error", err)
 			}
 		}
 	})
@@ -256,7 +256,7 @@ func (m *Manager) RemovePeer(peerID string) {
 
 func (m *Manager) monitorConnectionState(peerID string, agent *Agent) {
 	_ = agent.OnConnectionStateChange(func(state ice.ConnectionState) {
-		log.Printf("Connection state for %s changed to %s", peerID, state.String())
+		logger.Info("Connection state changed", "peer", peerID, "state", state.String())
 		if state == ice.ConnectionStateFailed || state == ice.ConnectionStateClosed {
 			m.RemovePeer(peerID)
 			// Trigger auto-reconnect in a separate goroutine
@@ -270,12 +270,12 @@ func (m *Manager) reconnect(peerID string) {
 	maxBackoff := 60 * time.Second
 
 	for {
-		log.Printf("Attempting to reconnect to %s in %v...", peerID, backoff)
+		logger.Info("Attempting to reconnect", "peer", peerID, "backoff", backoff)
 		time.Sleep(backoff)
 
 		// Check if already connected (race condition check)
 		if m.IsConnected(peerID) {
-			log.Printf("Already reconnected to %s, stopping retry loop", peerID)
+			logger.Info("Already reconnected, stopping retry loop", "peer", peerID)
 			return
 		}
 
@@ -284,11 +284,11 @@ func (m *Manager) reconnect(peerID string) {
 		cancel()
 
 		if err == nil {
-			log.Printf("Successfully reconnected to %s", peerID)
+			logger.Info("Successfully reconnected", "peer", peerID)
 			return
 		}
 
-		log.Printf("Reconnection to %s failed: %v", peerID, err)
+		logger.Error("Reconnection failed", "peer", peerID, "error", err)
 		backoff *= 2
 		if backoff > maxBackoff {
 			backoff = maxBackoff
@@ -341,7 +341,7 @@ func (m *Manager) startMetricsLoop(peerID string, conn *ice.Conn) {
 		for {
 			n, err := conn.Read(buf)
 			if err != nil {
-				log.Printf("Metrics read loop for %s stopped: %v", peerID, err)
+				logger.Debug("Metrics read loop stopped", "peer", peerID, "error", err)
 				return
 			}
 			if n < 1 {
@@ -356,7 +356,7 @@ func (m *Manager) startMetricsLoop(peerID string, conn *ice.Conn) {
 					out[0] = msgPong
 					copy(out[1:], buf[1:9])
 					if _, err := conn.Write(out); err != nil {
-						log.Printf("Failed to send pong to %s: %v", peerID, err)
+						logger.Error("Failed to send pong", "peer", peerID, "error", err)
 					}
 				}
 			case msgPong:
@@ -395,7 +395,7 @@ func (m *Manager) startMetricsLoop(peerID string, conn *ice.Conn) {
 				buf[1+i] = byte(now >> (8 * i))
 			}
 			if _, err := conn.Write(buf); err != nil {
-				log.Printf("Failed to send ping to %s: %v", peerID, err)
+				logger.Error("Failed to send ping", "peer", peerID, "error", err)
 				return
 			}
 		}

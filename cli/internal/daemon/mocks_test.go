@@ -209,8 +209,8 @@ func (m *MockAPIClient) GetNetworks(ctx context.Context) ([]api.NetworkResponse,
 	return args.Get(0).([]api.NetworkResponse), args.Error(1)
 }
 
-func (m *MockAPIClient) CreateNetwork(ctx context.Context, name string) (*api.NetworkResponse, error) {
-	args := m.Called(ctx, name)
+func (m *MockAPIClient) CreateNetwork(ctx context.Context, name, cidr string) (*api.NetworkResponse, error) {
+	args := m.Called(ctx, name, cidr)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

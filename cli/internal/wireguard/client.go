@@ -2,11 +2,11 @@ package wireguard
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"time"
 
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/api"
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/logger"
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
@@ -48,7 +48,7 @@ func (c *Client) ApplyConfig(config *api.DeviceConfig, privateKey string) error 
 	for _, p := range config.Peers {
 		pubKey, err := wgtypes.ParseKey(p.PublicKey)
 		if err != nil {
-			log.Printf("Skipping peer with invalid public key %s: %v", p.PublicKey, err)
+			logger.Warn("Skipping peer with invalid public key", "key", p.PublicKey, "error", err)
 			continue
 		}
 
@@ -56,7 +56,7 @@ func (c *Client) ApplyConfig(config *api.DeviceConfig, privateKey string) error 
 		for _, ipStr := range p.AllowedIPs {
 			_, ipNet, err := net.ParseCIDR(ipStr)
 			if err != nil {
-				log.Printf("Skipping invalid allowed IP %s for peer %s: %v", ipStr, p.PublicKey, err)
+				logger.Warn("Skipping invalid allowed IP", "ip", ipStr, "peer", p.PublicKey, "error", err)
 				continue
 			}
 			allowedIPs = append(allowedIPs, *ipNet)
@@ -66,7 +66,7 @@ func (c *Client) ApplyConfig(config *api.DeviceConfig, privateKey string) error 
 		if p.Endpoint != "" {
 			addr, err := net.ResolveUDPAddr("udp", p.Endpoint)
 			if err != nil {
-				log.Printf("Skipping invalid endpoint %s for peer %s: %v", p.Endpoint, p.PublicKey, err)
+				logger.Warn("Skipping invalid endpoint", "endpoint", p.Endpoint, "peer", p.PublicKey, "error", err)
 			} else {
 				endpoint = addr
 			}

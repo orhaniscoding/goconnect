@@ -3,7 +3,7 @@ package engine
 import (
 	"encoding/json"
 	"errors"
-	"log"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -89,7 +89,7 @@ func setupTestEngine(t *testing.T, apiHandler http.HandlerFunc) (*Engine, *httpt
 	require.NoError(t, err)
 
 	// Setup Logger
-	logger := &fallbackLogger{log.New(os.Stderr, "[test_engine] ", log.LstdFlags)}
+	logger := &fallbackLogger{}
 
 	// Setup API Client
 	apiClient := api.NewClient(cfg)
@@ -124,7 +124,7 @@ func setupTestEngineWithWg(t *testing.T, apiHandler http.HandlerFunc, wgClient W
 	_, err = idMgr.LoadOrCreateIdentity()
 	require.NoError(t, err)
 
-	logger := &fallbackLogger{log.New(os.Stderr, "[test_engine] ", log.LstdFlags)}
+	logger := &fallbackLogger{}
 	apiClient := api.NewClient(cfg)
 
 	eng, err := NewEngine(cfg, idMgr, wgClient, apiClient, logger)
@@ -135,22 +135,21 @@ func setupTestEngineWithWg(t *testing.T, apiHandler http.HandlerFunc, wgClient W
 
 // fallbackLogger implements service.Logger for tests
 type fallbackLogger struct {
-	*log.Logger
 }
 
-func (l *fallbackLogger) Info(v ...interface{}) error { l.Println(v...); return nil }
+func (l *fallbackLogger) Info(v ...interface{}) error { fmt.Println(v...); return nil }
 func (l *fallbackLogger) Infof(format string, v ...interface{}) error {
-	l.Printf(format, v...)
+	fmt.Printf(format, v...)
 	return nil
 }
-func (l *fallbackLogger) Warning(v ...interface{}) error { l.Println(v...); return nil }
+func (l *fallbackLogger) Warning(v ...interface{}) error { fmt.Println(v...); return nil }
 func (l *fallbackLogger) Warningf(format string, v ...interface{}) error {
-	l.Printf(format, v...)
+	fmt.Printf(format, v...)
 	return nil
 }
-func (l *fallbackLogger) Error(v ...interface{}) error { l.Println(v...); return nil }
+func (l *fallbackLogger) Error(v ...interface{}) error { fmt.Println(v...); return nil }
 func (l *fallbackLogger) Errorf(format string, v ...interface{}) error {
-	l.Printf(format, v...)
+	fmt.Printf(format, v...)
 	return nil
 }
 
