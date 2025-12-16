@@ -238,6 +238,7 @@ $ goconnect join gc://invite.goconnect.io/abc123
 | `goconnect join <link>` | Quick join |
 | `goconnect list` | List your networks |
 | `goconnect status` | Connection status |
+| `goconnect voice` | Test voice signaling |
 | `goconnect disconnect` | Disconnect |
 | `goconnect help` | Help |
 
@@ -251,7 +252,8 @@ $ goconnect join gc://invite.goconnect.io/abc123
 |---------|-------------|
 | 🌐 **Create Network** | Create your own virtual LAN |
 | 🔗 **Join Network** | One-click join via invite link |
-| 💬 **Text Chat** | Modern chat channels |
+| 💬 **Text Chat** | Modern text channels |
+| 🗣️ **Voice Chat** | Real-time voice communication (WebRTC Signaling) |
 | 👥 **Member Management** | Invite, kick, ban |
 | 🔒 **Secure Connection** | WireGuard encryption |
 | 🖥️ **Cross-Platform** | Windows, macOS, Linux |
@@ -262,7 +264,6 @@ $ goconnect join gc://invite.goconnect.io/abc123
 | Feature | Status |
 |---------|--------|
 | 📱 Mobile App | 🔜 Coming Soon |
-| 🎤 Voice Chat | 📋 Planned |
 | 📹 Video Call | 📋 Planned |
 | 🎮 Game Integration | 📋 Planned |
 

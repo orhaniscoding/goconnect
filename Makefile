@@ -16,8 +16,15 @@ build-cli:
 	@echo "Building CLI..."
 	cd cli && go build -o ../bin/goconnect ./cmd/goconnect
 
-# Run tests
+# Run standard tests (short)
 test: test-core test-cli
+
+# Run all tests (including integration)
+test-all:
+	@echo "Running ALL Core tests..."
+	cd core && go test ./...
+	@echo "Running ALL CLI tests..."
+	cd cli && go test ./...
 
 test-core:
 	@echo "Running Core tests..."
@@ -26,6 +33,13 @@ test-core:
 test-cli:
 	@echo "Running CLI tests..."
 	cd cli && go test ./... -short
+
+# Lint code
+lint:
+	@echo "Linting Core..."
+	cd core && golangci-lint run
+	@echo "Linting CLI..."
+	cd cli && golangci-lint run
 
 # Clean build artifacts
 clean:

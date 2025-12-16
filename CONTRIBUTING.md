@@ -10,6 +10,7 @@ We welcome contributions to GoConnect! This guide will help you get started.
 - **Node.js 20+** - For Desktop App
 - **Rust** - For Desktop App (Tauri backend)
 - **protoc** - Protocol Buffers compiler
+- **Redis 7+** - For Voice Signaling and Caching (or via Docker)
 
 ### Development Setup
 
