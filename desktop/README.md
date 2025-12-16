@@ -64,7 +64,16 @@ npm run tauri build
 
 ```bash
 # Ubuntu/Debian
-sudo apt install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev
+sudo apt update
+sudo apt install -y \
+  pkg-config \
+  libgtk-3-dev \
+  libwebkit2gtk-4.1-dev \
+  libappindicator3-dev \
+  librsvg2-dev \
+  libcairo2-dev \
+  libpango1.0-dev \
+  libgdk-pixbuf2.0-dev
 
 # Fedora
 sudo dnf install webkit2gtk4.1-devel libappindicator-gtk3-devel librsvg2-devel

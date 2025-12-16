@@ -76,6 +76,8 @@ pub fn run() {
             commands::daemon_get_transfer_stats,
             commands::daemon_cancel_transfer,
             commands::daemon_reject_transfer,
+            commands::daemon_send_file,
+            commands::daemon_accept_transfer,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

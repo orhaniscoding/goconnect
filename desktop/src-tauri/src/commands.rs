@@ -19,20 +19,17 @@ impl Default for DaemonState {
 /// Ensure daemon client is connected
 async fn get_client(state: &State<'_, DaemonState>) -> Result<DaemonClient, String> {
     let mut guard = state.0.lock().await;
-    
-    // Try to use existing connection or create new one
-    if guard.is_none() {
-        match DaemonClient::connect().await {
-            Ok(client) => {
-                *guard = Some(client);
-            }
-            Err(e) => return Err(e.to_string()),
-        }
+
+    // Use existing connection if available
+    if let Some(client) = guard.as_ref() {
+        return Ok(client.clone());
     }
+
+    // Otherwise create new connection
+    let client = DaemonClient::connect().await.map_err(|e| e.to_string())?;
+    *guard = Some(client.clone());
     
-    // Clone the client (we keep a fresh connection each time for simplicity)
-    // In production, we'd want connection pooling
-    DaemonClient::connect().await.map_err(|e| e.to_string())
+    Ok(client)
 }
 
 // =============================================================================
@@ -183,12 +180,12 @@ pub async fn daemon_reset_settings(state: State<'_, DaemonState>) -> Result<Sett
 #[tauri::command]
 pub async fn daemon_get_messages(
     state: State<'_, DaemonState>,
-    peer_id: String,
+    network_id: String,
     limit: Option<i32>,
     before: Option<String>,
 ) -> Result<Vec<ChatMessage>, String> {
     let client = get_client(&state).await?;
-    client.get_messages(&peer_id, limit.unwrap_or(50), before.as_deref())
+    client.get_messages(&network_id, limit.unwrap_or(50), before.as_deref())
         .await
         .map_err(|e| e.to_string())
 }
@@ -241,4 +238,24 @@ pub async fn daemon_reject_transfer(
 ) -> Result<(), String> {
     let client = get_client(&state).await?;
     client.reject_transfer(&transfer_id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn daemon_send_file(
+    state: State<'_, DaemonState>,
+    peer_id: String,
+    file_path: String,
+) -> Result<String, String> {
+    let client = get_client(&state).await?;
+    client.send_file(&peer_id, &file_path).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn daemon_accept_transfer(
+    state: State<'_, DaemonState>,
+    transfer_id: String,
+    save_path: String,
+) -> Result<(), String> {
+    let client = get_client(&state).await?;
+    client.accept_transfer(&transfer_id, &save_path).await.map_err(|e| e.to_string())
 }

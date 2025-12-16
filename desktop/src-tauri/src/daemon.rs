@@ -17,10 +17,12 @@ use proto::peer_service_client::PeerServiceClient;
 use proto::settings_service_client::SettingsServiceClient;
 use proto::chat_service_client::ChatServiceClient;
 use proto::transfer_service_client::TransferServiceClient;
+use proto::voice_service_client::VoiceServiceClient;
 
 const IPC_TOKEN_HEADER: &str = "x-goconnect-ipc-token";
 
 /// DaemonClient wraps gRPC connections to the local GoConnect daemon
+#[derive(Clone)]
 pub struct DaemonClient {
     channel: Channel,
     token: String,
@@ -41,6 +43,8 @@ impl DaemonClient {
     }
 
     /// Get the platform-specific daemon endpoint
+    /// NOTE: Daemon runs BOTH Unix socket (for CLI) and TCP (for Desktop) on Linux/macOS.
+    /// This uses the TCP endpoint which the daemon starts specifically for Desktop compatibility.
     fn get_daemon_endpoint() -> &'static str {
         #[cfg(target_os = "windows")]
         {
@@ -48,7 +52,7 @@ impl DaemonClient {
         }
         #[cfg(not(target_os = "windows"))]
         {
-            "http://[::1]:34101" // Unix socket would be better but tonic needs extra setup
+            "http://127.0.0.1:34101" // Daemon provides TCP fallback for Desktop on all platforms
         }
     }
 
@@ -260,6 +264,7 @@ impl DaemonClient {
                 connected: p.status == proto::ConnectionStatus::Connected as i32,
                 is_relay: p.connection_type == proto::ConnectionType::Relay as i32,
                 latency_ms: p.latency_ms,
+                is_self: p.is_self,
             })
             .collect();
         
@@ -530,6 +535,36 @@ impl DaemonClient {
         
         Ok(())
     }
+
+    /// Send a file to a peer
+    pub async fn send_file(&self, peer_id: &str, file_path: &str) -> Result<String, DaemonError> {
+        let mut client = TransferServiceClient::new(self.channel.clone());
+        let request = self.add_auth(Request::new(proto::SendFileRequest {
+            peer_id: peer_id.to_string(),
+            file_path: file_path.to_string(),
+        }));
+        
+        let response = client.send_file(request)
+            .await
+            .map_err(|e| DaemonError::Rpc(e))?;
+        
+        Ok(response.into_inner().transfer_id)
+    }
+
+    /// Accept an incoming transfer
+    pub async fn accept_transfer(&self, transfer_id: &str, save_path: &str) -> Result<(), DaemonError> {
+        let mut client = TransferServiceClient::new(self.channel.clone());
+        let request = self.add_auth(Request::new(proto::AcceptTransferRequest {
+            transfer_id: transfer_id.to_string(),
+            save_path: save_path.to_string(),
+        }));
+        
+        client.accept_transfer(request)
+            .await
+            .map_err(|e| DaemonError::Rpc(e))?;
+        
+        Ok(())
+    }
 }
 
 // =============================================================================
@@ -570,6 +605,7 @@ pub struct PeerInfo {
     pub connected: bool,
     pub is_relay: bool,
     pub latency_ms: i64,
+    pub is_self: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
