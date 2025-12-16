@@ -9,6 +9,7 @@ import SettingsPanel from './components/SettingsPanel';
 import VoiceChat from './components/VoiceChat';
 import Sidebar from './components/Sidebar';
 import NetworkDetails from './components/NetworkDetails';
+import MetricsDashboard from './components/MetricsDashboard';
 import { CreateNetworkModal, JoinNetworkModal } from './components/NetworkModals';
 
 export default function App() {
@@ -22,7 +23,7 @@ export default function App() {
   // UI State
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<"peers" | "chat" | "files" | "settings" | "voice">("peers");
+  const [activeTab, setActiveTab] = useState<"peers" | "chat" | "files" | "settings" | "voice" | "metrics">("peers");
 
   const toast = useToast();
 
@@ -205,6 +206,12 @@ export default function App() {
           >
             Files
           </button>
+          <button
+            onClick={() => setActiveTab("metrics")}
+            className={`h-full border-b-2 font-semibold transition-colors ${activeTab === "metrics" ? "border-gc-primary text-white" : "border-transparent text-gray-400 hover:text-gray-200"}`}
+          >
+            📊 Metrics
+          </button>
         </div>
 
         <div className="flex-1 p-6 overflow-y-auto">
@@ -283,6 +290,12 @@ export default function App() {
               {activeTab === 'settings' && (
                 <div className="h-full">
                   <SettingsPanel />
+                </div>
+              )}
+
+              {activeTab === 'metrics' && (
+                <div className="h-full">
+                  <MetricsDashboard />
                 </div>
               )}
             </>

@@ -134,6 +134,40 @@ var (
 		Name:      "wg_peer_last_handshake_seconds",
 		Help:      "Seconds since last handshake with peer",
 	}, []string{"public_key"})
+
+	// WebSocket Metrics
+	wsActiveConnections = prom.NewGauge(prom.GaugeOpts{
+		Namespace: "goconnect",
+		Name:      "ws_active_connections",
+		Help:      "Number of active WebSocket connections",
+	})
+	wsActiveRooms = prom.NewGauge(prom.GaugeOpts{
+		Namespace: "goconnect",
+		Name:      "ws_active_rooms",
+		Help:      "Number of active WebSocket rooms",
+	})
+	wsMessagesTotal = prom.NewCounterVec(prom.CounterOpts{
+		Namespace: "goconnect",
+		Name:      "ws_messages_total",
+		Help:      "Total WebSocket messages sent/received",
+	}, []string{"direction", "type"})
+
+	// Network Metrics
+	networksActive = prom.NewGauge(prom.GaugeOpts{
+		Namespace: "goconnect",
+		Name:      "networks_active",
+		Help:      "Number of active networks",
+	})
+	peersOnline = prom.NewGauge(prom.GaugeOpts{
+		Namespace: "goconnect",
+		Name:      "peers_online",
+		Help:      "Number of online peers across all networks",
+	})
+	membershipTotal = prom.NewGauge(prom.GaugeOpts{
+		Namespace: "goconnect",
+		Name:      "memberships_total",
+		Help:      "Total network memberships",
+	})
 )
 
 // Register all metrics (idempotent safe to call once at startup).
@@ -141,6 +175,8 @@ func Register() {
 	registerOnce.Do(func() {
 		prom.MustRegister(reqCounter, reqLatency, auditEvents, auditEvictions, auditFailures, auditInsertLatency, auditQueueDepth, auditDropped, auditDispatchLatency, auditQueueHighWatermark, auditDroppedByReason, auditWorkerRestarts, chainHeadAdvance, chainVerifyDuration, chainVerifyFailures, chainAnchorCreated, integrityExportCounter, integrityExportDuration, integritySignedCounter)
 		prom.MustRegister(wgPeersTotal, wgPeerRxBytes, wgPeerTxBytes, wgPeerLastHandshake)
+		prom.MustRegister(wsActiveConnections, wsActiveRooms, wsMessagesTotal)
+		prom.MustRegister(networksActive, peersOnline, membershipTotal)
 	})
 }
 
@@ -241,4 +277,79 @@ func SetWGPeerStats(pubKey string, rx, tx int64, lastHandshakeSeconds float64) {
 	wgPeerRxBytes.WithLabelValues(pubKey).Set(float64(rx))
 	wgPeerTxBytes.WithLabelValues(pubKey).Set(float64(tx))
 	wgPeerLastHandshake.WithLabelValues(pubKey).Set(lastHandshakeSeconds)
+}
+
+// ================= WebSocket Metrics =================
+
+// SetWSConnections sets the number of active WebSocket connections.
+func SetWSConnections(n int) { wsActiveConnections.Set(float64(n)) }
+
+// SetWSRooms sets the number of active WebSocket rooms.
+func SetWSRooms(n int) { wsActiveRooms.Set(float64(n)) }
+
+// IncWSMessage increments WebSocket message counter.
+// direction: "inbound" or "outbound", msgType: message type string.
+func IncWSMessage(direction, msgType string) {
+	wsMessagesTotal.WithLabelValues(direction, msgType).Inc()
+}
+
+// ================= Network Metrics =================
+
+// SetNetworksActive sets the number of active networks.
+func SetNetworksActive(n int) { networksActive.Set(float64(n)) }
+
+// SetPeersOnline sets the number of online peers.
+func SetPeersOnline(n int) { peersOnline.Set(float64(n)) }
+
+// SetMembershipTotal sets the total number of memberships.
+func SetMembershipTotal(n int) { membershipTotal.Set(float64(n)) }
+
+// ================= Summary for Dashboard =================
+
+// Summary represents a snapshot of key metrics for the dashboard.
+type Summary struct {
+	WSConnections   int   `json:"ws_connections"`
+	WSRooms         int   `json:"ws_rooms"`
+	NetworksActive  int   `json:"networks_active"`
+	PeersOnline     int   `json:"peers_online"`
+	Memberships     int   `json:"memberships"`
+	WGPeers         int   `json:"wg_peers"`
+	HTTPRequests    int64 `json:"http_requests_total"`
+	AuditEvents     int64 `json:"audit_events_total"`
+}
+
+// summaryCache holds cached metric values updated by setters.
+var summaryCache = struct {
+	wsConns, wsRooms, networks, peers, memberships, wgPeers int
+}{}
+
+// GetSummary returns the current metrics summary.
+// Note: For accurate totals, this reads from the summary cache rather than Prometheus directly.
+func GetSummary() Summary {
+	return Summary{
+		WSConnections:  summaryCache.wsConns,
+		WSRooms:        summaryCache.wsRooms,
+		NetworksActive: summaryCache.networks,
+		PeersOnline:    summaryCache.peers,
+		Memberships:    summaryCache.memberships,
+		WGPeers:        summaryCache.wgPeers,
+	}
+}
+
+// UpdateSummaryCache updates the summary cache with current values.
+func UpdateSummaryCache(wsConns, wsRooms, networks, peers, memberships, wgPeers int) {
+	summaryCache.wsConns = wsConns
+	summaryCache.wsRooms = wsRooms
+	summaryCache.networks = networks
+	summaryCache.peers = peers
+	summaryCache.memberships = memberships
+	summaryCache.wgPeers = wgPeers
+	
+	// Also update the Prometheus gauges
+	SetWSConnections(wsConns)
+	SetWSRooms(wsRooms)
+	SetNetworksActive(networks)
+	SetPeersOnline(peers)
+	SetMembershipTotal(memberships)
+	SetWGPeersTotal(wgPeers)
 }

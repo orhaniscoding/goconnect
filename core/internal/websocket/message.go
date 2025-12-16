@@ -58,6 +58,7 @@ const (
 	TypeDeviceOffline      MessageType = "device.offline"
 	TypePresencePong       MessageType = "presence.pong"   // Response to ping
 	TypePresenceUpdate     MessageType = "presence.update" // Presence status change
+	TypeNotification       MessageType = "notification"    // Push notification
 
 	// Control messages
 	TypeError MessageType = "error"

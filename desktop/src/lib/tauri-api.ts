@@ -41,6 +41,8 @@ export interface Settings {
     auto_connect: boolean;
     start_minimized: boolean;
     notifications_enabled: boolean;
+    notification_sound?: boolean;
+    do_not_disturb?: boolean;
     log_level: string;
 }
 
