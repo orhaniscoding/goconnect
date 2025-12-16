@@ -1,4 +1,14 @@
-# GoConnect - Cursor AI Rules
+# GoConnect - AI Agent Rules
+
+> [!CAUTION]
+> **MANDATORY COMPLIANCE**: All rules in this file and the referenced `.agent/rules/` files are **REQUIRED**. The AI Agent MUST follow these guidelines without exception. Violations will result in inconsistent code, security vulnerabilities, and broken builds.
+
+> [!IMPORTANT]
+> Before generating ANY code, the AI Agent MUST:
+> 1. Read and understand the relevant rule files in `.agent/rules/`
+> 2. Follow the coding standards for the target language (Go, TypeScript, or Rust)
+> 3. Include proper error handling, tests, and documentation
+> 4. Never skip security validations or log sensitive data
 
 ## Project Overview
 GoConnect is a cross-platform networking solution that creates secure virtual LANs over the internet using WireGuard encryption and peer-to-peer connections.
@@ -51,8 +61,22 @@ fn process(data: &str) -> Result<Output, Error> {
 }
 ```
 
-## Security Guidelines
-- See `.agent/rules/security-*.md` for detailed security rules
+## Detailed Guidelines
+
+See `.agent/rules/` for comprehensive instructions:
+
+| File | Content |
+|------|---------|
+| [01-project-structure.md](.agent/rules/01-project-structure.md) | Architecture, modules, directory conventions |
+| [02-code-standards.md](.agent/rules/02-code-standards.md) | Go/TS/Rust naming, formatting, linting |
+| [03-testing.md](.agent/rules/03-testing.md) | Unit/integration tests, coverage goals |
+| [04-security.md](.agent/rules/04-security.md) | WireGuard, secrets, input validation |
+| [05-error-handling.md](.agent/rules/05-error-handling.md) | Error wrapping, logging, user messages |
+| [06-api-protocols.md](.agent/rules/06-api-protocols.md) | REST, gRPC, WebSocket, IPC |
+| [07-git-workflow.md](.agent/rules/07-git-workflow.md) | Commits, branches, CI/CD |
+| [08-documentation.md](.agent/rules/08-documentation.md) | Comments, GoDoc, changelog |
+
+## Security Quick Reference
 - Never log secrets, tokens, or personal data
 - Always use parameterized queries
 - Validate all external input

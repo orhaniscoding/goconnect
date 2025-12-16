@@ -70,7 +70,9 @@ desktop/src-tauri/target/
 desktop/dist/
 
 # AI/Agent generated files (local only)
-.agent/
+.agent/*
+!.agent/rules/
+!.agent/workflows/
 .bmad/
 .claude/
 memory-bank/
