@@ -80,4 +80,5 @@ latestchat.*
 latestreport.*
 .github/instructions
 .github/copilot-instructions.md
-copilot_*docs/release-reset-backup/
+copilot_*
+docs/release-reset-backup/
