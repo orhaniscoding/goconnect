@@ -270,10 +270,20 @@ jobs:
     if: needs.analyze.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: Wait for tag propagation
+        run: sleep 5
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: v${{ needs.analyze.outputs.new_version }}
+          fetch-depth: 0
+          ref: main
+
+      - name: Pull latest changes
+        run: |
+          git pull origin main
+          git fetch --tags
+          echo "Latest tag: $(git describe --tags --abbrev=0)"
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -337,10 +347,20 @@ jobs:
     if: needs.analyze.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: Wait for tag propagation
+        run: sleep 5
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: v${{ needs.analyze.outputs.new_version }}
+          fetch-depth: 0
+          ref: main
+
+      - name: Pull latest changes
+        run: |
+          git pull origin main
+          git fetch --tags
+          echo "Latest tag: $(git describe --tags --abbrev=0)"
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -421,10 +441,20 @@ jobs:
     runs-on: ${{ matrix.platform }}
     continue-on-error: true
     steps:
+      - name: Wait for tag propagation
+        run: sleep 5
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: v${{ needs.analyze.outputs.new_version }}
+          fetch-depth: 0
+          ref: main
+
+      - name: Pull latest changes
+        run: |
+          git pull origin main
+          git fetch --tags
+          echo "Latest tag: $(git describe --tags --abbrev=0)"
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -505,7 +535,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: v${{ needs.analyze.outputs.new_version }}
+          fetch-depth: 0
+          ref: main
+
+      - name: Pull latest changes
+        run: |
+          git pull origin main
+          git fetch --tags
+          echo "Creating release for tag: v${{ needs.analyze.outputs.new_version }}"
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
