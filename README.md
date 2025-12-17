@@ -246,18 +246,27 @@ $ goconnect join gc://invite.goconnect.io/abc123
 
 ## ✨ Features
 
-### Core Features (Free)
+### Core Features
 
 | Feature | Description |
 |---------|-------------|
 | 🌐 **Create Network** | Create your own virtual LAN |
 | 🔗 **Join Network** | One-click join via invite link |
 | 💬 **Text Chat** | Modern text channels |
-| 🗣️ **Voice Chat** | Real-time voice communication (WebRTC Signaling) |
+| 🗣️ **Voice Chat** | Real-time voice communication (WebRTC) |
 | 👥 **Member Management** | Invite, kick, ban |
 | 🔒 **Secure Connection** | WireGuard encryption |
 | 🖥️ **Cross-Platform** | Windows, macOS, Linux |
 | 📱 **Multi-Device** | Multiple devices per account |
+
+### New in v1.1.0
+
+| Feature | Description |
+|---------|-------------|
+| 🔔 **Push Notifications** | Cross-platform native alerts |
+| 📊 **Metrics Dashboard** | Real-time network monitoring |
+| 🔄 **Auto-Update** | Keep your client up to date |
+| 📁 **File Transfers** | P2P file sharing between peers |
 
 ### Coming Soon
 
