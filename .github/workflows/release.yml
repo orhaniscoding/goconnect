@@ -1,0 +1,171 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  # ============================================
+  # BUILD CLI
+  # ============================================
+  build-cli:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: cli/go.mod
+
+      - name: Build CLI
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/}"
+          mkdir -p dist
+          
+          # Build for all platforms
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/goconnect-cli_${VERSION}_linux_amd64 ./cmd/goconnect
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o dist/goconnect-cli_${VERSION}_linux_arm64 ./cmd/goconnect
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/goconnect-cli_${VERSION}_darwin_amd64 ./cmd/goconnect
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/goconnect-cli_${VERSION}_darwin_arm64 ./cmd/goconnect
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/goconnect-cli_${VERSION}_windows_amd64.exe ./cmd/goconnect
+          
+          # Archive
+          cd dist
+          for f in *_linux_* *_darwin_*; do [ -f "$f" ] && tar -czvf "${f}.tar.gz" "$f" && rm "$f"; done
+          for f in *_windows_*.exe; do [ -f "$f" ] && zip "${f%.exe}.zip" "$f" && rm "$f"; done
+        working-directory: cli
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cli-binaries
+          path: cli/dist/
+
+  # ============================================
+  # BUILD SERVER
+  # ============================================
+  build-server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: core/go.mod
+
+      - name: Build Server
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/}"
+          mkdir -p dist
+          
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/goconnect-server_${VERSION}_linux_amd64 ./cmd/server
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o dist/goconnect-server_${VERSION}_linux_arm64 ./cmd/server
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/goconnect-server_${VERSION}_darwin_amd64 ./cmd/server
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/goconnect-server_${VERSION}_darwin_arm64 ./cmd/server
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/goconnect-server_${VERSION}_windows_amd64.exe ./cmd/server
+          
+          cd dist
+          for f in *_linux_* *_darwin_*; do [ -f "$f" ] && tar -czvf "${f}.tar.gz" "$f" && rm "$f"; done
+          for f in *_windows_*.exe; do [ -f "$f" ] && zip "${f%.exe}.zip" "$f" && rm "$f"; done
+        working-directory: core
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server-binaries
+          path: core/dist/
+
+  # ============================================
+  # BUILD DESKTOP
+  # ============================================
+  build-desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-22.04
+            name: linux
+          - platform: macos-latest
+            name: macos
+          - platform: windows-latest
+            name: windows
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Install Linux deps
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
+
+      - name: Install deps
+        run: npm install
+        working-directory: desktop
+
+      - name: Build (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
+        run: npm run tauri build
+        working-directory: desktop
+
+      - name: Build (macOS)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          npm run tauri build -- --target aarch64-apple-darwin
+          npm run tauri build -- --target x86_64-apple-darwin
+        working-directory: desktop
+
+      - name: Build (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: npm run tauri build
+        working-directory: desktop
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.name }}
+          path: |
+            desktop/src-tauri/target/release/bundle/**/*.deb
+            desktop/src-tauri/target/release/bundle/**/*.AppImage
+            desktop/src-tauri/target/release/bundle/**/*.dmg
+            desktop/src-tauri/target/release/bundle/**/*.msi
+            desktop/src-tauri/target/release/bundle/**/*.exe
+            desktop/src-tauri/target/*/release/bundle/**/*.dmg
+          if-no-files-found: ignore
+
+  # ============================================
+  # CREATE RELEASE
+  # ============================================
+  release:
+    needs: [build-cli, build-server, build-desktop]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release
+        run: |
+          mkdir -p release
+          find artifacts -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.deb" -o -name "*.AppImage" -o -name "*.dmg" -o -name "*.msi" -o -name "*-setup.exe" \) -exec cp {} release/ \;
+          cd release && sha256sum * > checksums.txt || true
+          ls -la
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: release/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

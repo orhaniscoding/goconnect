@@ -1,6 +1,6 @@
 [package]
 name = "desktop-client"
-version = "1.2.1"
+version = "1.0.0"
 description = "GoConnect Desktop - Virtual LAN made simple"
 authors = ["orhaniscoding"]
 edition = "2021"
@@ -15,18 +15,18 @@ name = "desktop_client_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "1.0.0", features = [] }
 tonic-build = "0.12"
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon"] }
+tauri = { version = "1.0.0", features = ["tray-icon"] }
 tauri-plugin-opener = "2"
 tauri-plugin-os = "2"
 tauri-plugin-notification = "2"
 tauri-plugin-updater = "2"
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1.0.0", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs"] }
+tokio = { version = "1.0.0", features = ["rt-multi-thread", "macros", "fs"] }
 tonic = "0.12"
 prost = "0.13"
 prost-types = "0.13"
