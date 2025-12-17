@@ -50,3 +50,18 @@ clean:
 proto:
 	@echo "Generating Protobufs..."
 	cd cli && $(MAKE) proto
+
+# Release management
+release-dry:
+	@echo "Running release dry-run..."
+	goreleaser release --snapshot --clean
+
+release:
+	@echo "Creating release..."
+	@read -p "Enter version (e.g., v1.0.0): " version; \
+	if [ -z "$$version" ]; then echo "Version required"; exit 1; fi; \
+	if git rev-parse "$$version" >/dev/null 2>&1; then echo "Tag exists"; exit 1; fi; \
+	git tag -a "$$version" -m "Release $$version"; \
+	git push origin "$$version"; \
+	echo "Release $$version triggered"
+
