@@ -200,7 +200,7 @@ func TestUnifiedClient_HTTPMethods(t *testing.T) {
 
 	t.Run("CreateNetwork Returns Error When Daemon Not Running", func(t *testing.T) {
 		client := NewUnifiedClientWithMode(false)
-		network, err := client.CreateNetwork("test-network")
+		network, err := client.CreateNetwork("test-network", "")
 		assert.Error(t, err)
 		assert.Nil(t, network)
 	})

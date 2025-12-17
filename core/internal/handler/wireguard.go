@@ -208,47 +208,47 @@ func (h *WireGuardHandler) GetProfile(c *gin.Context) {
 	// JSON-only response: return device config WITHOUT private key (client must inject locally).
 	meshPeers, meshErr := h.peerService.GetActivePeersConfig(c.Request.Context(), networkID)
 
-	// Build DNS list from network config
-	dnsServers := []string{}
-	if network.DNS != nil && *network.DNS != "" {
-		for _, s := range strings.Split(*network.DNS, ",") {
-			if trimmed := strings.TrimSpace(s); trimmed != "" {
-				dnsServers = append(dnsServers, trimmed)
+		// Build DNS list from network config
+		dnsServers := []string{}
+		if network.DNS != nil && *network.DNS != "" {
+			for _, s := range strings.Split(*network.DNS, ",") {
+				if trimmed := strings.TrimSpace(s); trimmed != "" {
+					dnsServers = append(dnsServers, trimmed)
+				}
 			}
 		}
-	}
 
-	// Construct Interface Config
-	// NOTE: PrivateKey is intentionally empty - client MUST inject locally
-	interfaceConfig := domain.InterfaceConfig{
-		PrivateKey: "", // SECURITY: Client must inject their locally-stored private key
+		// Construct Interface Config
+		// NOTE: PrivateKey is intentionally empty - client MUST inject locally
+		interfaceConfig := domain.InterfaceConfig{
+			PrivateKey: "", // SECURITY: Client must inject their locally-stored private key
 		ListenPort: 51820,
-		Addresses:  []string{deviceIP + "/" + fmt.Sprintf("%d", prefixLen)},
-		DNS:        dnsServers,
-	}
-
-	// Filter out self from peers
-	peers := make([]domain.PeerConfig, 0)
-	if meshErr == nil {
-		for _, p := range meshPeers {
-			// Skip self (check by public key since PeerConfig doesn't have DeviceID)
-			if p.PublicKey == device.PubKey {
-				continue
-			}
-			peers = append(peers, p)
+			Addresses:  []string{deviceIP + "/" + fmt.Sprintf("%d", prefixLen)},
+			DNS:        dnsServers,
 		}
-	}
 
-	c.JSON(http.StatusOK, domain.DeviceConfig{
-		Interface: interfaceConfig,
-		Peers:     peers,
-	})
+		// Filter out self from peers
+		peers := make([]domain.PeerConfig, 0)
+	if meshErr == nil {
+			for _, p := range meshPeers {
+			// Skip self (check by public key since PeerConfig doesn't have DeviceID)
+				if p.PublicKey == device.PubKey {
+					continue
+				}
+				peers = append(peers, p)
+			}
+		}
 
-	h.auditor.Event(c.Request.Context(), tenantID, "PROFILE_RENDERED_JSON", userID, networkID, map[string]any{
-		"device_id":   deviceID,
-		"device_name": device.Name,
-		"peers_count": len(peers),
-	})
+		c.JSON(http.StatusOK, domain.DeviceConfig{
+			Interface: interfaceConfig,
+			Peers:     peers,
+		})
+
+		h.auditor.Event(c.Request.Context(), tenantID, "PROFILE_RENDERED_JSON", userID, networkID, map[string]any{
+			"device_id":   deviceID,
+			"device_name": device.Name,
+			"peers_count": len(peers),
+		})
 }
 
 // RegisterWireGuardRoutes registers WireGuard routes

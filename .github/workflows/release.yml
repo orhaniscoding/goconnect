@@ -4,21 +4,23 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
+  # 1. Server + CLI Binaries via GoReleaser
   goreleaser:
     runs-on: ubuntu-latest
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
           go-version: '1.24'
 
@@ -31,18 +33,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-desktop:
+  # 2. Desktop Apps (Tauri)
+  desktop-build:
     needs: goreleaser
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: ubuntu-22.04
-            name: linux
+            os-name: linux
           - platform: macos-latest
-            name: macos
+            os-name: macos
           - platform: windows-latest
-            name: windows
+            os-name: windows
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
@@ -55,32 +58,30 @@ jobs:
         with:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
-      - name: Install Linux deps
+      - name: Install Linux dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libgtk-3-dev libsoup-3.0-dev libjavascriptcoregtk-4.1-dev
 
-      - name: Install deps
-        run: npm install
+      - name: Install frontend dependencies
         working-directory: desktop
+        run: npm ci
 
-      - name: Build (Linux)
-        if: matrix.platform == 'ubuntu-22.04'
-        run: npm run tauri build
+      - name: Build Desktop App
         working-directory: desktop
-
-      - name: Build (macOS)
-        if: matrix.platform == 'macos-latest'
+        env:
+          # Signing keys for auto-updater
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          npm run tauri build -- --target aarch64-apple-darwin
-          npm run tauri build -- --target x86_64-apple-darwin
-        working-directory: desktop
-
-      - name: Build (Windows)
-        if: matrix.platform == 'windows-latest'
-        run: npm run tauri build
-        working-directory: desktop
+          if [ "${{ matrix.os-name }}" == "macos" ]; then
+            npm run tauri build -- --target aarch64-apple-darwin
+            npm run tauri build -- --target x86_64-apple-darwin
+          else
+            npm run tauri build
+          fi
 
       - name: Upload Desktop Assets
         uses: softprops/action-gh-release@v2
@@ -95,3 +96,19 @@ jobs:
             desktop/src-tauri/target/*/release/bundle/**/*.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 3. Generate Updater Manifest (latest.json)
+  generate-updater-json:
+    needs: [desktop-build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate latest.json
+        run: |
+          # This is a simplified generation. For production, you might want to extract from artifacts
+          # or use a script that aggregates signatures.
+          # For now, we create a placeholder or use a script if available.
+          echo "{}" > latest.json
+          # Real implementation should aggregate content from build artifacts
+        
+      # Upload latest.json manually if not handled by custom logic.
+      # Note: GoConnect might need a specific script for this.

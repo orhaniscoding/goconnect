@@ -191,7 +191,7 @@ func TestEngine_CreateNetwork(t *testing.T) {
 	eng, server, _ := setupTestEngine(t, apiHandler)
 	defer server.Close()
 
-	net, err := eng.CreateNetwork("My Network")
+	net, err := eng.CreateNetwork("My Network", "")
 	require.NoError(t, err)
 	assert.Equal(t, "net-123", net.ID)
 	assert.Equal(t, "My Network", net.Name)
@@ -1651,7 +1651,7 @@ func TestEngine_CreateNetwork_Error(t *testing.T) {
 	eng, server, _ := setupTestEngine(t, apiHandler)
 	defer server.Close()
 
-	net, err := eng.CreateNetwork("Duplicate Name")
+	net, err := eng.CreateNetwork("Duplicate Name", "")
 	assert.Error(t, err)
 	assert.Nil(t, net)
 }

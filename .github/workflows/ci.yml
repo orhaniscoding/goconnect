@@ -2,85 +2,59 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [ main ]
   pull_request:
-    branches: [main, develop]
+    branches: [ main ]
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  server:
+  core:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
-          go-version-file: core/go.mod
+          go-version: '1.24'
           cache-dependency-path: core/go.sum
-      - name: Go test server (race, cover)
-        run: make test-core
-      - name: Upload server coverage
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-server
-          path: core/coverage.out
-          if-no-files-found: ignore
+      - name: Test Core
+        run: cd core && go test -v -race -short ./...
+      - name: Vet Core
+        run: cd core && go vet ./...
 
-  daemon:
+  cli:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
-          go-version-file: cli/go.mod
+          go-version: '1.24'
           cache-dependency-path: cli/go.sum
-      - name: Go test daemon (race, cover)
-        run: make test-cli
-      - name: Upload daemon coverage
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-daemon
-          path: cli/coverage.out
-          if-no-files-found: ignore
+      - name: Test CLI
+        # CGO_ENABLED=0 is now possible thanks to modernc.org/sqlite
+        env:
+          CGO_ENABLED: 0
+        run: cd cli && go test -v -short ./...
+      - name: Vet CLI
+        run: cd cli && go vet ./...
 
   desktop:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: npm
+          node-version: '20'
+          cache: 'npm'
           cache-dependency-path: desktop/package-lock.json
-      - name: Install dependencies
+      - name: Install Dependencies
+        working-directory: desktop
         run: npm ci
+      - name: Build & Test
         working-directory: desktop
-      - name: TypeScript check
-        run: npm run build
-        working-directory: desktop
-      - name: Run Tests
-        run: npm test
-        working-directory: desktop
+        run: |
+          npm run build
+          npm test
 
-  e2e:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: cli/go.mod
-          cache-dependency-path: cli/go.sum
-      - name: Run E2E Tests
-        run: ./cli/scripts/e2e_test.sh

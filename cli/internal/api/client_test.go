@@ -1322,7 +1322,7 @@ func TestCreateNetwork_Success(t *testing.T) {
 	client, server := setupMockClient(t, handler)
 	defer server.Close()
 
-	resp, err := client.CreateNetwork(context.Background(), "My Network")
+	resp, err := client.CreateNetwork(context.Background(), "My Network", "")
 	require.NoError(t, err)
 	assert.Equal(t, "net-created", resp.ID)
 	assert.Equal(t, "My Network", resp.Name)
@@ -1338,7 +1338,7 @@ func TestCreateNetwork_ServerError(t *testing.T) {
 	client, server := setupMockClient(t, handler)
 	defer server.Close()
 
-	_, err := client.CreateNetwork(context.Background(), "Existing Network")
+	_, err := client.CreateNetwork(context.Background(), "Existing Network", "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "Network name already exists")
 }
@@ -1351,7 +1351,7 @@ func TestCreateNetwork_ServerErrorNoMessage(t *testing.T) {
 	client, server := setupMockClient(t, handler)
 	defer server.Close()
 
-	_, err := client.CreateNetwork(context.Background(), "Test")
+	_, err := client.CreateNetwork(context.Background(), "Test", "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "status: 403")
 }
@@ -1365,7 +1365,7 @@ func TestCreateNetwork_InvalidResponse(t *testing.T) {
 	client, server := setupMockClient(t, handler)
 	defer server.Close()
 
-	_, err := client.CreateNetwork(context.Background(), "Test")
+	_, err := client.CreateNetwork(context.Background(), "Test", "")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to decode response")
 }

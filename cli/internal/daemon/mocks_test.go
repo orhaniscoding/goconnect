@@ -5,6 +5,7 @@ import (
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/api"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/chat"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/transfer"
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/voice"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -71,6 +72,23 @@ func (m *MockEngine) GetPeerByID(peerID string) (*api.PeerConfig, bool) {
 		return nil, args.Bool(1)
 	}
 	return args.Get(0).(*api.PeerConfig), args.Bool(1)
+}
+
+func (m *MockEngine) SendVoiceSignal(peerID string, sig voice.Signal) error {
+	args := m.Called(peerID, sig)
+	return args.Error(0)
+}
+
+func (m *MockEngine) SubscribeVoiceSignals() chan voice.Signal {
+	args := m.Called()
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(chan voice.Signal)
+}
+
+func (m *MockEngine) UnsubscribeVoiceSignals(ch chan voice.Signal) {
+	m.Called(ch)
 }
 
 func (m *MockEngine) GenerateInvite(networkID string, maxUses int, expiresHours int) (*api.InviteTokenResponse, error) {
@@ -146,8 +164,8 @@ func (m *MockEngine) UnsubscribeChatMessages(ch chan chat.Message) {
 	m.Called(ch)
 }
 
-func (m *MockEngine) CreateNetwork(name string) (*api.NetworkResponse, error) {
-	args := m.Called(name)
+func (m *MockEngine) CreateNetwork(name, cidr string) (*api.NetworkResponse, error) {
+	args := m.Called(name, cidr)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

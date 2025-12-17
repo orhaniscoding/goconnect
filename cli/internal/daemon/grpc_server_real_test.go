@@ -130,7 +130,7 @@ func TestGRPCServer_CreateNetwork_Real(t *testing.T) {
 	srv, mockEng := setupRealGRPCServer(t)
 
 	t.Run("success", func(t *testing.T) {
-		mockEng.On("CreateNetwork", "TestNetwork").Return(&api.NetworkResponse{
+		mockEng.On("CreateNetwork", "TestNetwork", "").Return(&api.NetworkResponse{
 			ID:   "net-new",
 			Name: "TestNetwork",
 		}, nil).Once()
@@ -153,7 +153,7 @@ func TestGRPCServer_CreateNetwork_Real(t *testing.T) {
 	})
 
 	t.Run("engine error", func(t *testing.T) {
-		mockEng.On("CreateNetwork", "FailNetwork").Return(nil, assert.AnError).Once()
+		mockEng.On("CreateNetwork", "FailNetwork", "").Return(nil, assert.AnError).Once()
 
 		_, err := srv.CreateNetwork(context.Background(), &pb.CreateNetworkRequest{
 			Name: "FailNetwork",

@@ -39,7 +39,7 @@ archives:
   - format: tar.gz
     # this name template makes the archive name compatible with the standard checksums
     name_template: >-
-      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+      {{ .ProjectName }}-{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
     format_overrides:
       - goos: windows
         format: zip
