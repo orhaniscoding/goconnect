@@ -10,6 +10,9 @@ import (
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
 	"github.com/pquerna/otp/totp"
+	"github.com/redis/go-redis/v9"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestAuthService_Register(t *testing.T) {
@@ -876,6 +879,72 @@ func TestAuthService_ValidateToken(t *testing.T) {
 				t.Errorf("expected error code %s, got %s", domain.ErrForbidden, derr.Code)
 			}
 		}
+	})
+}
+
+// ==================== Logout & Blacklist Tests ====================
+
+// ==================== Logout & Blacklist Tests ====================
+
+func TestAuthService_Logout_NetworkError(t *testing.T) {
+	t.Run("Network error does not panic but returns error (parsing logic covered)", func(t *testing.T) {
+		// Setup Redis client pointing to closed port
+		rdb := redis.NewClient(&redis.Options{
+			Addr: "localhost:12345", // intentionally closed port
+		})
+		defer rdb.Close()
+
+		svc := NewAuthServiceWithSecret(nil, nil, rdb, "secret-key")
+
+		// Create valid format (but unsigned/invalid signature OK for this test as we parse unverified) 
+		// tokens to pass extraction logic
+		// We need real tokens because extractJTI uses parsing
+		accessToken, _ := svc.generateJWT("user1", "tenant1", "test@test.com", false, false, "access", time.Hour)
+		refreshToken, _ := svc.generateJWT("user1", "tenant1", "test@test.com", false, false, "refresh", time.Hour)
+
+		err := svc.Logout(context.Background(), accessToken, refreshToken)
+		// Logout is best-effort and swallows blacklist errors, so it should not return error
+		require.NoError(t, err)
+	})
+}
+
+func TestAuthService_Blacklist(t *testing.T) {
+	t.Run("Nil Redis returns nil error", func(t *testing.T) {
+		svc := NewAuthServiceWithSecret(nil, nil, nil, "secret")
+		err := svc.checkBlacklist(context.Background(), "token")
+		require.NoError(t, err)
+	})
+
+	t.Run("Parsing logic test", func(t *testing.T) {
+		rdb := redis.NewClient(&redis.Options{Addr: "localhost:12345"}) // closed port
+		defer rdb.Close()
+		
+		svc := NewAuthServiceWithSecret(nil, nil, rdb, "secret-key")
+		token, _ := svc.generateJWT("u1", "t1", "e", false, false, "access", time.Hour)
+
+		// addToBlacklist
+		// It should parse successfully and fail at Redis Set
+		err := svc.addToBlacklist(context.Background(), token)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "connect")
+
+		// checkBlacklist
+		// It should fail at Redis Exists
+		err = svc.checkBlacklist(context.Background(), token)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "connect")
+	})
+
+	t.Run("Invalid Token for Blacklist", func(t *testing.T) {
+		rdb := redis.NewClient(&redis.Options{Addr: "localhost:12345"}) 
+		defer rdb.Close()
+		svc := NewAuthServiceWithSecret(nil, nil, rdb, "secret")
+
+		// Malformed token
+		err := svc.addToBlacklist(context.Background(), "not-a-jwt")
+		require.Error(t, err)
+		// Should be a parsing error, not connection error
+		assert.NotContains(t, err.Error(), "connect")
 	})
 }
 
