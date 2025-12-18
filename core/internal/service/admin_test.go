@@ -567,6 +567,13 @@ func TestAdminService_SuspendUser_AuthChecks(t *testing.T) {
 
 		err := svc.SuspendUser(ctx, "admin-susp", "target-susp", "Violation of ToS")
 		require.NoError(t, err)
+
+		// Verify user is suspended
+		user, err := userRepo.GetByID(ctx, "target-susp")
+		require.NoError(t, err)
+		assert.True(t, user.Suspended)
+		assert.Equal(t, "admin-susp", *user.SuspendedBy)
+		assert.Equal(t, "Violation of ToS", *user.SuspendedReason)
 	})
 }
 
@@ -618,6 +625,13 @@ func TestAdminService_UnsuspendUser_AuthChecks(t *testing.T) {
 
 		err := svc.UnsuspendUser(ctx, "admin-unsusp", "susp-user")
 		require.NoError(t, err)
+
+		// Verify user is unsuspended
+		user, err := userRepo.GetByID(ctx, "susp-user")
+		require.NoError(t, err)
+		assert.False(t, user.Suspended)
+		assert.Nil(t, user.SuspendedBy)
+		assert.Nil(t, user.SuspendedReason)
 	})
 }
 

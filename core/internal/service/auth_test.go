@@ -1,8 +1,9 @@
 package service
 
 import (
-"errors"
 	"context"
+	"errors"
+	"os"
 	"testing"
 	"time"
 
@@ -184,6 +185,26 @@ func TestAuthService_Login(t *testing.T) {
 				t.Errorf("expected email %s, got %s", tt.req.Email, authResp.User.Email)
 			}
 		})
+	}
+}
+
+
+// ==================== Helper Function Tests ====================
+
+func TestGetEnvOrDefault(t *testing.T) {
+	key := "TEST_ENV_VAR_KEY"
+	defaultVal := "default_value"
+
+	// Test case 1: Env var is set
+	os.Setenv(key, "set_value")
+	if val := getEnvOrDefault(key, defaultVal); val != "set_value" {
+		t.Errorf("expected 'set_value', got '%s'", val)
+	}
+	os.Unsetenv(key)
+
+	// Test case 2: Env var is not set
+	if val := getEnvOrDefault(key, defaultVal); val != defaultVal {
+		t.Errorf("expected '%s', got '%s'", defaultVal, val)
 	}
 }
 

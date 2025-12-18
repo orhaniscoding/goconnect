@@ -9,6 +9,11 @@ vi.mock('@tauri-apps/plugin-os', () => ({
     arch: () => 'x64',
 }));
 
+// Mock Tauri Updater plugin
+vi.mock('@tauri-apps/plugin-updater', () => ({
+    check: vi.fn().mockResolvedValue(null),
+}));
+
 // Mock window.matchMedia (needed for some UI libraries)
 Object.defineProperty(window, 'matchMedia', {
     writable: true,

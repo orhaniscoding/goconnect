@@ -1148,3 +1148,67 @@ func TestBan_WrongTenant(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
 }
+
+// ==================== JoinByInviteCode Tests ====================
+
+func TestMembershipService_JoinByInviteCode(t *testing.T) {
+	ctx := context.Background()
+	nrepo := repository.NewInMemoryNetworkRepository()
+	mrepo := repository.NewInMemoryMembershipRepository()
+	jrepo := repository.NewInMemoryJoinRequestRepository()
+	irepo := repository.NewInMemoryIdempotencyRepository()
+	invrepo := repository.NewInMemoryInviteTokenRepository()
+	svc := NewMembershipService(nrepo, mrepo, jrepo, irepo)
+	svc.SetInviteTokenRepository(invrepo)
+
+	// Create network
+	net := &domain.Network{
+		ID:         "net_test_invite",
+		TenantID:   "t1",
+		Name:       "InviteNet",
+		Visibility: domain.NetworkVisibilityPublic,
+		JoinPolicy: domain.JoinPolicyOpen,
+		CIDR:       "10.60.0.0/24",
+		CreatedBy:  "admin",
+	}
+	_ = nrepo.Create(ctx, net)
+
+	t.Run("Join with network ID prefix", func(t *testing.T) {
+		m, jr, err := svc.JoinByInviteCode(ctx, "net_test_invite", "user1", "t1", domain.GenerateIdempotencyKey())
+		require.NoError(t, err)
+		assert.NotNil(t, m)
+		assert.Nil(t, jr)
+	})
+
+	t.Run("Join with invite token", func(t *testing.T) {
+		// Create token
+		token := &domain.InviteToken{
+			Token:      "SECRET_TOKEN",
+			NetworkID:  net.ID,
+			TenantID:   "t1",
+			CreatedBy:  "admin",
+			ExpiresAt:  time.Now().Add(1 * time.Hour),
+			UsesMax:    10,
+			UsesLeft:   10,
+		}
+		_ = invrepo.Create(ctx, token)
+
+		m, jr, err := svc.JoinByInviteCode(ctx, "SECRET_TOKEN", "user2", "t1", domain.GenerateIdempotencyKey())
+		require.NoError(t, err)
+		assert.NotNil(t, m)
+		assert.Nil(t, jr)
+	})
+
+	t.Run("Join with invalid token", func(t *testing.T) {
+		_, _, err := svc.JoinByInviteCode(ctx, "INVALID", "user3", "t1", domain.GenerateIdempotencyKey())
+		require.Error(t, err)
+	})
+
+	t.Run("Missing invite code", func(t *testing.T) {
+		_, _, err := svc.JoinByInviteCode(ctx, "", "user1", "t1", domain.GenerateIdempotencyKey())
+		require.Error(t, err)
+		var derr *domain.Error; ok := errors.As(err, &derr)
+		assert.True(t, ok)
+		assert.Equal(t, domain.ErrInvalidRequest, derr.Code)
+	})
+}

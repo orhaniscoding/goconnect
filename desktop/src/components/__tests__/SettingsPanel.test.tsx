@@ -49,7 +49,7 @@ describe('SettingsPanel', () => {
 
         // Select all toggle buttons
         const toggles = screen.getAllByRole('switch');
-        expect(toggles.length).toBe(3);
+        expect(toggles.length).toBe(4);
 
         fireEvent.click(toggles[0]); // Auto Connect
 
