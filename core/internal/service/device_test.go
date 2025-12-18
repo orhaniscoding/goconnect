@@ -1196,3 +1196,105 @@ func TestDeviceService_NotifierCalls(t *testing.T) {
 		assert.Contains(t, mockNotifier.offlineCalls, device.ID)
 	})
 }
+
+// StubDeviceRepository for testing error branches
+type StubDeviceRepository struct {
+	repository.DeviceRepository                  // Embed interface to handle missing methods if any
+	RealRepo *repository.InMemoryDeviceRepository // Embed real repo logic
+	FailGetStaleDevices bool
+	FailMarkInactive    bool
+}
+
+// Ensure Stub implements interface
+var _ repository.DeviceRepository = &StubDeviceRepository{}
+
+func (s *StubDeviceRepository) Create(ctx context.Context, device *domain.Device) error {
+	return s.RealRepo.Create(ctx, device)
+}
+func (s *StubDeviceRepository) GetByID(ctx context.Context, id string) (*domain.Device, error) {
+	return s.RealRepo.GetByID(ctx, id)
+}
+func (s *StubDeviceRepository) GetByPubKey(ctx context.Context, pubkey string) (*domain.Device, error) {
+	return s.RealRepo.GetByPubKey(ctx, pubkey)
+}
+func (s *StubDeviceRepository) List(ctx context.Context, filter domain.DeviceFilter) ([]*domain.Device, string, error) {
+	return s.RealRepo.List(ctx, filter)
+}
+func (s *StubDeviceRepository) Update(ctx context.Context, device *domain.Device) error {
+	return s.RealRepo.Update(ctx, device)
+}
+func (s *StubDeviceRepository) Delete(ctx context.Context, id string) error {
+	return s.RealRepo.Delete(ctx, id)
+}
+func (s *StubDeviceRepository) UpdateHeartbeat(ctx context.Context, id string, ipAddress string) error {
+	return s.RealRepo.UpdateHeartbeat(ctx, id, ipAddress)
+}
+func (s *StubDeviceRepository) Count(ctx context.Context) (int, error) {
+	return s.RealRepo.Count(ctx)
+}
+
+func (s *StubDeviceRepository) GetStaleDevices(ctx context.Context, threshold time.Duration) ([]*domain.Device, error) {
+	if s.FailGetStaleDevices {
+		return nil, errors.New("db connection failed")
+	}
+	return s.RealRepo.GetStaleDevices(ctx, threshold)
+}
+
+func (s *StubDeviceRepository) MarkInactive(ctx context.Context, id string) error {
+	if s.FailMarkInactive {
+		return errors.New("db error on update")
+	}
+	return s.RealRepo.MarkInactive(ctx, id)
+}
+
+func TestDeviceService_OfflineDetection_Errors(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	peerRepo := repository.NewInMemoryPeerRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	wgConfig := config.WireGuardConfig{}
+
+	ctx := context.Background()
+
+	t.Run("GetStaleDevices Failure", func(t *testing.T) {
+		realRepo := repository.NewInMemoryDeviceRepository()
+		stubRepo := &StubDeviceRepository{
+			RealRepo:            realRepo,
+			FailGetStaleDevices: true,
+		}
+		service := NewDeviceService(stubRepo, userRepo, peerRepo, networkRepo, wgConfig)
+		
+		// Run detection directly
+		service.detectOfflineDevices(ctx, time.Hour)
+		// Should not panic
+	})
+
+	t.Run("MarkInactive Failure", func(t *testing.T) {
+		realRepo := repository.NewInMemoryDeviceRepository()
+		stubRepo := &StubDeviceRepository{
+			RealRepo:         realRepo,
+			FailMarkInactive: true,
+		}
+		service := NewDeviceService(stubRepo, userRepo, peerRepo, networkRepo, wgConfig)
+
+		// Create a stale device
+		device := &domain.Device{
+			ID:       "stale",
+			UserID:   "u1",
+			TenantID: "t1",
+			LastSeen: time.Now().Add(-2 * time.Hour), // Very old
+			Active:   true,
+			PubKey:   "keytest12345678901234567890123456789012345=",
+		}
+		realRepo.Create(ctx, device)
+
+		mockNotifier := &MockNotifier{}
+		service.SetNotifier(mockNotifier)
+
+		// Run detection directly
+		service.detectOfflineDevices(ctx, time.Hour)
+		
+		// Notifier should NOT have been called if MarkInactive failed
+		assert.Empty(t, mockNotifier.offlineCalls, "Should not notify if mark inactive failed")
+	})
+}
+
