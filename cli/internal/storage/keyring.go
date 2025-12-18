@@ -2,6 +2,8 @@ package storage
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/99designs/keyring"
 )
@@ -27,24 +29,34 @@ func NewKeyringStore() (*KeyringStore, error) {
 			keyring.KeychainBackend,
 			keyring.WinCredBackend,
 			keyring.PassBackend,
+			keyring.FileBackend, // Add FileBackend as a last-resort fallback
 		},
-		// For 99designs/keyring, there isn't a direct equivalent to KeychainNotTrustUserPrompt.
-		// This might need to be handled via specific backend configurations if available.
+		// FileBackend configuration (used if system backends are unavailable)
+		FileDir: filepath.Join(defaultDataDir(), "keyring"),
+		FilePasswordFunc: func(_ string) (string, error) {
+			// In a real app, this might be a master password.
+			// For GoConnect daemon, we'll try to use a persistent machine-specific secret
+			// if available, or just a fixed string for basic file-level protection.
+			return "goconnect-persistent-key", nil
+		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to open keyring: %w", err)
+		return nil, fmt.Errorf("failed to open system keyring (tried multiple backends): %w", err)
 	}
 	return &KeyringStore{kr: kr}, nil
 }
 
 // StoreAuthToken stores the authentication token in the keyring.
 func (ks *KeyringStore) StoreAuthToken(token string) error {
-	return ks.kr.Set(keyring.Item{
+	if err := ks.kr.Set(keyring.Item{
 		Key:         tokenKey,
 		Data:        []byte(token),
 		Label:       "GoConnect Daemon Auth Token",
 		Description: "Authentication token for GoConnect server API access",
-	})
+	}); err != nil {
+		return fmt.Errorf("failed to store auth token in keyring: %w", err)
+	}
+	return nil
 }
 
 // RetrieveAuthToken retrieves the authentication token from the keyring.
@@ -58,12 +70,15 @@ func (ks *KeyringStore) RetrieveAuthToken() (string, error) {
 
 // StoreDeviceID stores the device ID in the keyring (optional, could be in identity.json).
 func (ks *KeyringStore) StoreDeviceID(id string) error {
-	return ks.kr.Set(keyring.Item{
+	if err := ks.kr.Set(keyring.Item{
 		Key:         deviceIDKey,
 		Data:        []byte(id),
 		Label:       "GoConnect Device ID",
 		Description: "Unique identifier for this GoConnect client device",
-	})
+	}); err != nil {
+		return fmt.Errorf("failed to store device ID in keyring: %w", err)
+	}
+	return nil
 }
 
 // RetrieveDeviceID retrieves the device ID from the keyring.
@@ -98,4 +113,12 @@ func NewTestKeyring(dir string) (*KeyringStore, error) {
 		return nil, fmt.Errorf("failed to open test keyring: %w", err)
 	}
 	return &KeyringStore{kr: kr}, nil
+}
+
+func defaultDataDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "."
+	}
+	return filepath.Join(home, ".goconnect")
 }
