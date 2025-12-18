@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -255,8 +256,8 @@ func TestAdminService_ToggleUserAdmin(t *testing.T) {
 		_, err := svc.ToggleUserAdmin(ctx, "nonexistent")
 		assert.Error(t, err)
 
-		domErr, ok := err.(*domain.Error)
-		require.True(t, ok)
+		var domErr *domain.Error
+		require.True(t, errors.As(err, &domErr))
 		assert.Equal(t, domain.ErrUserNotFound, domErr.Code)
 	})
 
@@ -1054,7 +1055,7 @@ func TestAdminService_UpdateUserRole_AdminNotFound(t *testing.T) {
 	isAdmin := true
 	err := svc.UpdateUserRole(ctx, "non-existent-admin", "some-target", &isAdmin, nil)
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrUnauthorized, domainErr.Code)
 }
@@ -1067,7 +1068,7 @@ func TestAdminService_SuspendUser_AdminNotFound(t *testing.T) {
 
 	err := svc.SuspendUser(ctx, "non-existent-admin", "some-target", "Reason")
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrUnauthorized, domainErr.Code)
 }
@@ -1096,7 +1097,7 @@ func TestAdminService_UnsuspendUser_AdminNotFound(t *testing.T) {
 
 	err := svc.UnsuspendUser(ctx, "non-existent-admin", "some-target")
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrUnauthorized, domainErr.Code)
 }

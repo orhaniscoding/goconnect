@@ -1,6 +1,7 @@
 package handler
 
 import (
+"errors"
 	"net/http"
 	"strings"
 
@@ -601,7 +602,7 @@ func (h *TenantHandler) DeleteChatMessage(c *gin.Context) {
 
 // handleServiceError handles service layer errors and sends appropriate HTTP responses
 func handleServiceError(c *gin.Context, err error) {
-	if domainErr, ok := err.(*domain.Error); ok {
+	var domainErr *domain.Error; if errors.As(err, &domainErr) {
 		errorResponse(c, domainErr)
 	} else {
 		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))

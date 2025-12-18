@@ -1,6 +1,7 @@
 package handler
 
 import (
+"errors"
 	"net/http"
 	"strconv"
 
@@ -18,7 +19,7 @@ func NewAdminHandler(adminService *service.AdminService) *AdminHandler {
 }
 
 func (h *AdminHandler) handleError(c *gin.Context, err error) {
-	if derr, ok := err.(*domain.Error); ok {
+	var derr *domain.Error; if errors.As(err, &derr) {
 		errorResponse(c, derr)
 	} else {
 		errorResponse(c, &domain.Error{
@@ -301,7 +302,7 @@ func (h *AdminHandler) SuspendUser(c *gin.Context) {
 
 	// Validate reason
 	if err := req.Validate(); err != nil {
-		if derr, ok := err.(*domain.Error); ok {
+		var derr *domain.Error; if errors.As(err, &derr) {
 			errorResponse(c, derr)
 		} else {
 			errorResponse(c, &domain.Error{

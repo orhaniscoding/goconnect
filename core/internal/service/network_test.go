@@ -1,6 +1,7 @@
 package service
 
 import (
+"errors"
 	"context"
 	"testing"
 
@@ -122,7 +123,7 @@ func TestNetworkService_CreateNetwork(t *testing.T) {
 					return
 				}
 
-				if domainErr, ok := err.(*domain.Error); ok {
+				var domainErr *domain.Error; if errors.As(err, &domainErr) {
 					if domainErr.Code != tt.wantErrCode {
 						t.Errorf("CreateNetwork() error code = %v, want %v", domainErr.Code, tt.wantErrCode)
 					}
@@ -202,7 +203,7 @@ func TestNetworkService_CreateNetwork_Idempotency(t *testing.T) {
 		t.Error("Expected idempotency conflict error but got none")
 	}
 
-	if domainErr, ok := err.(*domain.Error); ok {
+	var domainErr *domain.Error; if errors.As(err, &domainErr) {
 		if domainErr.Code != domain.ErrIdempotencyConflict {
 			t.Errorf("Expected ErrIdempotencyConflict but got %v", domainErr.Code)
 		}
@@ -408,7 +409,7 @@ func TestNetworkService_GetNetwork(t *testing.T) {
 	if err == nil {
 		t.Error("GetNetwork expected error for tenant mismatch")
 	}
-	if domainErr, ok := err.(*domain.Error); !ok || domainErr.Code != domain.ErrNotFound {
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr); if !ok || domainErr.Code != domain.ErrNotFound {
 		t.Errorf("GetNetwork expected ErrNotFound for tenant mismatch, got %v", err)
 	}
 }
@@ -479,7 +480,7 @@ func TestNetworkService_UpdateNetwork(t *testing.T) {
 	if err == nil {
 		t.Error("UpdateNetwork expected error for tenant mismatch")
 	}
-	if domainErr, ok := err.(*domain.Error); !ok || domainErr.Code != domain.ErrNotFound {
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr); if !ok || domainErr.Code != domain.ErrNotFound {
 		t.Errorf("UpdateNetwork expected ErrNotFound for tenant mismatch, got %v", err)
 	}
 }
@@ -534,7 +535,7 @@ func TestNetworkService_DeleteNetwork(t *testing.T) {
 	if err == nil {
 		t.Error("DeleteNetwork expected error for tenant mismatch")
 	}
-	if domainErr, ok := err.(*domain.Error); !ok || domainErr.Code != domain.ErrNotFound {
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr); if !ok || domainErr.Code != domain.ErrNotFound {
 		t.Errorf("DeleteNetwork expected ErrNotFound for tenant mismatch, got %v", err)
 	}
 }

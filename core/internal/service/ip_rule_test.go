@@ -1,6 +1,7 @@
 package service
 
 import (
+"errors"
 	"context"
 	"testing"
 	"time"
@@ -122,7 +123,7 @@ func TestIPRuleService_CreateIPRule_InvalidType(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Nil(t, rule)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrValidation, domainErr.Code)
 }

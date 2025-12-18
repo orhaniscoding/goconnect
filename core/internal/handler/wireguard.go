@@ -1,6 +1,7 @@
 package handler
 
 import (
+"errors"
 	"context"
 	"fmt"
 	"log/slog"
@@ -106,7 +107,7 @@ func (h *WireGuardHandler) GetProfile(c *gin.Context) {
 	// Get network
 	network, err := h.networkRepo.GetByID(c.Request.Context(), networkID)
 	if err != nil {
-		if domainErr, ok := err.(*domain.Error); ok {
+		var domainErr *domain.Error; if errors.As(err, &domainErr) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}
@@ -150,7 +151,7 @@ func (h *WireGuardHandler) GetProfile(c *gin.Context) {
 	isAdmin := c.GetBool("is_admin")
 	device, err := h.deviceService.GetDevice(c.Request.Context(), deviceID, userID, tenantID, isAdmin)
 	if err != nil {
-		if domainErr, ok := err.(*domain.Error); ok {
+		var domainErr *domain.Error; if errors.As(err, &domainErr) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}
@@ -164,7 +165,7 @@ func (h *WireGuardHandler) GetProfile(c *gin.Context) {
 	// Get peer for this device in this network
 	peer, err := h.peerService.GetPeerByNetworkAndDevice(c.Request.Context(), networkID, deviceID)
 	if err != nil {
-		if domainErr, ok := err.(*domain.Error); ok {
+		var domainErr *domain.Error; if errors.As(err, &domainErr) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}

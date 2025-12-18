@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -700,7 +701,8 @@ func (s *AuthService) LoginOrRegisterOIDC(ctx context.Context, email, externalID
 	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
 		// Check if it's a "not found" error
-		if e, ok := err.(*domain.Error); ok && e.Code == domain.ErrUserNotFound {
+		var e *domain.Error
+		if errors.As(err, &e) && e.Code == domain.ErrUserNotFound {
 			// User not found, proceed to register
 			user = nil
 		} else {

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -132,7 +133,8 @@ func (s *MembershipService) JoinNetwork(ctx context.Context, networkID, userID, 
 	case domain.JoinPolicyApproval:
 		jr, err := s.joins.CreatePending(ctx, networkID, userID)
 		if err != nil {
-			if derr, ok := err.(*domain.Error); ok && derr.Code == domain.ErrAlreadyRequested {
+			var derr *domain.Error
+			if errors.As(err, &derr) && derr.Code == domain.ErrAlreadyRequested {
 				s.audit(ctx, tenantID, audit.ActionNetworkJoinRequest, userID, networkID, map[string]any{"dedup": true})
 				return nil, jr, fmt.Errorf("join request already exists: %w", derr)
 			}

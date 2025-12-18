@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -43,8 +44,8 @@ func TestChatService_SendMessage(t *testing.T) {
 		_, err := service.SendMessage(ctx, "non-existent", "tenant-1", "host", "Hello", nil, "")
 
 		require.Error(t, err)
-		domainErr, ok := err.(*domain.Error)
-		require.True(t, ok)
+		var domainErr *domain.Error
+		require.True(t, errors.As(err, &domainErr))
 		assert.Equal(t, domain.ErrUserNotFound, domainErr.Code)
 	})
 
@@ -52,7 +53,7 @@ func TestChatService_SendMessage(t *testing.T) {
 		_, err := service.SendMessage(ctx, "user-123", "tenant-1", "", "Hello", nil, "")
 
 		require.Error(t, err)
-		domainErr, ok := err.(*domain.Error)
+		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrValidation, domainErr.Code)
 	})
@@ -61,7 +62,7 @@ func TestChatService_SendMessage(t *testing.T) {
 		_, err := service.SendMessage(ctx, "user-123", "tenant-1", "host", "", nil, "")
 
 		require.Error(t, err)
-		domainErr, ok := err.(*domain.Error)
+		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrValidation, domainErr.Code)
 	})
@@ -71,7 +72,7 @@ func TestChatService_SendMessage(t *testing.T) {
 		_, err := service.SendMessage(ctx, "user-123", "tenant-1", "host", longBody, nil, "")
 
 		require.Error(t, err)
-		domainErr, ok := err.(*domain.Error)
+		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrValidation, domainErr.Code)
 	})
@@ -121,8 +122,8 @@ func TestChatService_GetMessage(t *testing.T) {
 		_, err := service.GetMessage(ctx, "non-existent-id", "tenant-1")
 
 		require.Error(t, err)
-		domainErr, ok := err.(*domain.Error)
-		require.True(t, ok)
+		var domainErr *domain.Error
+		require.True(t, errors.As(err, &domainErr))
 		assert.Equal(t, domain.ErrNotFound, domainErr.Code)
 	})
 }
@@ -168,7 +169,7 @@ func TestChatService_EditMessage(t *testing.T) {
 		_, err := service.EditMessage(ctx, msg.ID, "other-user", "tenant-1", "Hack", false)
 
 		require.Error(t, err)
-		domainErr, ok := err.(*domain.Error)
+		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 	})
@@ -179,7 +180,7 @@ func TestChatService_EditMessage(t *testing.T) {
 		_, err := service.EditMessage(ctx, msg.ID, "user-123", "tenant-1", "", false)
 
 		require.Error(t, err)
-		domainErr, ok := err.(*domain.Error)
+		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrValidation, domainErr.Code)
 	})
@@ -251,7 +252,7 @@ func TestChatService_DeleteMessage(t *testing.T) {
 		err := service.DeleteMessage(ctx, msg.ID, "other-user", "tenant-1", "soft", false, false)
 
 		require.Error(t, err)
-		domainErr, ok := err.(*domain.Error)
+		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 	})
@@ -262,7 +263,7 @@ func TestChatService_DeleteMessage(t *testing.T) {
 		err := service.DeleteMessage(ctx, msg.ID, "user-123", "tenant-1", "invalid", false, false)
 
 		require.Error(t, err)
-		domainErr, ok := err.(*domain.Error)
+		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrValidation, domainErr.Code)
 	})
@@ -305,7 +306,7 @@ func TestChatService_RedactMessage(t *testing.T) {
 		_, err := service.RedactMessage(ctx, msg.ID, "other-user", "tenant-1", false, false, "No reason")
 
 		require.Error(t, err)
-		domainErr, ok := err.(*domain.Error)
+		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 	})
@@ -447,8 +448,8 @@ func TestChatService_GetEditHistory_WrongTenant(t *testing.T) {
 	// Try to get edit history with wrong tenant
 	_, err = service.GetEditHistory(ctx, msg.ID, "wrong-tenant")
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
-	require.True(t, ok)
+	var domainErr *domain.Error
+	require.True(t, errors.As(err, &domainErr))
 	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
 }
 

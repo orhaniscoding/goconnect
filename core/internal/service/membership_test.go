@@ -1,6 +1,7 @@
 package service
 
 import (
+"errors"
 	"context"
 	"testing"
 	"time"
@@ -65,7 +66,7 @@ func TestMembershipTenantIsolation(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when joining with wrong tenant")
 	}
-	if derr, ok := err.(*domain.Error); !ok || derr.Code != domain.ErrNotFound {
+	var derr *domain.Error; ok := errors.As(err, &derr); if !ok || derr.Code != domain.ErrNotFound {
 		t.Errorf("expected ErrNotFound, got %v", err)
 	}
 }
@@ -116,7 +117,7 @@ func TestJoinNetwork_BannedUser(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for banned user trying to rejoin")
 	}
-	if derr, ok := err.(*domain.Error); ok {
+	var derr *domain.Error; if errors.As(err, &derr) {
 		if derr.Code != domain.ErrUserBanned {
 			t.Errorf("expected ErrUserBanned, got %s", derr.Code)
 		}
@@ -147,7 +148,7 @@ func TestJoinNetwork_PrivateNetwork(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for private network with empty name")
 	}
-	if derr, ok := err.(*domain.Error); ok {
+	var derr *domain.Error; if errors.As(err, &derr) {
 		if derr.Code != domain.ErrNetworkPrivate {
 			t.Errorf("expected ErrNetworkPrivate, got %s", derr.Code)
 		}
@@ -162,7 +163,7 @@ func TestJoinNetwork_MissingIdempotencyKey(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for missing idempotency key")
 	}
-	if derr, ok := err.(*domain.Error); ok {
+	var derr *domain.Error; if errors.As(err, &derr) {
 		if derr.Code != domain.ErrInvalidRequest {
 			t.Errorf("expected ErrInvalidRequest, got %s", derr.Code)
 		}
@@ -303,7 +304,7 @@ func TestDeny_Unauthorized(t *testing.T) {
 		t.Fatal("expected error when non-admin tries to deny")
 	}
 
-	derr, ok := err.(*domain.Error)
+	var derr *domain.Error; ok := errors.As(err, &derr)
 	if !ok {
 		t.Fatalf("expected domain.Error, got %T", err)
 	}
@@ -383,7 +384,7 @@ func TestKick_Unauthorized(t *testing.T) {
 		t.Fatal("expected error when non-admin tries to kick")
 	}
 
-	derr, ok := err.(*domain.Error)
+	var derr *domain.Error; ok := errors.As(err, &derr)
 	if !ok {
 		t.Fatalf("expected domain.Error, got %T", err)
 	}
@@ -456,7 +457,7 @@ func TestBan_Unauthorized(t *testing.T) {
 		t.Fatal("expected error when non-admin tries to ban")
 	}
 
-	derr, ok := err.(*domain.Error)
+	var derr *domain.Error; ok := errors.As(err, &derr)
 	if !ok {
 		t.Fatalf("expected domain.Error, got %T", err)
 	}
@@ -789,7 +790,7 @@ func TestApprove_WrongTenant(t *testing.T) {
 		t.Fatal("expected error when approving with wrong tenant")
 	}
 
-	derr, ok := err.(*domain.Error)
+	var derr *domain.Error; ok := errors.As(err, &derr)
 	if !ok {
 		t.Fatalf("expected domain.Error, got %T", err)
 	}
@@ -1064,7 +1065,7 @@ func TestKick_WrongTenant(t *testing.T) {
 	// Try to kick with wrong tenant
 	err := svc.Kick(context.Background(), net.ID, "some-user", "admin", "wrong-tenant")
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
 }
@@ -1103,7 +1104,7 @@ func TestListMembers_WrongTenant(t *testing.T) {
 	// Try to list with wrong tenant
 	_, _, err := svc.ListMembers(context.Background(), net.ID, "", "wrong-tenant", 10, "")
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
 }
@@ -1143,7 +1144,7 @@ func TestBan_WrongTenant(t *testing.T) {
 	// Try to ban with wrong tenant
 	err := svc.Ban(context.Background(), net.ID, "some-user", "admin", "wrong-tenant")
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
 }

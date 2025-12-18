@@ -1,6 +1,7 @@
 package service
 
 import (
+"errors"
 	"context"
 	"strings"
 	"testing"
@@ -223,7 +224,7 @@ func TestTenantMembershipService_ListPublicTenants_InvalidCursor(t *testing.T) {
 
 	_, _, err := svc.ListPublicTenants(ctx, &domain.ListTenantsRequest{Cursor: "not-a-number"})
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrInvalidRequest, domainErr.Code)
 }
@@ -254,7 +255,7 @@ func TestTenantMembershipService_JoinTenant_AlreadyMember(t *testing.T) {
 	_, err := svc.JoinTenant(ctx, ownerID, tenantID, &domain.JoinTenantRequest{})
 
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrAlreadyMember, domainErr.Code)
 }
@@ -282,7 +283,7 @@ func TestTenantMembershipService_JoinTenant_PasswordProtected(t *testing.T) {
 
 	_, err = svc.JoinTenant(ctx, "user-1", tenant.ID, &domain.JoinTenantRequest{})
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrInvalidRequest, domainErr.Code)
 
@@ -310,7 +311,7 @@ func TestTenantMembershipService_JoinTenant_InviteOnly(t *testing.T) {
 
 	_, err = svc.JoinTenant(ctx, "user-1", tenant.ID, &domain.JoinTenantRequest{})
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 }
@@ -329,7 +330,7 @@ func TestTenantMembershipService_JoinTenant_MaxMembersReached(t *testing.T) {
 
 	_, err = svc.JoinTenant(ctx, "user-1", tenant.ID, &domain.JoinTenantRequest{})
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 }
@@ -355,7 +356,7 @@ func TestTenantMembershipService_JoinByCode_RespectsCapacity(t *testing.T) {
 
 	_, err = svc.JoinByCode(ctx, "user-2", invite.Code)
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 }
@@ -390,7 +391,7 @@ func TestTenantMembershipService_LeaveTenant_OwnerCannot(t *testing.T) {
 	err := svc.LeaveTenant(ctx, ownerID, tenantID)
 
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 }
@@ -510,7 +511,7 @@ func TestTenantMembershipService_UpdateMemberRole_AdminCannotPromoteToAdmin(t *t
 	err := svc.UpdateMemberRole(ctx, "admin-user", tenantID, member.ID, domain.TenantRoleAdmin)
 
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 }
@@ -526,7 +527,7 @@ func TestTenantMembershipService_UpdateMemberRole_CannotSetOwner(t *testing.T) {
 	err := svc.UpdateMemberRole(ctx, ownerID, tenantID, member.ID, domain.TenantRoleOwner)
 
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 }
@@ -545,7 +546,7 @@ func TestTenantMembershipService_UpdateMemberRole_CannotChangeOwnRole(t *testing
 	err := svc.UpdateMemberRole(ctx, "admin-user", tenantID, admin.ID, domain.TenantRoleModerator)
 
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 }
@@ -602,7 +603,7 @@ func TestTenantMembershipService_RemoveMember_CannotKickOwner(t *testing.T) {
 	err := svc.RemoveMember(ctx, "admin-user", tenantID, ownerMembership.ID)
 
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 }
@@ -625,7 +626,7 @@ func TestTenantMembershipService_RemoveMember_CannotKickHigherRole(t *testing.T)
 	err := svc.RemoveMember(ctx, "mod-user", tenantID, admin.ID)
 
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 }
@@ -701,7 +702,7 @@ func TestTenantMembershipService_UpdateTenant_MemberForbidden(t *testing.T) {
 
 	_, err := svc.UpdateTenant(ctx, "regular-user", tenantID, req)
 	require.Error(t, err)
-	if domErr, ok := err.(*domain.Error); ok {
+	var domErr *domain.Error; if errors.As(err, &domErr) {
 		assert.Equal(t, domain.ErrForbidden, domErr.Code)
 	}
 }
@@ -753,7 +754,7 @@ func TestTenantMembershipService_DeleteTenant_NonOwnerForbidden(t *testing.T) {
 	// Admin tries to delete tenant (only owner can)
 	err := svc.DeleteTenant(ctx, "admin2", tenantID)
 	require.Error(t, err)
-	if domErr, ok := err.(*domain.Error); ok {
+	var domErr *domain.Error; if errors.As(err, &domErr) {
 		assert.Equal(t, domain.ErrForbidden, domErr.Code)
 	}
 }
@@ -865,7 +866,7 @@ func TestTenantMembershipService_UnbanMember_NotBanned(t *testing.T) {
 	// Try to unban a member who is not banned
 	err := svc.UnbanMember(ctx, ownerID, tenantID, member.ID)
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrValidation, domainErr.Code)
 }
@@ -1284,7 +1285,7 @@ func TestTenantMembershipService_JoinByCode_ExpiredInvite(t *testing.T) {
 	// Try to use expired invite
 	_, err = svc.JoinByCode(ctx, "user-late", invite.Code)
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrInviteTokenExpired, domainErr.Code)
 }
@@ -1316,7 +1317,7 @@ func TestTenantMembershipService_JoinByCode_MaxUsesReached(t *testing.T) {
 	// Second use should fail
 	_, err = svc.JoinByCode(ctx, "user-second", invite.Code)
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrInviteTokenExpired, domainErr.Code)
 }
@@ -1357,7 +1358,7 @@ func TestTenantMembershipService_JoinByCode_AlreadyMember(t *testing.T) {
 	// Second join should fail (already a member)
 	_, err = svc.JoinByCode(ctx, "user-join-twice", invite.Code)
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrAlreadyMember, domainErr.Code)
 }
@@ -1437,7 +1438,7 @@ func TestTenantMembershipService_BanMember_CannotBanOwner(t *testing.T) {
 	// Admin tries to ban owner
 	err := svc.BanMember(ctx, "admin-ban-owner", tenantID, ownerMembership.ID)
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 }
@@ -1459,7 +1460,7 @@ func TestTenantMembershipService_BanMember_CannotBanHigherRole(t *testing.T) {
 	// Moderator tries to ban admin
 	err := svc.BanMember(ctx, "mod-banner", tenantID, adminMember.ID)
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 }
@@ -1477,7 +1478,7 @@ func TestTenantMembershipService_BanMember_BannedUserCannotRejoin(t *testing.T) 
 	// Banned user tries to rejoin
 	_, err := svc.JoinTenant(ctx, "banned-user", tenantID, &domain.JoinTenantRequest{})
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 }
@@ -1493,7 +1494,7 @@ func TestTenantMembershipService_DeleteTenant_NotMember(t *testing.T) {
 	// Non-member tries to delete tenant
 	err := svc.DeleteTenant(ctx, "random-user", tenantID)
 	require.Error(t, err)
-	domainErr, ok := err.(*domain.Error)
+	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 }

@@ -1,6 +1,7 @@
 package handler
 
 import (
+"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -56,7 +57,7 @@ func (h *InviteHandler) CreateInvite(c *gin.Context) {
 
 	response, err := h.inviteService.CreateInvite(c.Request.Context(), networkID, tenantID.(string), userID.(string), opts)
 	if err != nil {
-		if domErr, ok := err.(*domain.Error); ok {
+		var domErr *domain.Error; if errors.As(err, &domErr) {
 			errorResponse(c, domErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, err.Error(), nil))
@@ -88,7 +89,7 @@ func (h *InviteHandler) ListInvites(c *gin.Context) {
 
 	invites, err := h.inviteService.ListInvites(c.Request.Context(), networkID, userID.(string))
 	if err != nil {
-		if domErr, ok := err.(*domain.Error); ok {
+		var domErr *domain.Error; if errors.As(err, &domErr) {
 			errorResponse(c, domErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, err.Error(), nil))
@@ -116,7 +117,7 @@ func (h *InviteHandler) GetInvite(c *gin.Context) {
 
 	response, err := h.inviteService.GetInviteByID(c.Request.Context(), inviteID)
 	if err != nil {
-		if domErr, ok := err.(*domain.Error); ok {
+		var domErr *domain.Error; if errors.As(err, &domErr) {
 			errorResponse(c, domErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, err.Error(), nil))
@@ -151,7 +152,7 @@ func (h *InviteHandler) RevokeInvite(c *gin.Context) {
 
 	err := h.inviteService.RevokeInvite(c.Request.Context(), inviteID, networkID, tenantID.(string), userID.(string))
 	if err != nil {
-		if domErr, ok := err.(*domain.Error); ok {
+		var domErr *domain.Error; if errors.As(err, &domErr) {
 			errorResponse(c, domErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, err.Error(), nil))

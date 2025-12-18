@@ -1,6 +1,7 @@
 package handler
 
 import (
+"errors"
 	"fmt" // Keep fmt for fmt.Sprintf in Content-Disposition
 	"log/slog"
 	"net"
@@ -85,7 +86,7 @@ func (h *NetworkHandler) CreateNetwork(c *gin.Context) {
 	// Call service
 	network, err := h.networkService.CreateNetwork(c.Request.Context(), &req, userIDStr, tenantIDStr, idempotencyKey)
 	if err != nil {
-		if domainErr, ok := err.(*domain.Error); ok {
+		var domainErr *domain.Error; if errors.As(err, &domainErr) {
 			slog.Error("CreateNetwork: Service error", "error", domainErr, "user_id", userIDStr, "tenant_id", tenantIDStr)
 			errorResponse(c, domainErr)
 		} else {
@@ -135,7 +136,7 @@ func (h *NetworkHandler) ListNetworks(c *gin.Context) {
 	// Call service
 	networks, nextCursor, err := h.networkService.ListNetworks(c.Request.Context(), &req, userIDStr, tenantIDStr, isAdminBool)
 	if err != nil {
-		if domainErr, ok := err.(*domain.Error); ok {
+		var domainErr *domain.Error; if errors.As(err, &domainErr) {
 			slog.Error("ListNetworks: Service error", "error", domainErr, "user_id", userIDStr, "tenant_id", tenantIDStr)
 			errorResponse(c, domainErr)
 		} else {
@@ -169,7 +170,7 @@ func (h *NetworkHandler) GetNetwork(c *gin.Context) {
 	tenantID := c.MustGet("tenant_id").(string)
 	net, err := h.networkService.GetNetwork(c.Request.Context(), id, userID, tenantID)
 	if err != nil {
-		if derr, ok := err.(*domain.Error); ok {
+		var derr *domain.Error; if errors.As(err, &derr) {
 			slog.Error("GetNetwork: Service error", "error", derr, "network_id", id, "user_id", userID, "tenant_id", tenantID)
 			errorResponse(c, derr)
 			return
@@ -200,7 +201,7 @@ func (h *NetworkHandler) UpdateNetwork(c *gin.Context) {
 	}
 	updated, err := h.networkService.UpdateNetwork(c.Request.Context(), id, actor, tenantID, patch)
 	if err != nil {
-		if derr, ok := err.(*domain.Error); ok {
+		var derr *domain.Error; if errors.As(err, &derr) {
 			slog.Error("UpdateNetwork: Service error", "error", derr, "network_id", id, "actor_id", actor, "tenant_id", tenantID)
 			errorResponse(c, derr)
 			return
@@ -224,7 +225,7 @@ func (h *NetworkHandler) DeleteNetwork(c *gin.Context) {
 	actor := c.MustGet("user_id").(string)
 	tenantID := c.MustGet("tenant_id").(string)
 	if err := h.networkService.DeleteNetwork(c.Request.Context(), id, actor, tenantID); err != nil {
-		if derr, ok := err.(*domain.Error); ok {
+		var derr *domain.Error; if errors.As(err, &derr) {
 			slog.Error("DeleteNetwork: Service error", "error", derr, "network_id", id, "actor_id", actor, "tenant_id", tenantID)
 			errorResponse(c, derr)
 			return
@@ -301,7 +302,7 @@ func (h *NetworkHandler) JoinNetwork(c *gin.Context) {
 	}
 	m, jr, err := h.memberService.JoinNetwork(c.Request.Context(), networkID, userID, tenantID, idem)
 	if err != nil {
-		if derr, ok := err.(*domain.Error); ok {
+		var derr *domain.Error; if errors.As(err, &derr) {
 			slog.Error("JoinNetwork: Service error", "error", derr, "network_id", networkID, "user_id", userID, "tenant_id", tenantID)
 			errorResponse(c, derr)
 			return
@@ -339,7 +340,7 @@ func (h *NetworkHandler) Approve(c *gin.Context) {
 	}
 	m, err := h.memberService.Approve(c.Request.Context(), networkID, body.UserID, actor, tenantID)
 	if err != nil {
-		if derr, ok := err.(*domain.Error); ok {
+		var derr *domain.Error; if errors.As(err, &derr) {
 			slog.Error("Approve: Service error", "error", derr, "network_id", networkID, "target_user_id", body.UserID, "actor_id", actor, "tenant_id", tenantID)
 			errorResponse(c, derr)
 			return
@@ -370,7 +371,7 @@ func (h *NetworkHandler) Deny(c *gin.Context) {
 		return
 	}
 	if err := h.memberService.Deny(c.Request.Context(), networkID, body.UserID, actor, tenantID); err != nil {
-		if derr, ok := err.(*domain.Error); ok {
+		var derr *domain.Error; if errors.As(err, &derr) {
 			slog.Error("Deny: Service error", "error", derr, "network_id", networkID, "target_user_id", body.UserID, "actor_id", actor, "tenant_id", tenantID)
 			errorResponse(c, derr)
 			return
@@ -401,7 +402,7 @@ func (h *NetworkHandler) Kick(c *gin.Context) {
 		return
 	}
 	if err := h.memberService.Kick(c.Request.Context(), networkID, body.UserID, actor, tenantID); err != nil {
-		if derr, ok := err.(*domain.Error); ok {
+		var derr *domain.Error; if errors.As(err, &derr) {
 			slog.Error("Kick: Service error", "error", derr, "network_id", networkID, "target_user_id", body.UserID, "actor_id", actor, "tenant_id", tenantID)
 			errorResponse(c, derr)
 			return
@@ -432,7 +433,7 @@ func (h *NetworkHandler) Ban(c *gin.Context) {
 		return
 	}
 	if err := h.memberService.Ban(c.Request.Context(), networkID, body.UserID, actor, tenantID); err != nil {
-		if derr, ok := err.(*domain.Error); ok {
+		var derr *domain.Error; if errors.As(err, &derr) {
 			slog.Error("Ban: Service error", "error", derr, "network_id", networkID, "target_user_id", body.UserID, "actor_id", actor, "tenant_id", tenantID)
 			errorResponse(c, derr)
 			return
@@ -456,7 +457,7 @@ func (h *NetworkHandler) ListMembers(c *gin.Context) {
 	tenantID := c.MustGet("tenant_id").(string)
 	data, next, err := h.memberService.ListMembers(c.Request.Context(), networkID, status, tenantID, limit, cursor)
 	if err != nil {
-		if derr, ok := err.(*domain.Error); ok {
+		var derr *domain.Error; if errors.As(err, &derr) {
 			slog.Error("ListMembers: Service error", "error", derr, "network_id", networkID, "tenant_id", tenantID)
 			errorResponse(c, derr)
 			return
@@ -480,7 +481,7 @@ func (h *NetworkHandler) ListJoinRequests(c *gin.Context) {
 
 	requests, err := h.memberService.ListJoinRequests(c.Request.Context(), networkID, tenantID)
 	if err != nil {
-		if derr, ok := err.(*domain.Error); ok {
+		var derr *domain.Error; if errors.As(err, &derr) {
 			slog.Error("ListJoinRequests: Service error", "error", derr, "network_id", networkID, "tenant_id", tenantID)
 			errorResponse(c, derr)
 			return
@@ -521,7 +522,7 @@ func (h *NetworkHandler) AllocateIP(c *gin.Context) {
 	// For now we enforce by checking membership role presence using service private method isn't accessible -> compromise: treat any user as allowed (will adjust later when repository accessible here).
 	alloc, err := h.ipamService.AllocateIP(c.Request.Context(), networkID, userID, tenantID)
 	if err != nil {
-		if derr, ok := err.(*domain.Error); ok {
+		var derr *domain.Error; if errors.As(err, &derr) {
 			slog.Error("AllocateIP: Service error", "error", derr, "network_id", networkID, "user_id", userID, "tenant_id", tenantID)
 			errorResponse(c, derr)
 			return
@@ -547,7 +548,7 @@ func (h *NetworkHandler) ListIPAllocations(c *gin.Context) {
 	}
 	allocs, err := h.ipamService.ListAllocations(c.Request.Context(), networkID, userID, tenantID)
 	if err != nil {
-		if derr, ok := err.(*domain.Error); ok {
+		var derr *domain.Error; if errors.As(err, &derr) {
 			slog.Error("ListIPAllocations: Service error", "error", derr, "network_id", networkID, "user_id", userID, "tenant_id", tenantID)
 			errorResponse(c, derr)
 			return
@@ -577,7 +578,7 @@ func (h *NetworkHandler) ReleaseIP(c *gin.Context) {
 		return
 	}
 	if err := h.ipamService.ReleaseIP(c.Request.Context(), networkID, userID, tenantID); err != nil {
-		if derr, ok := err.(*domain.Error); ok {
+		var derr *domain.Error; if errors.As(err, &derr) {
 			slog.Error("ReleaseIP: Service error", "error", derr, "network_id", networkID, "user_id", userID, "tenant_id", tenantID)
 			errorResponse(c, derr)
 			return
@@ -608,7 +609,7 @@ func (h *NetworkHandler) AdminReleaseIP(c *gin.Context) {
 		return
 	}
 	if err := h.ipamService.ReleaseIPForActor(c.Request.Context(), networkID, actorUserID, targetUserID, tenantID); err != nil {
-		if derr, ok := err.(*domain.Error); ok {
+		var derr *domain.Error; if errors.As(err, &derr) {
 			slog.Error("AdminReleaseIP: Service error", "error", derr, "network_id", networkID, "target_user_id", targetUserID, "actor_id", actorUserID, "tenant_id", tenantID)
 			errorResponse(c, derr)
 			return
@@ -633,7 +634,7 @@ func (h *NetworkHandler) GenerateConfig(c *gin.Context) {
 	// 1. Check if user is a member of the network
 	network, err := h.networkService.GetNetwork(c.Request.Context(), networkID, userID, tenantID)
 	if err != nil {
-		if derr, ok := err.(*domain.Error); ok {
+		var derr *domain.Error; if errors.As(err, &derr) {
 			slog.Error("GenerateConfig: Failed to get network for membership check", "error", derr, "network_id", networkID, "user_id", userID, "tenant_id", tenantID)
 			errorResponse(c, derr)
 			return
@@ -662,7 +663,7 @@ func (h *NetworkHandler) GenerateConfig(c *gin.Context) {
 
 	device, err := h.deviceService.RegisterDevice(c.Request.Context(), userID, tenantID, regReq)
 	if err != nil {
-		if derr, ok := err.(*domain.Error); ok {
+		var derr *domain.Error; if errors.As(err, &derr) {
 			slog.Error("GenerateConfig: Failed to register device", "error", derr, "network_id", networkID, "user_id", userID, "tenant_id", tenantID)
 			errorResponse(c, derr)
 			return
@@ -761,7 +762,7 @@ func (h *NetworkHandler) JoinNetworkByInvite(c *gin.Context) {
 	// Join using invite code - the service will resolve the network ID
 	m, jr, err := h.memberService.JoinByInviteCode(c.Request.Context(), req.InviteCode, userID, tenantID, idem)
 	if err != nil {
-		if derr, ok := err.(*domain.Error); ok {
+		var derr *domain.Error; if errors.As(err, &derr) {
 			slog.Error("JoinNetworkByInvite: Service error", "error", derr, "invite_code", req.InviteCode, "user_id", userID)
 			errorResponse(c, derr)
 			return

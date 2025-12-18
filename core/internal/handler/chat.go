@@ -1,6 +1,7 @@
 package handler
 
 import (
+"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -20,6 +21,28 @@ func NewChatHandler(chatService *service.ChatService) *ChatHandler {
 	return &ChatHandler{
 		chatService: chatService,
 	}
+}
+
+func (h *ChatHandler) handleError(c *gin.Context, err error, message string) {
+	var domainErr *domain.Error
+	if errors.As(err, &domainErr) {
+		status := http.StatusBadRequest
+		if domainErr.Code == domain.ErrNotFound {
+			status = http.StatusNotFound
+		} else if domainErr.Code == domain.ErrForbidden {
+			status = http.StatusForbidden
+		} else if domainErr.Code == domain.ErrUnauthorized {
+			status = http.StatusUnauthorized
+		}
+		c.JSON(status, domainErr)
+		return
+	}
+
+	c.JSON(http.StatusInternalServerError, gin.H{
+		"code":    "ERR_INTERNAL_SERVER",
+		"message": message,
+		"details": gin.H{"error": err.Error()},
+	})
 }
 
 // ListMessages handles GET /v1/chat
@@ -80,11 +103,7 @@ func (h *ChatHandler) ListMessages(c *gin.Context) {
 	// List messages
 	messages, nextCursor, err := h.chatService.ListMessages(c.Request.Context(), filter, tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    "ERR_INTERNAL_SERVER",
-			"message": "Failed to list messages",
-			"details": gin.H{"error": err.Error()},
-		})
+		h.handleError(c, err, "Failed to list messages")
 		return
 	}
 
@@ -102,14 +121,7 @@ func (h *ChatHandler) GetMessage(c *gin.Context) {
 
 	message, err := h.chatService.GetMessage(c.Request.Context(), messageID, tenantID)
 	if err != nil {
-		if domainErr, ok := err.(*domain.Error); ok && domainErr.Code == domain.ErrNotFound {
-			c.JSON(http.StatusNotFound, domainErr)
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    "ERR_INTERNAL_SERVER",
-			"message": "Failed to get message",
-		})
+		h.handleError(c, err, "Failed to get message")
 		return
 	}
 
@@ -146,7 +158,7 @@ func (h *ChatHandler) SendMessage(c *gin.Context) {
 
 	message, err := h.chatService.SendMessage(c.Request.Context(), userID, tenantID, req.Scope, req.Body, req.Attachments, "")
 	if err != nil {
-		if domainErr, ok := err.(*domain.Error); ok {
+		var domainErr *domain.Error; if errors.As(err, &domainErr) {
 			c.JSON(http.StatusBadRequest, domainErr)
 			return
 		}
@@ -181,7 +193,7 @@ func (h *ChatHandler) EditMessage(c *gin.Context) {
 
 	message, err := h.chatService.EditMessage(c.Request.Context(), messageID, userID, tenantID, req.Body, isAdmin)
 	if err != nil {
-		if domainErr, ok := err.(*domain.Error); ok {
+		var domainErr *domain.Error; if errors.As(err, &domainErr) {
 			status := http.StatusBadRequest
 			if domainErr.Code == domain.ErrForbidden {
 				status = http.StatusForbidden
@@ -215,7 +227,7 @@ func (h *ChatHandler) DeleteMessage(c *gin.Context) {
 	}
 
 	if err := h.chatService.DeleteMessage(c.Request.Context(), messageID, userID, tenantID, mode, isAdmin, isModerator); err != nil {
-		if domainErr, ok := err.(*domain.Error); ok {
+		var domainErr *domain.Error; if errors.As(err, &domainErr) {
 			status := http.StatusBadRequest
 			if domainErr.Code == domain.ErrForbidden {
 				status = http.StatusForbidden
@@ -260,7 +272,7 @@ func (h *ChatHandler) RedactMessage(c *gin.Context) {
 
 	redactedMsg, err := h.chatService.RedactMessage(c.Request.Context(), messageID, userID, tenantID, isAdmin, isModerator, req.Reason)
 	if err != nil {
-		if domainErr, ok := err.(*domain.Error); ok {
+		var domainErr *domain.Error; if errors.As(err, &domainErr) {
 			status := http.StatusBadRequest
 			if domainErr.Code == domain.ErrForbidden {
 				status = http.StatusForbidden
@@ -291,10 +303,7 @@ func (h *ChatHandler) GetEditHistory(c *gin.Context) {
 
 	edits, err := h.chatService.GetEditHistory(c.Request.Context(), messageID, tenantID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    "ERR_INTERNAL_SERVER",
-			"message": "Failed to get edit history",
-		})
+		h.handleError(c, err, "Failed to get edit history")
 		return
 	}
 

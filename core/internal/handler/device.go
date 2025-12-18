@@ -1,6 +1,7 @@
 package handler
 
 import (
+"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -48,7 +49,7 @@ func (h *DeviceHandler) RegisterDevice(c *gin.Context) {
 
 	device, err := h.deviceService.RegisterDevice(c.Request.Context(), userID, tenantID, &req)
 	if err != nil {
-		if domainErr, ok := err.(*domain.Error); ok {
+		var domainErr *domain.Error; if errors.As(err, &domainErr) {
 			slog.Error("RegisterDevice: Service returned domain error", "error", domainErr, "user_id", userID, "tenant_id", tenantID)
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
@@ -104,7 +105,7 @@ func (h *DeviceHandler) ListDevices(c *gin.Context) {
 
 	devices, nextCursor, err := h.deviceService.ListDevices(c.Request.Context(), userID, tenantID, isAdmin, filter)
 	if err != nil {
-		if domainErr, ok := err.(*domain.Error); ok {
+		var domainErr *domain.Error; if errors.As(err, &domainErr) {
 			slog.Error("ListDevices: Service returned domain error", "error", domainErr, "user_id", userID, "tenant_id", tenantID, "filter", filter)
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
@@ -134,7 +135,7 @@ func (h *DeviceHandler) GetDevice(c *gin.Context) {
 
 	device, err := h.deviceService.GetDevice(c.Request.Context(), deviceID, userID, tenantID, isAdmin)
 	if err != nil {
-		if domainErr, ok := err.(*domain.Error); ok {
+		var domainErr *domain.Error; if errors.As(err, &domainErr) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}
@@ -168,7 +169,7 @@ func (h *DeviceHandler) UpdateDevice(c *gin.Context) {
 
 	device, err := h.deviceService.UpdateDevice(c.Request.Context(), deviceID, userID, tenantID, isAdmin, &req)
 	if err != nil {
-		if domainErr, ok := err.(*domain.Error); ok {
+		var domainErr *domain.Error; if errors.As(err, &domainErr) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}
@@ -190,7 +191,7 @@ func (h *DeviceHandler) DeleteDevice(c *gin.Context) {
 	isAdmin := c.GetBool("is_admin")
 
 	if err := h.deviceService.DeleteDevice(c.Request.Context(), deviceID, userID, tenantID, isAdmin); err != nil {
-		if domainErr, ok := err.(*domain.Error); ok {
+		var domainErr *domain.Error; if errors.As(err, &domainErr) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}
@@ -214,7 +215,7 @@ func (h *DeviceHandler) GetDeviceConfig(c *gin.Context) {
 
 	config, err := h.deviceService.GetDeviceConfig(c.Request.Context(), deviceID, userID)
 	if err != nil {
-		if domainErr, ok := err.(*domain.Error); ok {
+		var domainErr *domain.Error; if errors.As(err, &domainErr) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}
@@ -244,7 +245,7 @@ func (h *DeviceHandler) Heartbeat(c *gin.Context) {
 	}
 
 	if err := h.deviceService.Heartbeat(c.Request.Context(), deviceID, userID, tenantID, &req); err != nil {
-		if domainErr, ok := err.(*domain.Error); ok {
+		var domainErr *domain.Error; if errors.As(err, &domainErr) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}
@@ -268,7 +269,7 @@ func (h *DeviceHandler) DisableDevice(c *gin.Context) {
 	isAdmin := c.GetBool("is_admin")
 
 	if err := h.deviceService.DisableDevice(c.Request.Context(), deviceID, userID, tenantID, isAdmin); err != nil {
-		if domainErr, ok := err.(*domain.Error); ok {
+		var domainErr *domain.Error; if errors.As(err, &domainErr) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}
@@ -293,7 +294,7 @@ func (h *DeviceHandler) EnableDevice(c *gin.Context) {
 	isAdmin := c.GetBool("is_admin")
 
 	if err := h.deviceService.EnableDevice(c.Request.Context(), deviceID, userID, tenantID, isAdmin); err != nil {
-		if domainErr, ok := err.(*domain.Error); ok {
+		var domainErr *domain.Error; if errors.As(err, &domainErr) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}

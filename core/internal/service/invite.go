@@ -183,7 +183,7 @@ func (s *InviteService) RevokeInvite(ctx context.Context, inviteID, networkID, t
 	// Verify user has permission
 	membership, err := s.memberRepo.Get(ctx, networkID, userID)
 	if err != nil {
-		return fmt.Errorf("failed to get membership for invite revocation: %w", err)
+		return domain.NewError(domain.ErrNotAuthorized, "You must be a member of the network", err)
 	}
 
 	if membership.Role != domain.RoleOwner && membership.Role != domain.RoleAdmin {

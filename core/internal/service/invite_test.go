@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -83,7 +84,8 @@ func TestInviteService_CreateInvite(t *testing.T) {
 			t.Error("expected error for non-admin user")
 		}
 
-		if domErr, ok := err.(*domain.Error); ok {
+		var domErr *domain.Error
+		if errors.As(err, &domErr) {
 			if domErr.Code != domain.ErrNotAuthorized {
 				t.Errorf("expected ErrNotAuthorized, got %s", domErr.Code)
 			}
@@ -225,7 +227,8 @@ func TestInviteService_RevokeInvite(t *testing.T) {
 			t.Error("expected error for revoked token")
 		}
 
-		if domErr, ok := err.(*domain.Error); ok {
+		var domErr *domain.Error
+		if errors.As(err, &domErr) {
 			if domErr.Code != domain.ErrInviteTokenRevoked {
 				t.Errorf("expected ErrInviteTokenRevoked, got %s", domErr.Code)
 			}
@@ -416,8 +419,8 @@ func TestInviteService_RevokeInvite_WrongNetwork(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for wrong network")
 	}
-	domErr, ok := err.(*domain.Error)
-	if !ok || domErr.Code != domain.ErrNotFound {
+	var domErr *domain.Error
+	if !errors.As(err, &domErr) || domErr.Code != domain.ErrNotFound {
 		t.Errorf("expected ErrNotFound, got %v", err)
 	}
 }
@@ -452,8 +455,8 @@ func TestInviteService_RevokeInvite_UserNotMember(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for non-member user")
 	}
-	domErr, ok := err.(*domain.Error)
-	if !ok || domErr.Code != domain.ErrNotAuthorized {
+	var domErr *domain.Error
+	if !errors.As(err, &domErr) || domErr.Code != domain.ErrNotAuthorized {
 		t.Errorf("expected ErrNotAuthorized, got %v", err)
 	}
 }

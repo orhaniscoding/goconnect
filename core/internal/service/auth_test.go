@@ -1,6 +1,7 @@
 package service
 
 import (
+"errors"
 	"context"
 	"testing"
 	"time"
@@ -60,7 +61,7 @@ func TestAuthService_Register(t *testing.T) {
 				if err == nil {
 					t.Fatal("expected error, got nil")
 				}
-				if derr, ok := err.(*domain.Error); ok {
+				var derr *domain.Error; if errors.As(err, &derr) {
 					if derr.Code != tt.errCode {
 						t.Errorf("expected error code %s, got %s", tt.errCode, derr.Code)
 					}
@@ -155,7 +156,7 @@ func TestAuthService_Login(t *testing.T) {
 				if err == nil {
 					t.Fatal("expected error, got nil")
 				}
-				if derr, ok := err.(*domain.Error); ok {
+				var derr *domain.Error; if errors.As(err, &derr) {
 					if derr.Code != tt.errCode {
 						t.Errorf("expected error code %s, got %s", tt.errCode, derr.Code)
 					}
@@ -670,7 +671,7 @@ func TestAuthService_Enable2FA(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error for invalid 2FA code")
 		}
-		if derr, ok := err.(*domain.Error); ok {
+		var derr *domain.Error; if errors.As(err, &derr) {
 			if derr.Code != domain.ErrInvalidCredentials {
 				t.Errorf("expected error code %s, got %s", domain.ErrInvalidCredentials, derr.Code)
 			}
@@ -765,7 +766,7 @@ func TestAuthService_Disable2FA(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error for invalid 2FA code")
 		}
-		if derr, ok := err.(*domain.Error); ok {
+		var derr *domain.Error; if errors.As(err, &derr) {
 			if derr.Code != domain.ErrInvalidCredentials {
 				t.Errorf("expected error code %s, got %s", domain.ErrInvalidCredentials, derr.Code)
 			}
@@ -849,7 +850,7 @@ func TestAuthService_ValidateToken(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error for suspended user token")
 		}
-		if derr, ok := err.(*domain.Error); ok {
+		var derr *domain.Error; if errors.As(err, &derr) {
 			if derr.Code != domain.ErrForbidden {
 				t.Errorf("expected error code %s, got %s", domain.ErrForbidden, derr.Code)
 			}
@@ -1224,7 +1225,7 @@ func TestAuthService_Login_SuspendedUser(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for suspended user login")
 	}
-	if derr, ok := err.(*domain.Error); ok {
+	var derr *domain.Error; if errors.As(err, &derr) {
 		if derr.Code != domain.ErrForbidden {
 			t.Errorf("expected error code %s, got %s", domain.ErrForbidden, derr.Code)
 		}
@@ -1260,7 +1261,7 @@ func TestAuthService_Login_2FA_Required(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for 2FA required")
 	}
-	if derr, ok := err.(*domain.Error); ok {
+	var derr *domain.Error; if errors.As(err, &derr) {
 		if derr.Code != "ERR_2FA_REQUIRED" {
 			t.Errorf("expected error code ERR_2FA_REQUIRED, got %s", derr.Code)
 		}
@@ -1297,7 +1298,7 @@ func TestAuthService_Login_Invalid2FACode(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for invalid 2FA code")
 	}
-	if derr, ok := err.(*domain.Error); ok {
+	var derr *domain.Error; if errors.As(err, &derr) {
 		if derr.Code != domain.ErrInvalidCredentials {
 			t.Errorf("expected error code %s, got %s", domain.ErrInvalidCredentials, derr.Code)
 		}
