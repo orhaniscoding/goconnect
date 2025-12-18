@@ -3,11 +3,13 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/repository"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1132,3 +1134,194 @@ func TestAdminService_UnsuspendUser_Success(t *testing.T) {
 	err := svc.UnsuspendUser(ctx, "admin-unsusp", "target-unsusp")
 	require.NoError(t, err)
 }
+
+// ==================== Stub Admin Repo & Error Tests ====================
+
+// StubAdminRepository for testing error branches
+type StubAdminRepository struct {
+	repository.AdminRepositoryInterface
+	RealRepo           *repository.InMemoryAdminRepository
+	FailSuspendUser    bool
+	FailUpdateUserRole bool
+	FailListAllUsers   bool
+}
+
+// Ensure Stub implements interface
+var _ repository.AdminRepositoryInterface = &StubAdminRepository{}
+
+// Implement only necessary methods for tests, forwarding others to RealRepo
+
+func (s *StubAdminRepository) ListAllUsers(ctx context.Context, filters domain.UserFilters, pagination domain.PaginationParams) ([]*domain.UserListItem, int, error) {
+	if s.FailListAllUsers {
+		return nil, 0, fmt.Errorf("db error listing users")
+	}
+	return s.RealRepo.ListAllUsers(ctx, filters, pagination)
+}
+
+func (s *StubAdminRepository) GetUserStats(ctx context.Context) (*domain.SystemStats, error) {
+	return s.RealRepo.GetUserStats(ctx)
+}
+
+func (s *StubAdminRepository) GetUserByID(ctx context.Context, userID string) (*domain.User, error) {
+	return s.RealRepo.GetUserByID(ctx, userID)
+}
+
+func (s *StubAdminRepository) AddUser(user *domain.User) {
+	s.RealRepo.AddUser(user)
+}
+
+func (s *StubAdminRepository) UpdateUserRole(ctx context.Context, userID string, isAdmin, isModerator *bool) error {
+	if s.FailUpdateUserRole {
+		return fmt.Errorf("db error updating role")
+	}
+	return s.RealRepo.UpdateUserRole(ctx, userID, isAdmin, isModerator)
+}
+
+func (s *StubAdminRepository) UpdateLastSeen(ctx context.Context, userID string) error {
+	return s.RealRepo.UpdateLastSeen(ctx, userID)
+}
+
+func (s *StubAdminRepository) UnsuspendUser(ctx context.Context, userID string) error {
+	return s.RealRepo.UnsuspendUser(ctx, userID)
+}
+
+func (s *StubAdminRepository) SuspendUser(ctx context.Context, userID, reason, suspendedBy string) error {
+	if s.FailSuspendUser {
+		return fmt.Errorf("db error suspending user")
+	}
+	return s.RealRepo.SuspendUser(ctx, userID, reason, suspendedBy)
+}
+
+func TestAdminService_SuspendUser_Errors(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	tenantRepo := repository.NewInMemoryTenantRepository()
+	networkRepo := repository.NewInMemoryNetworkRepository()
+	deviceRepo := repository.NewInMemoryDeviceRepository()
+	chatRepo := repository.NewInMemoryChatRepository()
+	realAdminRepo := repository.NewInMemoryAdminRepository()
+
+	t.Run("SuspendUser Repository Failure", func(t *testing.T) {
+		stubRepo := &StubAdminRepository{
+			RealRepo:        realAdminRepo,
+			FailSuspendUser: true,
+		}
+
+		svc := NewAdminService(
+			userRepo,
+			stubRepo,
+			tenantRepo,
+			networkRepo,
+			deviceRepo,
+			chatRepo,
+			nil,
+			nil,
+			nil,
+		)
+		ctx := context.Background()
+
+		// Setup users
+		adminUser := &domain.User{ID: "admin-fail", Email: "admin@test.com", TenantID: "t1", IsAdmin: true}
+		userRepo.Create(ctx, adminUser)
+		targetUser := &domain.User{ID: "target-fail", Email: "target@test.com", TenantID: "t1", IsAdmin: false}
+		userRepo.Create(ctx, targetUser)
+		
+		err := svc.SuspendUser(ctx, "admin-fail", "target-fail", "reason")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Failed to suspend user")
+	})
+
+	t.Run("SuspendUser with Redis Connectivity Issue", func(t *testing.T) {
+		// Use real admin repo
+		svc := NewAdminService(
+			userRepo,
+			realAdminRepo,
+			tenantRepo,
+			networkRepo,
+			deviceRepo,
+			chatRepo,
+			nil,
+			// Mock Redis client connecting to closed port to trigger interaction logic
+			redis.NewClient(&redis.Options{Addr: "localhost:63799"}), 
+			nil,
+		)
+		ctx := context.Background()
+
+		// Setup users
+		adminUser := &domain.User{ID: "admin-redis", Email: "adminr@test.com", TenantID: "t1", IsAdmin: true}
+		userRepo.Create(ctx, adminUser)
+		targetUser := &domain.User{ID: "target-redis", Email: "targetr@test.com", TenantID: "t1", IsAdmin: false}
+		userRepo.Create(ctx, targetUser)
+		realAdminRepo.AddUser(targetUser)
+
+		// Suspend should succeed even if Redis fails (it skips invalidation)
+		err := svc.SuspendUser(ctx, "admin-redis", "target-redis", "reason")
+		require.NoError(t, err)
+	})
+}
+
+func TestAdminService_UpdateUserRole_Errors(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	realAdminRepo := repository.NewInMemoryAdminRepository()
+	ctx := context.Background()
+
+	t.Run("UpdateUserRole Repository Failure", func(t *testing.T) {
+		stubRepo := &StubAdminRepository{
+			RealRepo:           realAdminRepo,
+			FailUpdateUserRole: true,
+		}
+
+		svc := NewAdminService(
+			userRepo,
+			stubRepo,
+			repository.NewInMemoryTenantRepository(),
+			repository.NewInMemoryNetworkRepository(),
+			repository.NewInMemoryDeviceRepository(),
+			repository.NewInMemoryChatRepository(),
+			nil, nil, nil,
+		)
+
+		// Setup users
+		adminUser := &domain.User{ID: "admin-role-fail", Email: "admin@test.com", TenantID: "t1", IsAdmin: true}
+		userRepo.Create(ctx, adminUser)
+		targetUser := &domain.User{ID: "target-role-fail", Email: "target@test.com", TenantID: "t1", IsAdmin: false}
+		userRepo.Create(ctx, targetUser)
+		
+		isAdmin := true
+		err := svc.UpdateUserRole(ctx, "admin-role-fail", "target-role-fail", &isAdmin, nil)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Failed to update user role")
+	})
+}
+
+func TestAdminService_ListAllUsers_Errors(t *testing.T) {
+	userRepo := repository.NewInMemoryUserRepository()
+	realAdminRepo := repository.NewInMemoryAdminRepository()
+	ctx := context.Background()
+
+	t.Run("ListAllUsers Repository Failure", func(t *testing.T) {
+		stubRepo := &StubAdminRepository{
+			RealRepo:         realAdminRepo,
+			FailListAllUsers: true,
+		}
+
+		svc := NewAdminService(
+			userRepo,
+			stubRepo,
+			repository.NewInMemoryTenantRepository(),
+			repository.NewInMemoryNetworkRepository(),
+			repository.NewInMemoryDeviceRepository(),
+			repository.NewInMemoryChatRepository(),
+			nil, nil, nil,
+		)
+
+		// Setup users
+		adminUser := &domain.User{ID: "admin-list-fail", Email: "admin@test.com", TenantID: "t1", IsAdmin: true}
+		userRepo.Create(ctx, adminUser)
+
+		_, _, err := svc.ListAllUsers(ctx, "admin-list-fail", domain.UserFilters{}, domain.PaginationParams{})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Failed to retrieve users")
+	})
+}
+
+
