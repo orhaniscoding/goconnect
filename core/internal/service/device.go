@@ -147,7 +147,7 @@ func (s *DeviceService) RegisterDevice(ctx context.Context, userID, tenantID str
 func (s *DeviceService) GetDevice(ctx context.Context, deviceID, userID, tenantID string, isAdmin bool) (*domain.Device, error) {
 	device, err := s.deviceRepo.GetByID(ctx, deviceID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get device: %w", err)
 	}
 
 	// Ensure device belongs to the tenant
@@ -172,7 +172,11 @@ func (s *DeviceService) ListDevices(ctx context.Context, userID, tenantID string
 	// Always filter by tenant
 	filter.TenantID = tenantID
 
-	return s.deviceRepo.List(ctx, filter)
+	devices, nextCursor, err := s.deviceRepo.List(ctx, filter)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to list devices: %w", err)
+	}
+	return devices, nextCursor, nil
 }
 
 // UpdateDevice updates device information
@@ -180,7 +184,7 @@ func (s *DeviceService) UpdateDevice(ctx context.Context, deviceID, userID, tena
 	// Get device
 	device, err := s.deviceRepo.GetByID(ctx, deviceID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get device for update: %w", err)
 	}
 
 	// Ensure device belongs to the tenant
@@ -244,7 +248,7 @@ func (s *DeviceService) DeleteDevice(ctx context.Context, deviceID, userID, tena
 	// Get device
 	device, err := s.deviceRepo.GetByID(ctx, deviceID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get device for deletion: %w", err)
 	}
 
 	// Ensure device belongs to the tenant
@@ -275,7 +279,7 @@ func (s *DeviceService) Heartbeat(ctx context.Context, deviceID, userID, tenantI
 	// Get device
 	device, err := s.deviceRepo.GetByID(ctx, deviceID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get device for heartbeat: %w", err)
 	}
 
 	// Ensure device belongs to the tenant
@@ -307,14 +311,16 @@ func (s *DeviceService) Heartbeat(ctx context.Context, deviceID, userID, tenantI
 
 	// Update daemon version and OS version if provided
 	if req.DaemonVer != "" || req.OSVersion != "" {
-		device, _ := s.deviceRepo.GetByID(ctx, deviceID)
-		if req.DaemonVer != "" {
-			device.DaemonVer = req.DaemonVer
+		device, err := s.deviceRepo.GetByID(ctx, deviceID)
+		if err == nil {
+			if req.DaemonVer != "" {
+				device.DaemonVer = req.DaemonVer
+			}
+			if req.OSVersion != "" {
+				device.OSVersion = req.OSVersion
+			}
+			_ = s.deviceRepo.Update(ctx, device)
 		}
-		if req.OSVersion != "" {
-			device.OSVersion = req.OSVersion
-		}
-		s.deviceRepo.Update(ctx, device)
 	}
 
 	// Notify that device is online
@@ -328,7 +334,7 @@ func (s *DeviceService) DisableDevice(ctx context.Context, deviceID, userID, ten
 	// Get device
 	device, err := s.deviceRepo.GetByID(ctx, deviceID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get device for disable: %w", err)
 	}
 
 	// Ensure device belongs to the tenant
@@ -353,7 +359,7 @@ func (s *DeviceService) EnableDevice(ctx context.Context, deviceID, userID, tena
 	// Get device
 	device, err := s.deviceRepo.GetByID(ctx, deviceID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get device for enable: %w", err)
 	}
 
 	// Ensure device belongs to the tenant
@@ -383,7 +389,7 @@ func (s *DeviceService) GetDeviceConfig(ctx context.Context, deviceID, userID st
 	// Verify device ownership
 	device, err := s.deviceRepo.GetByID(ctx, deviceID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get device for config: %w", err)
 	}
 	if device.UserID != userID {
 		return nil, domain.NewError(domain.ErrForbidden, "Device does not belong to user", nil)
@@ -392,7 +398,7 @@ func (s *DeviceService) GetDeviceConfig(ctx context.Context, deviceID, userID st
 	// Get all peers for this device (across all networks)
 	peers, err := s.peerRepo.GetByDeviceID(ctx, deviceID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get device peers: %w", err)
 	}
 
 	if len(peers) == 0 {

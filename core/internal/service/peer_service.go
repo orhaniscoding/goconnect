@@ -48,13 +48,13 @@ func (s *PeerService) CreatePeer(ctx context.Context, req *domain.CreatePeerRequ
 	// Verify network exists
 	network, err := s.networkRepo.GetByID(ctx, req.NetworkID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get network for peer creation: %w", err)
 	}
 
 	// Verify device exists
 	device, err := s.deviceRepo.GetByID(ctx, req.DeviceID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get device for peer creation: %w", err)
 	}
 
 	// Check tenant consistency
@@ -87,7 +87,7 @@ func (s *PeerService) CreatePeer(ctx context.Context, req *domain.CreatePeerRequ
 	}
 
 	if err := s.peerRepo.Create(ctx, peer); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to save peer: %w", err)
 	}
 
 	return peer, nil
@@ -95,7 +95,11 @@ func (s *PeerService) CreatePeer(ctx context.Context, req *domain.CreatePeerRequ
 
 // GetPeer retrieves a peer by ID
 func (s *PeerService) GetPeer(ctx context.Context, peerID string) (*domain.Peer, error) {
-	return s.peerRepo.GetByID(ctx, peerID)
+	p, err := s.peerRepo.GetByID(ctx, peerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get peer: %w", err)
+	}
+	return p, nil
 }
 
 // GetPeersByNetwork retrieves all peers in a network
@@ -105,7 +109,11 @@ func (s *PeerService) GetPeersByNetwork(ctx context.Context, networkID string) (
 		return nil, err
 	}
 
-	return s.peerRepo.GetByNetworkID(ctx, networkID)
+	p, err := s.peerRepo.GetByNetworkID(ctx, networkID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get peers by network: %w", err)
+	}
+	return p, nil
 }
 
 // GetPeersByDevice retrieves all peers for a device
@@ -115,7 +123,11 @@ func (s *PeerService) GetPeersByDevice(ctx context.Context, deviceID string) ([]
 		return nil, err
 	}
 
-	return s.peerRepo.GetByDeviceID(ctx, deviceID)
+	p, err := s.peerRepo.GetByDeviceID(ctx, deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get peers by device: %w", err)
+	}
+	return p, nil
 }
 
 // GetPeerByNetworkAndDevice retrieves a peer for a specific device in a network
@@ -212,12 +224,18 @@ func (s *PeerService) UpdatePeer(ctx context.Context, peerID string, req *domain
 
 // UpdatePeerStats updates peer statistics from WireGuard
 func (s *PeerService) UpdatePeerStats(ctx context.Context, peerID string, stats *domain.UpdatePeerStatsRequest) error {
-	return s.peerRepo.UpdateStats(ctx, peerID, stats)
+	if err := s.peerRepo.UpdateStats(ctx, peerID, stats); err != nil {
+		return fmt.Errorf("failed to update peer stats: %w", err)
+	}
+	return nil
 }
 
 // DeletePeer soft-deletes a peer
 func (s *PeerService) DeletePeer(ctx context.Context, peerID string) error {
-	return s.peerRepo.Delete(ctx, peerID)
+	if err := s.peerRepo.Delete(ctx, peerID); err != nil {
+		return fmt.Errorf("failed to delete peer: %w", err)
+	}
+	return nil
 }
 
 // GetPeerStats retrieves real-time statistics for a peer

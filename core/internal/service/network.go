@@ -56,7 +56,7 @@ func (s *NetworkService) CreateNetwork(ctx context.Context, req *domain.CreateNe
 	// Check for CIDR overlap
 	overlap, err := s.networkRepo.CheckCIDROverlap(ctx, req.CIDR, "", tenantID)
 	if err != nil {
-		return nil, domain.NewError(domain.ErrInternalServer, "Failed to check CIDR overlap", nil)
+		return nil, fmt.Errorf("failed to check CIDR overlap: %w", err)
 	}
 	if overlap {
 		return nil, domain.NewError(domain.ErrCIDROverlap,
@@ -84,7 +84,7 @@ func (s *NetworkService) CreateNetwork(ctx context.Context, req *domain.CreateNe
 
 	// Store network
 	if err := s.networkRepo.Create(ctx, network); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to save network: %w", err)
 	}
 
 	// Store idempotency record
@@ -126,7 +126,7 @@ func (s *NetworkService) ListNetworks(ctx context.Context, req *domain.ListNetwo
 
 	networks, nextCursor, err := s.networkRepo.List(ctx, filter)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("failed to list networks: %w", err)
 	}
 
 	s.audit(ctx, tenantID, "NETWORK_LIST", userID, "", map[string]any{"visibility": req.Visibility, "count": len(networks)})
@@ -138,7 +138,7 @@ func (s *NetworkService) ListNetworks(ctx context.Context, req *domain.ListNetwo
 func (s *NetworkService) GetNetwork(ctx context.Context, id, actor, tenantID string) (*domain.Network, error) {
 	net, err := s.networkRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get network: %w", err)
 	}
 
 	// Ensure network belongs to the tenant
@@ -156,7 +156,7 @@ func (s *NetworkService) UpdateNetwork(ctx context.Context, id string, actor, te
 	// First check if network exists and belongs to tenant
 	existing, err := s.networkRepo.GetByID(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get network for update: %w", err)
 	}
 	if existing.TenantID != tenantID {
 		return nil, domain.NewError(domain.ErrNotFound, "Network not found", nil)
@@ -218,7 +218,7 @@ func (s *NetworkService) UpdateNetwork(ctx context.Context, id string, actor, te
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update network registry: %w", err)
 	}
 	s.audit(ctx, tenantID, "NETWORK_UPDATED", actor, id, patch)
 	return updated, nil
@@ -229,14 +229,14 @@ func (s *NetworkService) DeleteNetwork(ctx context.Context, id, actor, tenantID 
 	// First check if network exists and belongs to tenant
 	existing, err := s.networkRepo.GetByID(ctx, id)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get network for deletion: %w", err)
 	}
 	if existing.TenantID != tenantID {
 		return domain.NewError(domain.ErrNotFound, "Network not found", nil)
 	}
 
 	if err := s.networkRepo.SoftDelete(ctx, id, time.Now()); err != nil {
-		return err
+		return fmt.Errorf("failed to soft delete network: %w", err)
 	}
 
 	s.audit(ctx, tenantID, "NETWORK_DELETED", actor, id, nil)

@@ -194,7 +194,7 @@ func (s *AuthService) Register(ctx context.Context, req *domain.RegisterRequest)
 	}
 
 	if err := s.tenantRepo.Create(ctx, tenant); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create default tenant: %w", err)
 	}
 
 	// Create user
@@ -212,7 +212,7 @@ func (s *AuthService) Register(ctx context.Context, req *domain.RegisterRequest)
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create user record: %w", err)
 	}
 
 	// Generate JWT tokens
@@ -289,7 +289,7 @@ func (s *AuthService) Login(ctx context.Context, req *domain.LoginRequest) (*dom
 func (s *AuthService) Generate2FASecret(ctx context.Context, userID string) (string, string, error) {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		return "", "", err
+		return "", "", fmt.Errorf("failed to get user: %w", err)
 	}
 
 	key, err := totp.Generate(totp.GenerateOpts{
@@ -311,14 +311,17 @@ func (s *AuthService) Enable2FA(ctx context.Context, userID, secret, code string
 
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get user: %w", err)
 	}
 
 	user.TwoFAKey = secret
 	user.TwoFAEnabled = true
 	user.UpdatedAt = time.Now().UTC()
 
-	return s.userRepo.Update(ctx, user)
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return fmt.Errorf("failed to update user 2FA status: %w", err)
+	}
+	return nil
 }
 
 // GenerateRecoveryCodes generates 8 one-time recovery codes for the user
@@ -326,7 +329,7 @@ func (s *AuthService) Enable2FA(ctx context.Context, userID, secret, code string
 func (s *AuthService) GenerateRecoveryCodes(ctx context.Context, userID, code string) ([]string, error) {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 
 	// Verify 2FA is enabled
@@ -358,7 +361,7 @@ func (s *AuthService) GenerateRecoveryCodes(ctx context.Context, userID, code st
 	user.UpdatedAt = time.Now().UTC()
 
 	if err := s.userRepo.Update(ctx, user); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update user with recovery codes: %w", err)
 	}
 
 	return plaintextCodes, nil
@@ -423,7 +426,7 @@ func (s *AuthService) UseRecoveryCode(ctx context.Context, req *domain.UseRecove
 	user.UpdatedAt = time.Now().UTC()
 
 	if err := s.userRepo.Update(ctx, user); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update user after recovery code use: %w", err)
 	}
 
 	// Generate JWT tokens
@@ -465,7 +468,7 @@ func normalizeRecoveryCode(code string) string {
 func (s *AuthService) GetRecoveryCodeCount(ctx context.Context, userID string) (int, error) {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to get user: %w", err)
 	}
 	return len(user.RecoveryCodes), nil
 }
@@ -474,7 +477,7 @@ func (s *AuthService) GetRecoveryCodeCount(ctx context.Context, userID string) (
 func (s *AuthService) Disable2FA(ctx context.Context, userID, code string) error {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get user: %w", err)
 	}
 
 	if !user.TwoFAEnabled {
@@ -489,7 +492,10 @@ func (s *AuthService) Disable2FA(ctx context.Context, userID, code string) error
 	user.TwoFAKey = ""
 	user.UpdatedAt = time.Now().UTC()
 
-	return s.userRepo.Update(ctx, user)
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return fmt.Errorf("failed to disable 2FA for user: %w", err)
+	}
+	return nil
 }
 
 // ValidateToken validates an access token and returns claims
@@ -599,7 +605,7 @@ func (s *AuthService) Refresh(ctx context.Context, req *domain.RefreshRequest) (
 	// Get user to verify still exists
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get user for refresh: %w", err)
 	}
 
 	// Generate new tokens
@@ -661,7 +667,7 @@ func (s *AuthService) Logout(ctx context.Context, accessToken, refreshToken stri
 func (s *AuthService) ChangePassword(ctx context.Context, userID, oldPassword, newPassword string) error {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get user for password change: %w", err)
 	}
 
 	// Verify old password
@@ -682,7 +688,10 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID, oldPassword, n
 	user.PasswordHash = newHash
 	user.UpdatedAt = time.Now().UTC()
 
-	return s.userRepo.Update(ctx, user)
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return fmt.Errorf("failed to update user password: %w", err)
+	}
+	return nil
 }
 
 // LoginOrRegisterOIDC handles OIDC login/registration
@@ -712,7 +721,7 @@ func (s *AuthService) LoginOrRegisterOIDC(ctx context.Context, email, externalID
 		}
 
 		if err := s.tenantRepo.Create(ctx, tenant); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create OIDC tenant: %w", err)
 		}
 
 		// Create user
@@ -730,7 +739,7 @@ func (s *AuthService) LoginOrRegisterOIDC(ctx context.Context, email, externalID
 		}
 
 		if err := s.userRepo.Create(ctx, user); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create OIDC user: %w", err)
 		}
 	} else {
 		// 3. Update existing user if needed (link account)
@@ -739,7 +748,7 @@ func (s *AuthService) LoginOrRegisterOIDC(ctx context.Context, email, externalID
 			user.ExternalID = externalID
 			user.UpdatedAt = time.Now().UTC()
 			if err := s.userRepo.Update(ctx, user); err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to update OIDC user: %w", err)
 			}
 		}
 	}

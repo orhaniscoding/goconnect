@@ -86,7 +86,7 @@ func (s *MembershipService) JoinNetwork(ctx context.Context, networkID, userID, 
 
 	net, err := s.networks.GetByID(ctx, networkID)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to get network for join: %w", err)
 	}
 	// Enforce tenant isolation
 	if net.TenantID != tenantID {
@@ -115,7 +115,7 @@ func (s *MembershipService) JoinNetwork(ctx context.Context, networkID, userID, 
 	case domain.JoinPolicyOpen:
 		m, err := s.members.UpsertApproved(ctx, networkID, userID, domain.RoleMember, now)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("failed to join open network: %w", err)
 		}
 		s.audit(ctx, tenantID, audit.ActionNetworkJoin, userID, networkID, map[string]any{"policy": "open"})
 		s.notifier.MemberJoined(networkID, userID)
@@ -134,9 +134,9 @@ func (s *MembershipService) JoinNetwork(ctx context.Context, networkID, userID, 
 		if err != nil {
 			if derr, ok := err.(*domain.Error); ok && derr.Code == domain.ErrAlreadyRequested {
 				s.audit(ctx, tenantID, audit.ActionNetworkJoinRequest, userID, networkID, map[string]any{"dedup": true})
-				return nil, jr, derr
+				return nil, jr, fmt.Errorf("join request already exists: %w", derr)
 			}
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("failed to create join request: %w", err)
 		}
 		s.audit(ctx, tenantID, audit.ActionNetworkJoinRequest, userID, networkID, nil)
 		return nil, jr, nil
@@ -166,14 +166,14 @@ func (s *MembershipService) Approve(ctx context.Context, networkID, targetUserID
 	// find pending join
 	jr, err := s.joins.GetPending(ctx, networkID, targetUserID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get pending join request: %w", err)
 	}
 	if err := s.joins.Decide(ctx, jr.ID, true); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to approve join request: %w", err)
 	}
 	m, err := s.members.UpsertApproved(ctx, networkID, targetUserID, domain.RoleMember, time.Now())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create membership after approval: %w", err)
 	}
 	s.audit(ctx, tenantID, audit.ActionNetworkJoinApprove, actorID, networkID, map[string]any{"user": targetUserID})
 
@@ -206,10 +206,10 @@ func (s *MembershipService) Deny(ctx context.Context, networkID, targetUserID, a
 	}
 	jr, err := s.joins.GetPending(ctx, networkID, targetUserID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get pending join request for denial: %w", err)
 	}
 	if err := s.joins.Decide(ctx, jr.ID, false); err != nil {
-		return err
+		return fmt.Errorf("failed to deny join request: %w", err)
 	}
 	s.audit(ctx, tenantID, audit.ActionNetworkJoinDeny, actorID, networkID, map[string]any{"user": targetUserID})
 	return nil
@@ -229,7 +229,7 @@ func (s *MembershipService) Kick(ctx context.Context, networkID, targetUserID, a
 		return domain.NewError(domain.ErrNotAuthorized, "Administrator privileges required", nil)
 	}
 	if err := s.members.Remove(ctx, networkID, targetUserID); err != nil {
-		return err
+		return fmt.Errorf("failed to remove member: %w", err)
 	}
 
 	// Deprovision peers when user is kicked
@@ -262,7 +262,7 @@ func (s *MembershipService) Ban(ctx context.Context, networkID, targetUserID, ac
 		return domain.NewError(domain.ErrNotAuthorized, "Administrator privileges required", nil)
 	}
 	if err := s.members.SetStatus(ctx, networkID, targetUserID, domain.StatusBanned); err != nil {
-		return err
+		return fmt.Errorf("failed to set member status to banned: %w", err)
 	}
 	s.audit(ctx, tenantID, audit.ActionNetworkMemberBan, actorID, networkID, map[string]any{"user": targetUserID})
 	return nil
@@ -272,7 +272,7 @@ func (s *MembershipService) ListMembers(ctx context.Context, networkID, status, 
 	// Verify network tenant
 	net, err := s.networks.GetByID(ctx, networkID)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("failed to get network for listing members: %w", err)
 	}
 	if net.TenantID != tenantID {
 		return nil, "", domain.NewError(domain.ErrNotFound, "Network not found", nil)
@@ -309,7 +309,7 @@ func (s *MembershipService) audit(ctx context.Context, tenantID, action, actor, 
 func (s *MembershipService) IsMember(ctx context.Context, networkID, userID string) (bool, error) {
 	m, err := s.members.Get(ctx, networkID, userID)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to verify membership: %w", err)
 	}
 	return m.Status == domain.StatusApproved, nil
 }
