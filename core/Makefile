@@ -58,7 +58,7 @@ test-coverage-html: test-coverage
 ## lint: Run linters (golangci-lint must be installed)
 lint:
 	@which golangci-lint > /dev/null || (echo "golangci-lint not found. Install: https://golangci-lint.run/usage/install/" && exit 1)
-	golangci-lint run --timeout=3m
+	golangci-lint run --timeout=3m -c ../.golangci.yml
 
 ## vet: Run go vet
 vet:

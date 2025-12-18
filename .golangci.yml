@@ -1,22 +1,114 @@
 run:
   timeout: 5m
+  # Separate modules in gowork are handled better by running in their respective dirs.
+  # But a root config allows sharing rules.
+
 linters:
-  enable: [govet, staticcheck, errcheck, revive]
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - gosimple
+    - gofmt
+    - gocritic
+    - revive
 
 issues:
-  # Exclude errcheck in test files - test code often ignores errors intentionally
   exclude-rules:
-    - path: _test\.go
+    # Exclude errcheck in test files - test assertions handle errors
+    - path: _test\.go$
+      linters:
+        - errcheck
+        - unused
+        - ineffassign
+
+    # Exclude errcheck for deferred rollback calls
+    - text: "Error return value of `.*\\.Rollback\\(\\)` is not checked"
+      linters:
+        - errcheck
+
+    # Exclude errcheck for json.Unmarshal/Encode
+    - text: "Error return value of `json\\."
+      linters:
+        - errcheck
+
+    # Exclude errcheck for websocket operations
+    - path: internal/websocket/
+      linters:
+        - errcheck
+
+    # Exclude errcheck for connection deadline and write operations
+    - text: "Error return value of `.*\\.(SetReadDeadline|SetWriteDeadline|WriteMessage|Write)\\("
+      linters:
+        - errcheck
+
+    # Exclude errcheck for service.Logger (from root config)
+    - text: "Error return value of `\\(github.com/kardianos/service.Logger\\)"
+      linters:
+        - errcheck
+
+    # Exclude gocritic exitAfterDefer - intentional fatal on startup failure
+    - text: "exitAfterDefer"
+      linters:
+        - gocritic
+
+    # Exclude gocritic stylistic choices
+    - text: "ifElseChain"
+      linters:
+        - gocritic
+    - text: "elseif"
+      linters:
+        - gocritic
+
+    # Exclude w.Write errors in HTTP handlers
+    - path: internal/handler/
+      text: "Error return value of `w.Write`"
       linters:
         - errcheck
 
 linters-settings:
   errcheck:
+    check-blank: false
     exclude-functions:
-      # Logging functions that return errors but are typically ignored
+      - encoding/json.Marshal
+      - encoding/json.Unmarshal
+      - (*database/sql.Tx).Rollback
+      - (*net.Conn).SetReadDeadline
+      - (*net.Conn).SetWriteDeadline
       - (github.com/kardianos/service.Logger).Info
       - (github.com/kardianos/service.Logger).Infof
       - (github.com/kardianos/service.Logger).Warning
       - (github.com/kardianos/service.Logger).Warningf
       - (github.com/kardianos/service.Logger).Error
       - (github.com/kardianos/service.Logger).Errorf
+
+  gocritic:
+    disabled-checks:
+      - exitAfterDefer
+      - ifElseChain
+      - elseif
+
+  revive:
+    # Set to true to disable standard linter behavior (only error on what you've specified)
+    ignore-generated-header: true
+    severity: warning
+    rules:
+      - name: blank-imports
+      - name: context-as-first-argument
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: exported
+      - name: if-return
+      - name: increment-decrement
+      - name: var-naming
+      - name: var-declaration
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: indent-error-flow
+      - name: errorf

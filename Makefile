@@ -37,9 +37,9 @@ test-cli:
 # Lint code
 lint:
 	@echo "Linting Core..."
-	cd core && golangci-lint run
+	cd core && golangci-lint run -c ../.golangci.yml
 	@echo "Linting CLI..."
-	cd cli && golangci-lint run
+	cd cli && golangci-lint run -c ../.golangci.yml
 
 # Clean build artifacts
 clean:

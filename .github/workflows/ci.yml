@@ -21,8 +21,11 @@ jobs:
           cache-dependency-path: core/go.sum
       - name: Test Core
         run: cd core && go test -v -race -short ./...
-      - name: Vet Core
-        run: cd core && go vet ./...
+      - name: Lint Core
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: core
 
   cli:
     runs-on: ubuntu-latest
@@ -36,7 +39,12 @@ jobs:
         # CGO_ENABLED=0 is now possible thanks to modernc.org/sqlite
         env:
           CGO_ENABLED: 0
-        run: cd cli && go test -v -short ./...
+        run: cd cli && go test -v -race -short ./...
+      - name: Lint CLI
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: cli
       - name: Vet CLI
         run: cd cli && go vet ./...
 
