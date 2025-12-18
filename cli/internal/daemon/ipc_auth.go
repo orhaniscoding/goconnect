@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -119,8 +120,10 @@ func (a *IPCAuth) ValidateToken(token string) bool {
 	defer a.mu.RUnlock()
 
 	// Use constant-time comparison to prevent timing attacks
-	// (though less critical for local IPC, it's good practice)
-	return len(token) > 0 && token == a.token
+	if len(token) != len(a.token) {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(token), []byte(a.token)) == 1
 }
 
 // GetToken returns the current token (for testing/debugging only).
