@@ -50,13 +50,13 @@ func (s *InviteService) CreateInvite(ctx context.Context, networkID, tenantID, u
 	// Verify network exists and user has permission
 	network, err := s.networkRepo.GetByID(ctx, networkID)
 	if err != nil {
-		return nil, domain.NewError(domain.ErrNotFound, "Network not found", nil)
+		return nil, fmt.Errorf("failed to get network for invite: %w", err)
 	}
 
 	// Verify user is owner/admin of the network
 	membership, err := s.memberRepo.Get(ctx, networkID, userID)
 	if err != nil {
-		return nil, domain.NewError(domain.ErrNotAuthorized, "You must be a member of the network", nil)
+		return nil, fmt.Errorf("failed to get network membership for invite: %w", err)
 	}
 
 	if membership.Role != domain.RoleOwner && membership.Role != domain.RoleAdmin {
@@ -93,7 +93,7 @@ func (s *InviteService) CreateInvite(ctx context.Context, networkID, tenantID, u
 	}
 
 	if err := s.inviteRepo.Create(ctx, token); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create invite token: %w", err)
 	}
 
 	// Audit log
@@ -112,7 +112,7 @@ func (s *InviteService) CreateInvite(ctx context.Context, networkID, tenantID, u
 func (s *InviteService) ValidateInvite(ctx context.Context, tokenStr string) (*domain.InviteToken, error) {
 	token, err := s.inviteRepo.GetByToken(ctx, tokenStr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get invite by token: %w", err)
 	}
 
 	if !token.IsValid() {
@@ -129,7 +129,7 @@ func (s *InviteService) ValidateInvite(ctx context.Context, tokenStr string) (*d
 func (s *InviteService) UseInvite(ctx context.Context, tokenStr, userID string) (*domain.InviteToken, error) {
 	token, err := s.inviteRepo.UseToken(ctx, tokenStr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to use invite token: %w", err)
 	}
 
 	// Audit log
@@ -157,7 +157,7 @@ func (s *InviteService) ListInvites(ctx context.Context, networkID, userID strin
 
 	tokens, err := s.inviteRepo.ListByNetwork(ctx, networkID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list network invites: %w", err)
 	}
 
 	result := make([]*domain.InviteTokenResponse, 0, len(tokens))
@@ -173,7 +173,7 @@ func (s *InviteService) RevokeInvite(ctx context.Context, inviteID, networkID, t
 	// Get the invite to verify network match
 	invite, err := s.inviteRepo.GetByID(ctx, inviteID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get invite for revocation: %w", err)
 	}
 
 	if invite.NetworkID != networkID {
@@ -183,7 +183,7 @@ func (s *InviteService) RevokeInvite(ctx context.Context, inviteID, networkID, t
 	// Verify user has permission
 	membership, err := s.memberRepo.Get(ctx, networkID, userID)
 	if err != nil {
-		return domain.NewError(domain.ErrNotAuthorized, "You must be a member of the network", nil)
+		return fmt.Errorf("failed to get membership for invite revocation: %w", err)
 	}
 
 	if membership.Role != domain.RoleOwner && membership.Role != domain.RoleAdmin {
@@ -191,7 +191,7 @@ func (s *InviteService) RevokeInvite(ctx context.Context, inviteID, networkID, t
 	}
 
 	if err := s.inviteRepo.Revoke(ctx, inviteID); err != nil {
-		return err
+		return fmt.Errorf("failed to revoke invite token: %w", err)
 	}
 
 	// Audit log
@@ -208,7 +208,7 @@ func (s *InviteService) RevokeInvite(ctx context.Context, inviteID, networkID, t
 func (s *InviteService) GetInviteByID(ctx context.Context, inviteID string) (*domain.InviteTokenResponse, error) {
 	token, err := s.inviteRepo.GetByID(ctx, inviteID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get invite by ID: %w", err)
 	}
 	return s.toResponse(token), nil
 }

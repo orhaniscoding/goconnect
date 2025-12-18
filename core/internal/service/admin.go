@@ -51,12 +51,20 @@ func NewAdminService(
 
 // ListUsers retrieves a paginated list of users
 func (s *AdminService) ListUsers(ctx context.Context, limit, offset int, query string) ([]*domain.User, int, error) {
-	return s.userRepo.ListAll(ctx, limit, offset, query)
+	users, total, err := s.userRepo.ListAll(ctx, limit, offset, query)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list users: %w", err)
+	}
+	return users, total, nil
 }
 
 // ListTenants retrieves a paginated list of tenants
 func (s *AdminService) ListTenants(ctx context.Context, limit, offset int, query string) ([]*domain.Tenant, int, error) {
-	return s.tenantRepo.ListAll(ctx, limit, offset, query)
+	tenants, total, err := s.tenantRepo.ListAll(ctx, limit, offset, query)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list tenants: %w", err)
+	}
+	return tenants, total, nil
 }
 
 // SystemStats represents system-wide statistics
@@ -73,22 +81,22 @@ type SystemStats struct {
 func (s *AdminService) GetSystemStats(ctx context.Context) (*SystemStats, error) {
 	userCount, err := s.userRepo.Count(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to count users: %w", err)
 	}
 
 	tenantCount, err := s.tenantRepo.Count(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to count tenants: %w", err)
 	}
 
 	networkCount, err := s.networkRepo.Count(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to count networks: %w", err)
 	}
 
 	deviceCount, err := s.deviceRepo.Count(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to count devices: %w", err)
 	}
 
 	activeConnections := 0
@@ -116,12 +124,12 @@ func (s *AdminService) GetSystemStats(ctx context.Context) (*SystemStats, error)
 func (s *AdminService) ToggleUserAdmin(ctx context.Context, userID string) (*domain.User, error) {
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get user for admin toggle: %w", err)
 	}
 
 	user.IsAdmin = !user.IsAdmin
 	if err := s.userRepo.Update(ctx, user); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to update user admin status: %w", err)
 	}
 
 	return user, nil
@@ -131,7 +139,10 @@ func (s *AdminService) ToggleUserAdmin(ctx context.Context, userID string) (*dom
 func (s *AdminService) DeleteUser(ctx context.Context, userID string) error {
 	// In a real implementation, we should probably soft-delete or check for active resources
 	// For now, we'll just delete the user.
-	return s.userRepo.Delete(ctx, userID)
+	if err := s.userRepo.Delete(ctx, userID); err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+	return nil
 }
 
 // DeleteTenant deletes a tenant and all associated data
@@ -140,28 +151,39 @@ func (s *AdminService) DeleteTenant(ctx context.Context, tenantID string) error 
 	// For now, we'll just delete the tenant.
 	// Note: Foreign key constraints in DB should handle cascading if configured,
 	// otherwise we might need to delete users/networks first.
-	return s.tenantRepo.Delete(ctx, tenantID)
+	if err := s.tenantRepo.Delete(ctx, tenantID); err != nil {
+		return fmt.Errorf("failed to delete tenant: %w", err)
+	}
+	return nil
 }
 
 // ListNetworks retrieves a paginated list of all networks (system-wide)
 func (s *AdminService) ListNetworks(ctx context.Context, limit int, cursor, query string) ([]*domain.Network, string, error) {
-	return s.networkRepo.List(ctx, repository.NetworkFilter{
+	nets, nextCursor, err := s.networkRepo.List(ctx, repository.NetworkFilter{
 		TenantID: "", // Empty means all tenants
 		IsAdmin:  true,
 		Limit:    limit,
 		Cursor:   cursor,
 		Search:   query,
 	})
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to list all networks: %w", err)
+	}
+	return nets, nextCursor, nil
 }
 
 // ListDevices retrieves a paginated list of all devices (system-wide)
 func (s *AdminService) ListDevices(ctx context.Context, limit int, cursor, query string) ([]*domain.Device, string, error) {
-	return s.deviceRepo.List(ctx, domain.DeviceFilter{
+	devices, nextCursor, err := s.deviceRepo.List(ctx, domain.DeviceFilter{
 		TenantID: "", // Empty means all tenants
 		Limit:    limit,
 		Cursor:   cursor,
 		Search:   query,
 	})
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to list all devices: %w", err)
+	}
+	return devices, nextCursor, nil
 }
 
 // ====== NEW ADMIN USER MANAGEMENT METHODS ======
@@ -397,5 +419,8 @@ func (s *AdminService) GetUserDetails(ctx context.Context, adminUserID, targetUs
 
 // UpdateLastSeen updates the last seen timestamp for a user
 func (s *AdminService) UpdateLastSeen(ctx context.Context, userID string) error {
-	return s.adminRepo.UpdateLastSeen(ctx, userID)
+	if err := s.adminRepo.UpdateLastSeen(ctx, userID); err != nil {
+		return fmt.Errorf("failed to update user last seen: %w", err)
+	}
+	return nil
 }

@@ -78,7 +78,7 @@ func (s *ChatService) SendMessage(ctx context.Context, userID, tenantID, scope, 
 func (s *ChatService) GetMessage(ctx context.Context, messageID, tenantID string) (*domain.ChatMessage, error) {
 	msg, err := s.chatRepo.GetByID(ctx, messageID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get message by ID: %w", err)
 	}
 	if msg.TenantID != tenantID {
 		return nil, domain.NewError(domain.ErrNotFound, "Message not found", nil)
@@ -89,7 +89,11 @@ func (s *ChatService) GetMessage(ctx context.Context, messageID, tenantID string
 // ListMessages retrieves messages matching the filter
 func (s *ChatService) ListMessages(ctx context.Context, filter domain.ChatMessageFilter, tenantID string) ([]*domain.ChatMessage, string, error) {
 	filter.TenantID = tenantID
-	return s.chatRepo.List(ctx, filter)
+	messages, cursor, err := s.chatRepo.List(ctx, filter)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to list messages: %w", err)
+	}
+	return messages, cursor, nil
 }
 
 // EditMessage edits an existing message
@@ -97,7 +101,7 @@ func (s *ChatService) EditMessage(ctx context.Context, messageID, userID, tenant
 	// Get message
 	msg, err := s.chatRepo.GetByID(ctx, messageID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get message for editing: %w", err)
 	}
 
 	// Ensure tenant match
@@ -156,7 +160,7 @@ func (s *ChatService) DeleteMessage(ctx context.Context, messageID, userID, tena
 	// Get message
 	msg, err := s.chatRepo.GetByID(ctx, messageID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get message for deletion: %w", err)
 	}
 
 	// Ensure tenant match
@@ -202,7 +206,7 @@ func (s *ChatService) RedactMessage(ctx context.Context, messageID, moderatorID,
 	// Get message
 	msg, err := s.chatRepo.GetByID(ctx, messageID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get message for redaction: %w", err)
 	}
 
 	// Ensure tenant match
@@ -239,11 +243,15 @@ func (s *ChatService) GetEditHistory(ctx context.Context, messageID, tenantID st
 	// Get message to check tenant
 	msg, err := s.chatRepo.GetByID(ctx, messageID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get message for edit history: %w", err)
 	}
 	if msg.TenantID != tenantID {
 		return nil, domain.NewError(domain.ErrNotFound, "Message not found", nil)
 	}
 
-	return s.chatRepo.GetEdits(ctx, messageID)
+	edits, err := s.chatRepo.GetEdits(ctx, messageID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get message edits: %w", err)
+	}
+	return edits, nil
 }
