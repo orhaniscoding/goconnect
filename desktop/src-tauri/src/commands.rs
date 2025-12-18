@@ -193,11 +193,11 @@ pub async fn daemon_get_messages(
 #[tauri::command]
 pub async fn daemon_send_message(
     state: State<'_, DaemonState>,
-    peer_id: String,
+    network_id: String,
     content: String,
 ) -> Result<(), String> {
     let client = get_client(&state).await?;
-    client.send_message(&peer_id, &content).await.map_err(|e| e.to_string())
+    client.send_message(&network_id, &content).await.map_err(|e| e.to_string())
 }
 
 // =============================================================================

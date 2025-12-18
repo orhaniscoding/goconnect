@@ -5,7 +5,7 @@ interface NetworkDetailsProps {
     selfPeer: PeerInfo | undefined;
     onGenerateInvite: () => void;
     onLeaveNetwork: () => void;
-    setActiveTab: (tab: "peers" | "chat" | "files" | "settings" | "voice") => void;
+    setActiveTab: (tab: "peers" | "chat" | "files" | "settings" | "voice" | "metrics") => void;
 }
 
 export default function NetworkDetails({

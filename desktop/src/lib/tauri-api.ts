@@ -87,17 +87,16 @@ export const tauriApi = {
 
     // Networks
     createNetwork: (name: string) => invoke<NetworkInfo>('daemon_create_network', { name }),
-    joinNetwork: (inviteCode: string) => invoke<NetworkInfo>('daemon_join_network', { inviteCode }), // Rust uses snake_case arg names usually, but tauri converts camelCase to snake_case automatically? Check commands.rs. 
-    // Wait, in commands.rs: `invite_code: String`. Tauri automatically maps camelCase JS args to snake_case Rust args.
+    joinNetwork: (invite_code: string) => invoke<NetworkInfo>('daemon_join_network', { invite_code }),
     listNetworks: () => invoke<NetworkInfo[]>('daemon_list_networks'),
-    leaveNetwork: (networkId: string) => invoke<void>('daemon_leave_network', { networkId }),
-    generateInvite: (networkId: string) => invoke<string>('daemon_generate_invite', { networkId }),
+    leaveNetwork: (network_id: string) => invoke<void>('daemon_leave_network', { network_id }),
+    generateInvite: (network_id: string) => invoke<string>('daemon_generate_invite', { network_id }),
 
     // Peers
     getPeers: () => invoke<PeerInfo[]>('daemon_get_peers'),
-    kickPeer: (networkId: string, peerId: string) => invoke<void>('daemon_kick_peer', { networkId, peerId }),
-    banPeer: (networkId: string, peerId: string, reason: string) => invoke<void>('daemon_ban_peer', { networkId, peerId, reason }),
-    unbanPeer: (networkId: string, peerId: string) => invoke<void>('daemon_unban_peer', { networkId, peerId }),
+    kickPeer: (network_id: string, peer_id: string) => invoke<void>('daemon_kick_peer', { network_id, peer_id }),
+    banPeer: (network_id: string, peer_id: string, reason: string) => invoke<void>('daemon_ban_peer', { network_id, peer_id, reason }),
+    unbanPeer: (network_id: string, peer_id: string) => invoke<void>('daemon_unban_peer', { network_id, peer_id }),
 
     // Settings
     getSettings: () => invoke<Settings>('daemon_get_settings'),
@@ -105,11 +104,11 @@ export const tauriApi = {
     resetSettings: () => invoke<Settings>('daemon_reset_settings'),
 
     // Chat
-    getMessages: (networkId: string, limit?: number, before?: string) => invoke<ChatMessage[]>('daemon_get_messages', { networkId, limit, before }),
-    sendMessage: (networkId: string, content: string) => invoke<void>('daemon_send_message', { networkId, content }),
+    getMessages: (network_id: string, limit?: number, before?: string) => invoke<ChatMessage[]>('daemon_get_messages', { network_id, limit, before }),
+    sendMessage: (network_id: string, content: string) => invoke<void>('daemon_send_message', { network_id, content }),
 
     // Transfers
-    listTransfers: (status?: string, peerId?: string) => invoke<TransferInfo[]>('daemon_list_transfers', { status, peerId }),
+    listTransfers: (status?: string, peer_id?: string) => invoke<TransferInfo[]>('daemon_list_transfers', { status, peer_id }),
     async getTransferStats(): Promise<TransferStats> {
         return await invoke('daemon_get_transfer_stats');
     },
@@ -137,8 +136,8 @@ export const tauriApi = {
             throw new Error(txt || 'Registration failed');
         }
     },
-    cancelTransfer: (transferId: string) => invoke<void>('daemon_cancel_transfer', { transferId }),
-    rejectTransfer: (transferId: string) => invoke<void>('daemon_reject_transfer', { transferId }),
-    sendFile: (peerId: string, filePath: string) => invoke<string>('daemon_send_file', { peerId, filePath }),
-    acceptTransfer: (transferId: string, savePath: string) => invoke<void>('daemon_accept_transfer', { transferId, savePath }),
+    cancelTransfer: (transfer_id: string) => invoke<void>('daemon_cancel_transfer', { transfer_id }),
+    rejectTransfer: (transfer_id: string) => invoke<void>('daemon_reject_transfer', { transfer_id }),
+    sendFile: (peer_id: string, file_path: string) => invoke<string>('daemon_send_file', { peer_id, file_path }),
+    acceptTransfer: (transfer_id: string, save_path: string) => invoke<void>('daemon_accept_transfer', { transfer_id, save_path }),
 };

@@ -212,6 +212,12 @@ export default function App() {
           >
             📊 Metrics
           </button>
+          <button
+            onClick={() => setActiveTab("settings")}
+            className={`h-full border-b-2 font-semibold transition-colors ${activeTab === "settings" ? "border-gc-primary text-white" : "border-transparent text-gray-400 hover:text-gray-200"}`}
+          >
+            ⚙️ Settings
+          </button>
         </div>
 
         <div className="flex-1 p-6 overflow-y-auto">
