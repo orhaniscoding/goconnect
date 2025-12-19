@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
 import { tauriApi, NetworkInfo, PeerInfo } from './lib/tauri-api';
 import { handleError } from './lib/utils';
 import { useToast, Toaster } from './components/Toast';
@@ -23,9 +24,36 @@ export default function App() {
   // UI State
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [joinInviteCode, setJoinInviteCode] = useState("");
   const [activeTab, setActiveTab] = useState<"peers" | "chat" | "files" | "settings" | "voice" | "metrics">("peers");
 
   const toast = useToast();
+
+  // Deep Link Listener
+  useEffect(() => {
+    const initDeepLink = async () => {
+      await onOpenUrl((urls) => {
+        console.log('Deep link received:', urls);
+        for (const url of urls) {
+          try {
+            // Expected: goconnect://join?code=XYZ
+            const u = new URL(url);
+            if (u.hostname === 'join') {
+              const code = u.searchParams.get('code');
+              if (code) {
+                setJoinInviteCode(code);
+                setShowJoinModal(true);
+                toast.success("Invite code detected!");
+              }
+            }
+          } catch (e) {
+            console.error('Failed to parse deep link:', url, e);
+          }
+        }
+      });
+    };
+    initDeepLink();
+  }, [toast]);
 
   // Initial Load
   useEffect(() => {
@@ -101,6 +129,7 @@ export default function App() {
       await tauriApi.joinNetwork(code);
       toast.success("Joined network");
       setShowJoinModal(false);
+      setJoinInviteCode(""); // Clear after join
       refreshNetworks();
     } catch (e) {
       handleError(e, "Failed to join network");
@@ -320,6 +349,7 @@ export default function App() {
         isOpen={showJoinModal}
         onClose={() => setShowJoinModal(false)}
         onSubmit={handleJoinNetwork}
+        initialCode={joinInviteCode}
       />
 
     </div>

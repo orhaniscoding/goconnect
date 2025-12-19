@@ -49,15 +49,16 @@ interface JoinModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (code: string) => Promise<void>;
+    initialCode?: string;
 }
 
-export function JoinNetworkModal({ isOpen, onClose, onSubmit }: JoinModalProps) {
+export function JoinNetworkModal({ isOpen, onClose, onSubmit, initialCode }: JoinModalProps) {
     const [code, setCode] = useState("");
 
-    // Reset code when modal opens
+    // Reset or set code when modal opens
     useEffect(() => {
-        if (isOpen) setCode("");
-    }, [isOpen]);
+        if (isOpen) setCode(initialCode || "");
+    }, [isOpen, initialCode]);
 
     if (!isOpen) return null;
 

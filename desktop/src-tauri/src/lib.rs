@@ -99,6 +99,12 @@ pub fn run() {
                 })
                 .build(app)?;
             
+            #[cfg(any(windows, target_os = "linux"))]
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                app.deep_link().register_all()?;
+            }
+
             // Spawn background task to update status
             let status_handle = status_i.clone();
             tauri::async_runtime::spawn(async move {
@@ -126,6 +132,7 @@ pub fn run() {
         })
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             greet,
