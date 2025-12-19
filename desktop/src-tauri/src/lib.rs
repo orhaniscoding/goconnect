@@ -21,10 +21,17 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_os::init())
         .manage(DaemonState::default())
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                window.hide().unwrap();
+                api.prevent_close();
+            }
+        })
         .setup(|app| {
+            let status_i = MenuItem::with_id(app, "status", "Status: Checking...", false, None::<&str>)?;
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
+            let menu = Menu::with_items(app, &[&status_i, &show_i, &quit_i])?;
 
             let _tray = TrayIconBuilder::with_id("tray")
                 .icon(app.default_window_icon().unwrap().clone())
@@ -43,6 +50,29 @@ pub fn run() {
                     _ => {}
                 })
                 .build(app)?;
+            
+            // Spawn background task to update status
+            let status_handle = status_i.clone();
+            tauri::async_runtime::spawn(async move {
+                loop {
+                    let status_text = match crate::daemon::DaemonClient::connect().await {
+                        Ok(client) => match client.get_status().await {
+                            Ok(status) => {
+                                if status.connected {
+                                    format!("Status: Connected ({})", status.network_name)
+                                } else {
+                                    "Status: Disconnected".to_string()
+                                }
+                            }
+                            Err(_) => "Status: Daemon Error".to_string(),
+                        },
+                        Err(_) => "Status: Daemon Stopped".to_string(),
+                    };
+
+                    let _ = status_handle.set_text(status_text);
+                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                }
+            });
 
             Ok(())
         })
