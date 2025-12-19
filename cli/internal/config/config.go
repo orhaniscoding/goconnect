@@ -59,26 +59,67 @@ func DefaultConfigPath() string {
 
 // LoadConfig loads the configuration from the given path.
 func LoadConfig(path string) (*Config, error) {
+	var cfg Config
+	
+	// Default configuration values
+	defaultConfig := func(c *Config) {
+		if c.Server.URL == "" {
+			c.Server.URL = "https://api.goconnect.io"
+		}
+		if c.Daemon.LocalPort == 0 {
+			c.Daemon.LocalPort = 34100
+		}
+		if c.Daemon.HealthCheckInterval == 0 {
+			c.Daemon.HealthCheckInterval = 30 * time.Second
+		}
+		if c.Daemon.SocketPath == "" {
+			if os.Getenv("GOOS") == "windows" {
+				c.Daemon.SocketPath = `\\.\pipe\goconnect`
+			} else {
+				c.Daemon.SocketPath = "/tmp/goconnect.sock"
+			}
+		}
+		
+		// Identity Path
+		if c.Identity.Path != "" {
+			c.IdentityPath = c.Identity.Path
+		} else {
+			home, _ := os.UserHomeDir()
+			c.IdentityPath = filepath.Join(home, ".goconnect", "identity.json")
+		}
+
+		// Settings
+		if c.Settings.LogLevel == "" {
+			c.Settings.LogLevel = "info"
+		}
+		if c.Settings.DownloadPath == "" {
+			home, _ := os.UserHomeDir()
+			c.Settings.DownloadPath = filepath.Join(home, "Downloads")
+		}
+		// Default to enabled if not explicitly disabled (bool default is false, so we need careful handling if we want default true)
+		// Since we can't distinguish false from unset easily without pointers, we assume false means disabled. 
+		// If we want default true, we'd need *bool. For now, let's leave it as is or enforce logic elsewhere.
+		// However, for first run, we can set it.
+	}
+
 	data, err := os.ReadFile(path)
 	if err != nil {
-		// Return default config if file not found
 		if os.IsNotExist(err) {
-			return &Config{
-				Daemon: struct {
-					ListenAddr          string        `yaml:"listen_addr"`
-					LocalPort           int           `yaml:"local_port"`
-					HealthCheckInterval time.Duration `yaml:"health_check_interval"`
-					SocketPath          string        `yaml:"socket_path"`
-					IPCTokenPath        string        `yaml:"ipc_token_path"`
-				}{
-					LocalPort: 34100, // Default port
-				},
-			}, nil
+			// file not found, return default config
+			cfg = Config{}
+			defaultConfig(&cfg)
+			// Initialize keyring for fresh config
+			keyring, err := storage.NewKeyringStore()
+			if err != nil {
+				logger.Warn("Failed to initialize keyring", "error", err)
+			}
+			cfg.Keyring = keyring
+			cfg.Settings.NotificationsEnabled = true 
+			return &cfg, nil
 		}
 		return nil, err
 	}
 
-	var cfg Config
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, err
 	}
@@ -90,26 +131,12 @@ func LoadConfig(path string) (*Config, error) {
 	}
 	cfg.Keyring = keyring
 
-	// Set defaults if missing
-	if cfg.Daemon.LocalPort == 0 {
-		cfg.Daemon.LocalPort = 34100
-	}
-	if cfg.Identity.Path != "" {
-		cfg.IdentityPath = cfg.Identity.Path
-	} else {
-		// Default identity path
-		home, _ := os.UserHomeDir()
-		cfg.IdentityPath = filepath.Join(home, ".goconnect", "identity.json")
-	}
-	// Set default settings
-	if cfg.Settings.LogLevel == "" {
-		cfg.Settings.LogLevel = "info"
-	}
-	if cfg.Settings.DownloadPath == "" {
-		home, _ := os.UserHomeDir()
-		cfg.Settings.DownloadPath = filepath.Join(home, "Downloads")
-	}
-	cfg.Settings.NotificationsEnabled = true // Default to enabled
+	// Apply defaults to loaded config
+	defaultConfig(&cfg)
+	
+	// Special handling for NotificationsEnabled: yaml unmarshal handles it, but default logic is tricky. 
+	// We'll trust user config or bool default (false) if missing.
+
 	cfg.ConfigPath = path
 
 	return &cfg, nil
