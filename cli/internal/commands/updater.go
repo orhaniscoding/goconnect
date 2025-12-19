@@ -45,10 +45,10 @@ type Asset struct {
 
 // Updater handles checking and applying updates.
 type Updater struct {
-	GitHubOwner  string
-	GitHubRepo   string
-	CurrentVer   string
-	HTTPClient   *http.Client
+	GitHubOwner string
+	GitHubRepo  string
+	CurrentVer  string
+	HTTPClient  *http.Client
 }
 
 // NewUpdater creates a new updater instance.

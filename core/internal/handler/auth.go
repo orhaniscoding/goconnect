@@ -1,9 +1,9 @@
 package handler
 
 import (
-"errors"
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -50,7 +50,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	user, err := h.authService.Register(c.Request.Context(), &req)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			errorResponse(c, domainErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
@@ -76,7 +77,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	authResp, err := h.authService.Login(c.Request.Context(), &req)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			errorResponse(c, domainErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
@@ -102,7 +104,8 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 
 	authResp, err := h.authService.Refresh(c.Request.Context(), &req)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			errorResponse(c, domainErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
@@ -135,7 +138,8 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 
 	// Call service with both tokens (graceful if access token missing)
 	if err := h.authService.Logout(c.Request.Context(), accessToken, req.RefreshToken); err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			errorResponse(c, domainErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
@@ -185,7 +189,8 @@ func (h *AuthHandler) Enable2FA(c *gin.Context) {
 	}
 
 	if err := h.authService.Enable2FA(c.Request.Context(), userID, req.Secret, req.Code); err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			errorResponse(c, domainErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to enable 2FA", nil))
@@ -213,7 +218,8 @@ func (h *AuthHandler) Disable2FA(c *gin.Context) {
 	}
 
 	if err := h.authService.Disable2FA(c.Request.Context(), userID, req.Code); err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			errorResponse(c, domainErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to disable 2FA", nil))
@@ -242,7 +248,8 @@ func (h *AuthHandler) GenerateRecoveryCodes(c *gin.Context) {
 
 	codes, err := h.authService.GenerateRecoveryCodes(c.Request.Context(), userID, req.Code)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			errorResponse(c, domainErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to generate recovery codes", nil))
@@ -268,7 +275,8 @@ func (h *AuthHandler) UseRecoveryCode(c *gin.Context) {
 
 	authResp, err := h.authService.UseRecoveryCode(c.Request.Context(), &req)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			errorResponse(c, domainErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
@@ -292,7 +300,8 @@ func (h *AuthHandler) GetRecoveryCodeCount(c *gin.Context) {
 
 	count, err := h.authService.GetRecoveryCodeCount(c.Request.Context(), userID)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			errorResponse(c, domainErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to get recovery code count", nil))
@@ -326,7 +335,8 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	}
 
 	if err := h.authService.ChangePassword(c.Request.Context(), userID, req.OldPassword, req.NewPassword); err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			errorResponse(c, domainErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to change password", nil))
@@ -458,7 +468,8 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 
 	// Update user profile via auth service
 	if err := h.authService.UpdateUserProfile(c.Request.Context(), userID, req.FullName, req.Bio, req.AvatarURL); err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			errorResponse(c, domainErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to update profile", nil))

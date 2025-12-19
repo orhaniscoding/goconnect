@@ -540,7 +540,7 @@ func TestGDPRService_ExportUserDataJSON(t *testing.T) {
 // StubDeletionRequestRepository for testing error branches
 type StubDeletionRequestRepository struct {
 	repository.DeletionRequestRepository
-	RealRepo *repository.InMemoryDeletionRequestRepository
+	RealRepo        *repository.InMemoryDeletionRequestRepository
 	FailListPending bool
 	FailUpdate      bool
 }
@@ -586,9 +586,9 @@ func TestGDPRService_ProcessPendingRequests_Errors(t *testing.T) {
 			RealRepo:        realDeletionRepo,
 			FailListPending: true,
 		}
-		
+
 		svc := NewGDPRService(userRepo, deviceRepo, networkRepo, membershipRepo, stubRepo)
-		
+
 		// Run - should assume early return without panic
 		svc.processPendingRequests(ctx)
 	})
@@ -598,17 +598,17 @@ func TestGDPRService_ProcessPendingRequests_Errors(t *testing.T) {
 			RealRepo:   realDeletionRepo,
 			FailUpdate: true,
 		}
-		
+
 		svc := NewGDPRService(userRepo, deviceRepo, networkRepo, membershipRepo, stubRepo)
-		
+
 		// Create a user to delete
 		user := &domain.User{
-			ID: "u-fail-update",
+			ID:       "u-fail-update",
 			TenantID: "t1",
-			Email: "fail@example.com",
+			Email:    "fail@example.com",
 		}
 		userRepo.Create(ctx, user)
-		
+
 		// Create a pending request in REAL repo
 		req := &domain.DeletionRequest{
 			ID:          "req-fail-update",
@@ -617,10 +617,10 @@ func TestGDPRService_ProcessPendingRequests_Errors(t *testing.T) {
 			RequestedAt: time.Now(),
 		}
 		realDeletionRepo.Create(ctx, req)
-		
+
 		// Run
 		svc.processPendingRequests(ctx)
-		
+
 		// Verify user STILL EXISTS (meaning deletion was skipped because update to 'Processing' failed)
 		_, err := userRepo.GetByID(ctx, "u-fail-update")
 		if err != nil {
@@ -630,4 +630,3 @@ func TestGDPRService_ProcessPendingRequests_Errors(t *testing.T) {
 		// but the key check is that deletion logic didn't run.
 	})
 }
-

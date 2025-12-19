@@ -1071,7 +1071,8 @@ func TestAdminService_UpdateUserRole_AdminNotFound(t *testing.T) {
 	isAdmin := true
 	err := svc.UpdateUserRole(ctx, "non-existent-admin", "some-target", &isAdmin, nil)
 	require.Error(t, err)
-	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+	var domainErr *domain.Error
+	ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrUnauthorized, domainErr.Code)
 }
@@ -1084,7 +1085,8 @@ func TestAdminService_SuspendUser_AdminNotFound(t *testing.T) {
 
 	err := svc.SuspendUser(ctx, "non-existent-admin", "some-target", "Reason")
 	require.Error(t, err)
-	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+	var domainErr *domain.Error
+	ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrUnauthorized, domainErr.Code)
 }
@@ -1113,7 +1115,8 @@ func TestAdminService_UnsuspendUser_AdminNotFound(t *testing.T) {
 
 	err := svc.UnsuspendUser(ctx, "non-existent-admin", "some-target")
 	require.Error(t, err)
-	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+	var domainErr *domain.Error
+	ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrUnauthorized, domainErr.Code)
 }
@@ -1224,7 +1227,7 @@ func TestAdminService_SuspendUser_Errors(t *testing.T) {
 		userRepo.Create(ctx, adminUser)
 		targetUser := &domain.User{ID: "target-fail", Email: "target@test.com", TenantID: "t1", IsAdmin: false}
 		userRepo.Create(ctx, targetUser)
-		
+
 		err := svc.SuspendUser(ctx, "admin-fail", "target-fail", "reason")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "Failed to suspend user")
@@ -1241,7 +1244,7 @@ func TestAdminService_SuspendUser_Errors(t *testing.T) {
 			chatRepo,
 			nil,
 			// Mock Redis client connecting to closed port to trigger interaction logic
-			redis.NewClient(&redis.Options{Addr: "localhost:63799"}), 
+			redis.NewClient(&redis.Options{Addr: "localhost:63799"}),
 			nil,
 		)
 		ctx := context.Background()
@@ -1285,7 +1288,7 @@ func TestAdminService_UpdateUserRole_Errors(t *testing.T) {
 		userRepo.Create(ctx, adminUser)
 		targetUser := &domain.User{ID: "target-role-fail", Email: "target@test.com", TenantID: "t1", IsAdmin: false}
 		userRepo.Create(ctx, targetUser)
-		
+
 		isAdmin := true
 		err := svc.UpdateUserRole(ctx, "admin-role-fail", "target-role-fail", &isAdmin, nil)
 		require.Error(t, err)
@@ -1323,5 +1326,3 @@ func TestAdminService_ListAllUsers_Errors(t *testing.T) {
 		assert.Contains(t, err.Error(), "Failed to retrieve users")
 	})
 }
-
-

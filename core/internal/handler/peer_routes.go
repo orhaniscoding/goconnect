@@ -23,11 +23,11 @@ func RegisterPeerRoutes(r *gin.Engine, h *PeerHandler, authMiddleware gin.Handle
 		v1.POST("/peers/:id/rotate-keys", h.RotatePeerKeys)
 
 		// Network-specific peer routes
-		v1.GET("/networks/:network_id/peers", h.GetPeersByNetwork)
-		v1.GET("/networks/:network_id/peers/active", h.GetActivePeers)
-		v1.GET("/networks/:network_id/peers/stats", h.GetNetworkPeerStats)
+		v1.GET("/networks/:id/peers", h.GetPeersByNetwork)
+		v1.GET("/networks/:id/peers/active", h.GetActivePeers)
+		v1.GET("/networks/:id/peers/stats", h.GetNetworkPeerStats)
 
 		// Device-specific peer routes
-		v1.GET("/devices/:device_id/peers", h.GetPeersByDevice)
+		v1.GET("/devices/:id/peers", h.GetPeersByDevice)
 	}
 }

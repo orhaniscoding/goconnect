@@ -191,7 +191,7 @@ func TestPeerHandler_GetPeersByNetwork(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	r.GET("/v1/networks/:network_id/peers", func(c *gin.Context) {
+	r.GET("/v1/networks/:id/peers", func(c *gin.Context) {
 		c.Set("user_id", "user-123")
 		c.Set("tenant_id", "tenant-1")
 		handler.GetPeersByNetwork(c)
@@ -332,7 +332,7 @@ func TestPeerHandler_GetPeersByDevice(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	r.GET("/v1/devices/:device_id/peers", func(c *gin.Context) {
+	r.GET("/v1/devices/:id/peers", func(c *gin.Context) {
 		c.Set("user_id", "user-123")
 		c.Set("tenant_id", "tenant-1")
 		handler.GetPeersByDevice(c)
@@ -377,7 +377,7 @@ func TestPeerHandler_GetActivePeers(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	r.GET("/v1/networks/:network_id/peers/active", func(c *gin.Context) {
+	r.GET("/v1/networks/:id/peers/active", func(c *gin.Context) {
 		c.Set("user_id", "user-123")
 		c.Set("tenant_id", "tenant-1")
 		handler.GetActivePeers(c)
@@ -524,7 +524,7 @@ func TestPeerHandler_GetNetworkPeerStats(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	r.GET("/v1/networks/:network_id/peers/stats", func(c *gin.Context) {
+	r.GET("/v1/networks/:id/peers/stats", func(c *gin.Context) {
 		c.Set("user_id", "user-123")
 		c.Set("tenant_id", "tenant-1")
 		handler.GetNetworkPeerStats(c)
@@ -651,7 +651,7 @@ func TestPeerHandler_CreatePeer_MissingRequiredFields(t *testing.T) {
 func TestPeerHandler_GetNetworkPeerStats_ServiceError(t *testing.T) {
 	r, handler, _, _, _ := setupPeerTest()
 
-	r.GET("/v1/networks/:network_id/peers/stats", func(c *gin.Context) {
+	r.GET("/v1/networks/:id/peers/stats", func(c *gin.Context) {
 		c.Set("user_id", "user-123")
 		c.Set("tenant_id", "tenant-1")
 		handler.GetNetworkPeerStats(c)
@@ -909,7 +909,7 @@ func TestPeerHandler_GetNetworkPeerStats_WithMultiplePeers(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	r.GET("/v1/networks/:network_id/peers/stats", func(c *gin.Context) {
+	r.GET("/v1/networks/:id/peers/stats", func(c *gin.Context) {
 		c.Set("user_id", "user-123")
 		c.Set("tenant_id", "tenant-1")
 		handler.GetNetworkPeerStats(c)
@@ -936,7 +936,7 @@ func TestPeerHandler_GetNetworkPeerStats_EmptyNetwork(t *testing.T) {
 		CIDR:     "10.1.0.0/24",
 	})
 
-	r.GET("/v1/networks/:network_id/peers/stats", func(c *gin.Context) {
+	r.GET("/v1/networks/:id/peers/stats", func(c *gin.Context) {
 		c.Set("user_id", "user-123")
 		c.Set("tenant_id", "tenant-1")
 		handler.GetNetworkPeerStats(c)
@@ -954,7 +954,7 @@ func TestPeerHandler_GetNetworkPeerStats_EmptyNetwork(t *testing.T) {
 func TestPeerHandler_GetNetworkPeerStats_NonExistentNetwork(t *testing.T) {
 	r, handler, _, _, _ := setupPeerTest()
 
-	r.GET("/v1/networks/:network_id/peers/stats", func(c *gin.Context) {
+	r.GET("/v1/networks/:id/peers/stats", func(c *gin.Context) {
 		c.Set("user_id", "user-123")
 		c.Set("tenant_id", "tenant-1")
 		handler.GetNetworkPeerStats(c)
@@ -1002,7 +1002,7 @@ func TestPeerHandler_GetNetworkPeerStats_DomainErrorPath(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 
-	r.GET("/v1/networks/:network_id/peers/stats", func(c *gin.Context) {
+	r.GET("/v1/networks/:id/peers/stats", func(c *gin.Context) {
 		c.Set("user_id", "user-123")
 		c.Set("tenant_id", "tenant-1")
 		handler.GetNetworkPeerStats(c)

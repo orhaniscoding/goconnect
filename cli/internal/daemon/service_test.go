@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -965,4 +966,19 @@ func TestDaemonService_HTTP_Register_ValidationErrors(t *testing.T) {
 
 		assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 	})
+}
+
+func TestDaemonService_Start_IdentityFailure(t *testing.T) {
+	tmpDir := t.TempDir()
+	cfg := &config.Config{}
+
+	// Create a directory where the identity file should be, to cause error on load/create
+	cfg.IdentityPath = filepath.Join(tmpDir, "blocked_dir")
+	os.Mkdir(cfg.IdentityPath, 0755)
+
+	svc := NewDaemonService(cfg, "1.0.0")
+	svc.logf = &fallbackServiceLogger{}
+
+	err := svc.Start(nil)
+	assert.Error(t, err)
 }

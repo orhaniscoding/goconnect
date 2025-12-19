@@ -12,11 +12,11 @@ import (
 
 // Manager handles voice signaling operations
 type Manager struct {
-	listener  net.Listener
-	onSignal  func(sig Signal)
-	stopChan  chan struct{}
-	wg        sync.WaitGroup
-	mu        sync.Mutex
+	listener net.Listener
+	onSignal func(sig Signal)
+	stopChan chan struct{}
+	wg       sync.WaitGroup
+	mu       sync.Mutex
 
 	// Subscribers for real-time updates
 	subscribers   map[chan Signal]struct{}

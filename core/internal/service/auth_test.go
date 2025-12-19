@@ -65,7 +65,8 @@ func TestAuthService_Register(t *testing.T) {
 				if err == nil {
 					t.Fatal("expected error, got nil")
 				}
-				var derr *domain.Error; if errors.As(err, &derr) {
+				var derr *domain.Error
+				if errors.As(err, &derr) {
 					if derr.Code != tt.errCode {
 						t.Errorf("expected error code %s, got %s", tt.errCode, derr.Code)
 					}
@@ -160,7 +161,8 @@ func TestAuthService_Login(t *testing.T) {
 				if err == nil {
 					t.Fatal("expected error, got nil")
 				}
-				var derr *domain.Error; if errors.As(err, &derr) {
+				var derr *domain.Error
+				if errors.As(err, &derr) {
 					if derr.Code != tt.errCode {
 						t.Errorf("expected error code %s, got %s", tt.errCode, derr.Code)
 					}
@@ -190,7 +192,6 @@ func TestAuthService_Login(t *testing.T) {
 		})
 	}
 }
-
 
 // ==================== Helper Function Tests ====================
 
@@ -695,7 +696,8 @@ func TestAuthService_Enable2FA(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error for invalid 2FA code")
 		}
-		var derr *domain.Error; if errors.As(err, &derr) {
+		var derr *domain.Error
+		if errors.As(err, &derr) {
 			if derr.Code != domain.ErrInvalidCredentials {
 				t.Errorf("expected error code %s, got %s", domain.ErrInvalidCredentials, derr.Code)
 			}
@@ -790,7 +792,8 @@ func TestAuthService_Disable2FA(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error for invalid 2FA code")
 		}
-		var derr *domain.Error; if errors.As(err, &derr) {
+		var derr *domain.Error
+		if errors.As(err, &derr) {
 			if derr.Code != domain.ErrInvalidCredentials {
 				t.Errorf("expected error code %s, got %s", domain.ErrInvalidCredentials, derr.Code)
 			}
@@ -874,7 +877,8 @@ func TestAuthService_ValidateToken(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error for suspended user token")
 		}
-		var derr *domain.Error; if errors.As(err, &derr) {
+		var derr *domain.Error
+		if errors.As(err, &derr) {
 			if derr.Code != domain.ErrForbidden {
 				t.Errorf("expected error code %s, got %s", domain.ErrForbidden, derr.Code)
 			}
@@ -896,7 +900,7 @@ func TestAuthService_Logout_NetworkError(t *testing.T) {
 
 		svc := NewAuthServiceWithSecret(nil, nil, rdb, "secret-key")
 
-		// Create valid format (but unsigned/invalid signature OK for this test as we parse unverified) 
+		// Create valid format (but unsigned/invalid signature OK for this test as we parse unverified)
 		// tokens to pass extraction logic
 		// We need real tokens because extractJTI uses parsing
 		accessToken, _ := svc.generateJWT("user1", "tenant1", "test@test.com", false, false, "access", time.Hour)
@@ -918,7 +922,7 @@ func TestAuthService_Blacklist(t *testing.T) {
 	t.Run("Parsing logic test", func(t *testing.T) {
 		rdb := redis.NewClient(&redis.Options{Addr: "localhost:12345"}) // closed port
 		defer rdb.Close()
-		
+
 		svc := NewAuthServiceWithSecret(nil, nil, rdb, "secret-key")
 		token, _ := svc.generateJWT("u1", "t1", "e", false, false, "access", time.Hour)
 
@@ -936,7 +940,7 @@ func TestAuthService_Blacklist(t *testing.T) {
 	})
 
 	t.Run("Invalid Token for Blacklist", func(t *testing.T) {
-		rdb := redis.NewClient(&redis.Options{Addr: "localhost:12345"}) 
+		rdb := redis.NewClient(&redis.Options{Addr: "localhost:12345"})
 		defer rdb.Close()
 		svc := NewAuthServiceWithSecret(nil, nil, rdb, "secret")
 
@@ -1315,7 +1319,8 @@ func TestAuthService_Login_SuspendedUser(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for suspended user login")
 	}
-	var derr *domain.Error; if errors.As(err, &derr) {
+	var derr *domain.Error
+	if errors.As(err, &derr) {
 		if derr.Code != domain.ErrForbidden {
 			t.Errorf("expected error code %s, got %s", domain.ErrForbidden, derr.Code)
 		}
@@ -1351,7 +1356,8 @@ func TestAuthService_Login_2FA_Required(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for 2FA required")
 	}
-	var derr *domain.Error; if errors.As(err, &derr) {
+	var derr *domain.Error
+	if errors.As(err, &derr) {
 		if derr.Code != "ERR_2FA_REQUIRED" {
 			t.Errorf("expected error code ERR_2FA_REQUIRED, got %s", derr.Code)
 		}
@@ -1388,7 +1394,8 @@ func TestAuthService_Login_Invalid2FACode(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for invalid 2FA code")
 	}
-	var derr *domain.Error; if errors.As(err, &derr) {
+	var derr *domain.Error
+	if errors.As(err, &derr) {
 		if derr.Code != domain.ErrInvalidCredentials {
 			t.Errorf("expected error code %s, got %s", domain.ErrInvalidCredentials, derr.Code)
 		}

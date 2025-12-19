@@ -38,9 +38,9 @@ func TestSetMembershipTotal(t *testing.T) {
 
 func TestUpdateSummaryCache(t *testing.T) {
 	UpdateSummaryCache(10, 3, 2, 8, 15, 6)
-	
+
 	summary := GetSummary()
-	
+
 	if summary.WSConnections != 10 {
 		t.Errorf("WSConnections = %d, want 10", summary.WSConnections)
 	}
@@ -64,9 +64,9 @@ func TestUpdateSummaryCache(t *testing.T) {
 func TestGetSummary_Defaults(t *testing.T) {
 	// Reset cache
 	UpdateSummaryCache(0, 0, 0, 0, 0, 0)
-	
+
 	summary := GetSummary()
-	
+
 	if summary.WSConnections != 0 {
 		t.Errorf("Expected 0 connections, got %d", summary.WSConnections)
 	}

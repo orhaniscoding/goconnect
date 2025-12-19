@@ -53,7 +53,8 @@ func TestChatService_SendMessage(t *testing.T) {
 		_, err := service.SendMessage(ctx, "user-123", "tenant-1", "", "Hello", nil, "")
 
 		require.Error(t, err)
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrValidation, domainErr.Code)
 	})
@@ -62,7 +63,8 @@ func TestChatService_SendMessage(t *testing.T) {
 		_, err := service.SendMessage(ctx, "user-123", "tenant-1", "host", "", nil, "")
 
 		require.Error(t, err)
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrValidation, domainErr.Code)
 	})
@@ -72,7 +74,8 @@ func TestChatService_SendMessage(t *testing.T) {
 		_, err := service.SendMessage(ctx, "user-123", "tenant-1", "host", longBody, nil, "")
 
 		require.Error(t, err)
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrValidation, domainErr.Code)
 	})
@@ -169,7 +172,8 @@ func TestChatService_EditMessage(t *testing.T) {
 		_, err := service.EditMessage(ctx, msg.ID, "other-user", "tenant-1", "Hack", false)
 
 		require.Error(t, err)
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 	})
@@ -180,7 +184,8 @@ func TestChatService_EditMessage(t *testing.T) {
 		_, err := service.EditMessage(ctx, msg.ID, "user-123", "tenant-1", "", false)
 
 		require.Error(t, err)
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrValidation, domainErr.Code)
 	})
@@ -252,7 +257,8 @@ func TestChatService_DeleteMessage(t *testing.T) {
 		err := service.DeleteMessage(ctx, msg.ID, "other-user", "tenant-1", "soft", false, false)
 
 		require.Error(t, err)
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 	})
@@ -263,7 +269,8 @@ func TestChatService_DeleteMessage(t *testing.T) {
 		err := service.DeleteMessage(ctx, msg.ID, "user-123", "tenant-1", "invalid", false, false)
 
 		require.Error(t, err)
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrValidation, domainErr.Code)
 	})
@@ -306,7 +313,8 @@ func TestChatService_RedactMessage(t *testing.T) {
 		_, err := service.RedactMessage(ctx, msg.ID, "other-user", "tenant-1", false, false, "No reason")
 
 		require.Error(t, err)
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 	})

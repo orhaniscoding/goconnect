@@ -105,7 +105,6 @@ func (m *Manager) Start(ip string, port int) error {
 	m.listener = l
 	logger.Info("Chat listener started", "addr", addr)
 
-
 	m.wg.Add(1)
 	go m.acceptLoop()
 

@@ -1,7 +1,7 @@
 package service
 
 import (
-"errors"
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -188,7 +188,8 @@ func TestJWT_ValidateToken_InvalidFormat(t *testing.T) {
 		assert.Error(t, err, "Token: %s", token)
 
 		// Should return domain error
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		assert.True(t, ok, "Should be domain.Error")
 		if ok {
 			assert.Equal(t, domain.ErrInvalidToken, domainErr.Code)
@@ -216,7 +217,8 @@ func TestJWT_ValidateToken_InvalidSignature(t *testing.T) {
 	_, err = ValidateToken(accessToken)
 	assert.Error(t, err)
 
-	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+	var domainErr *domain.Error
+	ok := errors.As(err, &domainErr)
 	assert.True(t, ok)
 	if ok {
 		assert.Equal(t, domain.ErrInvalidToken, domainErr.Code)
@@ -250,7 +252,8 @@ func TestJWT_ValidateToken_ExpiredToken(t *testing.T) {
 	assert.Error(t, err)
 
 	// Should return a domain error (invalid token since JWT lib catches it first)
-	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+	var domainErr *domain.Error
+	ok := errors.As(err, &domainErr)
 	assert.True(t, ok)
 	if ok {
 		// JWT library returns generic error which gets wrapped as ErrInvalidToken

@@ -24,7 +24,7 @@ func TestVoiceHandler_Signal_Validation(t *testing.T) {
 	rc := redis.NewClient(&redis.Options{Addr: "127.0.0.1:0"})
 	h := NewVoiceHandler(rc)
 	router := gin.New()
-	
+
 	// Mock auth middleware behavior by setting context user_id
 	router.POST("/signal", func(c *gin.Context) {
 		c.Set("user_id", "user_123")
@@ -56,7 +56,7 @@ func TestVoiceHandler_Signal_Validation(t *testing.T) {
 			NetworkID: "net_123",
 		}
 		jsonBytes, _ := json.Marshal(payload)
-		
+
 		req, _ := http.NewRequest("POST", "/signal", bytes.NewBuffer(jsonBytes))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
@@ -72,7 +72,7 @@ func TestVoiceHandler_Signal_Unauthorized(t *testing.T) {
 	rc := redis.NewClient(&redis.Options{Addr: "127.0.0.1:0"})
 	h := NewVoiceHandler(rc)
 	router := gin.New()
-	
+
 	// No user_id in context
 	router.POST("/signal", func(c *gin.Context) {
 		h.Signal(c)
@@ -84,7 +84,7 @@ func TestVoiceHandler_Signal_Unauthorized(t *testing.T) {
 		NetworkID: "net_123",
 	}
 	jsonBytes, _ := json.Marshal(payload)
-	
+
 	req, _ := http.NewRequest("POST", "/signal", bytes.NewBuffer(jsonBytes))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()

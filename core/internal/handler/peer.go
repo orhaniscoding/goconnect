@@ -1,7 +1,7 @@
 package handler
 
 import (
-"errors"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -43,7 +43,8 @@ func (h *PeerHandler) CreatePeer(c *gin.Context) {
 
 	peer, err := h.peerService.CreatePeer(c.Request.Context(), &req)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}
@@ -71,7 +72,8 @@ func (h *PeerHandler) GetPeer(c *gin.Context) {
 
 	peer, err := h.peerService.GetPeer(c.Request.Context(), peerID)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}
@@ -93,11 +95,12 @@ func (h *PeerHandler) GetPeer(c *gin.Context) {
 // @Failure 500 {object} domain.Error
 // @Router /v1/networks/{network_id}/peers [get]
 func (h *PeerHandler) GetPeersByNetwork(c *gin.Context) {
-	networkID := c.Param("network_id")
+	networkID := c.Param("id")
 
 	peers, err := h.peerService.GetPeersByNetwork(c.Request.Context(), networkID)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}
@@ -119,11 +122,12 @@ func (h *PeerHandler) GetPeersByNetwork(c *gin.Context) {
 // @Failure 500 {object} domain.Error
 // @Router /v1/devices/{device_id}/peers [get]
 func (h *PeerHandler) GetPeersByDevice(c *gin.Context) {
-	deviceID := c.Param("device_id")
+	deviceID := c.Param("id")
 
 	peers, err := h.peerService.GetPeersByDevice(c.Request.Context(), deviceID)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}
@@ -145,11 +149,12 @@ func (h *PeerHandler) GetPeersByDevice(c *gin.Context) {
 // @Failure 500 {object} domain.Error
 // @Router /v1/networks/{network_id}/peers/active [get]
 func (h *PeerHandler) GetActivePeers(c *gin.Context) {
-	networkID := c.Param("network_id")
+	networkID := c.Param("id")
 
 	peers, err := h.peerService.GetActivePeers(c.Request.Context(), networkID)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}
@@ -184,7 +189,8 @@ func (h *PeerHandler) UpdatePeer(c *gin.Context) {
 
 	peer, err := h.peerService.UpdatePeer(c.Request.Context(), peerID, &req)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}
@@ -218,7 +224,8 @@ func (h *PeerHandler) UpdatePeerStats(c *gin.Context) {
 	}
 
 	if err := h.peerService.UpdatePeerStats(c.Request.Context(), peerID, &req); err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}
@@ -243,7 +250,8 @@ func (h *PeerHandler) DeletePeer(c *gin.Context) {
 	peerID := c.Param("id")
 
 	if err := h.peerService.DeletePeer(c.Request.Context(), peerID); err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}
@@ -269,7 +277,8 @@ func (h *PeerHandler) GetPeerStats(c *gin.Context) {
 
 	stats, err := h.peerService.GetPeerStats(c.Request.Context(), peerID)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}
@@ -291,11 +300,12 @@ func (h *PeerHandler) GetPeerStats(c *gin.Context) {
 // @Failure 500 {object} domain.Error
 // @Router /v1/networks/{network_id}/peers/stats [get]
 func (h *PeerHandler) GetNetworkPeerStats(c *gin.Context) {
-	networkID := c.Param("network_id")
+	networkID := c.Param("id")
 
 	stats, err := h.peerService.GetNetworkPeerStats(c.Request.Context(), networkID)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}
@@ -321,7 +331,8 @@ func (h *PeerHandler) RotatePeerKeys(c *gin.Context) {
 
 	peer, err := h.peerService.RotatePeerKeys(c.Request.Context(), peerID)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			c.JSON(domainErr.ToHTTPStatus(), domainErr)
 			return
 		}

@@ -56,7 +56,7 @@ func (h *VoiceHandler) Signal(c *gin.Context) {
 	// Store signal in a list for the target user (Queue)
 	// Key: "voice:queue:{target_id}"
 	key := "voice:queue:" + sig.TargetID
-	
+
 	val, err := json.Marshal(sig)
 	if err != nil {
 		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to encode signal", nil))
@@ -69,22 +69,22 @@ func (h *VoiceHandler) Signal(c *gin.Context) {
 	pipe.Expire(ctx, key, 30*time.Second) // Signals are ephemeral
 	// Optional: Limit list size
 	pipe.LTrim(ctx, key, -50, -1) // Keep last 50
-	
+
 	// ... (Redis logic)
-	
+
 	if _, err := pipe.Exec(ctx); err != nil {
-		logger.Error("Failed to send voice signal", 
-			"sender_id", senderID, 
-			"target_id", sig.TargetID, 
+		logger.Error("Failed to send voice signal",
+			"sender_id", senderID,
+			"target_id", sig.TargetID,
 			"error", err,
 		)
 		errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to send signal", nil))
 		return
 	}
 
-	logger.Debug("Voice signal sent", 
-		"type", sig.Type, 
-		"sender_id", senderID, 
+	logger.Debug("Voice signal sent",
+		"type", sig.Type,
+		"sender_id", senderID,
 		"target_id", sig.TargetID,
 	)
 
@@ -105,12 +105,12 @@ func (h *VoiceHandler) GetSignals(c *gin.Context) {
 	}
 
 	key := "voice:queue:" + userID
-	
+
 	// Atomic pop all elements (LRange + Del in transaction, or just LPop count)
 	// Simple approach: Read all, delete key (acceptable race for voice signals? maybe lost signals if crash)
 	// Better: RPop count? Redis doesn't support popping all atomically easily without Lua.
 	// We will use a script to get simple atomicity: GET all + DISCARD
-	
+
 	script := redis.NewScript(`
 		var msgs = redis.call("LRANGE", KEYS[1], 0, -1)
 		redis.call("DEL", KEYS[1])
@@ -124,7 +124,7 @@ func (h *VoiceHandler) GetSignals(c *gin.Context) {
 	}
 
 	var signals []VoiceSignal = []VoiceSignal{}
-	
+
 	if items, ok := result.([]interface{}); ok {
 		for _, item := range items {
 			if s, ok := item.(string); ok {

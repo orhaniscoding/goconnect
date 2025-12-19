@@ -714,7 +714,6 @@ func (p *program) Stop(s service.Service) error {
 // fallbackServiceLogger provides a simple implementation of service.Logger using stdlib log.
 type fallbackServiceLogger struct{}
 
-
 func (l *fallbackServiceLogger) Info(v ...interface{}) error {
 	logger.Info(fmt.Sprint(v...))
 	return nil
@@ -747,6 +746,14 @@ func (l *fallbackServiceLogger) Errorf(format string, v ...interface{}) error {
 
 // RunDaemon sets up and runs the daemon as a service or directly.
 func RunDaemon(cfg *config.Config, daemonVersion string, options map[string]interface{}) error {
+	return runDaemonInternal(cfg, daemonVersion, options, service.New, os.Args)
+}
+
+// ServiceFactory is a function that creates a new service.
+type ServiceFactory func(i service.Interface, c *service.Config) (service.Service, error)
+
+// runDaemonInternal allows testing the daemon lifecycle by injecting dependencies.
+func runDaemonInternal(cfg *config.Config, daemonVersion string, options map[string]interface{}, factory ServiceFactory, args []string) error {
 	svcConfig := &service.Config{
 		Name:        "goconnect-daemon",
 		DisplayName: "GoConnect Daemon",
@@ -763,7 +770,7 @@ func RunDaemon(cfg *config.Config, daemonVersion string, options map[string]inte
 	daemonService := NewDaemonService(cfg, daemonVersion)
 	prg := &program{daemon: daemonService}
 
-	svc, err := service.New(prg, svcConfig)
+	svc, err := factory(prg, svcConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create service: %w", err)
 	}
@@ -773,7 +780,7 @@ func RunDaemon(cfg *config.Config, daemonVersion string, options map[string]inte
 		// In interactive mode, log to stderr with the fallback logger
 		daemonService.logf = &fallbackServiceLogger{}
 	} else {
-	// In service mode, get the logger from svc.Logger()
+		// In service mode, get the logger from svc.Logger()
 		logger, err := svc.Logger(nil)
 		if err != nil {
 			slog.Warn("Failed to get logger from service in non-interactive mode", "error", err)
@@ -783,8 +790,8 @@ func RunDaemon(cfg *config.Config, daemonVersion string, options map[string]inte
 		}
 	}
 
-	if len(os.Args) > 1 {
-		cmd := os.Args[1]
+	if len(args) > 1 {
+		cmd := args[1]
 		switch cmd {
 		case "install":
 			err = svc.Install()

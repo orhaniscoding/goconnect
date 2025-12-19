@@ -19,6 +19,8 @@ type Config struct {
 		ListenAddr          string        `yaml:"listen_addr"`
 		LocalPort           int           `yaml:"local_port"`
 		HealthCheckInterval time.Duration `yaml:"health_check_interval"`
+		SocketPath          string        `yaml:"socket_path"`
+		IPCTokenPath        string        `yaml:"ipc_token_path"`
 	} `yaml:"daemon"`
 	WireGuard struct {
 		InterfaceName string `yaml:"interface_name"`
@@ -66,6 +68,8 @@ func LoadConfig(path string) (*Config, error) {
 					ListenAddr          string        `yaml:"listen_addr"`
 					LocalPort           int           `yaml:"local_port"`
 					HealthCheckInterval time.Duration `yaml:"health_check_interval"`
+					SocketPath          string        `yaml:"socket_path"`
+					IPCTokenPath        string        `yaml:"ipc_token_path"`
 				}{
 					LocalPort: 34100, // Default port
 				},

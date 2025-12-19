@@ -351,4 +351,3 @@ func (s *MembershipService) JoinByInviteCode(ctx context.Context, inviteCode, us
 	return s.JoinNetwork(ctx, inviteCode, userID, tenantID, idempotencyKey)
 
 }
-

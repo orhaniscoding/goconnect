@@ -121,7 +121,8 @@ func TestPeerService_CreatePeer(t *testing.T) {
 		_, err := svc.CreatePeer(ctx, req)
 
 		require.Error(t, err)
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrValidation, domainErr.Code)
 	})
@@ -162,7 +163,8 @@ func TestPeerService_CreatePeer(t *testing.T) {
 		_, err := svc.CreatePeer(ctx, req)
 
 		require.Error(t, err)
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrValidation, domainErr.Code)
 	})
@@ -184,7 +186,8 @@ func TestPeerService_GetPeer(t *testing.T) {
 		_, err := svc.GetPeer(ctx, "missing-peer")
 
 		require.Error(t, err)
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrNotFound, domainErr.Code)
 	})
@@ -213,7 +216,8 @@ func TestPeerService_GetPeersByNetwork(t *testing.T) {
 		_, err := svc.GetPeersByNetwork(ctx, "missing")
 
 		require.Error(t, err)
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrNotFound, domainErr.Code)
 	})
@@ -242,7 +246,8 @@ func TestPeerService_GetPeersByDevice(t *testing.T) {
 		_, err := svc.GetPeersByDevice(ctx, "missing-device")
 
 		require.Error(t, err)
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrNotFound, domainErr.Code)
 	})
@@ -292,7 +297,8 @@ func TestPeerService_UpdatePeer(t *testing.T) {
 		})
 
 		require.Error(t, err)
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrValidation, domainErr.Code)
 	})

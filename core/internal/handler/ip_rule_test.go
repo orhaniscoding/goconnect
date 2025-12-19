@@ -22,7 +22,7 @@ func TestIPRuleHandler_CreateIPRule_Validation(t *testing.T) {
 	// Setup (svc is nil, so it will panic if it reaches service call, ensuring validation stops it first)
 	h := NewIPRuleHandler(nil)
 	router := gin.New()
-	
+
 	router.POST("/ip-rules", func(c *gin.Context) {
 		// Mock auth
 		c.Set("tenant_id", "tenant_1")
@@ -54,14 +54,14 @@ func TestIPRuleHandler_CheckIP_Validation(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	h := NewIPRuleHandler(nil)
 	router := gin.New()
-	
+
 	router.POST("/ip-rules/check", func(c *gin.Context) {
 		c.Set("tenant_id", "tenant_1")
 		h.CheckIP(c)
 	})
 
 	t.Run("Invalid IP", func(t *testing.T) {
-		// Handler doesn't validate IP string format itself (service likely does), 
+		// Handler doesn't validate IP string format itself (service likely does),
 		// but it checks for presence of field.
 		payload := map[string]string{
 			"ip": "", // Empty
@@ -78,12 +78,12 @@ func TestIPRuleHandler_Get_Delete_Validation(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	h := NewIPRuleHandler(nil)
 	router := gin.New()
-	
+
 	router.GET("/ip-rules/:id", func(c *gin.Context) {
 		c.Set("tenant_id", "tenant_1")
 		h.GetIPRule(c)
 	})
-	
+
 	router.DELETE("/ip-rules/:id", func(c *gin.Context) {
 		c.Set("tenant_id", "tenant_1")
 		h.DeleteIPRule(c)

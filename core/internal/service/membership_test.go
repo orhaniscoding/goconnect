@@ -1,8 +1,8 @@
 package service
 
 import (
-"errors"
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -66,7 +66,9 @@ func TestMembershipTenantIsolation(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when joining with wrong tenant")
 	}
-	var derr *domain.Error; ok := errors.As(err, &derr); if !ok || derr.Code != domain.ErrNotFound {
+	var derr *domain.Error
+	ok := errors.As(err, &derr)
+	if !ok || derr.Code != domain.ErrNotFound {
 		t.Errorf("expected ErrNotFound, got %v", err)
 	}
 }
@@ -117,7 +119,8 @@ func TestJoinNetwork_BannedUser(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for banned user trying to rejoin")
 	}
-	var derr *domain.Error; if errors.As(err, &derr) {
+	var derr *domain.Error
+	if errors.As(err, &derr) {
 		if derr.Code != domain.ErrUserBanned {
 			t.Errorf("expected ErrUserBanned, got %s", derr.Code)
 		}
@@ -148,7 +151,8 @@ func TestJoinNetwork_PrivateNetwork(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for private network with empty name")
 	}
-	var derr *domain.Error; if errors.As(err, &derr) {
+	var derr *domain.Error
+	if errors.As(err, &derr) {
 		if derr.Code != domain.ErrNetworkPrivate {
 			t.Errorf("expected ErrNetworkPrivate, got %s", derr.Code)
 		}
@@ -163,7 +167,8 @@ func TestJoinNetwork_MissingIdempotencyKey(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for missing idempotency key")
 	}
-	var derr *domain.Error; if errors.As(err, &derr) {
+	var derr *domain.Error
+	if errors.As(err, &derr) {
 		if derr.Code != domain.ErrInvalidRequest {
 			t.Errorf("expected ErrInvalidRequest, got %s", derr.Code)
 		}
@@ -304,7 +309,8 @@ func TestDeny_Unauthorized(t *testing.T) {
 		t.Fatal("expected error when non-admin tries to deny")
 	}
 
-	var derr *domain.Error; ok := errors.As(err, &derr)
+	var derr *domain.Error
+	ok := errors.As(err, &derr)
 	if !ok {
 		t.Fatalf("expected domain.Error, got %T", err)
 	}
@@ -384,7 +390,8 @@ func TestKick_Unauthorized(t *testing.T) {
 		t.Fatal("expected error when non-admin tries to kick")
 	}
 
-	var derr *domain.Error; ok := errors.As(err, &derr)
+	var derr *domain.Error
+	ok := errors.As(err, &derr)
 	if !ok {
 		t.Fatalf("expected domain.Error, got %T", err)
 	}
@@ -457,7 +464,8 @@ func TestBan_Unauthorized(t *testing.T) {
 		t.Fatal("expected error when non-admin tries to ban")
 	}
 
-	var derr *domain.Error; ok := errors.As(err, &derr)
+	var derr *domain.Error
+	ok := errors.As(err, &derr)
 	if !ok {
 		t.Fatalf("expected domain.Error, got %T", err)
 	}
@@ -790,7 +798,8 @@ func TestApprove_WrongTenant(t *testing.T) {
 		t.Fatal("expected error when approving with wrong tenant")
 	}
 
-	var derr *domain.Error; ok := errors.As(err, &derr)
+	var derr *domain.Error
+	ok := errors.As(err, &derr)
 	if !ok {
 		t.Fatalf("expected domain.Error, got %T", err)
 	}
@@ -1065,7 +1074,8 @@ func TestKick_WrongTenant(t *testing.T) {
 	// Try to kick with wrong tenant
 	err := svc.Kick(context.Background(), net.ID, "some-user", "admin", "wrong-tenant")
 	require.Error(t, err)
-	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+	var domainErr *domain.Error
+	ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
 }
@@ -1104,7 +1114,8 @@ func TestListMembers_WrongTenant(t *testing.T) {
 	// Try to list with wrong tenant
 	_, _, err := svc.ListMembers(context.Background(), net.ID, "", "wrong-tenant", 10, "")
 	require.Error(t, err)
-	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+	var domainErr *domain.Error
+	ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
 }
@@ -1144,7 +1155,8 @@ func TestBan_WrongTenant(t *testing.T) {
 	// Try to ban with wrong tenant
 	err := svc.Ban(context.Background(), net.ID, "some-user", "admin", "wrong-tenant")
 	require.Error(t, err)
-	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+	var domainErr *domain.Error
+	ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
 }
@@ -1183,13 +1195,13 @@ func TestMembershipService_JoinByInviteCode(t *testing.T) {
 	t.Run("Join with invite token", func(t *testing.T) {
 		// Create token
 		token := &domain.InviteToken{
-			Token:      "SECRET_TOKEN",
-			NetworkID:  net.ID,
-			TenantID:   "t1",
-			CreatedBy:  "admin",
-			ExpiresAt:  time.Now().Add(1 * time.Hour),
-			UsesMax:    10,
-			UsesLeft:   10,
+			Token:     "SECRET_TOKEN",
+			NetworkID: net.ID,
+			TenantID:  "t1",
+			CreatedBy: "admin",
+			ExpiresAt: time.Now().Add(1 * time.Hour),
+			UsesMax:   10,
+			UsesLeft:  10,
 		}
 		_ = invrepo.Create(ctx, token)
 
@@ -1207,7 +1219,8 @@ func TestMembershipService_JoinByInviteCode(t *testing.T) {
 	t.Run("Missing invite code", func(t *testing.T) {
 		_, _, err := svc.JoinByInviteCode(ctx, "", "user1", "t1", domain.GenerateIdempotencyKey())
 		require.Error(t, err)
-		var derr *domain.Error; ok := errors.As(err, &derr)
+		var derr *domain.Error
+		ok := errors.As(err, &derr)
 		assert.True(t, ok)
 		assert.Equal(t, domain.ErrInvalidRequest, derr.Code)
 	})

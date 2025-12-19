@@ -103,7 +103,8 @@ func TestDeviceService_RegisterDevice(t *testing.T) {
 		_, err = service.RegisterDevice(ctx, "user-123", "tenant-1", req2)
 
 		require.Error(t, err)
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrConflict, domainErr.Code)
 	})
@@ -118,7 +119,8 @@ func TestDeviceService_RegisterDevice(t *testing.T) {
 		_, err := service.RegisterDevice(ctx, "user-123", "tenant-1", req)
 
 		require.Error(t, err)
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrValidation, domainErr.Code)
 	})
@@ -170,7 +172,8 @@ func TestDeviceService_GetDevice(t *testing.T) {
 		_, err := service.GetDevice(ctx, device.ID, "other-user", "tenant-1", false)
 
 		require.Error(t, err)
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 	})
@@ -301,7 +304,8 @@ func TestDeviceService_UpdateDevice(t *testing.T) {
 		_, err := service.UpdateDevice(ctx, device.ID, "other-user", "tenant-1", false, req)
 
 		require.Error(t, err)
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 	})
@@ -324,7 +328,8 @@ func TestDeviceService_UpdateDevice(t *testing.T) {
 		_, err = service.UpdateDevice(ctx, device.ID, "user-123", "tenant-1", false, req)
 
 		require.Error(t, err)
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrConflict, domainErr.Code)
 	})
@@ -380,7 +385,8 @@ func TestDeviceService_DeleteDevice(t *testing.T) {
 		err := service.DeleteDevice(ctx, device.ID, "other-user", "tenant-1", false)
 
 		require.Error(t, err)
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 	})
@@ -432,7 +438,8 @@ func TestDeviceService_Heartbeat(t *testing.T) {
 		err := service.Heartbeat(ctx, device.ID, "other-user", "tenant-1", req)
 
 		require.Error(t, err)
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 	})
@@ -445,7 +452,8 @@ func TestDeviceService_Heartbeat(t *testing.T) {
 		err := service.Heartbeat(ctx, device.ID, "user-123", "tenant-1", req)
 
 		require.Error(t, err)
-		var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+		var domainErr *domain.Error
+		ok := errors.As(err, &domainErr)
 		require.True(t, ok)
 		assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 		assert.Contains(t, err.Error(), "disabled")
@@ -984,7 +992,8 @@ func TestDeviceService_UpdateDevice_WrongTenant(t *testing.T) {
 	_, err = service.UpdateDevice(ctx, device.ID, "user-123", "tenant-2", true, req)
 
 	require.Error(t, err)
-	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+	var domainErr *domain.Error
+	ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
 }
@@ -1016,7 +1025,8 @@ func TestDeviceService_DeleteDevice_WrongTenant(t *testing.T) {
 	err = service.DeleteDevice(ctx, device.ID, "user-123", "tenant-2", true)
 
 	require.Error(t, err)
-	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+	var domainErr *domain.Error
+	ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
 }
@@ -1050,7 +1060,8 @@ func TestDeviceService_Heartbeat_WrongTenant(t *testing.T) {
 	err = service.Heartbeat(ctx, device.ID, "user-123", "tenant-2", req)
 
 	require.Error(t, err)
-	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+	var domainErr *domain.Error
+	ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
 }
@@ -1082,7 +1093,8 @@ func TestDeviceService_DisableDevice_WrongTenant(t *testing.T) {
 	err = service.DisableDevice(ctx, device.ID, "user-123", "tenant-2", true)
 
 	require.Error(t, err)
-	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+	var domainErr *domain.Error
+	ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
 }
@@ -1118,7 +1130,8 @@ func TestDeviceService_EnableDevice_WrongTenant(t *testing.T) {
 	err = service.EnableDevice(ctx, device.ID, "user-123", "tenant-2", true)
 
 	require.Error(t, err)
-	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+	var domainErr *domain.Error
+	ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrNotFound, domainErr.Code)
 }
@@ -1150,7 +1163,8 @@ func TestDeviceService_GetDeviceConfig_DeviceNotOwnedByUser(t *testing.T) {
 	_, err = service.GetDeviceConfig(ctx, device.ID, "other-user")
 
 	require.Error(t, err)
-	var domainErr *domain.Error; ok := errors.As(err, &domainErr)
+	var domainErr *domain.Error
+	ok := errors.As(err, &domainErr)
 	require.True(t, ok)
 	assert.Equal(t, domain.ErrForbidden, domainErr.Code)
 }
@@ -1199,10 +1213,10 @@ func TestDeviceService_NotifierCalls(t *testing.T) {
 
 // StubDeviceRepository for testing error branches
 type StubDeviceRepository struct {
-	repository.DeviceRepository                  // Embed interface to handle missing methods if any
-	RealRepo *repository.InMemoryDeviceRepository // Embed real repo logic
-	FailGetStaleDevices bool
-	FailMarkInactive    bool
+	repository.DeviceRepository                                      // Embed interface to handle missing methods if any
+	RealRepo                    *repository.InMemoryDeviceRepository // Embed real repo logic
+	FailGetStaleDevices         bool
+	FailMarkInactive            bool
 }
 
 // Ensure Stub implements interface
@@ -1262,7 +1276,7 @@ func TestDeviceService_OfflineDetection_Errors(t *testing.T) {
 			FailGetStaleDevices: true,
 		}
 		service := NewDeviceService(stubRepo, userRepo, peerRepo, networkRepo, wgConfig)
-		
+
 		// Run detection directly
 		service.detectOfflineDevices(ctx, time.Hour)
 		// Should not panic
@@ -1292,9 +1306,8 @@ func TestDeviceService_OfflineDetection_Errors(t *testing.T) {
 
 		// Run detection directly
 		service.detectOfflineDevices(ctx, time.Hour)
-		
+
 		// Notifier should NOT have been called if MarkInactive failed
 		assert.Empty(t, mockNotifier.offlineCalls, "Should not notify if mark inactive failed")
 	})
 }
-

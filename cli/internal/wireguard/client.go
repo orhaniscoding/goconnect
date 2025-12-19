@@ -11,10 +11,17 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
+// WireGuardController defines the interface for interacting with WireGuard
+type WireGuardController interface {
+	Close() error
+	ConfigureDevice(device string, cfg wgtypes.Config) error
+	Device(device string) (*wgtypes.Device, error)
+}
+
 // Client handles WireGuard interface configuration
 type Client struct {
 	interfaceName string
-	wgClient      *wgctrl.Client // Renamed to avoid confusion with the package
+	wgClient      WireGuardController
 }
 
 // NewClient creates a new WireGuard client

@@ -75,6 +75,7 @@ See `.agent/rules/` for comprehensive instructions:
 | [06-api-protocols.md](.agent/rules/06-api-protocols.md) | REST, gRPC, WebSocket, IPC |
 | [07-git-workflow.md](.agent/rules/07-git-workflow.md) | Commits, branches, CI/CD |
 | [08-documentation.md](.agent/rules/08-documentation.md) | Comments, GoDoc, changelog |
+| [09-mcp-usage.md](.agent/rules/09-mcp-usage.md) | Guidelines for using MCP servers |
 
 ## Security Quick Reference
 - Never log secrets, tokens, or personal data

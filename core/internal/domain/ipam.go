@@ -9,8 +9,8 @@ import (
 // Note: UserID is deprecated, use DeviceID for new allocations
 type IPAllocation struct {
 	NetworkID string `json:"network_id"`
-	UserID    string `json:"user_id,omitempty"`    // Deprecated: use DeviceID
-	DeviceID  string `json:"device_id,omitempty"`  // Preferred: device-based allocation
+	UserID    string `json:"user_id,omitempty"`   // Deprecated: use DeviceID
+	DeviceID  string `json:"device_id,omitempty"` // Preferred: device-based allocation
 	IP        string `json:"ip"`
 	// Offset represents the host offset (starting at 1) inside the CIDR. Not exposed in JSON, used for reuse on relea
 	Offset uint32 `json:"-"`

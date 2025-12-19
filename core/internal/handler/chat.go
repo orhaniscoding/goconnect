@@ -1,7 +1,7 @@
 package handler
 
 import (
-"errors"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -158,7 +158,8 @@ func (h *ChatHandler) SendMessage(c *gin.Context) {
 
 	message, err := h.chatService.SendMessage(c.Request.Context(), userID, tenantID, req.Scope, req.Body, req.Attachments, "")
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			c.JSON(http.StatusBadRequest, domainErr)
 			return
 		}
@@ -193,7 +194,8 @@ func (h *ChatHandler) EditMessage(c *gin.Context) {
 
 	message, err := h.chatService.EditMessage(c.Request.Context(), messageID, userID, tenantID, req.Body, isAdmin)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			status := http.StatusBadRequest
 			if domainErr.Code == domain.ErrForbidden {
 				status = http.StatusForbidden
@@ -227,7 +229,8 @@ func (h *ChatHandler) DeleteMessage(c *gin.Context) {
 	}
 
 	if err := h.chatService.DeleteMessage(c.Request.Context(), messageID, userID, tenantID, mode, isAdmin, isModerator); err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			status := http.StatusBadRequest
 			if domainErr.Code == domain.ErrForbidden {
 				status = http.StatusForbidden
@@ -272,7 +275,8 @@ func (h *ChatHandler) RedactMessage(c *gin.Context) {
 
 	redactedMsg, err := h.chatService.RedactMessage(c.Request.Context(), messageID, userID, tenantID, isAdmin, isModerator, req.Reason)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			status := http.StatusBadRequest
 			if domainErr.Code == domain.ErrForbidden {
 				status = http.StatusForbidden

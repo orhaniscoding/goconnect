@@ -1,4 +1,6 @@
 # GoConnect Makefile
+GO ?= go
+GOLANGCI_LINT ?= golangci-lint
 
 .PHONY: all build test test-core test-cli clean proto
 
@@ -10,11 +12,11 @@ build: build-core build-cli
 
 build-core:
 	@echo "Building Core Server..."
-	cd core && go build -o ../bin/goconnect-server ./cmd/server
+	cd core && $(GO) build -o ../bin/goconnect-server ./cmd/server
 
 build-cli:
 	@echo "Building CLI..."
-	cd cli && go build -o ../bin/goconnect ./cmd/goconnect
+	cd cli && $(GO) build -o ../bin/goconnect ./cmd/goconnect
 
 # Run standard tests (short)
 test: test-core test-cli
@@ -22,24 +24,24 @@ test: test-core test-cli
 # Run all tests (including integration)
 test-all:
 	@echo "Running ALL Core tests..."
-	cd core && go test ./...
+	cd core && $(GO) test ./...
 	@echo "Running ALL CLI tests..."
-	cd cli && go test ./...
+	cd cli && $(GO) test ./...
 
 test-core:
 	@echo "Running Core tests..."
-	cd core && go test ./... -short
+	cd core && $(GO) test ./... -short
 
 test-cli:
 	@echo "Running CLI tests..."
-	cd cli && go test ./... -short
+	cd cli && $(GO) test ./... -short
 
 # Lint code
 lint:
 	@echo "Linting Core..."
-	cd core && golangci-lint run -c ../.golangci.yml
+	cd core && $(GOLANGCI_LINT) run -c ../.golangci.yml
 	@echo "Linting CLI..."
-	cd cli && golangci-lint run -c ../.golangci.yml
+	cd cli && $(GOLANGCI_LINT) run -c ../.golangci.yml
 
 # Clean build artifacts
 clean:

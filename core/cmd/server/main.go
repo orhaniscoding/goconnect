@@ -130,13 +130,13 @@ func main() {
 
 	// Start server in goroutine
 	go func() {
-		logger.Info("GoConnect Server starting", 
-			"version", version, 
+		logger.Info("GoConnect Server starting",
+			"version", version,
 			"address", cfg.Server.Address(),
 			"environment", cfg.Server.Environment,
 			"database", cfg.Database.Backend,
 		)
-		
+
 		auditType := "stdout"
 		if cfg.Audit.SQLiteDSN != "" {
 			auditType = "sqlite"

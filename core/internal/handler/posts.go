@@ -1,7 +1,7 @@
 package handler
 
 import (
-"errors"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -43,7 +43,8 @@ func (h *PostHandler) CreatePost(c *gin.Context) {
 
 	post, err := h.postService.CreatePost(c.Request.Context(), &req)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			errorResponse(c, domainErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
@@ -60,7 +61,8 @@ func (h *PostHandler) CreatePost(c *gin.Context) {
 func (h *PostHandler) GetPosts(c *gin.Context) {
 	posts, err := h.postService.GetPosts(c.Request.Context())
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			errorResponse(c, domainErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
@@ -83,7 +85,8 @@ func (h *PostHandler) GetPost(c *gin.Context) {
 
 	post, err := h.postService.GetPost(c.Request.Context(), postID)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			errorResponse(c, domainErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
@@ -123,7 +126,8 @@ func (h *PostHandler) UpdatePost(c *gin.Context) {
 
 	post, err := h.postService.UpdatePost(c.Request.Context(), &req)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			errorResponse(c, domainErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
@@ -152,7 +156,8 @@ func (h *PostHandler) DeletePost(c *gin.Context) {
 
 	err = h.postService.DeletePost(c.Request.Context(), postID, userID.(int64))
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			errorResponse(c, domainErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
@@ -173,7 +178,8 @@ func (h *PostHandler) LikePost(c *gin.Context) {
 
 	err = h.postService.LikePost(c.Request.Context(), postID)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			errorResponse(c, domainErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))
@@ -196,7 +202,8 @@ func (h *PostHandler) UnlikePost(c *gin.Context) {
 
 	err = h.postService.UnlikePost(c.Request.Context(), postID)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			errorResponse(c, domainErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Internal server error", nil))

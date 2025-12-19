@@ -1,7 +1,7 @@
 package handler
 
 import (
-"errors"
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -44,7 +44,8 @@ func (h *GDPRHandler) ExportData(c *gin.Context) {
 
 	data, err := h.gdprService.ExportUserData(c.Request.Context(), userID.(string), tenantID.(string))
 	if err != nil {
-		var domErr *domain.Error; if errors.As(err, &domErr) {
+		var domErr *domain.Error
+		if errors.As(err, &domErr) {
 			errorResponse(c, domErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, err.Error(), nil))
@@ -80,7 +81,8 @@ func (h *GDPRHandler) ExportDataDownload(c *gin.Context) {
 
 	jsonData, err := h.gdprService.ExportUserDataJSON(c.Request.Context(), userID.(string), tenantID.(string))
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			errorResponse(c, domainErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, err.Error(), nil))
@@ -138,7 +140,8 @@ func (h *GDPRHandler) RequestDeletion(c *gin.Context) {
 
 	deleteReq, err := h.gdprService.RequestDeletion(c.Request.Context(), userID.(string))
 	if err != nil {
-		var domErr *domain.Error; if errors.As(err, &domErr) {
+		var domErr *domain.Error
+		if errors.As(err, &domErr) {
 			errorResponse(c, domErr)
 		} else {
 			errorResponse(c, domain.NewError(domain.ErrInternalServer, err.Error(), nil))

@@ -79,7 +79,7 @@ func main() {
 			return
 		}
 		slog.Info("[STUB] CreateNetwork", "name", req.Name, "cidr", req.CIDR)
-		
+
 		resp := NetworkResponse{
 			ID:         "net-created-e2e",
 			Name:       req.Name,
@@ -105,7 +105,7 @@ func main() {
 	})
 
 	addr := ":" + *port
-	slog.Info("Stub server listening", "addr", addr) // Changed from log.Printf to slog.Info
+	slog.Info("Stub server listening", "addr", addr)     // Changed from log.Printf to slog.Info
 	if err := http.ListenAndServe(addr, r); err != nil { // Kept 'r' as the handler, not 'nil'
 		slog.Error("Server error", "error", err) // Changed from log.Fatal to slog.Error
 		os.Exit(1)                               // Added os.Exit(1)

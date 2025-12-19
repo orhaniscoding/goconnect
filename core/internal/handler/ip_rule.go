@@ -1,7 +1,7 @@
 package handler
 
 import (
-"errors"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
@@ -95,7 +95,8 @@ func (h *IPRuleHandler) CreateIPRule(c *gin.Context) {
 
 	rule, err := h.svc.CreateIPRule(c.Request.Context(), createReq)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			errorResponse(c, domainErr)
 			return
 		}
@@ -145,7 +146,8 @@ func (h *IPRuleHandler) GetIPRule(c *gin.Context) {
 
 	rule, err := h.svc.GetIPRule(c.Request.Context(), id)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			errorResponse(c, domainErr)
 			return
 		}
@@ -178,7 +180,8 @@ func (h *IPRuleHandler) DeleteIPRule(c *gin.Context) {
 	// Verify tenant ownership before deleting
 	rule, err := h.svc.GetIPRule(c.Request.Context(), id)
 	if err != nil {
-		var domainErr *domain.Error; if errors.As(err, &domainErr) {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
 			errorResponse(c, domainErr)
 			return
 		}

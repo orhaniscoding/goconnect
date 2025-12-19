@@ -308,14 +308,14 @@ func SetMembershipTotal(n int) { membershipTotal.Set(float64(n)) }
 
 // Summary represents a snapshot of key metrics for the dashboard.
 type Summary struct {
-	WSConnections   int   `json:"ws_connections"`
-	WSRooms         int   `json:"ws_rooms"`
-	NetworksActive  int   `json:"networks_active"`
-	PeersOnline     int   `json:"peers_online"`
-	Memberships     int   `json:"memberships"`
-	WGPeers         int   `json:"wg_peers"`
-	HTTPRequests    int64 `json:"http_requests_total"`
-	AuditEvents     int64 `json:"audit_events_total"`
+	WSConnections  int   `json:"ws_connections"`
+	WSRooms        int   `json:"ws_rooms"`
+	NetworksActive int   `json:"networks_active"`
+	PeersOnline    int   `json:"peers_online"`
+	Memberships    int   `json:"memberships"`
+	WGPeers        int   `json:"wg_peers"`
+	HTTPRequests   int64 `json:"http_requests_total"`
+	AuditEvents    int64 `json:"audit_events_total"`
 }
 
 // summaryCache holds cached metric values updated by setters.
@@ -344,7 +344,7 @@ func UpdateSummaryCache(wsConns, wsRooms, networks, peers, memberships, wgPeers 
 	summaryCache.peers = peers
 	summaryCache.memberships = memberships
 	summaryCache.wgPeers = wgPeers
-	
+
 	// Also update the Prometheus gauges
 	SetWSConnections(wsConns)
 	SetWSRooms(wsRooms)

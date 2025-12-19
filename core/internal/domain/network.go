@@ -50,9 +50,9 @@ const (
 // For CLI compatibility: only name is required, others have sensible defaults
 type CreateNetworkRequest struct {
 	Name        string            `json:"name" binding:"required,min=3,max=64"`
-	Visibility  NetworkVisibility `json:"visibility"`                           // Default: private
-	JoinPolicy  JoinPolicy        `json:"join_policy"`                          // Default: approval
-	CIDR        string            `json:"cidr"`                                 // Default: 10.100.0.0/24
+	Visibility  NetworkVisibility `json:"visibility"`  // Default: private
+	JoinPolicy  JoinPolicy        `json:"join_policy"` // Default: approval
+	CIDR        string            `json:"cidr"`        // Default: 10.100.0.0/24
 	DNS         *string           `json:"dns,omitempty"`
 	MTU         *int              `json:"mtu,omitempty"`
 	SplitTunnel *bool             `json:"split_tunnel,omitempty"`

@@ -160,7 +160,7 @@ func TestSQLiteIPAMRepository_ListAllocations(t *testing.T) {
 	// Verify allocation data
 	ips := make(map[string]string)
 	for _, a := range allocs {
-		ips[a.DeviceID] = a.IP  // Changed from UserID to DeviceID
+		ips[a.DeviceID] = a.IP // Changed from UserID to DeviceID
 		assert.Equal(t, "net-1", a.NetworkID)
 	}
 	assert.Equal(t, "10.0.0.1", ips["user-1"])

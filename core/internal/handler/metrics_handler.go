@@ -28,12 +28,12 @@ func (h *MetricsHandler) GetSummary(c *gin.Context) {
 // GET /v1/metrics/health
 func (h *MetricsHandler) GetHealth(c *gin.Context) {
 	summary := metrics.GetSummary()
-	
+
 	status := "healthy"
 	if summary.WSConnections == 0 && summary.PeersOnline == 0 {
 		status = "idle"
 	}
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"status":         status,
 		"ws_connections": summary.WSConnections,

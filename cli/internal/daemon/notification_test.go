@@ -39,8 +39,8 @@ func TestUpdateSettings(t *testing.T) {
 	ns := NewNotificationService(DefaultNotificationSettings())
 
 	newSettings := NotificationSettings{
-		Enabled:      false,
-		DoNotDisturb: true,
+		Enabled:       false,
+		DoNotDisturb:  true,
 		MutedNetworks: []string{"net-1", "net-2"},
 	}
 

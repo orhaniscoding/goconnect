@@ -45,7 +45,7 @@ func (s *stdoutAuditor) Event(ctx context.Context, tenantID, action, actor, obje
 		actorOut = s.hasher(actor)
 		objectOut = s.hasher(object)
 	}
-	
+
 	slog.Info("AUDIT_EVENT",
 		"request_id", rid,
 		"tenant_id", tenantID,

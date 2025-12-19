@@ -24,14 +24,14 @@ func TestManager_StartStop(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.NotNil(t, m.listener)
-	
+
 	// Check we can get the port
 	_, port, err := net.SplitHostPort(m.listener.Addr().String())
 	require.NoError(t, err)
 	t.Logf("Listening on port %s", port)
 
 	m.Stop()
-	
+
 	// Listener should be closed
 	// Try to dial should fail or refuse
 	_, err = net.Dial("tcp", m.listener.Addr().String())
@@ -42,7 +42,7 @@ func TestManager_Subscribe(t *testing.T) {
 	m := NewManager()
 	ch := m.Subscribe()
 	assert.NotNil(t, ch)
-	
+
 	// Check subscriber map
 	m.subscribersMu.RLock()
 	_, exists := m.subscribers[ch]
@@ -50,12 +50,12 @@ func TestManager_Subscribe(t *testing.T) {
 	assert.True(t, exists)
 
 	m.Unsubscribe(ch)
-	
+
 	m.subscribersMu.RLock()
 	_, exists = m.subscribers[ch]
 	m.subscribersMu.RUnlock()
 	assert.False(t, exists)
-	
+
 	// Channel should be closed
 	_, open := <-ch
 	assert.False(t, open)
@@ -77,14 +77,14 @@ func TestManager_Communication(t *testing.T) {
 	receiver.OnSignal(func(sig Signal) {
 		receivedSigChan <- sig
 	})
-	
+
 	// Setup receiver subscription
 	subCh := receiver.Subscribe()
 	defer receiver.Unsubscribe(subCh)
 
 	// Sender
 	sender := NewManager() // Doesn't need to start listening to send
-	
+
 	sig := Signal{
 		Type:      "offer",
 		SDP:       "v=0...",

@@ -11,13 +11,11 @@ import (
 	"strings"
 	"time"
 
-
 	"github.com/kardianos/service"
 
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/commands"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/config"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/daemon"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/deeplink"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/logger"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/system"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/tui"
@@ -46,6 +44,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  networks   List all networks\n")
 		fmt.Fprintf(os.Stderr, "  peers      List peers in the current network\n")
 		fmt.Fprintf(os.Stderr, "  invite     Generate an invite code for the current network\n")
+		fmt.Fprintf(os.Stderr, "  create     Create a new network (args: --name <name> [--cidr <cidr>])\n")
+		fmt.Fprintf(os.Stderr, "  join       Join a network (args: --invite <code>)\n")
 		fmt.Fprintf(os.Stderr, "  doctor     Diagnose configuration and connectivity issues\n")
 		fmt.Fprintf(os.Stderr, "  login      Login via CLI (args: -server <url> -token <jwt>)\n")
 		fmt.Fprintf(os.Stderr, "  -version   Print version and exit\n")
@@ -62,7 +62,10 @@ func main() {
 
 	// Check for protocol handler (Deep Linking)
 	if len(os.Args) > 1 && strings.HasPrefix(os.Args[1], "goconnect://") {
-		handleDeepLink(os.Args[1])
+		if err := commands.HandleDeepLink(os.Args[1]); err != nil {
+			slog.Error("Deep link failed", "error", err)
+			os.Exit(1)
+		}
 		return
 	}
 
@@ -71,7 +74,7 @@ func main() {
 	cfg, err := config.LoadConfig(cfgPath)
 	if err != nil {
 		// If config fails, we might still want to run TUI to help user setup
-	logger.Warn("Failed to load config", "error", err)
+		logger.Warn("Failed to load config", "error", err)
 	}
 
 	svcOptions := make(service.KeyValue)
@@ -109,7 +112,7 @@ func main() {
 
 		switch cmd {
 		case "setup":
-			runSetupWizard()
+			runSetupWizard(bufio.NewReader(os.Stdin), &http.Client{Timeout: 5 * time.Second}, config.SaveConfig)
 			return
 
 		case "install":
@@ -171,7 +174,7 @@ func main() {
 			return
 
 		case "join":
-			commands.RunTUIWithState(tui.StateJoinNetwork)
+			commands.HandleJoinCommand()
 			return
 
 		case "voice":
@@ -182,14 +185,14 @@ func main() {
 
 	// No arguments provided - Smart first-run detection
 	client := tui.NewClient()
-	
+
 	// Check if this is first run (no config file)
 	if _, err := os.Stat(cfgPath); os.IsNotExist(err) {
 		// First time user - show friendly welcome
-		runFirstTimeWelcome()
+		runFirstTimeWelcome(bufio.NewReader(os.Stdin), config.SaveConfig, commands.RunTUIWithState, &http.Client{Timeout: 5 * time.Second})
 		return
 	}
-	
+
 	// Config exists, check if daemon is running
 	if client.CheckDaemonStatus() {
 		// Daemon is running, launch TUI
@@ -206,11 +209,11 @@ func main() {
 		fmt.Println("    2. Reconfigure:   goconnect setup")
 		fmt.Println()
 		fmt.Print("  Start daemon now? [Y/n]: ")
-		
+
 		reader := bufio.NewReader(os.Stdin)
 		answer, _ := reader.ReadString('\n')
 		answer = strings.TrimSpace(strings.ToLower(answer))
-		
+
 		if answer == "" || answer == "y" || answer == "yes" {
 			fmt.Println()
 			fmt.Println("  Starting daemon...")
@@ -223,22 +226,8 @@ func main() {
 	}
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
 // runFirstTimeWelcome shows a friendly welcome for first-time users
-func runFirstTimeWelcome() {
-	reader := bufio.NewReader(os.Stdin)
-
+func runFirstTimeWelcome(reader *bufio.Reader, configSaver func(*config.Config, string) error, tuiRunner func(tui.SessionState), httpClient *http.Client) {
 	fmt.Println()
 	fmt.Println("  ╔═══════════════════════════════════════════════════════════╗")
 	fmt.Println("  ║                                                           ║")
@@ -265,21 +254,21 @@ func runFirstTimeWelcome() {
 	switch choice {
 	case "1":
 		// Quick setup for creating a network
-		runQuickSetup("create")
+		runQuickSetup("create", configSaver, tuiRunner)
 	case "2":
 		// Quick setup for joining a network
-		runQuickSetup("join")
+		runQuickSetup("join", configSaver, tuiRunner)
 	case "3":
 		// Full setup wizard
-		runSetupWizard()
+		runSetupWizard(reader, httpClient, configSaver)
 	default:
 		fmt.Println("  Invalid choice. Running quick setup...")
-		runQuickSetup("create")
+		runQuickSetup("create", configSaver, tuiRunner)
 	}
 }
 
 // runQuickSetup does minimal configuration and launches the appropriate action
-func runQuickSetup(action string) {
+func runQuickSetup(action string, saveConfig func(*config.Config, string) error, tuiRunner func(tui.SessionState)) {
 	fmt.Println()
 	fmt.Println("  ⚡ Quick Setup")
 	fmt.Println("  ─────────────────────────────────────────────────────────────")
@@ -299,7 +288,7 @@ func runQuickSetup(action string) {
 	home, _ := os.UserHomeDir()
 	cfg.IdentityPath = home + "/.goconnect/identity.json"
 
-	if err := config.SaveConfig(cfg, cfgPath); err != nil {
+	if err := saveConfig(cfg, cfgPath); err != nil {
 		fmt.Printf("  ❌ Failed to save configuration: %v\n", err)
 		fmt.Println()
 		fmt.Println("  Please run 'goconnect setup' for manual configuration.")
@@ -316,171 +305,14 @@ func runQuickSetup(action string) {
 
 	// Launch TUI with the appropriate state
 	if action == "create" {
-		commands.RunTUIWithState(tui.StateCreateNetwork)
+		tuiRunner(tui.StateCreateNetwork)
 	} else {
-		commands.RunTUIWithState(tui.StateJoinNetwork)
+		tuiRunner(tui.StateJoinNetwork)
 	}
-}
-
-func handleDeepLink(uri string) {
-	slog.Info("Processing deep link", "uri", uri)
-	
-	// Parse using the deeplink package
-	dl, err := deeplink.Parse(uri)
-	if err != nil {
-		slog.Error("Invalid deep link", "error", err)
-		os.Exit(1)
-	}
-
-	slog.Info("Deep link action", "action", dl.Action, "target", dl.Target)
-
-	switch dl.Action {
-	case deeplink.ActionLogin:
-		handleLoginDeepLink(dl)
-	case deeplink.ActionJoin:
-		handleJoinDeepLink(dl)
-	case deeplink.ActionNetwork:
-		handleNetworkDeepLink(dl)
-	case deeplink.ActionConnect:
-		handleConnectDeepLink(dl)
-	default:
-		slog.Error("Unknown action", "action", dl.Action)
-		os.Exit(1)
-	}
-}
-
-func handleJoinDeepLink(dl *deeplink.DeepLink) {
-	fmt.Printf("🔗 Joining network with invite code: %s\n", dl.Target)
-	
-	handler := deeplink.NewHandler()
-	result, err := handler.Handle(dl)
-	if err != nil {
-		slog.Error("Failed to process join link", "error", err)
-		os.Exit(1)
-	}
-
-	if result.Success {
-		fmt.Printf("✅ %s\n", result.Message)
-		if networkName, ok := result.Data["network_name"].(string); ok {
-			fmt.Printf("   Network: %s\n", networkName)
-		}
-		if role, ok := result.Data["role"].(string); ok {
-			fmt.Printf("   Your role: %s\n", role)
-		}
-	} else {
-		fmt.Printf("❌ %s\n", result.Message)
-		os.Exit(1)
-	}
-}
-
-func handleNetworkDeepLink(dl *deeplink.DeepLink) {
-	fmt.Printf("🔗 Opening network: %s\n", dl.Target)
-	
-	handler := deeplink.NewHandler()
-	result, err := handler.Handle(dl)
-	if err != nil {
-		slog.Error("Failed to process network link", "error", err)
-		os.Exit(1)
-	}
-
-	if result.Success {
-		fmt.Printf("✅ %s\n", result.Message)
-		if networkName, ok := result.Data["network_name"].(string); ok {
-			fmt.Printf("   Network: %s\n", networkName)
-		}
-		if connected, ok := result.Data["connected"].(bool); ok && connected {
-			fmt.Printf("   Status: Connected\n")
-		}
-	} else {
-		fmt.Printf("❌ %s\n", result.Message)
-		os.Exit(1)
-	}
-}
-
-func handleConnectDeepLink(dl *deeplink.DeepLink) {
-	fmt.Printf("🔗 Connecting to peer: %s\n", dl.Target)
-	
-	handler := deeplink.NewHandler()
-	result, err := handler.Handle(dl)
-	if err != nil {
-		slog.Error("Failed to process connect link", "error", err)
-		os.Exit(1)
-	}
-
-
-	if result.Success {
-		fmt.Printf("✅ %s\n", result.Message)
-	} else {
-		fmt.Printf("❌ %s\n", result.Message)
-		os.Exit(1)
-	}
-}
-
-func handleLoginDeepLink(dl *deeplink.DeepLink) {
-	token := dl.Params["token"]
-	server := dl.Params["server"]
-
-	if token == "" || server == "" {
-		slog.Error("Login link missing token or server params")
-		os.Exit(1)
-	}
-
-	// Load config to get Keyring
-	cfgPath := config.DefaultConfigPath()
-	cfg, err := config.LoadConfig(cfgPath)
-	if err != nil {
-		slog.Error("Failed to load config", "error", err)
-		os.Exit(1)
-	}
-
-	// 1. Save Server URL
-	// Note: This is a bit hacky, ideally we'd update the YAML file.
-	// Since config.LoadConfig reads from file but doesn't expose a Save method yet,
-	// we might need to implement Save or just log it for now.
-	// For Phase 1, let's assume we update the config file.
-	// But config package doesn't have SaveConfig yet. Let's add it?
-	// Or just print for now as Proof of Concept.
-
-	slog.Info("Deep Link Login", "server", server, "token", "[REDACTED]")
-
-	// 2. Save Token to Keyring
-	if cfg.Keyring != nil {
-		if err := cfg.Keyring.StoreAuthToken(token); err != nil {
-			slog.Error("Failed to store token", "error", err)
-			os.Exit(1)
-		}
-		fmt.Println("Token stored successfully.")
-	} else {
-		slog.Error("Keyring not available")
-		os.Exit(1)
-	}
-
-	// 3. Restart Service (if needed) or Notify Daemon
-	if err := notifyDaemonConnect(); err != nil {
-		slog.Warn("Could not notify daemon to connect", "error", err)
-		slog.Info("You may need to restart the goconnect-daemon service manually")
-	} else {
-		fmt.Println("Daemon notified to connect.")
-	}
-}
-
-func notifyDaemonConnect() error {
-	client := &http.Client{Timeout: 2 * time.Second}
-	resp, err := client.Post("http://127.0.0.1:34100/connect", "application/json", nil)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("daemon returned status %d", resp.StatusCode)
-	}
-	return nil
 }
 
 // runSetupWizard runs an interactive setup wizard for first-time configuration
-func runSetupWizard() {
-	reader := bufio.NewReader(os.Stdin)
-
+func runSetupWizard(reader *bufio.Reader, httpClient *http.Client, saveConfig func(*config.Config, string) error) {
 	// Print welcome banner
 	fmt.Println()
 	fmt.Println("╔══════════════════════════════════════════════════════════════╗")
@@ -521,7 +353,7 @@ func runSetupWizard() {
 
 	// Test connection
 	fmt.Println("  ⏳ Testing connection to server...")
-	if err := testServerConnection(serverURL); err != nil {
+	if err := testServerConnection(httpClient, serverURL); err != nil {
 		fmt.Printf("  ⚠️  Warning: Could not connect to server: %v\n", err)
 		fmt.Print("  Continue anyway? [y/N]: ")
 		answer, _ := reader.ReadString('\n')
@@ -601,7 +433,7 @@ func runSetupWizard() {
 
 	fmt.Printf("  📁 Saving configuration to: %s\n", cfgPath)
 
-	if err := config.SaveConfig(cfg, cfgPath); err != nil {
+	if err := saveConfig(cfg, cfgPath); err != nil {
 		fmt.Printf("  ❌ Failed to save configuration: %v\n", err)
 		return
 	}
@@ -679,8 +511,7 @@ func runSetupWizard() {
 }
 
 // testServerConnection tests if the server is reachable
-func testServerConnection(serverURL string) error {
-	client := &http.Client{Timeout: 5 * time.Second}
+func testServerConnection(client *http.Client, serverURL string) error {
 	resp, err := client.Get(serverURL + "/health")
 	if err != nil {
 		return err
@@ -692,6 +523,5 @@ func testServerConnection(serverURL string) error {
 	}
 	return nil
 }
-
 
 // Build trigger - 20251217074002

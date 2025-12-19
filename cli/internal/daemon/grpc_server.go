@@ -47,6 +47,13 @@ type GRPCServer struct {
 
 // NewGRPCServer creates a new gRPC server for the daemon.
 func NewGRPCServer(daemon *DaemonService, version, buildDate, commit string) *GRPCServer {
+	var ipcAuth *IPCAuth
+	if daemon.config != nil && daemon.config.Daemon.IPCTokenPath != "" {
+		ipcAuth = NewIPCAuthWithPath(daemon.config.Daemon.IPCTokenPath)
+	} else {
+		ipcAuth = NewIPCAuth()
+	}
+
 	return &GRPCServer{
 		daemon:      daemon,
 		logf:        daemon.logf,
@@ -54,7 +61,7 @@ func NewGRPCServer(daemon *DaemonService, version, buildDate, commit string) *GR
 		version:     version,
 		buildDate:   buildDate,
 		commit:      commit,
-		ipcAuth:     NewIPCAuth(),
+		ipcAuth:     ipcAuth,
 	}
 }
 
@@ -151,8 +158,12 @@ func (s *GRPCServer) createListener() (net.Listener, error) {
 		port := s.daemon.config.Daemon.LocalPort + 1 // Use next port for gRPC
 		return net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	default:
+
 		// Use Unix Domain Socket for Linux/macOS (primary - for CLI clients)
-		socketPath := "/tmp/goconnect-daemon.sock"
+		socketPath := s.daemon.config.Daemon.SocketPath
+		if socketPath == "" {
+			socketPath = "/tmp/goconnect-daemon.sock"
+		}
 		// Remove existing socket file if it exists
 		// In production, use a more secure path like /var/run/goconnect/daemon.sock
 

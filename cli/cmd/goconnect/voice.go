@@ -14,7 +14,7 @@ func runVoiceCommand() {
 	fmt.Println()
 	fmt.Println("  🎙️  GoConnect Voice Test")
 	fmt.Println("  ════════════════════════")
-	
+
 	// Load config
 	cfgPath := config.DefaultConfigPath()
 	cfg, err := config.LoadConfig(cfgPath)
@@ -28,7 +28,7 @@ func runVoiceCommand() {
 		fmt.Println("\n  ❌ Keyring not available")
 		return
 	}
-	
+
 	token, err := cfg.Keyring.RetrieveAuthToken()
 	if err != nil || token == "" {
 		fmt.Println("\n  ❌ Not logged in. Run 'goconnect login' first.")
@@ -45,14 +45,14 @@ func runVoiceCommand() {
 		"network_id": "test_net",
 		"sdp":        map[string]string{"sdp": "v=0..."},
 	}
-	
+
 	jsonBytes, _ := json.Marshal(payload)
 	req, err := http.NewRequest("POST", cfg.Server.URL+"/v1/voice/signal", bytes.NewBuffer(jsonBytes))
 	if err != nil {
 		fmt.Printf("  ❌ Failed to create request: %v\n", err)
 		return
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 

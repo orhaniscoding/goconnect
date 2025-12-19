@@ -1,8 +1,8 @@
 package service
 
 import (
-"errors"
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"testing"
@@ -50,7 +50,8 @@ func TestIPAMSequentialAllocation(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected exhaustion error")
 	}
-	var derr *domain.Error; ok := errors.As(err, &derr)
+	var derr *domain.Error
+	ok := errors.As(err, &derr)
 	if !ok || derr.Code != domain.ErrIPExhausted {
 		t.Fatalf("expected ERR_IP_EXHAUSTED got %+v", err)
 	}
@@ -82,7 +83,8 @@ func TestIPAMInvalidNetwork(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error for missing network")
 	}
-	var derr *domain.Error; ok := errors.As(err, &derr)
+	var derr *domain.Error
+	ok := errors.As(err, &derr)
 	if !ok || derr.Code != domain.ErrNotFound {
 		t.Fatalf("expected ErrNotFound got %+v", err)
 	}
@@ -94,7 +96,8 @@ func TestIPAMNonMemberDenied(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected authorization error for non-member")
 	}
-	var derr *domain.Error; ok := errors.As(err, &derr)
+	var derr *domain.Error
+	ok := errors.As(err, &derr)
 	if !ok || derr.Code != domain.ErrNotAuthorized {
 		t.Fatalf("expected ErrNotAuthorized got %+v", err)
 	}
@@ -136,7 +139,8 @@ func TestIPAMReleaseNonMemberDenied(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected authorization error")
 	}
-	var derr *domain.Error; ok := errors.As(err, &derr)
+	var derr *domain.Error
+	ok := errors.As(err, &derr)
 	if !ok || derr.Code != domain.ErrNotAuthorized {
 		t.Fatalf("expected ErrNotAuthorized got %+v", err)
 	}
@@ -174,7 +178,8 @@ func TestIPAMAdminReleaseForbiddenForMember(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected not authorized error")
 	}
-	var derr *domain.Error; ok := errors.As(err, &derr)
+	var derr *domain.Error
+	ok := errors.As(err, &derr)
 	if !ok || derr.Code != domain.ErrNotAuthorized {
 		t.Fatalf("expected ErrNotAuthorized got %+v", err)
 	}
@@ -268,7 +273,8 @@ func TestIPAMTenantIsolation(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error for wrong tenant")
 	}
-	var derr *domain.Error; ok := errors.As(err, &derr)
+	var derr *domain.Error
+	ok := errors.As(err, &derr)
 	if !ok || derr.Code != domain.ErrNotFound {
 		t.Fatalf("expected ErrNotFound got %+v", err)
 	}
@@ -316,7 +322,8 @@ func TestIPAMService_ListAllocations_WrongTenant(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for wrong tenant")
 	}
-	var derr *domain.Error; ok := errors.As(err, &derr)
+	var derr *domain.Error
+	ok := errors.As(err, &derr)
 	if !ok || derr.Code != domain.ErrNotFound {
 		t.Fatalf("expected ErrNotFound got %+v", err)
 	}
@@ -345,7 +352,8 @@ func TestIPAMService_ReleaseIPForActor_WrongTenant(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for wrong tenant")
 	}
-	var derr *domain.Error; ok := errors.As(err, &derr)
+	var derr *domain.Error
+	ok := errors.As(err, &derr)
 	if !ok || derr.Code != domain.ErrNotFound {
 		t.Fatalf("expected ErrNotFound got %+v", err)
 	}
@@ -358,7 +366,8 @@ func TestIPAMService_ReleaseIPForActor_ActorNotMember(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for actor not member")
 	}
-	var derr *domain.Error; ok := errors.As(err, &derr)
+	var derr *domain.Error
+	ok := errors.As(err, &derr)
 	if !ok || derr.Code != domain.ErrNotAuthorized {
 		t.Fatalf("expected ErrNotAuthorized got %+v", err)
 	}
@@ -372,7 +381,8 @@ func TestIPAMService_ReleaseIPForActor_TargetNotMember(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for target not member")
 	}
-	var derr *domain.Error; ok := errors.As(err, &derr)
+	var derr *domain.Error
+	ok := errors.As(err, &derr)
 	if !ok || derr.Code != domain.ErrNotAuthorized {
 		t.Fatalf("expected ErrNotAuthorized got %+v", err)
 	}

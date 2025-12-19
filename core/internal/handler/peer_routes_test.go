@@ -44,10 +44,10 @@ func TestRegisterPeerRoutes(t *testing.T) {
 		"GET /v1/peers/:id/stats":                   false,
 		"POST /v1/peers/:id/stats":                  false,
 		"POST /v1/peers/:id/rotate-keys":            false,
-		"GET /v1/networks/:network_id/peers":        false,
-		"GET /v1/networks/:network_id/peers/active": false,
-		"GET /v1/networks/:network_id/peers/stats":  false,
-		"GET /v1/devices/:device_id/peers":          false,
+		"GET /v1/networks/:id/peers":        false,
+		"GET /v1/networks/:id/peers/active": false,
+		"GET /v1/networks/:id/peers/stats":  false,
+		"GET /v1/devices/:id/peers":          false,
 	}
 
 	for _, rt := range routes {

@@ -19,11 +19,6 @@ func HandleCreateCommand() {
 	cidr := createCmd.String("cidr", "", "Network CIDR (e.g. 10.100.0.0/24)")
 
 	// Parse flags after "create" subcommand
-	// Note: In main.go it was os.Args[2:], but here we assume caller might handle args?
-	// But main.go calls HandleCreateCommand() without args.
-	// So we should expect os.Args to still be available and identical.
-	// Typically os.Args[0] is program, os.Args[1] is 'create'.
-	// So os.Args[2:] are the flags.
 	if len(os.Args) > 2 {
 		createCmd.Parse(os.Args[2:])
 	}
