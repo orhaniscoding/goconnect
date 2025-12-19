@@ -13,6 +13,7 @@ import (
 
 	"github.com/kardianos/service"
 
+	"github.com/mattn/go-isatty"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/commands"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/config"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/daemon"
@@ -188,7 +189,13 @@ func main() {
 
 	// Check if this is first run (no config file)
 	if _, err := os.Stat(cfgPath); os.IsNotExist(err) {
-		// First time user - show friendly welcome
+		// If not interactive, fail gracefully (don't block CI/scripts)
+		if !isatty.IsTerminal(os.Stdout.Fd()) && !isatty.IsCygwinTerminal(os.Stdout.Fd()) {
+			fmt.Fprintln(os.Stderr, "Error: Configuration file not found. Run 'goconnect setup' to initialize.")
+			os.Exit(1)
+		}
+
+		// First time user (Interactive) - show friendly welcome
 		runFirstTimeWelcome(bufio.NewReader(os.Stdin), config.SaveConfig, commands.RunTUIWithState, &http.Client{Timeout: 5 * time.Second})
 		return
 	}
