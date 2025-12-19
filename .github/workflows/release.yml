@@ -93,22 +93,56 @@ jobs:
             desktop/src-tauri/target/release/bundle/**/*.dmg
             desktop/src-tauri/target/release/bundle/**/*.msi
             desktop/src-tauri/target/release/bundle/**/*.exe
+            desktop/src-tauri/target/release/bundle/**/*.tar.gz
+            desktop/src-tauri/target/release/bundle/**/*.zip
+            desktop/src-tauri/target/release/bundle/**/*.sig
             desktop/src-tauri/target/*/release/bundle/**/*.dmg
+            desktop/src-tauri/target/*/release/bundle/**/*.tar.gz
+            desktop/src-tauri/target/*/release/bundle/**/*.sig
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Artifacts for Updater
+        uses: actions/upload-artifact@v4
+        with:
+          name: update-artifacts-${{ matrix.os-name }}
+          path: |
+            desktop/src-tauri/target/release/bundle/**/*.tar.gz
+            desktop/src-tauri/target/release/bundle/**/*.zip
+            desktop/src-tauri/target/release/bundle/**/*.sig
+            desktop/src-tauri/target/*/release/bundle/**/*.tar.gz
+            desktop/src-tauri/target/*/release/bundle/**/*.sig
+          if-no-files-found: warn
 
   # 3. Generate Updater Manifest (latest.json)
   generate-updater-json:
     needs: [desktop-build]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: update-artifacts-*
+          merge-multiple: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Generate latest.json
-        run: |
-          # This is a simplified generation. For production, you might want to extract from artifacts
-          # or use a script that aggregates signatures.
-          # For now, we create a placeholder or use a script if available.
-          echo "{}" > latest.json
-          # Real implementation should aggregate content from build artifacts
-        
-      # Upload latest.json manually if not handled by custom logic.
-      # Note: GoConnect might need a specific script for this.
+        env:
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          ARTIFACTS_DIR: artifacts
+        run: node scripts/generate_updater_json.js
+
+      - name: Upload latest.json
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: latest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
