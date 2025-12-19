@@ -141,7 +141,7 @@
 
 2. **Örnekler ve Tutorial'lar**
    - [x] Minecraft LAN tutorial (`docs/tutorials/MINECRAFT_LAN.md`)
-   - [ ] File sharing örneği
+   - [x] File sharing örneği (`docs/tutorials/FILE_SHARING.md`)
    - [x] Self-hosted quick start (`docs/SELF_HOSTED.md`)
 
 ### 🟢 Düşük Öncelik (Gelecekte)
