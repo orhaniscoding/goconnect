@@ -6,7 +6,7 @@ mod commands;
 
 use commands::DaemonState;
 use tauri::{
-    menu::{Menu, MenuItem},
+    menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
     Manager,
 };
@@ -15,6 +15,9 @@ use tauri::{
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
+
+use tauri_plugin_updater::UpdaterExt;
+use tauri_plugin_notification::NotificationExt;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -29,9 +32,20 @@ pub fn run() {
         })
         .setup(|app| {
             let status_i = MenuItem::with_id(app, "status", "Status: Checking...", false, None::<&str>)?;
+            let check_update_i = MenuItem::with_id(app, "check_update", "Check for Updates", true, None::<&str>)?;
             let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
             let show_i = MenuItem::with_id(app, "show", "Show", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&status_i, &show_i, &quit_i])?;
+            let sep1 = PredefinedMenuItem::separator(app)?;
+            let sep2 = PredefinedMenuItem::separator(app)?;
+            
+            let menu = Menu::with_items(app, &[
+                &status_i, 
+                &sep1, 
+                &check_update_i, 
+                &sep2, 
+                &show_i, 
+                &quit_i
+            ])?;
 
             let _tray = TrayIconBuilder::with_id("tray")
                 .icon(app.default_window_icon().unwrap().clone())
@@ -46,6 +60,40 @@ pub fn run() {
                             let _ = window.show();
                             let _ = window.set_focus();
                         }
+                    }
+                    "check_update" => {
+                        let handle = app.handle().clone();
+                        tauri::async_runtime::spawn(async move {
+                            match handle.updater().check().await {
+                                Ok(Some(update)) => {
+                                    handle.notification()
+                                        .builder()
+                                        .title("GoConnect Update")
+                                        .body(format!("Update available: v{}", update.version).as_str())
+                                        .show()
+                                        .unwrap();
+                                        
+                                    // Optionally trigger download/install logic here or via dialog
+                                    // For now, just notify.
+                                }
+                                Ok(None) => {
+                                    handle.notification()
+                                        .builder()
+                                        .title("GoConnect")
+                                        .body("You are on the latest version.")
+                                        .show()
+                                        .unwrap();
+                                }
+                                Err(e) => {
+                                    handle.notification()
+                                        .builder()
+                                        .title("Update Check Failed")
+                                        .body(format!("Error: {}", e).as_str())
+                                        .show()
+                                        .unwrap();
+                                }
+                            }
+                        });
                     }
                     _ => {}
                 })
