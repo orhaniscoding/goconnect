@@ -140,7 +140,7 @@
 ### 🟡 Orta Öncelik (Yakında Yapılmalı)
 
 2. **Örnekler ve Tutorial'lar**
-   - [ ] Minecraft LAN tutorial
+   - [x] Minecraft LAN tutorial (`docs/tutorials/MINECRAFT_LAN.md`)
    - [ ] File sharing örneği
    - [x] Self-hosted quick start (`docs/SELF_HOSTED.md`)
 
