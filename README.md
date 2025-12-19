@@ -265,8 +265,10 @@ $ goconnect join gc://invite.goconnect.io/abc123
 |---------|-------------|
 | 🔔 **Push Notifications** | Cross-platform native alerts |
 | 📊 **Metrics Dashboard** | Real-time network monitoring |
-| 🔄 **Auto-Update** | Keep your client up to date |
+| 🔄 **Auto-Update** | Seamless background updates via GitHub |
 | 📁 **File Transfers** | P2P file sharing between peers |
+| 📥 **System Tray** | Status indicator and quick actions (Check for Updates, Quit) |
+| 🔗 **Deep Linking** | Join networks via `goconnect://join?code=...` links |
 
 ### Coming Soon
 
