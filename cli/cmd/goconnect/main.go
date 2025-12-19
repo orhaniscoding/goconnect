@@ -205,7 +205,12 @@ func main() {
 		// Daemon is running, launch TUI
 		commands.RunTUIWithState(tui.StateDashboard)
 	} else {
-		// Daemon not running - offer to start it
+		// Daemon not running - offer to start it (only if interactive)
+		if !isatty.IsTerminal(os.Stdout.Fd()) && !isatty.IsCygwinTerminal(os.Stdout.Fd()) {
+			fmt.Println("Daemon is stopped.")
+			os.Exit(1)
+		}
+
 		fmt.Println()
 		fmt.Println("  🔗 GoConnect")
 		fmt.Println()

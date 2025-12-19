@@ -6,6 +6,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/uierrors"
 )
 
 // ==================== SessionState Tests ====================
@@ -693,7 +695,7 @@ func TestModel_Fields(t *testing.T) {
 
 	t.Run("Model Stores Error", func(t *testing.T) {
 		m := NewModel()
-		m.err = assert.AnError
+		m.err = uierrors.New("Test", "Test Message", "Test Hint", nil)
 
 		assert.Error(t, m.err)
 	})

@@ -22,6 +22,12 @@ type KeyringStore struct {
 
 // NewKeyringStore creates a new KeyringStore instance.
 func NewKeyringStore() (*KeyringStore, error) {
+	// Ensure keyring directory exists with secure permissions (0700)
+	keyringDir := filepath.Join(defaultDataDir(), "keyring")
+	if err := os.MkdirAll(keyringDir, 0700); err != nil {
+		return nil, fmt.Errorf("failed to create keyring directory: %w", err)
+	}
+
 	kr, err := keyring.Open(keyring.Config{
 		ServiceName: keyringService,
 		AllowedBackends: []keyring.BackendType{
@@ -32,7 +38,7 @@ func NewKeyringStore() (*KeyringStore, error) {
 			keyring.FileBackend, // Add FileBackend as a last-resort fallback
 		},
 		// FileBackend configuration (used if system backends are unavailable)
-		FileDir: filepath.Join(defaultDataDir(), "keyring"),
+		FileDir: keyringDir,
 		FilePasswordFunc: func(_ string) (string, error) {
 			// In a real app, this might be a master password.
 			// For GoConnect daemon, we'll try to use a persistent machine-specific secret

@@ -3,7 +3,6 @@ package uierrors
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"os"
 	"syscall"

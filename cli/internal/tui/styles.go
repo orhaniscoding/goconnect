@@ -11,7 +11,8 @@ var (
 	ColorSuccess   = lipgloss.Color("#23D18B") // Green
 	ColorError     = lipgloss.Color("#F43F5E") // Red
 	ColorWarning   = lipgloss.Color("#FFB86C") // Orange
-	ColorText      = lipgloss.Color("#F8F8F2") // White
+	ColorWhite     = lipgloss.Color("#FFFFFF") // Pure White
+	ColorText      = lipgloss.Color("#F8F8F2") // Off White for text
 	ColorSubtext   = lipgloss.Color("#6272A4") // Gray
 	ColorMuted     = lipgloss.Color("#44475A") // Muted Gray
 	ColorBg        = lipgloss.Color("#282A36") // Dark Background
