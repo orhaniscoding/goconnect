@@ -69,7 +69,7 @@ func (s *AuthService) HashPassword(password string) (string, error) {
 	// Argon2id parameters (OWASP recommended)
 	salt := make([]byte, 16)
 	if _, err := rand.Read(salt); err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to generate salt: %w", err)
 	}
 
 	hash := argon2.IDKey([]byte(password), salt, 1, 64*1024, 4, 32)
@@ -90,7 +90,7 @@ func (s *AuthService) VerifyPassword(password, encodedHash string) (bool, error)
 
 	_, err := fmt.Sscanf(encodedHash, "$argon2id$v=%d$m=%d,t=%d,p=%d$", &version, &memory, &iterations, &parallelism)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to parse hash format: %w", err)
 	}
 
 	// Extract salt and hash
@@ -122,12 +122,12 @@ func (s *AuthService) VerifyPassword(password, encodedHash string) (bool, error)
 
 	salt, err = base64.RawStdEncoding.DecodeString(b64Salt)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to decode salt: %w", err)
 	}
 
 	hash, err = base64.RawStdEncoding.DecodeString(b64Hash)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to decode hash: %w", err)
 	}
 
 	// Validate parameters to prevent overflow

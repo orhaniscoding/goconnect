@@ -155,7 +155,7 @@ func (s *MembershipService) Approve(ctx context.Context, networkID, targetUserID
 	// Verify network tenant
 	net, err := s.networks.GetByID(ctx, networkID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get network for approval: %w", err)
 	}
 	if net.TenantID != tenantID {
 		return nil, domain.NewError(domain.ErrNotFound, "Network not found", nil)
@@ -197,7 +197,7 @@ func (s *MembershipService) Deny(ctx context.Context, networkID, targetUserID, a
 	// Verify network tenant
 	net, err := s.networks.GetByID(ctx, networkID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get network for denial: %w", err)
 	}
 	if net.TenantID != tenantID {
 		return domain.NewError(domain.ErrNotFound, "Network not found", nil)
@@ -221,7 +221,7 @@ func (s *MembershipService) Kick(ctx context.Context, networkID, targetUserID, a
 	// Verify network tenant
 	net, err := s.networks.GetByID(ctx, networkID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get network for kick: %w", err)
 	}
 	if net.TenantID != tenantID {
 		return domain.NewError(domain.ErrNotFound, "Network not found", nil)
@@ -254,7 +254,7 @@ func (s *MembershipService) Ban(ctx context.Context, networkID, targetUserID, ac
 	// Verify network tenant
 	net, err := s.networks.GetByID(ctx, networkID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get network for ban: %w", err)
 	}
 	if net.TenantID != tenantID {
 		return domain.NewError(domain.ErrNotFound, "Network not found", nil)
@@ -279,7 +279,11 @@ func (s *MembershipService) ListMembers(ctx context.Context, networkID, status, 
 	if net.TenantID != tenantID {
 		return nil, "", domain.NewError(domain.ErrNotFound, "Network not found", nil)
 	}
-	return s.members.List(ctx, networkID, status, limit, cursor)
+	members, nextCursor, err := s.members.List(ctx, networkID, status, limit, cursor)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to list members: %w", err)
+	}
+	return members, nextCursor, nil
 }
 
 // ListJoinRequests lists pending join requests for a network (admin/owner only)
@@ -287,12 +291,16 @@ func (s *MembershipService) ListJoinRequests(ctx context.Context, networkID, ten
 	// Verify network tenant
 	net, err := s.networks.GetByID(ctx, networkID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get network: %w", err)
 	}
 	if net.TenantID != tenantID {
 		return nil, domain.NewError(domain.ErrNotFound, "Network not found", nil)
 	}
-	return s.joins.ListPending(ctx, networkID)
+	requests, err := s.joins.ListPending(ctx, networkID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list pending join requests: %w", err)
+	}
+	return requests, nil
 }
 
 func (s *MembershipService) hasManagePrivilege(ctx context.Context, networkID, userID string) bool {
