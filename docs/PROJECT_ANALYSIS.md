@@ -34,13 +34,13 @@
 
 | Dosya | Durum | Sorunlar |
 |-------|-------|----------|
-| **README.md** | ⚠️ Güncellenmeli | Eski binary isimleri (`goconnect`) |
-| **QUICK_START.md** | ⚠️ Güncellenmeli | Eski binary isimleri, versiyon numaraları |
-| **USER_GUIDE.md** | ⚠️ Güncellenmeli | Türkçe, bazı komutlar eski |
-| **ARCHITECTURE.md** | ⚠️ Güncellenmeli | `core/cmd/daemon` hala bahsediliyor (silindi) |
+| **README.md** | ✅ Güncel | Binary isimleri düzeltildi |
+| **QUICK_START.md** | ✅ Güncel | Binary isimleri düzeltildi |
+| **USER_GUIDE.md** | ✅ Güncel | Komutlar güncellendi, chat/send kaldırıldı |
+| **ARCHITECTURE.md** | ✅ Güncel | Referanslar düzeltildi |
 | **DEPLOYMENT.md** | ✅ İyi | Türkçe, detaylı |
 | **SECURITY.md** | ✅ İyi | Kapsamlı |
-| **CONTRIBUTING.md** | ⚠️ Güncellenmeli | Bazı path'ler eski |
+| **CONTRIBUTING.md** | ✅ Güncel | Path'ler düzeltildi |
 | **CHANGELOG.md** | ✅ İyi | Güncel |
 
 ---
@@ -49,52 +49,23 @@
 
 ### 🚨 Kritik Eksikler
 
-#### 1. **Dokümantasyon Tutarsızlıkları**
+#### 1. **Dokümantasyon Tutarsızlıkları** ✅ TAMAMLANDI
 
 **Sorun:** Binary isimleri dokümantasyonda eski (`goconnect`, `goconnect` karışık)
 
-**Etkilenen Dosyalar:**
-- `README.md` (7 yer)
-- `QUICK_START.md` (5 yer)
-- `USER_GUIDE.md` (3 yer)
-- `cli/README.md` (3 yer)
-- `cli/service/*/README.md` (çok sayıda)
+**Durum:** ✅ Tamamlandı. Tüm referanslar `goconnect` olarak güncellendi.
 
-**Çözüm:** Tüm dokümantasyonda `goconnect` → `goconnect` ve `goconnect` → `goconnect` olarak güncellenmeli (servis adı dahil)
+#### 2. **Desktop App - Mock Data** ✅ TAMAMLANDI
 
-#### 2. **Desktop App - Mock Data Kullanımı** ✅ TAMAMLANDI
-
-**Önceki Durum:** Desktop app mock data kullanıyordu.
-
-**Şimdiki Durum:** ✅ Gerçek API entegrasyonu yapıldı:
-- Network listesi gerçek API'den geliyor
-- Server listesi gerçek API'den geliyor
-- Chat gerçek API'ye geçirildi
-- Peer listesi gerçek API'den geliyor
-- Onboarding flow eklendi
-- Error handling iyileştirildi
-
-**Durum:** ✅ Tamamlandı
+**Durum:** ✅ Tamamlandı. Gerçek API entegrasyonu yapıldı.
 
 #### 3. **ARCHITECTURE.md - Eski Referanslar** ✅ TAMAMLANDI
 
-**Önceki Durum:** `core/cmd/daemon` referansları vardı.
-
-**Şimdiki Durum:** ✅ ARCHITECTURE.md güncellendi:
-- `core/cmd/server` olarak güncellendi
-- Tüm referanslar düzeltildi
-
-**Durum:** ✅ Tamamlandı
+**Durum:** ✅ Tamamlandı.
 
 #### 4. **CLI - Eksik Komutlar** ✅ TAMAMLANDI
 
-**Önceki Durum:** `create` ve `join` komutları TODO olarak işaretlenmişti.
-
-**Şimdiki Durum:** ✅ Komutlar direkt TUI'yi ilgili ekrana yönlendiriyor:
-- `goconnect create` → StateCreateNetwork
-- `goconnect join` → StateJoinNetwork
-
-**Durum:** ✅ Tamamlandı
+**Durum:** ✅ Tamamlandı. `create` ve `join` komutları TUI'ye bağlandı.
 
 ---
 
@@ -102,30 +73,16 @@
 
 #### 5. **İlk Kullanım Deneyimi** ✅ TAMAMLANDI
 
-**Önceki Durum:**
-- Setup wizard vardı ama ilk açılışta otomatik başlatılmıyordu
-- Desktop app için onboarding flow yoktu
+**Durum:** ✅ Tamamlandı.
+- CLI: Otomatik setup wizard eklendi.
+- Desktop: Onboarding flow tamamlandı.
+- Daemon: "Zero-Config" startup desteği eklendi.
 
-**Şimdiki Durum:** ✅ İyileştirildi:
-- ✅ CLI'da `goconnect` komutu config yoksa otomatik welcome screen gösteriyor
-- ✅ Desktop app ilk açılışta welcome screen + onboarding flow var
-- ✅ Username input → Choice screen → Create/Join flow
-- ✅ Persistent user sessions (localStorage)
+#### 6. **Hata Mesajları** ✅ TAMAMLANDI
 
-**Durum:** ✅ Tamamlandı
-
-#### 6. **Hata Mesajları - Kullanıcı Dostu Değil** ✅ TAMAMLANDI
-
-**Önceki Durum:**
-- Error handling vardı ama bazı hatalar teknikti
-
-**Şimdiki Durum:** ✅ İyileştirildi:
-- ✅ Desktop app'te kullanıcı dostu error mesajları eklendi
-- ✅ Network errors için açıklayıcı mesajlar
-- ✅ 401, 403, 409, 500 için özel mesajlar
-- ✅ API client'ta error handling iyileştirildi
-
-**Durum:** ✅ Tamamlandı
+**Durum:** ✅ Tamamlandı.
+- Merkezi hata yönetimi (`uierrors`) implemente edildi.
+- TUI ve CLI dostane hata mesajları gösteriyor.
 
 #### 7. **Örnekler ve Tutorial'lar Eksik**
 
@@ -141,27 +98,21 @@
 - Docker Compose var ✅
 - Ama tek komutla kurulum script'i yok
 
-**Öneri:**
-```bash
-# Tek komutla kurulum
-curl -fsSL https://goconnect.io/install.sh | bash
-```
-
 ---
 
 ### 📝 Düşük Öncelikli İyileştirmeler
 
-#### 9. **Desktop App - System Tray**
+#### 9. **Desktop App - System Tray** ✅ TAMAMLANDI
 
-**Mevcut:** Bahsediliyor ama implement edilmemiş görünüyor
+**Durum:** ✅ Tamamlandı. "Close to Tray", Status indicator ve Quit seçenekleri eklendi.
 
-#### 10. **Deep Linking**
+#### 10. **Deep Linking** ✅ TAMAMLANDI
 
-**Mevcut:** Kod var ama tam implement edilmemiş
+**Durum:** ✅ Tamamlandı. `goconnect://join?code=XYZ` protokolü Windows/Linux için hazır.
 
-#### 11. **Auto-Update Mekanizması**
+#### 11. **Auto-Update Mekanizması** ⚠️ KISMEN TAMAMLANDI
 
-**Eksik:** Otomatik güncelleme yok
+**Durum:** CI/CD hazır, Updater config hazır. Signing key setup'ı kullanıcının yapması gerekiyor.
 
 ---
 
@@ -173,57 +124,29 @@ curl -fsSL https://goconnect.io/install.sh | bash
 2. **Error Handling** - Kategorize edilmiş hatalar
 3. **Cross-Platform** - Windows, macOS, Linux desteği
 4. **Dokümantasyon** - Genel olarak kapsamlı
-
-### ⚠️ İyileştirme Gereken Alanlar
-
-1. **İlk Kullanım:** Daha basit onboarding
-2. **Hata Mesajları:** Daha anlaşılır
-3. **Örnekler:** Daha fazla use case
-4. **Desktop App:** Gerçek API entegrasyonu
+5. **Entegrasyon** - Tray ve Deep Link ile native hissettiriyor
 
 ---
 
 ## 📋 ÖNCELİKLİ YAPILACAKLAR LİSTESİ
 
-### 🔴 Yüksek Öncelik (Hemen Yapılmalı) ✅ TAMAMLANDI
+### 🔴 Yüksek Öncelik (Hemen Yapılmalı)
 
-1. ✅ **Dokümantasyon Güncellemeleri** - Kısmen Tamamlandı
-   - [x] ARCHITECTURE.md - core/cmd/server olarak güncellendi
-   - [x] COMPREHENSIVE_ANALYSIS.md - Handler durumu güncellendi
-   - [x] Makefile - Build path'leri güncellendi
-   - [ ] README.md - Binary isimlerini kontrol et (çoğu zaten güncel)
-   - [ ] USER_GUIDE.md - Türkçe, İngilizce'ye çevrilebilir
-
-2. ✅ **CLI Komutları Tamamlama** - TAMAMLANDI
-   - [x] `create` komutu direkt create screen'e yönlendiriyor
-   - [x] `join` komutu direkt join screen'e yönlendiriyor
-
-3. ✅ **Desktop App API Entegrasyonu** - TAMAMLANDI
-   - [x] Mock data yerine gerçek API çağrıları
-   - [x] Connection status gerçek zamanlı
-   - [x] Network listesi gerçek veri
-   - [x] Onboarding flow eklendi
+1. **Automated E2E Testing**
+   - [x] Infrastructure (Docker Compose) prepared (Blocked by Docker unavailability)
+   - [x] CI Workflow (`e2e.yml`) added
+   - [ ] Run locally once Docker is installed
 
 ### 🟡 Orta Öncelik (Yakında Yapılmalı)
 
-4. **İlk Kullanım Deneyimi**
-   - [ ] Desktop app onboarding flow
-   - [ ] CLI otomatik setup wizard (config yoksa)
-
-5. **Hata Mesajları İyileştirme**
-   - [ ] Tüm error code'ları kullanıcı dostu mesajlara çevir
-   - [ ] Platform-specific hata çözümleri
-
-6. **Örnekler ve Tutorial'lar**
+2. **Örnekler ve Tutorial'lar**
    - [ ] Minecraft LAN tutorial
    - [ ] File sharing örneği
-   - [ ] Self-hosted quick start
+   - [x] Self-hosted quick start (`docs/SELF_HOSTED.md`)
 
 ### 🟢 Düşük Öncelik (Gelecekte)
 
-7. **System Tray** - Desktop app
-8. **Auto-Update** - Tüm platformlar
-9. **Deep Linking** - Tam implementasyon
+3. **Auto-Update** - Signing key generation and distribution
 
 ---
 
@@ -240,111 +163,9 @@ curl -fsSL https://goconnect.io/install.sh | bash
 | **gRPC IPC** | ✅ Mükemmel | Type-safe, performanslı |
 | **SQLite + PostgreSQL** | ✅ Mükemmel | Esnek deployment |
 
-### ⚠️ İyileştirilebilir Olanlar
-
-| Özellik | Durum | Öneri |
-|---------|-------|-------|
-| **Dokümantasyon Tutarlılığı** | ⚠️ | Binary isimleri güncellenmeli |
-| **Desktop App Entegrasyonu** | ⚠️ | Mock data → gerçek API |
-| **İlk Kullanım Deneyimi** | ⚠️ | Daha basit onboarding |
-
----
-
-## 🎓 KULLANICI DOSTU OLMA DURUMU
-
-### ✅ İyi Olanlar
-
-1. **Setup Wizard** - Adım adım, açıklayıcı
-2. **TUI Interface** - Modern, kullanımı kolay
-3. **Desktop App UI** - Temiz, anlaşılır
-4. **Error Categories** - Kategorize edilmiş hatalar
-
-### ⚠️ İyileştirilebilir
-
-1. **İlk Açılış:** Otomatik setup başlatılmalı
-2. **Hata Mesajları:** Daha anlaşılır olmalı
-3. **Örnekler:** Daha fazla use case olmalı
-4. **Troubleshooting:** Platform-specific guide'lar
-
----
-
-## 📝 ÖNERİLER
-
-### 🎯 Kullanıcı Dostu Olmak İçin
-
-1. **"Zero-Config" İlk Kullanım:**
-   ```bash
-   # Kullanıcı sadece şunu yapmalı:
-   goconnect
-   # → Otomatik setup wizard başlar
-   ```
-
-2. **"One-Click" Network Join:**
-   ```bash
-   # Deep link ile:
-   goconnect://join/abc123
-   # → Otomatik join
-   ```
-
-3. **"Smart Defaults":**
-   - Server URL: Otomatik bul (STUN/DNS)
-   - Interface name: Otomatik seç (conflict yoksa)
-   - Config path: OS-specific default
-
-4. **"Helpful Errors":**
-   ```
-   ❌ "ERR_INVALID_TOKEN"
-   ✅ "Your session expired. Run 'goconnect login' to reconnect."
-   ```
-
-5. **"Progressive Disclosure":**
-   - İlk kullanım: Sadece temel bilgiler
-   - İleri seviye: Detaylı ayarlar
-
----
-
-## 🔧 TEKNİK DEBT
-
-1. **Desktop App Mock Data** - Gerçek API entegrasyonu gerekli
-2. **CLI TODO'lar** - `create` ve `join` komutları tamamlanmalı
-3. **Dokümantasyon Tutarsızlıkları** - Binary isimleri güncellenmeli
-4. **ARCHITECTURE.md** - Eski referanslar temizlenmeli
-
----
-
-## 📈 METRİKLER
-
-| Metrik | Değer | Durum |
-|--------|-------|-------|
-| **Test Coverage** | 172 tests | ✅ İyi |
-| **Dokümantasyon Coverage** | ~80% | ⚠️ Güncellenmeli |
-| **Code Quality** | Yüksek | ✅ İyi |
-| **User Experience** | Orta | ⚠️ İyileştirilebilir |
-| **Security** | Yüksek | ✅ İyi |
-
 ---
 
 ## 🎯 SONUÇ VE ÖNCELİKLER
 
-### Hemen Yapılacaklar (Bu Hafta)
-
-1. ✅ Tüm dokümantasyonda binary isimlerini güncelle
-2. ✅ ARCHITECTURE.md'yi güncelle
-3. ✅ CLI `create` ve `join` komutlarını tamamla
-
-### Yakında Yapılacaklar (Bu Ay)
-
-4. Desktop app gerçek API entegrasyonu
-5. İlk kullanım deneyimi iyileştirmeleri
-6. Hata mesajları kullanıcı dostu hale getir
-
-### Gelecekte (Roadmap)
-
-7. System tray
-8. Auto-update
-9. Daha fazla örnek ve tutorial
-
----
-
-**Genel Değerlendirme:** Proje sağlam bir temele sahip. Ana sorunlar dokümantasyon tutarsızlıkları ve kullanıcı deneyimi iyileştirmeleri. Bu düzeltmelerle proje production-ready olacak.
+**Genel Değerlendirme:** Proje **Production-Ready** durumuna çok yaklaştı. Kritik UI/UX eksikleri (Tray, Deep Link, Zero-Config) giderildi. Güvenlik ve Kod Kalitesi (Audit Remediation) tamamlandı. Tek eksik tam otomatik E2E testlerin lokalde çalıştırılamamasıdır (CI'da çözüldü).
 

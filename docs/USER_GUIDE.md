@@ -104,9 +104,10 @@ goconnect
 # Hızlı komutlar
 goconnect create "Ağ Adı"    # Ağ oluştur
 goconnect join <link>        # Ağa katıl
-goconnect list               # Ağları listele
+goconnect networks           # Ağları listele
+goconnect peers              # Peerleri listele
 goconnect status             # Bağlantı durumu
-goconnect disconnect         # Bağlantıyı kes
+goconnect doctor             # Sorun giderme ve teşhis
 goconnect help               # Yardım
 ```
 
@@ -153,9 +154,12 @@ goconnect create \
 
 Ağ oluşturduktan sonra:
 
+```bash
+# Link oluştur
+goconnect invite
 ```
-Davet Linki: goconnect://join/abc123xyz
-```
+
+Çıktı: `goconnect://join/abc123xyz`
 
 Bu linki arkadaşlarınızla paylaşın!
 
@@ -174,10 +178,10 @@ Bu linki arkadaşlarınızla paylaşın!
 
 ```bash
 # Link ile
-goconnect join goconnect://join/abc123xyz
+goconnect join --invite goconnect://join/abc123xyz
 
 # Kod ile
-goconnect join abc123xyz
+goconnect join --invite abc123xyz
 ```
 
 ### Otomatik Bağlanma
@@ -205,13 +209,9 @@ Her ağda varsayılan **#general** kanalı bulunur. Adminler ek kanallar oluştu
 - Kanal seçin → Mesaj yazın → Enter
 
 **CLI:**
-```bash
-# Sohbet moduna gir
-goconnect chat
-
-# Direkt mesaj gönder
-goconnect chat send "#general" "Merhaba!"
-```
+- `goconnect` (interactive mode) ile arayüzü başlatın.
+- Tab tuşu ile sohbet paneline geçin.
+- Mesajınızı yazıp Enter'a basın.
 
 ### Özellikler
 
@@ -235,25 +235,7 @@ GoConnect, P2P dosya transferi destekler.
 
 ### CLI ile
 
-```bash
-# Dosya gönder
-goconnect send <username> /path/to/file.zip
-
-# Gelen transferleri listele
-goconnect transfers
-
-# Transfer kabul et
-goconnect accept <transfer-id>
-```
-
-### Transfer Özellikleri
-
-| Özellik | Açıklama |
-|---------|----------|
-| P2P | Sunucu üzerinden geçmez |
-| Şifreli | WireGuard ile uçtan uca |
-| Hız | LAN hızında transfer |
-| Boyut | Sınırsız |
+Dosya transferi şu anda sadece **Desktop App** üzerinden veya **Interactive CLI** (planlanıyor) üzerinden yapılabilir.
 
 ---
 
@@ -299,13 +281,27 @@ auto_connect: true
 
 ## 🔧 Sorun Giderme
 
+### Tanı Aracı (Doctor)
+
+Kurulum veya bağlantı sorunları yaşıyorsanız, dahili tanı aracını kullanın:
+
+```bash
+goconnect doctor
+```
+
+Bu komut:
+- Sistem gereksinimlerini kontrol eder
+- WireGuard kurulumunu doğrular
+- Sunucu bağlantısını test eder
+- Config dosyasını analiz eder
+
 ### Bağlantı Sorunları
 
 | Sorun | Çözüm |
 |-------|-------|
 | "Bağlanılamıyor" | İnternet bağlantınızı kontrol edin |
 | "Timeout" | Firewall ayarlarını kontrol edin (UDP 51820) |
-| "Authentication failed" | Tekrar giriş yapın |
+| "Authentication failed" | Tekrar giriş yapın (`goconnect login`) |
 | "Peer unreachable" | Karşı tarafın bağlı olduğundan emin olun |
 
 ### Firewall Ayarları
