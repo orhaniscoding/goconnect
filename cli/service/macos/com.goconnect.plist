@@ -3,11 +3,12 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.goconnect.daemon</string>
+    <string>com.goconnect</string>
     
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/local/bin/goconnect-daemon</string>
+        <string>/usr/local/bin/goconnect</string>
+        <string>run</string>
     </array>
     
     <!-- Start automatically at boot -->
@@ -33,8 +34,8 @@
     
     <!-- Logging -->
     <key>StandardOutPath</key>
-    <string>/var/log/goconnect-daemon.log</string>
+    <string>/var/log/goconnect.log</string>
     <key>StandardErrorPath</key>
-    <string>/var/log/goconnect-daemon.err</string>
+    <string>/var/log/goconnect.err</string>
 </dict>
 </plist>

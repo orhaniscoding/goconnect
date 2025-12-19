@@ -7,13 +7,14 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-BINARY="goconnect-daemon"
+BINARY="goconnect"
 INSTALL_DIR="/usr/local/bin"
 LAUNCHDAEMONS="/Library/LaunchDaemons"
-PLIST="com.goconnect.daemon.plist"
+PLIST="com.goconnect.plist"
+SERVICE_NAME="com.goconnect"
 
 # Unload service
-if launchctl list | grep -q com.goconnect.daemon; then
+if launchctl list | grep -q "$SERVICE_NAME"; then
   echo "Stopping service..."
   launchctl unload "$LAUNCHDAEMONS/$PLIST" 2>/dev/null || true
 fi
@@ -30,7 +31,5 @@ if [ -f "$INSTALL_DIR/$BINARY" ]; then
   rm "$INSTALL_DIR/$BINARY"
 fi
 
-echo "✅ GoConnect Daemon uninstalled successfully!"
-echo ""
-echo "Note: Config files in /etc/goconnect were preserved."
-echo "To remove: sudo rm -rf /etc/goconnect"
+echo "✅ GoConnect uninstalled successfully!"
+

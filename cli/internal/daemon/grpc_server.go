@@ -162,7 +162,7 @@ func (s *GRPCServer) createListener() (net.Listener, error) {
 		// Use Unix Domain Socket for Linux/macOS (primary - for CLI clients)
 		socketPath := s.daemon.config.Daemon.SocketPath
 		if socketPath == "" {
-			socketPath = "/tmp/goconnect-daemon.sock"
+			socketPath = "/tmp/goconnect.sock"
 		}
 		// Remove existing socket file if it exists
 		// In production, use a more secure path like /var/run/goconnect/daemon.sock

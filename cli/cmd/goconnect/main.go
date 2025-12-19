@@ -56,7 +56,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("goconnect-daemon %s (commit %s, build %s) built by %s\n", version, commit, date, builtBy)
+		fmt.Printf("goconnect %s (commit %s, build %s) built by %s\n", version, commit, date, builtBy)
 		return
 	}
 
@@ -471,15 +471,18 @@ func runSetupWizard(reader *bufio.Reader, httpClient *http.Client, saveConfig fu
 		fmt.Println("  ⚠️  Note: This may require administrator/root privileges.")
 		fmt.Println()
 		fmt.Println("  To install the service manually, run:")
-		fmt.Println("    goconnect-daemon install")
+		fmt.Println("    goconnect install")
 		fmt.Println()
-		fmt.Println("  To start the service after installation:")
-		fmt.Println("    goconnect-daemon start")
+		fmt.Println("  After installing, start it with:")
+		fmt.Println("    goconnect start")
+		fmt.Println()
+		fmt.Println("  Or run it in the foreground for debugging:")
+		fmt.Println("    goconnect run")
 	} else {
 		fmt.Println("  ⏭️  Skipping service installation")
 		fmt.Println()
 		fmt.Println("  To run the daemon manually:")
-		fmt.Println("    goconnect-daemon run")
+		fmt.Println("    goconnect run")
 	}
 	fmt.Println()
 
@@ -501,11 +504,11 @@ func runSetupWizard(reader *bufio.Reader, httpClient *http.Client, saveConfig fu
 	fmt.Println()
 	fmt.Println("  🚀 Next Steps:")
 	fmt.Println("  ─────────────────────────────────────────────────────────────")
-	fmt.Println("  1. Install the service:  goconnect-daemon install")
-	fmt.Println("  2. Start the service:    goconnect-daemon start")
-	fmt.Println("  3. Check status:         goconnect-daemon run (foreground)")
+	fmt.Println("  1. Install the service:  goconnect install")
+	fmt.Println("  2. Start the service:    goconnect start")
+	fmt.Println("  3. Check status:         goconnect run (foreground)")
 	fmt.Println()
-	fmt.Println("  💡 Tip: You can re-run 'goconnect-daemon setup' anytime to")
+	fmt.Println("  💡 Tip: You can re-run 'goconnect setup' anytime to")
 	fmt.Println("         reconfigure the daemon.")
 	fmt.Println()
 }

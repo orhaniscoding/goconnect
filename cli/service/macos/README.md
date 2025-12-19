@@ -3,14 +3,14 @@
 ## Quick Install
 
 ```bash
-tar -xzf goconnect-daemon_*_darwin_*.tar.gz
-cd goconnect-daemon_*_darwin_*
+tar -xzf goconnect_*_darwin_*.tar.gz
+cd goconnect_*_darwin_*
 chmod +x install.sh
 sudo ./install.sh
 ```
 
 The installer will:
-1. Install binary to `/usr/local/bin/goconnect-daemon`
+1. Install binary to `/usr/local/bin/goconnect`
 2. Create LaunchDaemon `com.goconnect.daemon.plist`
 3. Create config directory `/etc/goconnect/`
 4. Create example config `/etc/goconnect/config.yaml`
@@ -36,16 +36,16 @@ See `config.example.yaml` for all available options.
 
 ```bash
 # Start service
-sudo launchctl load /Library/LaunchDaemons/com.goconnect.daemon.plist
+sudo launchctl load /Library/LaunchDaemons/com.goconnect.plist
 
 # Stop service
-sudo launchctl unload /Library/LaunchDaemons/com.goconnect.daemon.plist
+sudo launchctl unload /Library/LaunchDaemons/com.goconnect.plist
 
 # Check status
 sudo launchctl list | grep goconnect
 
 # View logs
-sudo log show --predicate 'process == "goconnect-daemon"' --last 10m
+sudo log show --predicate 'process == "goconnect"' --last 10m
 ```
 
 ## Uninstall
@@ -71,7 +71,7 @@ grep server_url /etc/goconnect/config.yaml
 sudo launchctl list | grep goconnect
 
 # Test binary
-/usr/local/bin/goconnect-daemon --version
+/usr/local/bin/goconnect --version
 ```
 
 ## Requirements
@@ -89,7 +89,7 @@ sudo ./install.sh
 
 ## What Gets Installed
 
-- Binary: `/usr/local/bin/goconnect-daemon`
+- Binary: `/usr/local/bin/goconnect`
 - LaunchDaemon: `/Library/LaunchDaemons/com.goconnect.daemon.plist`
 - Config: `/etc/goconnect/config.yaml`
 
@@ -108,31 +108,31 @@ wireguard:
 
 logging:
   level: info
-  file: /var/log/goconnect-daemon.log
+  file: /var/log/goconnect.log
 ```
 
 ## Service Management
 
 ```bash
 # Load and start service
-sudo launchctl load /Library/LaunchDaemons/com.goconnect.daemon.plist
+sudo launchctl load /Library/LaunchDaemons/com.goconnect.plist
 
 # Stop and unload service
-sudo launchctl unload /Library/LaunchDaemons/com.goconnect.daemon.plist
+sudo launchctl unload /Library/LaunchDaemons/com.goconnect.plist
 
 # Check if running
 sudo launchctl list | grep goconnect
 
 # View logs
-tail -f /var/log/goconnect-daemon.log
+tail -f /var/log/goconnect.log
 ```
 
 ## Uninstall
 
 ```bash
-sudo launchctl unload /Library/LaunchDaemons/com.goconnect.daemon.plist
-sudo rm /usr/local/bin/goconnect-daemon
-sudo rm /Library/LaunchDaemons/com.goconnect.daemon.plist
+sudo launchctl unload /Library/LaunchDaemons/com.goconnect.plist
+sudo rm /usr/local/bin/goconnect
+sudo rm /Library/LaunchDaemons/com.goconnect.plist
 ```
 
 ## Requirements

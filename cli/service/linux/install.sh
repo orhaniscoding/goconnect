@@ -7,9 +7,9 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-BINARY="goconnect-daemon"
+BINARY="goconnect"
 INSTALL_DIR="/usr/local/bin"
-SERVICE_FILE="goconnect-daemon.service"
+SERVICE_FILE="goconnect.service"
 SYSTEMD_DIR="/etc/systemd/system"
 
 # Check if binary exists in current directory
@@ -19,10 +19,11 @@ if [ ! -f "./$BINARY" ]; then
 fi
 
 # Stop existing service
-if systemctl is-active --quiet goconnect-daemon; then
+if systemctl is-active --quiet goconnect; then
   echo "Stopping existing service..."
-  systemctl stop goconnect-daemon
+  systemctl stop goconnect
 fi
+
 
 # Copy binary
 echo "Installing binary to $INSTALL_DIR..."
@@ -72,31 +73,12 @@ if [ -f "./$SERVICE_FILE" ]; then
   systemctl daemon-reload
 fi
 
-echo "✅ GoConnect Daemon installed successfully!"
+echo "✅ GoConnect installed successfully!"
 echo ""
 echo "REQUIRED: Configure before starting:"
 echo "1. Edit: $CONFIG_FILE"
 echo "2. Set your server_url"
-echo "3. Start service: sudo systemctl start goconnect-daemon"
-echo "4. Enable on boot: sudo systemctl enable goconnect-daemon"
+echo "3. Start service: sudo systemctl start goconnect"
+echo "4. Enable on boot: sudo systemctl enable goconnect"
 echo ""
 echo "See config.example.yaml for all available options."
-fi
-
-# Install Binary
-echo "Installing binary to $INSTALL_DIR/$BINARY_NAME..."
-cp "$SOURCE_BIN" "$INSTALL_DIR/$BINARY_NAME"
-chmod +x "$INSTALL_DIR/$BINARY_NAME"
-
-# Install Service
-echo "Installing systemd service..."
-cp "$SCRIPT_DIR/$SERVICE_FILE" "/etc/systemd/system/$SERVICE_FILE"
-
-# Reload and Enable
-echo "Reloading systemd..."
-systemctl daemon-reload
-systemctl enable $SERVICE_NAME
-systemctl start $SERVICE_NAME
-
-echo -e "${GREEN}✅ GoConnect Daemon installed and started successfully!${NC}"
-echo "Check status with: systemctl status $SERVICE_NAME"

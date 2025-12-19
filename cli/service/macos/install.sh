@@ -7,10 +7,11 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-BINARY="goconnect-daemon"
+BINARY="goconnect"
 INSTALL_DIR="/usr/local/bin"
-PLIST_FILE="com.goconnect.daemon.plist"
+PLIST_FILE="com.goconnect.plist"
 LAUNCHDAEMONS="/Library/LaunchDaemons"
+SERVICE_NAME="com.goconnect"
 
 # Check if binary exists in current directory
 if [ ! -f "./$BINARY" ]; then
@@ -19,7 +20,7 @@ if [ ! -f "./$BINARY" ]; then
 fi
 
 # Unload existing service
-if launchctl list | grep -q com.goconnect.daemon; then
+if launchctl list | grep -q "$SERVICE_NAME"; then
   echo "Stopping existing service..."
   launchctl unload "$LAUNCHDAEMONS/$PLIST_FILE" 2>/dev/null || true
 fi
@@ -48,7 +49,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
   else
     # Create minimal config if example doesn't exist
     cat > "$CONFIG_FILE" <<EOF
-# GoConnect Daemon Configuration
+# GoConnect Configuration
 # REQUIRED: Set your server URL
 server_url: "https://vpn.example.com:8080"
 
@@ -70,38 +71,17 @@ if [ -f "./$PLIST_FILE" ]; then
   echo "Installing LaunchDaemon..."
   cp "./$PLIST_FILE" "$LAUNCHDAEMONS/$PLIST_FILE"
   chmod 644 "$LAUNCHDAEMONS/$PLIST_FILE"
+  chown root:wheel "$LAUNCHDAEMONS/$PLIST_FILE"
   launchctl load "$LAUNCHDAEMONS/$PLIST_FILE"
 fi
 
-echo "✅ GoConnect Daemon installed successfully!"
+echo "✅ GoConnect installed successfully!"
 echo ""
-echo "REQUIRED: Configure before starting:"
+echo "REQUIRED: Configure before starting (if not already done):"
 echo "1. Edit: $CONFIG_FILE"
 echo "2. Set your server_url"
-echo "3. Service will start automatically after config"
+echo "3. Restart service: sudo launchctl unload $LAUNCHDAEMONS/$PLIST_FILE && sudo launchctl load $LAUNCHDAEMONS/$PLIST_FILE"
 echo "4. Check status: sudo launchctl list | grep goconnect"
 echo ""
 echo "See config.example.yaml for all available options."
-if launchctl list | grep -q "$SERVICE_NAME"; then
-    echo "Unloading existing service..."
-    launchctl unload "/Library/LaunchDaemons/$PLIST_FILE" || true
-fi
 
-# Install Binary
-echo "Installing binary to $INSTALL_DIR/$BINARY_NAME..."
-mkdir -p "$INSTALL_DIR"
-cp "$SOURCE_BIN" "$INSTALL_DIR/$BINARY_NAME"
-chmod +x "$INSTALL_DIR/$BINARY_NAME"
-
-# Install Plist
-echo "Installing launchd plist..."
-cp "$SCRIPT_DIR/$PLIST_FILE" "/Library/LaunchDaemons/$PLIST_FILE"
-chmod 644 "/Library/LaunchDaemons/$PLIST_FILE"
-chown root:wheel "/Library/LaunchDaemons/$PLIST_FILE"
-
-# Load Service
-echo "Loading service..."
-launchctl load "/Library/LaunchDaemons/$PLIST_FILE"
-
-echo -e "${GREEN}✅ GoConnect Daemon installed and started successfully!${NC}"
-echo "Check status with: sudo launchctl list | grep $SERVICE_NAME"

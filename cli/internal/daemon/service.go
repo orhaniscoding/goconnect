@@ -755,7 +755,7 @@ type ServiceFactory func(i service.Interface, c *service.Config) (service.Servic
 // runDaemonInternal allows testing the daemon lifecycle by injecting dependencies.
 func runDaemonInternal(cfg *config.Config, daemonVersion string, options map[string]interface{}, factory ServiceFactory, args []string) error {
 	svcConfig := &service.Config{
-		Name:        "goconnect-daemon",
+		Name:        "goconnect",
 		DisplayName: "GoConnect Daemon",
 		Description: "Manages WireGuard VPN connections for GoConnect.",
 	}

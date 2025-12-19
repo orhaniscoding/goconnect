@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	keyringService = "goconnect-daemon"
+	keyringService = "goconnect"
 	keyringUser    = "default" // Using a default user for simplicity
 	tokenKey       = "auth_token"
 	deviceIDKey    = "device_id"

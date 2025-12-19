@@ -39,16 +39,16 @@ dev:
 
 ## build: Build the daemon binary
 build:
-	go build -ldflags "$(LDFLAGS)" -o bin/goconnect-daemon ./cmd/goconnect
+	go build -ldflags "$(LDFLAGS)" -o bin/goconnect ./cmd/goconnect
 
 ## build-all: Build binaries for all platforms
 build-all:
 	@echo "Building for multiple platforms..."
-	GOOS=linux GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o bin/goconnect-daemon-linux-amd64 ./cmd/goconnect
-	GOOS=linux GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o bin/goconnect-daemon-linux-arm64 ./cmd/goconnect
-	GOOS=darwin GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o bin/goconnect-daemon-darwin-amd64 ./cmd/goconnect
-	GOOS=darwin GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o bin/goconnect-daemon-darwin-arm64 ./cmd/goconnect
-	GOOS=windows GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o bin/goconnect-daemon-windows-amd64.exe ./cmd/goconnect
+	GOOS=linux GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o bin/goconnect-linux-amd64 ./cmd/goconnect
+	GOOS=linux GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o bin/goconnect-linux-arm64 ./cmd/goconnect
+	GOOS=darwin GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o bin/goconnect-darwin-amd64 ./cmd/goconnect
+	GOOS=darwin GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o bin/goconnect-darwin-arm64 ./cmd/goconnect
+	GOOS=windows GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o bin/goconnect-windows-amd64.exe ./cmd/goconnect
 	@echo "✅ All platform binaries built successfully!"
 
 ## test: Run all tests

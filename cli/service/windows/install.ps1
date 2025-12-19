@@ -5,9 +5,10 @@ if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
 }
 
 $InstallDir = "C:\Program Files\GoConnect"
-$BinName = "goconnect-daemon.exe"
+$BinName = "goconnect.exe"
 $SourceBin = Join-Path $PSScriptRoot $BinName
 $TargetBin = Join-Path $InstallDir $BinName
+$ServiceName = "GoConnect"
 
 # Create installation directory
 if (!(Test-Path $InstallDir)) {
@@ -23,10 +24,10 @@ if (!(Test-Path $SourceBin)) {
 }
 
 # Stop existing service if running
-$Service = Get-Service "GoConnectDaemon" -ErrorAction SilentlyContinue
+$Service = Get-Service $ServiceName -ErrorAction SilentlyContinue
 if ($Service) {
     Write-Host "Stopping existing service..."
-    Stop-Service "GoConnectDaemon" -Force -ErrorAction SilentlyContinue
+    Stop-Service $ServiceName -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 2
 }
 
@@ -53,7 +54,7 @@ if (!(Test-Path $ConfigFile)) {
     else {
         # Create minimal config if example doesn't exist
         @"
-# GoConnect Daemon Configuration
+# GoConnect Configuration
 # REQUIRED: Set your server URL
 server_url: "https://vpn.example.com:8080"
 
@@ -72,15 +73,15 @@ else {
 
 # Create Service
 if (!$Service) {
-    Write-Host "Creating GoConnectDaemon service..."
-    New-Service -Name "GoConnectDaemon" `
-        -BinaryPathName "`"$TargetBin`"" `
-        -DisplayName "GoConnect Daemon" `
-        -Description "GoConnect VPN Client Daemon" `
+    Write-Host "Creating $ServiceName service..."
+    New-Service -Name $ServiceName `
+        -BinaryPathName "`"$TargetBin`" run" `
+        -DisplayName "GoConnect" `
+        -Description "GoConnect VPN Client" `
         -StartupType Manual
     
     # Set recovery options (restart on failure)
-    sc.exe failure GoConnectDaemon reset= 86400 actions= restart/60000/restart/60000/restart/60000 | Out-Null
+    sc.exe failure $ServiceName reset= 86400 actions= restart/60000/restart/60000/restart/60000 | Out-Null
 }
 else {
     Write-Host "Service already exists, updating binary..."
@@ -97,21 +98,22 @@ if ($LASTEXITCODE -ne 0) {
 # Start Service
 Write-Host "Starting service..."
 try {
-    Start-Service "GoConnectDaemon" -ErrorAction Stop
-    Write-Host "✅ GoConnect Daemon installed and started successfully!" -ForegroundColor Green
+    Start-Service $ServiceName -ErrorAction Stop
+    Write-Host "✅ GoConnect installed and started successfully!" -ForegroundColor Green
     Write-Host ""
     Write-Host "Service Status:" -ForegroundColor Cyan
-    Get-Service "GoConnectDaemon" | Format-Table -AutoSize
+    Get-Service $ServiceName | Format-Table -AutoSize
 }
 catch {
     Write-Host "⚠️  Service installed but failed to start." -ForegroundColor Yellow
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
     Write-Host ""
-    Write-Host "REQUIRED: Configure the daemon before starting:" -ForegroundColor Yellow
+    Write-Host "REQUIRED: Configure the engine before starting:" -ForegroundColor Yellow
     Write-Host "1. Edit: $ConfigFile" -ForegroundColor Yellow
     Write-Host "2. Set your server_url" -ForegroundColor Yellow
-    Write-Host "3. Start service: Start-Service GoConnectDaemon" -ForegroundColor Yellow
+    Write-Host "3. Start service: Start-Service $ServiceName" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "See config.example.yaml for all available options." -ForegroundColor Cyan
     exit 0
 }
+

@@ -1,3 +1,3 @@
 #!/bin/sh
-systemctl stop goconnect-daemon || true
-systemctl disable goconnect-daemon || true
+systemctl stop goconnect || true
+systemctl disable goconnect || true

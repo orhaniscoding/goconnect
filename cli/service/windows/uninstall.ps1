@@ -5,7 +5,7 @@ if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
 }
 
 $InstallDir = "C:\Program Files\GoConnect"
-$ServiceName = "GoConnectDaemon"
+$ServiceName = "GoConnect"
 
 # Stop service if running
 $Service = Get-Service $ServiceName -ErrorAction SilentlyContinue
@@ -33,7 +33,7 @@ if (Test-Path $InstallDir) {
 }
 
 Write-Host ""
-Write-Host "✅ GoConnect Daemon uninstalled successfully!" -ForegroundColor Green
+Write-Host "✅ GoConnect uninstalled successfully!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Note: Configuration files in C:\ProgramData\GoConnect were preserved." -ForegroundColor Yellow
 Write-Host "To remove them, run: Remove-Item -Path 'C:\ProgramData\GoConnect' -Recurse -Force" -ForegroundColor Yellow

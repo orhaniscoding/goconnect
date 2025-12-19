@@ -9,7 +9,7 @@
 
 ## What Gets Installed
 
-- **Binary**: `C:\Program Files\GoConnect\goconnect-daemon.exe`
+- **Binary**: `C:\Program Files\GoConnect\goconnect.exe`
 - **Service**: `GoConnectDaemon` (Windows Service, Manual startup)
 - **Config**: `C:\ProgramData\GoConnect\config.yaml` (auto-created from example)
 
@@ -49,17 +49,17 @@ See `config.example.yaml` for all available options and detailed documentation.
 
 ### Start Service
 ```powershell
-Start-Service GoConnectDaemon
+Start-Service GoConnect
 ```
 
 ### Stop Service
 ```powershell
-Stop-Service GoConnectDaemon
+Stop-Service GoConnect
 ```
 
 ### Check Service Status
 ```powershell
-Get-Service GoConnectDaemon
+Get-Service GoConnect
 ```
 
 ### View Service Logs
@@ -99,7 +99,7 @@ Configuration files in `C:\ProgramData\GoConnect` are not deleted automatically.
 
 4. **Test binary manually**:
    ```powershell
-   & "C:\Program Files\GoConnect\goconnect-daemon.exe" --version
+   & "C:\Program Files\GoConnect\goconnect.exe" --version
    ```
 
 ### Connection issues
@@ -121,7 +121,7 @@ If the script doesn't work:
 1. **Copy binary**:
    ```powershell
    New-Item -ItemType Directory -Force -Path "C:\Program Files\GoConnect"
-   Copy-Item goconnect-daemon.exe "C:\Program Files\GoConnect\"
+   Copy-Item goconnect.exe "C:\Program Files\GoConnect\"
    ```
 
 2. **Create config directory**:
@@ -133,7 +133,7 @@ If the script doesn't work:
 3. **Create service**:
    ```powershell
    New-Service -Name "GoConnectDaemon" `
-       -BinaryPathName '"C:\Program Files\GoConnect\goconnect-daemon.exe"' `
+       -BinaryPathName '"C:\Program Files\GoConnect\goconnect.exe"' `
        -DisplayName "GoConnect Daemon" `
        -Description "GoConnect VPN Client Daemon" `
        -StartupType Manual
@@ -142,7 +142,7 @@ If the script doesn't work:
 4. **Edit config** and start service:
    ```powershell
    notepad "C:\ProgramData\GoConnect\config.yaml"
-   Start-Service GoConnectDaemon
+   Start-Service GoConnect
    ```
 
 ## Additional Help

@@ -501,7 +501,7 @@ func TestGetGRPCTarget_Extended(t *testing.T) {
 		t.Error("getGRPCTarget returned empty string")
 	}
 	// Verify it returns a valid target
-	if target != "unix:///tmp/goconnect-daemon.sock" && target != "127.0.0.1:34101" {
+	if target != "unix:///tmp/goconnect.sock" && target != "127.0.0.1:34101" {
 		t.Errorf("Unexpected target: %s", target)
 	}
 }

@@ -6,8 +6,8 @@ import (
 
 func TestKeyringConstants(t *testing.T) {
 	// Test that constants are defined correctly
-	if keyringService != "goconnect-daemon" {
-		t.Errorf("Expected service 'goconnect-daemon', got %s", keyringService)
+	if keyringService != "goconnect" {
+		t.Errorf("Expected service 'goconnect', got %s", keyringService)
 	}
 	if keyringUser != "default" {
 		t.Errorf("Expected user 'default', got %s", keyringUser)

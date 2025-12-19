@@ -3,15 +3,15 @@
 ## Quick Install
 
 ```bash
-tar -xzf goconnect-daemon_*_linux_*.tar.gz
-cd goconnect-daemon_*_linux_*
+tar -xzf goconnect_*_linux_*.tar.gz
+cd goconnect_*_linux_*
 chmod +x install.sh
 sudo ./install.sh
 ```
 
 The installer will:
-1. Install binary to `/usr/local/bin/goconnect-daemon`
-2. Create systemd service `goconnect-daemon.service`
+1. Install binary to `/usr/local/bin/goconnect`
+2. Create systemd service `goconnect.service`
 3. Create config directory `/etc/goconnect/`
 4. Create example config `/etc/goconnect/config.yaml`
 
@@ -36,19 +36,19 @@ See `config.example.yaml` for all available options.
 
 ```bash
 # Start service
-sudo systemctl start goconnect-daemon
+sudo systemctl start goconnect
 
 # Stop service
-sudo systemctl stop goconnect-daemon
+sudo systemctl stop goconnect
 
 # Check status
-sudo systemctl status goconnect-daemon
+sudo systemctl status goconnect
 
 # Enable auto-start on boot
-sudo systemctl enable goconnect-daemon
+sudo systemctl enable goconnect
 
 # View logs
-sudo journalctl -u goconnect-daemon -f
+sudo journalctl -u goconnect -f
 ```
 
 ## Uninstall
@@ -71,10 +71,10 @@ ls -l /etc/goconnect/config.yaml
 grep server_url /etc/goconnect/config.yaml
 
 # Check service logs
-sudo journalctl -u goconnect-daemon -n 50
+sudo journalctl -u goconnect -n 50
 
 # Test binary
-/usr/local/bin/goconnect-daemon --version
+/usr/local/bin/goconnect --version
 ```
 
 ## Requirements

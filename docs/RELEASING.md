@@ -22,7 +22,7 @@ Naming: `goconnect-server_<version>_<os>_<arch>.<ext>`
 - Windows (amd64/arm64): `.zip`
 
 ### CLI
-Naming: `goconnect-cli_<version>_<os>_<arch>.<ext>`
+Naming: `goconnect_<version>_<os>_<arch>.<ext>`
 - Linux (amd64/arm64): `.tar.gz`
 - macOS (amd64/arm64): `.tar.gz`
 - Windows (amd64/arm64): `.zip`

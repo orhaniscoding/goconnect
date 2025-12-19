@@ -88,7 +88,7 @@ GoConnect arka planda çalışır. System tray'den:
 
 ```bash
 # Linux/macOS
-tar -xzf goconnect-cli_*.tar.gz
+tar -xzf goconnect_*.tar.gz
 sudo mv goconnect /usr/local/bin/
 
 # PATH'e eklendikten sonra

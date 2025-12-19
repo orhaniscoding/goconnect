@@ -34,7 +34,7 @@
 
 | Dosya | Durum | Sorunlar |
 |-------|-------|----------|
-| **README.md** | ⚠️ Güncellenmeli | Eski binary isimleri (`goconnect-cli`) |
+| **README.md** | ⚠️ Güncellenmeli | Eski binary isimleri (`goconnect`) |
 | **QUICK_START.md** | ⚠️ Güncellenmeli | Eski binary isimleri, versiyon numaraları |
 | **USER_GUIDE.md** | ⚠️ Güncellenmeli | Türkçe, bazı komutlar eski |
 | **ARCHITECTURE.md** | ⚠️ Güncellenmeli | `core/cmd/daemon` hala bahsediliyor (silindi) |
@@ -51,7 +51,7 @@
 
 #### 1. **Dokümantasyon Tutarsızlıkları**
 
-**Sorun:** Binary isimleri dokümantasyonda eski (`goconnect-cli`, `goconnect-daemon`)
+**Sorun:** Binary isimleri dokümantasyonda eski (`goconnect`, `goconnect` karışık)
 
 **Etkilenen Dosyalar:**
 - `README.md` (7 yer)
@@ -60,7 +60,7 @@
 - `cli/README.md` (3 yer)
 - `cli/service/*/README.md` (çok sayıda)
 
-**Çözüm:** Tüm dokümantasyonda `goconnect-cli` → `goconnect` olarak güncellenmeli
+**Çözüm:** Tüm dokümantasyonda `goconnect` → `goconnect` ve `goconnect` → `goconnect` olarak güncellenmeli (servis adı dahil)
 
 #### 2. **Desktop App - Mock Data Kullanımı** ✅ TAMAMLANDI
 

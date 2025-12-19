@@ -7,25 +7,25 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-BINARY="goconnect-daemon"
+BINARY="goconnect"
 INSTALL_DIR="/usr/local/bin"
 SYSTEMD_DIR="/etc/systemd/system"
 
 # Stop and disable service
-if systemctl is-active --quiet goconnect-daemon; then
+if systemctl is-active --quiet goconnect; then
   echo "Stopping service..."
-  systemctl stop goconnect-daemon
+  systemctl stop goconnect
 fi
 
-if systemctl is-enabled --quiet goconnect-daemon 2>/dev/null; then
+if systemctl is-enabled --quiet goconnect 2>/dev/null; then
   echo "Disabling service..."
-  systemctl disable goconnect-daemon
+  systemctl disable goconnect
 fi
 
 # Remove service file
-if [ -f "$SYSTEMD_DIR/goconnect-daemon.service" ]; then
+if [ -f "$SYSTEMD_DIR/goconnect.service" ]; then
   echo "Removing service file..."
-  rm "$SYSTEMD_DIR/goconnect-daemon.service"
+  rm "$SYSTEMD_DIR/goconnect.service"
   systemctl daemon-reload
 fi
 
@@ -35,7 +35,7 @@ if [ -f "$INSTALL_DIR/$BINARY" ]; then
   rm "$INSTALL_DIR/$BINARY"
 fi
 
-echo "✅ GoConnect Daemon uninstalled successfully!"
+echo "✅ GoConnect uninstalled successfully!"
 echo ""
 echo "Note: Config files in /etc/goconnect were preserved."
 echo "To remove: sudo rm -rf /etc/goconnect"

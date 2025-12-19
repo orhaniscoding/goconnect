@@ -86,7 +86,7 @@ func getGRPCTarget() string {
 		return "127.0.0.1:34101"
 	default:
 		// Unix socket for Linux/macOS
-		return "unix:///tmp/goconnect-daemon.sock"
+		return "unix:///tmp/goconnect.sock"
 	}
 }
 
@@ -314,7 +314,7 @@ func IsGRPCAvailable() bool {
 	if runtime.GOOS == "windows" {
 		conn, err = net.DialTimeout("tcp", "127.0.0.1:34101", 500*time.Millisecond)
 	} else {
-		conn, err = net.DialTimeout("unix", "/tmp/goconnect-daemon.sock", 500*time.Millisecond)
+		conn, err = net.DialTimeout("unix", "/tmp/goconnect.sock", 500*time.Millisecond)
 	}
 
 	if err != nil {
