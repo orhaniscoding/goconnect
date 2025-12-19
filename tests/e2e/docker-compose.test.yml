@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # -------------------------
+  # Database Services
+  # -------------------------
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: goconnect
+      POSTGRES_PASSWORD: secretpassword
+      POSTGRES_DB: goconnect_test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U goconnect -d goconnect_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432" # Exposed for debugging, internal tests use hostname "postgres"
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # -------------------------
+  # Application Under Test
+  # -------------------------
+  server:
+    build:
+      context: ../../core
+      dockerfile: Dockerfile
+    environment:
+      # Database Config
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: goconnect
+      DB_PASSWORD: secretpassword
+      DB_NAME: goconnect_test
+      DB_SSL_MODE: disable
+      
+      # Redis Config
+      REDIS_ADDR: redis:6379
+      
+      # App Config
+      SERVER_PORT: 8080
+      JWT_SECRET: supersecretkeyfortestingonly123456
+      ENVIRONMENT: test
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # -------------------------
+  # Test Runner
+  # -------------------------
+  e2e-tests:
+    build:
+      context: ../..
+      dockerfile: tests/e2e/Dockerfile
+    environment:
+      API_URL: http://server:8080
+      DB_DSN: postgres://goconnect:secretpassword@postgres:5432/goconnect_test?sslmode=disable
+    depends_on:
+      server:
+        condition: service_started
+    command: ["go", "test", "-v", "./tests/e2e/..."]

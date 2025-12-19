@@ -36,6 +36,19 @@ test-cli:
 	@echo "Running CLI tests..."
 	cd cli && $(GO) test ./... -short
 
+# Run tests with race detector
+test-race:
+	@echo "Running Core race tests..."
+	cd core && $(GO) test -race ./...
+	@echo "Running CLI race tests..."
+	cd cli && $(GO) test -race ./...
+
+# Run E2E tests via Docker Compose
+test-e2e:
+	@echo "Running E2E tests..."
+	docker compose -f tests/e2e/docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from e2e-tests
+	docker compose -f tests/e2e/docker-compose.test.yml down -v
+
 # Lint code
 lint:
 	@echo "Linting Core..."

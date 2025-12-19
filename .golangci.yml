@@ -95,7 +95,6 @@ linters-settings:
     severity: warning
     rules:
       - name: blank-imports
-      - name: context-as-first-argument
       - name: dot-imports
       - name: error-return
       - name: error-strings

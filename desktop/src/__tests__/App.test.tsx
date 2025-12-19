@@ -18,6 +18,10 @@ vi.mock('../lib/tauri-api', () => ({
     }
 }));
 
+vi.mock('@tauri-apps/plugin-deep-link', () => ({
+    onOpenUrl: vi.fn().mockResolvedValue(undefined),
+}));
+
 // Mock Child Components to simplify integration test
 vi.mock('../components/FileTransferPanel', () => ({ default: () => <div data-testid="file-transfer-panel">Files Panel</div> }));
 vi.mock('../components/ChatPanel', () => ({ default: () => <div data-testid="chat-panel">Chat Panel</div> }));
