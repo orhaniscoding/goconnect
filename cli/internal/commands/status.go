@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/tui"
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/uierrors"
 )
 
 // RunStatusCommand shows the daemon and connection status without TUI
@@ -46,7 +47,8 @@ func RunStatusCommand() {
 	// Get detailed status
 	status, err := grpcClient.GetStatus()
 	if err != nil {
-		fmt.Printf("\n  ⚠️  Could not get detailed status: %v\n", err)
+		uErr := uierrors.Map(err)
+		fmt.Printf("\n  ⚠️  %s\n", uErr.Error())
 		return
 	}
 

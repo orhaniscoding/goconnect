@@ -75,8 +75,33 @@ func (m Model) viewDashboard() string {
 		rightPanel,
 	)
 
+	// 3. Error Banner
+	var errorView string
+	if m.err != nil {
+		errorView = lipgloss.NewStyle().
+			Foreground(ColorWhite).
+			Background(ColorError).
+			Bold(true).
+			Padding(0, 1).
+			Render(fmt.Sprintf("%s: %s", m.err.Title, m.err.Message))
+		
+		if m.err.Hint != "" {
+			errorView += "\n" + lipgloss.NewStyle().
+				Foreground(lipgloss.Color("#EEE")).
+				Background(ColorError).
+				Padding(0, 1).
+				Render(m.err.Hint)
+		}
+		errorView = lipgloss.NewStyle().
+			Border(lipgloss.NormalBorder()).
+			BorderForeground(ColorError).
+			MarginTop(1).
+			Render(errorView)
+	}
+
 	return lipgloss.JoinVertical(lipgloss.Left,
 		mainContent,
+		errorView,
 		"\n",
 		statusBar,
 	)

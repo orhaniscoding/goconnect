@@ -10,6 +10,7 @@ import (
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/api"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/config"
 	"github.com/orhaniscoding/goconnect/client-daemon/internal/tui"
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/uierrors"
 )
 
 // HandleJoinCommand handles the 'join' command, supporting both TUI and flags
@@ -39,7 +40,8 @@ func HandleJoinCommand() {
 		fmt.Printf("Joining network with invite code '%s'...\n", *invite)
 		net, err := client.JoinNetwork(ctx, *invite)
 		if err != nil {
-			fmt.Printf("Error joining network: %v\n", err)
+			uErr := uierrors.Map(err)
+			fmt.Printf("❌ %s\n", uErr.Error())
 			os.Exit(1)
 		}
 

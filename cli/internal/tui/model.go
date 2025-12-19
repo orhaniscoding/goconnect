@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/orhaniscoding/goconnect/client-daemon/internal/uierrors"
 )
 
 // SessionState represents the current view of the application
@@ -81,7 +82,7 @@ type Model struct {
 	status     *Status
 	networks   []Network
 	peers      []Peer
-	err        error
+	err        *uierrors.UserError
 	loadingMsg string
 	nextState  SessionState // State to go to after loading
 	usingGRPC  bool         // Shows if gRPC is being used
@@ -200,7 +201,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.fetchStatusCmd(), m.fetchNetworksCmd())
 
 	case errMsg:
-		m.err = msg.err
+		m.err = uierrors.Map(msg.err)
 		m.state = StateDashboard // Go back to dashboard on error?
 
 	case tickMsg:
