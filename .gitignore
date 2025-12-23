@@ -26,6 +26,9 @@ cli/goconnect
 .idea/
 .cursor/
 .cursorrules
+.codex/
+.opencode/
+.windsurf/
 
 # OS
 .DS_Store
