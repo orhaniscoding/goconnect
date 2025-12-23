@@ -79,6 +79,7 @@ _bmad-output/
 stories/
 .bmad/
 .claude/
+.github/agents/
 memory-bank/
 latestchat.*
 latestreport.*
