@@ -73,6 +73,7 @@ desktop/dist/
 .agent/*
 !.agent/rules/
 !.agent/workflows/
+_bmad-output/
 .bmad/
 .claude/
 memory-bank/
