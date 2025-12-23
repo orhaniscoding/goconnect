@@ -58,6 +58,11 @@ func TestManager_LoadOrCreateIdentity_Create(t *testing.T) {
 		t.Errorf("Public key is not valid base64: %v", err)
 	}
 
+	// Verify LocalUUID is generated
+	if id.LocalUUID == "" {
+		t.Error("Expected LocalUUID to be generated")
+	}
+
 	// Verify file was created
 	if _, err := os.Stat(identityPath); os.IsNotExist(err) {
 		t.Error("Identity file was not created")
@@ -292,4 +297,47 @@ func TestManager_Save_ReadOnlyDir(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error when creating identity in readonly directory")
 	}
+}
+
+func TestManager_LoadOrCreateIdentity_BackfillUUID(t *testing.T) {
+identitytmpDir := t.TempDir()
+identityidentityPath := filepath.Join(tmpDir, "identity.json")
+
+identity// Pre-create identity file WITHOUT LocalUUID
+identityexistingIdentity := &Identity{
+identityPrivateKey: "dGVzdC1wcml2YXRlLWtleQ==",
+identityPublicKey:  "dGVzdC1wdWJsaWMta2V5",
+identityDeviceID:   "existing-device-123",
+identity}
+identitydata, _ := json.Marshal(existingIdentity)
+identityif err := os.WriteFile(identityPath, data, 0600); err != nil {
+identityt.Fatalf("Failed to write test identity: %v", err)
+identity}
+
+identitym := NewManager(identityPath)
+identityid, err := m.LoadOrCreateIdentity()
+identityif err != nil {
+identityt.Fatalf("LoadOrCreateIdentity failed: %v", err)
+identity}
+
+identity// Verify LocalUUID was generated and backfilled
+identityif id.LocalUUID == "" {
+identityt.Error("Expected LocalUUID to be backfilled")
+identity}
+identity
+identity// Verify other fields remain same
+identityif id.DeviceID != "existing-device-123" {
+identityt.Errorf("Expected device ID to persist")
+identity}
+
+identity// Reload to verify persistence
+identitym2 := NewManager(identityPath)
+identityid2, err := m2.LoadOrCreateIdentity()
+identityif err != nil {
+identityt.Fatalf("Reload failed: %v", err)
+identity}
+identity
+identityif id2.LocalUUID != id.LocalUUID {
+identityt.Errorf("Expected LocalUUID to persist. Got %s, want %s", id2.LocalUUID, id.LocalUUID)
+identity}
 }

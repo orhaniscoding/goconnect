@@ -13,15 +13,15 @@ import (
 	"time"
 
 	"github.com/kardianos/service"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/api"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/chat"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/config"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/engine"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/identity"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/logger"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/system"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/transfer"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/wireguard"
+	"github.com/orhaniscoding/goconnect/cli/internal/api"
+	"github.com/orhaniscoding/goconnect/cli/internal/chat"
+	"github.com/orhaniscoding/goconnect/cli/internal/config"
+	"github.com/orhaniscoding/goconnect/cli/internal/engine"
+	"github.com/orhaniscoding/goconnect/cli/internal/identity"
+	"github.com/orhaniscoding/goconnect/cli/internal/logger"
+	"github.com/orhaniscoding/goconnect/cli/internal/system"
+	"github.com/orhaniscoding/goconnect/cli/internal/transfer"
+	"github.com/orhaniscoding/goconnect/cli/internal/wireguard"
 )
 
 // DaemonService implements the kardianos/service.Service interface.
@@ -41,10 +41,14 @@ type DaemonService struct {
 	// SSE fields
 	sseClients map[chan string]bool
 	sseMu      sync.RWMutex
+
+	// Shutdown synchronization
+	wg sync.WaitGroup
 }
 
 var (
 	autoConnectRetryInterval = 5 * time.Second
+	shutdownTimeout          = 5 * time.Second
 )
 
 // NewDaemonService creates a new DaemonService.
@@ -173,9 +177,18 @@ func (s *DaemonService) Start(srv service.Service) error {
 	}
 
 	// Auto-connect logic
-	go s.autoConnectLoop(ctx)
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		s.autoConnectLoop(ctx)
+	}()
 
-	go s.run(ctx)
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		s.run(ctx)
+	}()
+
 	return nil
 }
 
@@ -192,8 +205,25 @@ func (s *DaemonService) Stop(srk service.Service) error {
 		s.engine.Stop()
 	}
 	if s.localHTTPServer != nil {
-		_ = s.localHTTPServer.Shutdown(context.Background())
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		_ = s.localHTTPServer.Shutdown(ctx)
+		cancel()
 	}
+
+	// Wait for goroutines to finish with timeout
+	done := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		s.logf.Info("Daemon goroutines exited cleanly.")
+	case <-time.After(shutdownTimeout):
+		s.logf.Warning("Daemon shutdown timed out. Force exiting.")
+	}
+
 	s.logf.Info("GoConnect Daemon stopped.")
 	return nil
 }
@@ -202,18 +232,41 @@ func (s *DaemonService) Stop(srk service.Service) error {
 func (s *DaemonService) run(ctx context.Context) {
 	s.logf.Info("Daemon main loop started.")
 
+	interval := s.config.Daemon.HealthCheckInterval
+	if interval < time.Second {
+		interval = 5 * time.Second // Safety default
+	}
+
 	// Example: Periodically check server connection or trigger updates
-	ticker := time.NewTicker(s.config.Daemon.HealthCheckInterval)
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
+
+	lastTick := time.Now()
 
 	for {
 		select {
 		case <-ctx.Done():
 			s.logf.Info("Daemon run loop context cancelled.")
 			return
-		case <-ticker.C:
+		case now := <-ticker.C:
+			// Detect time jump (system sleep/resume)
+			// If time since last tick is significantly larger than interval (e.g. 3x),
+			// we likely slept.
+			timeSinceLast := now.Sub(lastTick)
+			if timeSinceLast > interval*3 {
+				s.logf.Warningf("System resume detected? Time jump: %v. Triggering immediate reconnect/sync.", timeSinceLast)
+				
+				// Force connection check/reconnect
+				if s.engine != nil {
+					// If we were connected, ensure we still are or reconnect
+					s.logf.Info("Refreshing connection state after resume...")
+					s.engine.Connect() // Or a more specific "Reconnect()" if available, but Connect() usually handles idempotency
+				}
+			}
+			lastTick = now
+
 			// Perform health check or sync with server
-			s.logf.Info("Performing daemon health check/sync...") // Changed to Info
+			s.logf.Info("Performing daemon health check/sync...")
 			// Here you would add logic to:
 			// 1. Authenticate with the server if needed
 			// 2. Fetch network configuration

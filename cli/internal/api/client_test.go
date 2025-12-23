@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/config"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/storage"
+	"github.com/orhaniscoding/goconnect/cli/internal/config"
+	"github.com/orhaniscoding/goconnect/cli/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

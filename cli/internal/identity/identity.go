@@ -9,7 +9,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/logger"
+	"github.com/google/uuid"
+	"github.com/orhaniscoding/goconnect/cli/internal/logger"
 	"golang.org/x/crypto/curve25519"
 )
 
@@ -17,7 +18,8 @@ import (
 type Identity struct {
 	PrivateKey string `json:"private_key"`
 	PublicKey  string `json:"public_key"`
-	DeviceID   string `json:"device_id,omitempty"`
+	DeviceID   string `json:"device_id,omitempty"` // Reserved for Server-assigned ID
+	LocalUUID  string `json:"local_uuid"`          // Stable, locally generated ID
 	// Token will now be stored in the OS Keyring, not in the identity file.
 }
 
@@ -50,6 +52,15 @@ func (m *Manager) LoadOrCreateIdentity() (*Identity, error) {
 
 	// Try to load
 	if err := m.load(); err == nil {
+		// Backfill LocalUUID if missing (for existing installations)
+		if m.identity.LocalUUID == "" {
+			m.identity.LocalUUID = uuid.NewString()
+			if err := m.save(); err != nil {
+				return nil, fmt.Errorf("failed to save backfilled identity: %w", err)
+			}
+			logger.Info("Backfilled missing LocalUUID", "uuid", m.identity.LocalUUID)
+		}
+
 		logger.Info("Loaded existing device identity", "path", m.identityPath)
 		return m.identity, nil
 	} else if !os.IsNotExist(err) {
@@ -67,7 +78,7 @@ func (m *Manager) LoadOrCreateIdentity() (*Identity, error) {
 		return nil, fmt.Errorf("failed to save new identity to %s: %w", m.identityPath, err)
 	}
 
-	logger.Info("Generated and saved new device identity", "public_key", m.identity.PublicKey)
+	logger.Info("Generated and saved new device identity", "public_key", m.identity.PublicKey, "uuid", m.identity.LocalUUID)
 	return m.identity, nil
 }
 
@@ -142,6 +153,7 @@ func (m *Manager) generate() error {
 	m.identity = &Identity{
 		PrivateKey: base64.StdEncoding.EncodeToString(privateKey),
 		PublicKey:  base64.StdEncoding.EncodeToString(publicKey),
+		LocalUUID:  uuid.NewString(), // Generate new UUID
 	}
 
 	return nil

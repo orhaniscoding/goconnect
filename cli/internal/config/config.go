@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/logger"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/storage"
+	"github.com/orhaniscoding/goconnect/cli/internal/logger"
+	"github.com/orhaniscoding/goconnect/cli/internal/storage"
 	"gopkg.in/yaml.v3"
 )
 
@@ -21,6 +21,7 @@ type Config struct {
 		HealthCheckInterval time.Duration `yaml:"health_check_interval"`
 		SocketPath          string        `yaml:"socket_path"`
 		IPCTokenPath        string        `yaml:"ipc_token_path"`
+		EnableDesktopIPC    bool          `yaml:"enable_desktop_ipc"` // Optional TCP listener for Desktop app
 	} `yaml:"daemon"`
 	WireGuard struct {
 		InterfaceName string `yaml:"interface_name"`

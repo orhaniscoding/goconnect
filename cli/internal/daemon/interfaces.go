@@ -2,10 +2,10 @@ package daemon
 
 import (
 	"context"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/api"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/chat"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/transfer"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/voice"
+	"github.com/orhaniscoding/goconnect/cli/internal/api"
+	"github.com/orhaniscoding/goconnect/cli/internal/chat"
+	"github.com/orhaniscoding/goconnect/cli/internal/transfer"
+	"github.com/orhaniscoding/goconnect/cli/internal/voice"
 )
 
 // DaemonEngine defines the interface for the P2P engine used by the daemon.

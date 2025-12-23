@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/logger"
+	"github.com/orhaniscoding/goconnect/cli/internal/logger"
 	"github.com/pion/ice/v2"
 )
 

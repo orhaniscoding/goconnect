@@ -12,7 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/uierrors"
+	"github.com/orhaniscoding/goconnect/cli/internal/uierrors"
 )
 
 // SessionState represents the current view of the application

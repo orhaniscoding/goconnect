@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/daemon"
+	"github.com/orhaniscoding/goconnect/cli/internal/daemon"
 )
 
 func TestIPCAuth_GenerateAndSave(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/orhaniscoding/goconnect/client-daemon/internal/proto"
+	pb "github.com/orhaniscoding/goconnect/cli/internal/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"

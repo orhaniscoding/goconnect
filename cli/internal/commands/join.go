@@ -7,10 +7,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/api"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/config"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/tui"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/uierrors"
+	"github.com/orhaniscoding/goconnect/cli/internal/api"
+	"github.com/orhaniscoding/goconnect/cli/internal/config"
+	"github.com/orhaniscoding/goconnect/cli/internal/tui"
+	"github.com/orhaniscoding/goconnect/cli/internal/uierrors"
 )
 
 // HandleJoinCommand handles the 'join' command, supporting both TUI and flags

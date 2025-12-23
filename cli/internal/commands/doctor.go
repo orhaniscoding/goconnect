@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/config"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/tui"
+	"github.com/orhaniscoding/goconnect/cli/internal/config"
+	"github.com/orhaniscoding/goconnect/cli/internal/tui"
 )
 
 // RunDoctorCommand diagnoses configuration and connectivity issues

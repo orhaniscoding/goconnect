@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/config"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/logger"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/storage"
+	"github.com/orhaniscoding/goconnect/cli/internal/config"
+	"github.com/orhaniscoding/goconnect/cli/internal/logger"
+	"github.com/orhaniscoding/goconnect/cli/internal/storage"
 )
 
 // Client handles communication with the GoConnect server
@@ -98,24 +98,104 @@ func (c *Client) Register(ctx context.Context, authToken string, req RegisterDev
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusCreated {
-		// Attempt to read error message from response body
-		var errorBody struct {
-			Message string `json:"message"`
-		}
-		if err := json.NewDecoder(resp.Body).Decode(&errorBody); err == nil && errorBody.Message != "" {
-			return nil, fmt.Errorf("registration failed: %s (status: %d)", errorBody.Message, resp.StatusCode)
-		}
-		return nil, fmt.Errorf("registration failed with status: %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("server returned status: %d", resp.StatusCode)
 	}
 
-	var result RegisterDeviceResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	var registerResp RegisterDeviceResponse
+	if err := json.NewDecoder(resp.Body).Decode(&registerResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	return &result, nil
+	return &registerResp, nil
 }
+
+// DeviceCodeResponse matches the server response
+type DeviceCodeResponse struct {
+	DeviceCode      string `json:"device_code"`
+	UserCode        string `json:"user_code"`
+	VerificationURI string `json:"verification_uri"`
+	ExpiresIn       int    `json:"expires_in"`
+	Interval        int    `json:"interval"`
+}
+
+// AuthResponse matches the server login response
+type AuthResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresIn    int    `json:"expires_in"`
+	TokenType    string `json:"token_type"`
+	// User field ignored for minimal client needs
+}
+
+// RequestDeviceCode initiates the device flow
+func (c *Client) RequestDeviceCode(ctx context.Context) (*DeviceCodeResponse, error) {
+	req := map[string]string{"client_id": "cli"}
+	body, _ := json.Marshal(req)
+
+	url := fmt.Sprintf("%s/v1/auth/device/code", c.config.Server.URL)
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("server returned error: %d", resp.StatusCode)
+	}
+
+	var dcResp DeviceCodeResponse
+	if err := json.NewDecoder(resp.Body).Decode(&dcResp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return &dcResp, nil
+}
+
+// PollDeviceToken polls for the device token
+func (c *Client) PollDeviceToken(ctx context.Context, deviceCode string) (*AuthResponse, error) {
+	req := map[string]string{"device_code": deviceCode}
+	body, _ := json.Marshal(req)
+
+	url := fmt.Sprintf("%s/v1/auth/device/token", c.config.Server.URL)
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Handle specific error codes if needed, but for now generic check
+	if resp.StatusCode != http.StatusOK {
+		// Read body for error details
+		var errResp map[string]interface{}
+		_ = json.NewDecoder(resp.Body).Decode(&errResp)
+		
+		// If "authorization_pending", we return a specific error so caller knows to retry
+		if msg, ok := errResp["message"].(string); ok && msg == "authorization_pending" {
+			return nil, fmt.Errorf("authorization_pending")
+		}
+		
+		return nil, fmt.Errorf("server returned error: %d %v", resp.StatusCode, errResp)
+	}
+
+	var authResp AuthResponse
+	if err := json.NewDecoder(resp.Body).Decode(&authResp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return &authResp, nil
+}
+
 
 // HeartbeatRequest matches the server's request struct
 type HeartbeatRequest struct {

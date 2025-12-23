@@ -7,8 +7,8 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/daemon"
-	pb "github.com/orhaniscoding/goconnect/client-daemon/internal/proto"
+	"github.com/orhaniscoding/goconnect/cli/internal/daemon"
+	pb "github.com/orhaniscoding/goconnect/cli/internal/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

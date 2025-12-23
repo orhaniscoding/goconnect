@@ -12,6 +12,7 @@ const (
 	keyringService = "goconnect"
 	keyringUser    = "default" // Using a default user for simplicity
 	tokenKey       = "auth_token"
+	refreshTokenKey = "refresh_token"
 	deviceIDKey    = "device_id"
 )
 
@@ -70,6 +71,28 @@ func (ks *KeyringStore) RetrieveAuthToken() (string, error) {
 	item, err := ks.kr.Get(tokenKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to retrieve auth token: %w", err)
+	}
+	return string(item.Data), nil
+}
+
+// StoreRefreshToken stores the refresh token in the keyring.
+func (ks *KeyringStore) StoreRefreshToken(token string) error {
+	if err := ks.kr.Set(keyring.Item{
+		Key:         refreshTokenKey,
+		Data:        []byte(token),
+		Label:       "GoConnect Daemon Refresh Token",
+		Description: "Refresh token for GoConnect server API access",
+	}); err != nil {
+		return fmt.Errorf("failed to store refresh token in keyring: %w", err)
+	}
+	return nil
+}
+
+// RetrieveRefreshToken retrieves the refresh token from the keyring.
+func (ks *KeyringStore) RetrieveRefreshToken() (string, error) {
+	item, err := ks.kr.Get(refreshTokenKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to retrieve refresh token: %w", err)
 	}
 	return string(item.Data), nil
 }

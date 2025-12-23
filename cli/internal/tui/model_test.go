@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/uierrors"
+	"github.com/orhaniscoding/goconnect/cli/internal/uierrors"
 )
 
 // ==================== SessionState Tests ====================

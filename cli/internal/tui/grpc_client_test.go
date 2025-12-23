@@ -6,7 +6,7 @@ import (
 	"net"
 	"testing"
 
-	pb "github.com/orhaniscoding/goconnect/client-daemon/internal/proto"
+	pb "github.com/orhaniscoding/goconnect/cli/internal/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"

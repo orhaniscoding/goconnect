@@ -5,8 +5,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/api"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/logger"
+	"github.com/orhaniscoding/goconnect/cli/internal/api"
+	"github.com/orhaniscoding/goconnect/cli/internal/logger"
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )

@@ -3,8 +3,8 @@ package commands
 import (
 	"fmt"
 
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/tui"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/uierrors"
+	"github.com/orhaniscoding/goconnect/cli/internal/tui"
+	"github.com/orhaniscoding/goconnect/cli/internal/uierrors"
 )
 
 // RunStatusCommand shows the daemon and connection status without TUI

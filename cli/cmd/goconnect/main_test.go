@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/config"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/tui"
+	"github.com/orhaniscoding/goconnect/cli/internal/config"
+	"github.com/orhaniscoding/goconnect/cli/internal/tui"
 	"github.com/stretchr/testify/assert"
 )
 

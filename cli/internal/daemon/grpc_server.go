@@ -4,14 +4,15 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/kardianos/service"
-	pb "github.com/orhaniscoding/goconnect/client-daemon/internal/proto"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/voice"
+	pb "github.com/orhaniscoding/goconnect/cli/internal/proto"
+	"github.com/orhaniscoding/goconnect/cli/internal/voice"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -164,14 +165,29 @@ func (s *GRPCServer) createListener() (net.Listener, error) {
 		if socketPath == "" {
 			socketPath = "/tmp/goconnect.sock"
 		}
-		// Remove existing socket file if it exists
-		// In production, use a more secure path like /var/run/goconnect/daemon.sock
+		
+		// Cleanup stale socket file
+		if err := os.Remove(socketPath); err != nil && !os.IsNotExist(err) {
+			s.logf.Warningf("Failed to remove stale socket file: %v", err)
+		}
 
-		// Also start TCP listener for Desktop app compatibility
-		// Desktop (Tauri/Rust) can't easily use Unix sockets, so we provide TCP fallback
-		go s.startTCPFallbackListener()
+		// Also start TCP listener for Desktop app compatibility ONLY if enabled
+		if s.daemon.config.Daemon.EnableDesktopIPC {
+			go s.startTCPFallbackListener()
+		}
 
-		return net.Listen("unix", socketPath)
+		l, err := net.Listen("unix", socketPath)
+		if err != nil {
+			return nil, err
+		}
+
+		// Secure the socket with 0600 permissions immediately
+		if err := os.Chmod(socketPath, 0600); err != nil {
+			l.Close()
+			return nil, fmt.Errorf("failed to set socket permissions: %w", err)
+		}
+
+		return l, nil
 	}
 }
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	pb "github.com/orhaniscoding/goconnect/client-daemon/internal/proto"
+	pb "github.com/orhaniscoding/goconnect/cli/internal/proto"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -1,4 +1,4 @@
-module github.com/orhaniscoding/goconnect/client-daemon
+module github.com/orhaniscoding/goconnect/cli
 
 go 1.24.0
 

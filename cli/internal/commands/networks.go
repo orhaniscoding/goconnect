@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/tui"
+	"github.com/orhaniscoding/goconnect/cli/internal/tui"
 )
 
 // RunNetworksCommand lists all networks without TUI

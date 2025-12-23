@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	pb "github.com/orhaniscoding/goconnect/client-daemon/internal/proto"
+	pb "github.com/orhaniscoding/goconnect/cli/internal/proto"
 )
 
 // DaemonClient is the unified interface for communicating with the daemon.

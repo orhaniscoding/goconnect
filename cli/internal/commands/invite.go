@@ -3,7 +3,7 @@ package commands
 import (
 	"fmt"
 
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/tui"
+	"github.com/orhaniscoding/goconnect/cli/internal/tui"
 )
 
 // RunInviteCommand generates an invite code for the current network

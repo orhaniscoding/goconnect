@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/config"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/deeplink"
+	"github.com/orhaniscoding/goconnect/cli/internal/config"
+	"github.com/orhaniscoding/goconnect/cli/internal/deeplink"
 )
 
 // HandleDeepLink processes a deep link URI

@@ -1,4 +1,4 @@
-package main
+package cmd
 
 import (
 	"bytes"
@@ -6,8 +6,21 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/config"
+	"github.com/orhaniscoding/goconnect/cli/internal/config"
+	"github.com/spf13/cobra"
 )
+
+var voiceCmd = &cobra.Command{
+	Use:   "voice",
+	Short: "Run voice verification test",
+	Run: func(cmd *cobra.Command, args []string) {
+		runVoiceCommand()
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(voiceCmd)
+}
 
 // runVoiceCommand sends a test voice signal to verification
 func runVoiceCommand() {

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/logger"
+	"github.com/orhaniscoding/goconnect/cli/internal/logger"
 )
 
 // Message represents a chat message

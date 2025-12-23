@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/api"
+	"github.com/orhaniscoding/goconnect/cli/internal/api"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"

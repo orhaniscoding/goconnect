@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/kardianos/service"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/config"
+	"github.com/orhaniscoding/goconnect/cli/internal/config"
 	"github.com/stretchr/testify/assert"
 )
 

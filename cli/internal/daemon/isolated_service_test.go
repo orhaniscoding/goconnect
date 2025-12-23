@@ -8,11 +8,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/api"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/config"
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/storage"
+	"github.com/orhaniscoding/goconnect/cli/internal/api"
+	"github.com/orhaniscoding/goconnect/cli/internal/config"
+	"github.com/orhaniscoding/goconnect/cli/internal/storage"
 
-	"github.com/orhaniscoding/goconnect/client-daemon/internal/identity"
+	"github.com/orhaniscoding/goconnect/cli/internal/identity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
