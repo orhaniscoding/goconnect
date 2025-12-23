@@ -124,3 +124,27 @@ type UseRecoveryCodeRequest struct {
 type RegenerateRecoveryCodesRequest struct {
 	Code string `json:"code" binding:"required,len=6"` // Current TOTP code to verify
 }
+
+// DeviceCodeRequest is the request to initiate device flow from a client
+type DeviceCodeRequest struct {
+	ClientID string `json:"client_id"` // Optional: identifying the client type (cli, desktop, etc)
+}
+
+// DeviceCodeResponse matches the OAuth2 Device Authorization Response (RFC 8628)
+type DeviceCodeResponse struct {
+	DeviceCode      string `json:"device_code"`
+	UserCode        string `json:"user_code"`
+	VerificationURI string `json:"verification_uri"`
+	ExpiresIn       int    `json:"expires_in"` // seconds
+	Interval        int    `json:"interval"`   // seconds
+}
+
+// DeviceTokenRequest is used by the client to poll for the token using the device code
+type DeviceTokenRequest struct {
+	DeviceCode string `json:"device_code" binding:"required"`
+}
+
+// DeviceVerifyRequest is used by the authenticated user to approve the device flow
+type DeviceVerifyRequest struct {
+	UserCode string `json:"user_code" binding:"required"`
+}

@@ -65,7 +65,7 @@ func main() {
 	}
 
 	// Initialize structured logging
-	logger.Init(logger.Config{
+	logger.Setup(logger.Config{
 		Environment: cfg.Server.Environment,
 		Level:       "info", // Could actully pull from config if available, default to info
 	})

@@ -20,7 +20,7 @@ func TestInitAndGet(t *testing.T) {
 		Environment: "development",
 		Level:       "debug",
 	}
-	Init(cfg)
+	Setup(cfg)
 	
 	l := Get()
 	assert.NotNil(t, l)

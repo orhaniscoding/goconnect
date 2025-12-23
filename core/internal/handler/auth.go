@@ -482,6 +482,80 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 	})
 }
 
+// RequestDeviceCode handles POST /v1/auth/device/code
+func (h *AuthHandler) RequestDeviceCode(c *gin.Context) {
+	var req domain.DeviceCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Invalid request: "+err.Error(), nil))
+		return
+	}
+
+	resp, err := h.authService.InitiateDeviceFlow(c.Request.Context(), req.ClientID)
+	if err != nil {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
+			errorResponse(c, domainErr)
+		} else {
+			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to initiate device flow", nil))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+// PollDeviceToken handles POST /v1/auth/device/token
+func (h *AuthHandler) PollDeviceToken(c *gin.Context) {
+	var req domain.DeviceTokenRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Invalid request: "+err.Error(), nil))
+		return
+	}
+
+	resp, err := h.authService.PollDeviceToken(c.Request.Context(), req.DeviceCode)
+	if err != nil {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
+			errorResponse(c, domainErr)
+		} else {
+			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to pool device token", nil))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+// VerifyDeviceCode handles POST /v1/auth/device/verify
+// This is called by the authenticated user to approve the device flow
+func (h *AuthHandler) VerifyDeviceCode(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		errorResponse(c, domain.NewError(domain.ErrUnauthorized, "Unauthorized", nil))
+		return
+	}
+
+	var req domain.DeviceVerifyRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		errorResponse(c, domain.NewError(domain.ErrInvalidRequest, "Invalid request: "+err.Error(), nil))
+		return
+	}
+
+	if err := h.authService.ApproveDeviceFlow(c.Request.Context(), req.UserCode, userID); err != nil {
+		var domainErr *domain.Error
+		if errors.As(err, &domainErr) {
+			errorResponse(c, domainErr)
+		} else {
+			errorResponse(c, domain.NewError(domain.ErrInternalServer, "Failed to verify device code", nil))
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Device authenticated successfully",
+	})
+}
+
 func generateSecureState(length int) (string, error) {
 	if length <= 0 {
 		length = 32
@@ -506,6 +580,10 @@ func RegisterAuthRoutes(r *gin.Engine, handler *AuthHandler, authMiddleware gin.
 		auth.GET("/oidc/callback", handler.CallbackOIDC)
 		// Recovery code login (no auth required)
 		auth.POST("/2fa/recovery", handler.UseRecoveryCode)
+		
+		// Device Flow (Public endpoints for device)
+		auth.POST("/device/code", handler.RequestDeviceCode)
+		auth.POST("/device/token", handler.PollDeviceToken)
 	}
 
 	authProtected := v1.Group("/auth")
@@ -519,5 +597,8 @@ func RegisterAuthRoutes(r *gin.Engine, handler *AuthHandler, authMiddleware gin.
 		// Recovery codes (auth required)
 		authProtected.POST("/2fa/recovery-codes", handler.GenerateRecoveryCodes)
 		authProtected.GET("/2fa/recovery-codes/count", handler.GetRecoveryCodeCount)
+		
+		// Device Flow (Protected endpoint for user approval)
+		authProtected.POST("/device/verify", handler.VerifyDeviceCode)
 	}
 }

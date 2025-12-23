@@ -1,9 +1,14 @@
 package logger
 
 import (
+	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
+
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 var (
@@ -15,20 +20,49 @@ var (
 type Config struct {
 	Environment string
 	Level       string
+	LogPath     string
+	MaxSize     int  // Megabytes
+	MaxBackups  int
+	MaxAge      int  // Days
+	Compress    bool
 }
 
-// Init initializes the global logger
-func Init(cfg Config) {
+// Setup initializes the global logger with the provided configuration
+func Setup(cfg Config) {
 	once.Do(func() {
-		var handler slog.Handler
+		var writers []io.Writer
+		
+		// Always log to Stdout for container visibility or dev debugging
+		writers = append(writers, os.Stdout)
+
+		if cfg.LogPath != "" {
+			// Ensure directory exists with restrictive permissions
+			dir := filepath.Dir(cfg.LogPath)
+			if err := os.MkdirAll(dir, 0700); err != nil {
+				slog.Error("failed to create log directory", "path", dir, "error", err)
+			} else {
+				lumberjackLogger := &lumberjack.Logger{
+					Filename:   cfg.LogPath,
+					MaxSize:    cfg.MaxSize,
+					MaxBackups: cfg.MaxBackups,
+					MaxAge:     cfg.MaxAge,
+					Compress:   cfg.Compress,
+				}
+				writers = append(writers, lumberjackLogger)
+			}
+		}
+
+		multiWriter := io.MultiWriter(writers...)
+
 		opts := &slog.HandlerOptions{
 			Level: parseLevel(cfg.Level),
 		}
 
-		if cfg.Environment == "production" {
-			handler = slog.NewJSONHandler(os.Stdout, opts)
+		var handler slog.Handler
+		if strings.ToLower(cfg.Environment) == "production" {
+			handler = slog.NewJSONHandler(multiWriter, opts)
 		} else {
-			handler = slog.NewTextHandler(os.Stdout, opts)
+			handler = slog.NewTextHandler(multiWriter, opts)
 		}
 
 		logger = slog.New(handler)
@@ -37,7 +71,7 @@ func Init(cfg Config) {
 }
 
 func parseLevel(level string) slog.Level {
-	switch level {
+	switch strings.ToLower(level) {
 	case "debug":
 		return slog.LevelDebug
 	case "info":
@@ -54,7 +88,6 @@ func parseLevel(level string) slog.Level {
 // Get returns the global logger instance
 func Get() *slog.Logger {
 	if logger == nil {
-		// Fallback if Init wasn't called
 		return slog.Default()
 	}
 	return logger
@@ -76,3 +109,4 @@ func Warn(msg string, args ...any) {
 func Debug(msg string, args ...any) {
 	Get().Debug(msg, args...)
 }
+
