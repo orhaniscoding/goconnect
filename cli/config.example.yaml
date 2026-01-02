@@ -47,6 +47,16 @@ reconnect_interval: 30
 # How often to check connection health
 health_check_interval: 60
 # ============================================================================
+# OPTIONAL: Daemon IPC Settings
+# ============================================================================
+
+# Daemon socket/pipe path for CLI-to-daemon communication
+# Leave empty to use platform defaults:
+#   Linux/macOS: /tmp/goconnect.sock
+#   Windows: \\.\pipe\goconnect
+daemon_socket_path: ""
+
+# ============================================================================
 # NOTES
 # ============================================================================
 # - The daemon requires at minimum the server_url to be configured

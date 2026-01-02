@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/orhaniscoding/goconnect/cli/internal/logger"
@@ -61,7 +62,7 @@ func DefaultConfigPath() string {
 // LoadConfig loads the configuration from the given path.
 func LoadConfig(path string) (*Config, error) {
 	var cfg Config
-	
+
 	// Default configuration values
 	defaultConfig := func(c *Config) {
 		if c.Server.URL == "" {
@@ -74,13 +75,13 @@ func LoadConfig(path string) (*Config, error) {
 			c.Daemon.HealthCheckInterval = 30 * time.Second
 		}
 		if c.Daemon.SocketPath == "" {
-			if os.Getenv("GOOS") == "windows" {
+			if runtime.GOOS == "windows" {
 				c.Daemon.SocketPath = `\\.\pipe\goconnect`
 			} else {
 				c.Daemon.SocketPath = "/tmp/goconnect.sock"
 			}
 		}
-		
+
 		// Identity Path
 		if c.Identity.Path != "" {
 			c.IdentityPath = c.Identity.Path
@@ -98,7 +99,7 @@ func LoadConfig(path string) (*Config, error) {
 			c.Settings.DownloadPath = filepath.Join(home, "Downloads")
 		}
 		// Default to enabled if not explicitly disabled (bool default is false, so we need careful handling if we want default true)
-		// Since we can't distinguish false from unset easily without pointers, we assume false means disabled. 
+		// Since we can't distinguish false from unset easily without pointers, we assume false means disabled.
 		// If we want default true, we'd need *bool. For now, let's leave it as is or enforce logic elsewhere.
 		// However, for first run, we can set it.
 	}
@@ -115,7 +116,7 @@ func LoadConfig(path string) (*Config, error) {
 				logger.Warn("Failed to initialize keyring", "error", err)
 			}
 			cfg.Keyring = keyring
-			cfg.Settings.NotificationsEnabled = true 
+			cfg.Settings.NotificationsEnabled = true
 			return &cfg, nil
 		}
 		return nil, err
@@ -134,8 +135,8 @@ func LoadConfig(path string) (*Config, error) {
 
 	// Apply defaults to loaded config
 	defaultConfig(&cfg)
-	
-	// Special handling for NotificationsEnabled: yaml unmarshal handles it, but default logic is tricky. 
+
+	// Special handling for NotificationsEnabled: yaml unmarshal handles it, but default logic is tricky.
 	// We'll trust user config or bool default (false) if missing.
 
 	cfg.ConfigPath = path

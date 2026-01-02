@@ -255,7 +255,7 @@ func (s *DaemonService) run(ctx context.Context) {
 			timeSinceLast := now.Sub(lastTick)
 			if timeSinceLast > interval*3 {
 				s.logf.Warningf("System resume detected? Time jump: %v. Triggering immediate reconnect/sync.", timeSinceLast)
-				
+
 				// Force connection check/reconnect
 				if s.engine != nil {
 					// If we were connected, ensure we still are or reconnect
@@ -341,8 +341,15 @@ func (s *DaemonService) setupLocalhostBridgeHandlers(mux *http.ServeMux) {
 				allowed = true // Allow non-browser clients for now
 			} else if strings.HasPrefix(origin, "http://localhost") || strings.HasPrefix(origin, "http://127.0.0.1") {
 				allowed = true
-			} else if strings.Contains(origin, "goconnect") { // Loose check for now, tighten later
+			} else if strings.HasPrefix(origin, "tauri://") {
+				// Tauri desktop app uses tauri:// protocol
 				allowed = true
+			} else if s.config.Server.URL != "" {
+				// Allow requests from the configured server domain
+				// e.g., if server is "https://vpn.example.com", allow that origin
+				if strings.HasPrefix(origin, s.config.Server.URL) {
+					allowed = true
+				}
 			}
 
 			if allowed {

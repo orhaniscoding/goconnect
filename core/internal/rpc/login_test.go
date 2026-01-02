@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"net"
+
 	"github.com/orhaniscoding/goconnect/server/internal/auth"
 	"github.com/orhaniscoding/goconnect/server/internal/backend"
 	"github.com/orhaniscoding/goconnect/server/internal/proto"
@@ -15,7 +17,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
-	"net"
 )
 
 // MockDaemon implements the daemon interface required by DaemonHandler
@@ -96,24 +97,24 @@ func TestLogin_Flow(t *testing.T) {
 	// Setup
 	lis := bufconn.Listen(1024 * 1024)
 	s := rpc.NewServer()
-	
+
 	mockBackend := new(MockBackend)
 	mockTokenMgr := new(MockTokenManager)
 	mockDaemon := new(MockDaemon)
-	
+
 	mockDaemon.On("GetBackend").Return(mockBackend)
 	mockDaemon.On("GetTokenManager").Return(mockTokenMgr)
-	
+
 	handler := rpc.NewDaemonHandler(mockDaemon, "test")
 	proto.RegisterDaemonServiceServer(s.GetGRPCServer(), handler)
-	
+
 	go func() {
 		if err := s.Start(lis); err != nil {
 			panic(err)
 		}
 	}()
 	defer s.GracefulStop()
-	
+
 	conn, err := grpc.DialContext(context.Background(), "bufnet",
 		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
 			return lis.Dial()
@@ -122,9 +123,9 @@ func TestLogin_Flow(t *testing.T) {
 	)
 	require.NoError(t, err)
 	defer conn.Close()
-	
+
 	client := proto.NewDaemonServiceClient(conn)
-	
+
 	// Expectations
 	mockBackend.On("RequestDeviceCode", mock.Anything).Return(&backend.DeviceCodeResponse{
 		DeviceCode:      "dc-123",
@@ -133,40 +134,40 @@ func TestLogin_Flow(t *testing.T) {
 		ExpiresIn:       300,
 		Interval:        1, // 1 second
 	}, nil)
-	
+
 	// Poll 1: Pending
 	mockBackend.On("PollDeviceToken", mock.Anything, "dc-123").Return(nil, errors.New("authorization_pending")).Once()
-	
+
 	// Poll 2: Success
 	mockBackend.On("PollDeviceToken", mock.Anything, "dc-123").Return(&backend.AuthResponse{
-		AccessToken: "acc-token",
+		AccessToken:  "acc-token",
 		RefreshToken: "ref-token",
-		ExpiresIn: 3600,
+		ExpiresIn:    3600,
 	}, nil).Once()
-	
+
 	// Token Save Expectation
 	mockTokenMgr.On("SaveSession", mock.MatchedBy(func(s *auth.TokenSession) bool {
 		return s.AccessToken == "acc-token" && s.RefreshToken == "ref-token"
 	})).Return(nil)
-	
+
 	// Execute
 	stream, err := client.Login(context.Background(), &proto.LoginRequest{ClientName: "test-client"})
 	require.NoError(t, err)
-	
+
 	// 1. Instructions
 	update, err := stream.Recv()
 	require.NoError(t, err)
 	instr, ok := update.Update.(*proto.LoginUpdate_Instructions)
 	require.True(t, ok)
 	assert.Equal(t, "ABCD-1234", instr.Instructions.Code)
-	
+
 	// 2. Success (after polling)
 	update, err = stream.Recv()
 	require.NoError(t, err)
 	success, ok := update.Update.(*proto.LoginUpdate_Success)
 	require.True(t, ok)
-	assert.Equal(t, "TODO", success.Success.UserId) // Matches current impl placeholder
-	
+	assert.Equal(t, "authenticated", success.Success.UserId) // Placeholder until userinfo endpoint integration
+
 	mockBackend.AssertExpectations(t)
 	mockTokenMgr.AssertExpectations(t)
 }

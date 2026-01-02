@@ -138,7 +138,7 @@ export default function App() {
 
   const handleLeaveNetwork = async () => {
     if (!selectedNetworkId) return;
-    if (!confirm("Start leaving network?")) return;
+    if (!confirm("Are you sure you want to leave this network? You will need an invite code to rejoin.")) return;
     try {
       await tauriApi.leaveNetwork(selectedNetworkId);
       toast.success("Left network");

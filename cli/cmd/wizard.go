@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/orhaniscoding/goconnect/cli/internal/config"
 	"github.com/orhaniscoding/goconnect/cli/internal/tui"
@@ -67,7 +68,7 @@ func runQuickSetup(action string, saveConfig func(*config.Config, string) error,
 	cfg.Server.URL = "http://localhost:8081" // Default server
 	cfg.WireGuard.InterfaceName = "goconnect0"
 	cfg.Daemon.LocalPort = 34100
-	cfg.Daemon.HealthCheckInterval = 30 * 1000000000 // 30 seconds
+	cfg.Daemon.HealthCheckInterval = 30 * time.Second
 
 	// Set default identity path
 	home, _ := os.UserHomeDir()
@@ -213,7 +214,7 @@ func runSetupWizard(reader *bufio.Reader, httpClient *http.Client, saveConfig fu
 	cfg.Server.URL = serverURL
 	cfg.WireGuard.InterfaceName = interfaceName
 	cfg.Daemon.LocalPort = 34100
-	cfg.Daemon.HealthCheckInterval = 30 * 1000000000 // 30 seconds in nanoseconds
+	cfg.Daemon.HealthCheckInterval = 30 * time.Second
 	cfg.IdentityPath = "./identity.json"
 
 	fmt.Printf("  📁 Saving configuration to: %s\n", cfgPath)

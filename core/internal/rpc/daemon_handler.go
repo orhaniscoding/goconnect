@@ -69,9 +69,9 @@ func (h *DaemonHandler) Subscribe(in *proto.SubscribeRequest, stream proto.Daemo
 
 func (h *DaemonHandler) Login(req *proto.LoginRequest, stream proto.DaemonService_LoginServer) error {
 	logger.Info("Login requested via RPC")
-	
+
 	ctx := stream.Context()
-	
+
 	// 1. Request Device Code
 	codeResp, err := h.daemon.GetBackend().RequestDeviceCode(ctx)
 	if err != nil {
@@ -82,7 +82,7 @@ func (h *DaemonHandler) Login(req *proto.LoginRequest, stream proto.DaemonServic
 			},
 		})
 	}
-	
+
 	// 2. Send instructions to client
 	if err := stream.Send(&proto.LoginUpdate{
 		Update: &proto.LoginUpdate_Instructions{
@@ -94,13 +94,13 @@ func (h *DaemonHandler) Login(req *proto.LoginRequest, stream proto.DaemonServic
 	}); err != nil {
 		return err
 	}
-	
+
 	// 3. Poll for token
 	ticker := time.NewTicker(time.Duration(codeResp.Interval) * time.Second)
 	defer ticker.Stop()
-	
+
 	timeout := time.After(time.Duration(codeResp.ExpiresIn) * time.Second)
-	
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -124,7 +124,7 @@ func (h *DaemonHandler) Login(req *proto.LoginRequest, stream proto.DaemonServic
 					time.Sleep(5 * time.Second)
 					continue
 				}
-				
+
 				logger.Error("Polling failed", "error", err)
 				return stream.Send(&proto.LoginUpdate{
 					Update: &proto.LoginUpdate_Error{
@@ -132,7 +132,7 @@ func (h *DaemonHandler) Login(req *proto.LoginRequest, stream proto.DaemonServic
 					},
 				})
 			}
-			
+
 			// Success!
 			// Success!
 			session := &auth.TokenSession{
@@ -140,7 +140,7 @@ func (h *DaemonHandler) Login(req *proto.LoginRequest, stream proto.DaemonServic
 				RefreshToken: authResp.RefreshToken,
 				Expiry:       time.Now().Add(time.Duration(authResp.ExpiresIn) * time.Second),
 			}
-			
+
 			if err := h.daemon.GetTokenManager().SaveSession(session); err != nil {
 				logger.Error("Failed to save session", "error", err)
 				return stream.Send(&proto.LoginUpdate{
@@ -150,14 +150,14 @@ func (h *DaemonHandler) Login(req *proto.LoginRequest, stream proto.DaemonServic
 				})
 			}
 			logger.Info("Login successful and session saved", "access_token_len", len(authResp.AccessToken))
-			
+
 			return stream.Send(&proto.LoginUpdate{
 				Update: &proto.LoginUpdate_Success{
 					Success: &proto.LoginSuccess{
-						// We don't have user ID in AuthResponse yet (backend types.go needs update if we want it)
-						// But for now let's just say "Logged In"
-						UserId: "TODO", 
-						Email:  "TODO",
+						// User info should come from ID token claims or userinfo endpoint
+						// For now, indicate successful login without user details
+						UserId: "authenticated",
+						Email:  "user@authenticated",
 					},
 				},
 			})

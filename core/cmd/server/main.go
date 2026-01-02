@@ -405,9 +405,11 @@ func initHandlers(svcs *Services, repos *Repositories, cfg *config.Config, audit
 	// Initialize WebSocket hub with default message handler
 	wsMessageHandler := websocket.NewDefaultMessageHandler(nil, svcs.Chat, svcs.Membership, svcs.Device, svcs.Auth)
 	wsHub := websocket.NewHub(wsMessageHandler)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go wsHub.Run(ctx)
+	// NOTE: WebSocket hub runs for the lifetime of the server.
+	// The context is not cancelled here - the hub stops when the process exits.
+	// For graceful shutdown, srv.Shutdown() allows in-flight requests to complete.
+	wsCtx, _ := context.WithCancel(context.Background())
+	go wsHub.Run(wsCtx)
 
 	// Initialize handlers
 	authHandler := handler.NewAuthHandler(svcs.Auth, nil) // OIDC can be added later

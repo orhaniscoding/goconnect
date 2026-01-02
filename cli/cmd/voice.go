@@ -22,7 +22,9 @@ func init() {
 	rootCmd.AddCommand(voiceCmd)
 }
 
-// runVoiceCommand sends a test voice signal to verification
+// runVoiceCommand sends a test voice signal directly to server for verification.
+// NOTE: This intentionally bypasses the daemon for quick diagnostic testing.
+// In production, voice signaling is handled through WebSocket connections via the daemon.
 func runVoiceCommand() {
 	fmt.Println()
 	fmt.Println("  🎙️  GoConnect Voice Test")
