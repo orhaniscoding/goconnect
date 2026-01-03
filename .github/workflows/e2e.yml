@@ -18,6 +18,9 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24'
+          cache-dependency-path: |
+            core/go.sum
+            cli/go.sum
 
       - name: Set up Docker Compose
         # Docker Compose is pre-installed on ubuntu-latest, but this ensures availability

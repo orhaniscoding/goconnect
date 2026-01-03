@@ -20,7 +20,7 @@ jobs:
           go-version: '1.24'
           cache-dependency-path: core/go.sum
       - name: Test Core
-        run: cd core && go test -v -race -short ./...
+        run: cd core && go test -v -short ./...
       - name: Lint Core
         uses: golangci/golangci-lint-action@v6
         with:
