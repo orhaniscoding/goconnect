@@ -36,10 +36,10 @@ jobs:
           go-version: '1.24'
           cache-dependency-path: cli/go.sum
       - name: Test CLI
-        # CGO_ENABLED=0 is now possible thanks to modernc.org/sqlite
+        # CGO_ENABLED=0 for static binary, but without -race since race detector requires CGO
         env:
           CGO_ENABLED: 0
-        run: cd cli && go test -v -race -short ./...
+        run: cd cli && go test -v -short ./...
       - name: Lint CLI
         uses: golangci/golangci-lint-action@v6
         with:

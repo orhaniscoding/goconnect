@@ -331,8 +331,9 @@ func TestModel_Update_ErrMsg(t *testing.T) {
 		newModel, _ := m.Update(msg)
 		updated := newModel.(Model)
 
-		// updated.err is a string, so compare with error message string
-		assert.Equal(t, testErr.Error(), updated.err.Error())
+		// Error is now wrapped in a user-friendly format, so check it contains the original message
+		assert.NotNil(t, updated.err)
+		assert.Contains(t, updated.err.Error(), testErr.Error())
 	})
 }
 

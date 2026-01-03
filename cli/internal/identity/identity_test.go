@@ -300,44 +300,44 @@ func TestManager_Save_ReadOnlyDir(t *testing.T) {
 }
 
 func TestManager_LoadOrCreateIdentity_BackfillUUID(t *testing.T) {
-identitytmpDir := t.TempDir()
-identityidentityPath := filepath.Join(tmpDir, "identity.json")
+	tmpDir := t.TempDir()
+	identityPath := filepath.Join(tmpDir, "identity.json")
 
-identity// Pre-create identity file WITHOUT LocalUUID
-identityexistingIdentity := &Identity{
-identityPrivateKey: "dGVzdC1wcml2YXRlLWtleQ==",
-identityPublicKey:  "dGVzdC1wdWJsaWMta2V5",
-identityDeviceID:   "existing-device-123",
-identity}
-identitydata, _ := json.Marshal(existingIdentity)
-identityif err := os.WriteFile(identityPath, data, 0600); err != nil {
-identityt.Fatalf("Failed to write test identity: %v", err)
-identity}
+	// Pre-create identity file WITHOUT LocalUUID
+	existingIdentity := &Identity{
+		PrivateKey: "dGVzdC1wcml2YXRlLWtleQ==",
+		PublicKey:  "dGVzdC1wdWJsaWMta2V5",
+		DeviceID:   "existing-device-123",
+	}
+	data, _ := json.Marshal(existingIdentity)
+	if err := os.WriteFile(identityPath, data, 0600); err != nil {
+		t.Fatalf("Failed to write test identity: %v", err)
+	}
 
-identitym := NewManager(identityPath)
-identityid, err := m.LoadOrCreateIdentity()
-identityif err != nil {
-identityt.Fatalf("LoadOrCreateIdentity failed: %v", err)
-identity}
+	m := NewManager(identityPath)
+	id, err := m.LoadOrCreateIdentity()
+	if err != nil {
+		t.Fatalf("LoadOrCreateIdentity failed: %v", err)
+	}
 
-identity// Verify LocalUUID was generated and backfilled
-identityif id.LocalUUID == "" {
-identityt.Error("Expected LocalUUID to be backfilled")
-identity}
-identity
-identity// Verify other fields remain same
-identityif id.DeviceID != "existing-device-123" {
-identityt.Errorf("Expected device ID to persist")
-identity}
+	// Verify LocalUUID was generated and backfilled
+	if id.LocalUUID == "" {
+		t.Error("Expected LocalUUID to be backfilled")
+	}
 
-identity// Reload to verify persistence
-identitym2 := NewManager(identityPath)
-identityid2, err := m2.LoadOrCreateIdentity()
-identityif err != nil {
-identityt.Fatalf("Reload failed: %v", err)
-identity}
-identity
-identityif id2.LocalUUID != id.LocalUUID {
-identityt.Errorf("Expected LocalUUID to persist. Got %s, want %s", id2.LocalUUID, id.LocalUUID)
-identity}
+	// Verify other fields remain same
+	if id.DeviceID != "existing-device-123" {
+		t.Errorf("Expected device ID to persist")
+	}
+
+	// Reload to verify persistence
+	m2 := NewManager(identityPath)
+	id2, err := m2.LoadOrCreateIdentity()
+	if err != nil {
+		t.Fatalf("Reload failed: %v", err)
+	}
+
+	if id2.LocalUUID != id.LocalUUID {
+		t.Errorf("Expected LocalUUID to persist. Got %s, want %s", id2.LocalUUID, id.LocalUUID)
+	}
 }
