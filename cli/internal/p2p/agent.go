@@ -15,30 +15,77 @@ type Agent struct {
 	// State tracking
 	state   ice.ConnectionState
 	stateMu sync.RWMutex
+
+	// Connection type tracking (for relay detection)
+	isRelay bool
 }
 
-// NewAgent creates a new ICE agent
+// ICEConfig holds STUN/TURN configuration
+type ICEConfig struct {
+	STUNServers []string
+	TURNServer  *TURNCredentials
+}
+
+// TURNCredentials holds time-limited TURN server credentials
+type TURNCredentials struct {
+	URL        string
+	Username   string
+	Credential string
+}
+
+// NewAgent creates a new ICE agent with STUN only (legacy)
 func NewAgent(stunURL string) (*Agent, error) {
-	if stunURL == "" {
-		stunURL = "stun:stun.l.google.com:19302" // Default
+	config := ICEConfig{
+		STUNServers: []string{stunURL},
+	}
+	return NewAgentWithConfig(config)
+}
+
+// NewAgentWithConfig creates a new ICE agent with full ICE configuration
+func NewAgentWithConfig(config ICEConfig) (*Agent, error) {
+	var urls []*ice.URL
+
+	// Add STUN servers
+	for _, stunURL := range config.STUNServers {
+		if stunURL == "" {
+			continue
+		}
+		uri, err := ice.ParseURL(stunURL)
+		if err != nil {
+			// Log but don't fail - try remaining servers
+			continue
+		}
+		urls = append(urls, uri)
 	}
 
-	uri, err := ice.ParseURL(stunURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse STUN URL: %w", err)
+	// Add default STUN if none provided
+	if len(urls) == 0 {
+		defaultSTUN, _ := ice.ParseURL("stun:stun.l.google.com:19302")
+		urls = append(urls, defaultSTUN)
+	}
+
+	// Add TURN server if provided
+	if config.TURNServer != nil && config.TURNServer.URL != "" {
+		turnURI, err := ice.ParseURL(config.TURNServer.URL)
+		if err == nil {
+			turnURI.Username = config.TURNServer.Username
+			turnURI.Password = config.TURNServer.Credential
+			urls = append(urls, turnURI)
+		}
 	}
 
 	agent, err := ice.NewAgent(&ice.AgentConfig{
 		NetworkTypes: []ice.NetworkType{ice.NetworkTypeUDP4, ice.NetworkTypeUDP6},
-		Urls:         []*ice.URL{uri},
+		Urls:         urls,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ICE agent: %w", err)
 	}
 
 	a := &Agent{
-		agent: agent,
-		state: ice.ConnectionStateNew,
+		agent:   agent,
+		state:   ice.ConnectionStateNew,
+		isRelay: false,
 	}
 
 	// Track state changes
@@ -46,11 +93,45 @@ func NewAgent(stunURL string) (*Agent, error) {
 		a.stateMu.Lock()
 		a.state = s
 		a.stateMu.Unlock()
+
+		// Check for relay connection when connected
+		if s == ice.ConnectionStateConnected || s == ice.ConnectionStateCompleted {
+			a.detectRelayConnection()
+		}
 	}); err != nil {
 		return nil, fmt.Errorf("failed to set state change handler: %w", err)
 	}
 
 	return a, nil
+}
+
+// detectRelayConnection checks if the current connection uses relay
+func (a *Agent) detectRelayConnection() {
+	pair, err := a.agent.GetSelectedCandidatePair()
+	if err != nil || pair == nil {
+		return
+	}
+
+	a.stateMu.Lock()
+	defer a.stateMu.Unlock()
+
+	// Check if either local or remote candidate is a relay
+	if pair.Local != nil && pair.Local.Type() == ice.CandidateTypeRelay {
+		a.isRelay = true
+		return
+	}
+	if pair.Remote != nil && pair.Remote.Type() == ice.CandidateTypeRelay {
+		a.isRelay = true
+		return
+	}
+	a.isRelay = false
+}
+
+// IsRelay returns true if the connection is using a TURN relay
+func (a *Agent) IsRelay() bool {
+	a.stateMu.RLock()
+	defer a.stateMu.RUnlock()
+	return a.isRelay
 }
 
 // GetLocalCredentials returns the local ufrag and pwd
@@ -95,6 +176,8 @@ func (a *Agent) Dial(ctx context.Context, ufrag, pwd string) (*ice.Conn, error) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial: %w", err)
 	}
+	// Check relay status after dial
+	a.detectRelayConnection()
 	return conn, nil
 }
 
@@ -104,6 +187,8 @@ func (a *Agent) Accept(ctx context.Context, ufrag, pwd string) (*ice.Conn, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to accept: %w", err)
 	}
+	// Check relay status after accept
+	a.detectRelayConnection()
 	return conn, nil
 }
 
@@ -115,4 +200,21 @@ func (a *Agent) AddRemoteCandidate(candidate ice.Candidate) error {
 // Close closes the agent
 func (a *Agent) Close() error {
 	return a.agent.Close()
+}
+
+// GetCandidatePairInfo returns information about the current candidate pair
+func (a *Agent) GetCandidatePairInfo() (localType, remoteType string, err error) {
+	pair, err := a.agent.GetSelectedCandidatePair()
+	if err != nil || pair == nil {
+		return "", "", fmt.Errorf("no selected candidate pair")
+	}
+
+	if pair.Local != nil {
+		localType = pair.Local.Type().String()
+	}
+	if pair.Remote != nil {
+		remoteType = pair.Remote.Type().String()
+	}
+
+	return localType, remoteType, nil
 }

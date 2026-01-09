@@ -30,10 +30,12 @@ func TestNewAgent(t *testing.T) {
 		defer agent.Close()
 	})
 
-	t.Run("Returns Error For Invalid STUN URL", func(t *testing.T) {
-		_, err := NewAgent("invalid://not-a-valid-url")
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to parse STUN URL")
+	t.Run("Falls Back To Default For Invalid STUN URL", func(t *testing.T) {
+		// NewAgent skips invalid URLs and falls back to default STUN
+		agent, err := NewAgent("invalid://not-a-valid-url")
+		require.NoError(t, err) // Should not error - falls back to default
+		require.NotNil(t, agent)
+		defer agent.Close()
 	})
 }
 

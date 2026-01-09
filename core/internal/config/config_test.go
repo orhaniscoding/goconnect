@@ -405,7 +405,9 @@ func TestLoadFromFile_NotFound(t *testing.T) {
 
 func TestSaveToFile_InvalidPath(t *testing.T) {
 	cfg := baseValidConfig()
-	err := SaveToFile(&cfg, "/nonexistent/directory/config.yaml")
+	// Use NUL device on Windows (reserved name) or a deeply nested non-existent path on Unix
+	// This path should fail on both platforms
+	err := SaveToFile(&cfg, "//./NUL/invalid/path/config.yaml")
 	require.Error(t, err)
 }
 

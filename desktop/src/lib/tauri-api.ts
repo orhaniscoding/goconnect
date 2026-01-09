@@ -24,6 +24,7 @@ export interface NetworkInfo {
     id: string;
     name: string;
     invite_code: string;
+    owner_id?: string;
 }
 
 export interface PeerInfo {
@@ -49,9 +50,12 @@ export interface Settings {
 export interface ChatMessage {
     id: string;
     peer_id: string;
+    peer_name: string;  // Display name of sender
     content: string;
     timestamp: string;
     is_self: boolean;
+    is_edited?: boolean;  // True if message was edited
+    is_deleted?: boolean; // True if message was deleted
 }
 
 export interface TransferInfo {
@@ -73,6 +77,32 @@ export interface TransferStats {
     failed_transfers: number;
     total_bytes_sent: number;
     total_bytes_received: number;
+}
+
+export interface VoiceSignal {
+    type: 'offer' | 'answer' | 'candidate';
+    sender_id: string;
+    target_id: string;
+    network_id: string;
+    sdp?: RTCSessionDescriptionInit;
+    candidate?: RTCIceCandidateInit;
+}
+
+
+export type MemberRole = 'owner' | 'admin' | 'member';
+export type MemberStatus = 'pending' | 'approved' | 'banned';
+
+export interface MemberInfo {
+    id: string;
+    user_id: string;
+    name: string;
+    display_name: string;
+    role: MemberRole;
+    status: MemberStatus;
+    joined_at: string;
+    banned_at?: string;
+    ban_reason?: string;
+    is_online: boolean;
 }
 
 // =============================================================================
@@ -98,6 +128,14 @@ export const tauriApi = {
     banPeer: (network_id: string, peer_id: string, reason: string) => invoke<void>('daemon_ban_peer', { network_id, peer_id, reason }),
     unbanPeer: (network_id: string, peer_id: string) => invoke<void>('daemon_unban_peer', { network_id, peer_id }),
 
+    // Members
+    listMembers: (network_id: string, status?: MemberStatus) => invoke<MemberInfo[]>('daemon_list_members', { network_id, status }),
+    promoteMember: (network_id: string, member_id: string) => invoke<void>('daemon_promote_member', { network_id, member_id }),
+    demoteMember: (network_id: string, member_id: string) => invoke<void>('daemon_demote_member', { network_id, member_id }),
+    approveMember: (network_id: string, member_id: string) => invoke<void>('daemon_approve_member', { network_id, member_id }),
+    rejectMember: (network_id: string, member_id: string) => invoke<void>('daemon_reject_member', { network_id, member_id }),
+    getBannedMembers: (network_id: string) => invoke<MemberInfo[]>('daemon_list_members', { network_id, status: 'banned' as MemberStatus }),
+
     // Settings
     getSettings: () => invoke<Settings>('daemon_get_settings'),
     updateSettings: (settings: Settings) => invoke<Settings>('daemon_update_settings', { settings }),
@@ -106,6 +144,8 @@ export const tauriApi = {
     // Chat
     getMessages: (network_id: string, limit?: number, before?: string) => invoke<ChatMessage[]>('daemon_get_messages', { network_id, limit, before }),
     sendMessage: (network_id: string, content: string) => invoke<void>('daemon_send_message', { network_id, content }),
+    editMessage: (message_id: string, new_content: string) => invoke<void>('daemon_edit_message', { message_id, new_content }),
+    deleteMessage: (message_id: string) => invoke<void>('daemon_delete_message', { message_id }),
 
     // Transfers
     listTransfers: (status?: string, peer_id?: string) => invoke<TransferInfo[]>('daemon_list_transfers', { status, peer_id }),
@@ -140,4 +180,8 @@ export const tauriApi = {
     rejectTransfer: (transfer_id: string) => invoke<void>('daemon_reject_transfer', { transfer_id }),
     sendFile: (peer_id: string, file_path: string) => invoke<string>('daemon_send_file', { peer_id, file_path }),
     acceptTransfer: (transfer_id: string, save_path: string) => invoke<void>('daemon_accept_transfer', { transfer_id, save_path }),
+
+    // Voice Chat
+    getVoiceSignals: (network_id: string) => invoke<VoiceSignal[]>('daemon_get_voice_signals', { network_id }),
+    sendVoiceSignal: (signal: VoiceSignal) => invoke<void>('daemon_send_voice_signal', { signal }),
 };

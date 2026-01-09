@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
+import { open } from '@tauri-apps/plugin-dialog';
 import { tauriApi, NetworkInfo, PeerInfo } from './lib/tauri-api';
 import { handleError } from './lib/utils';
 import { useToast, Toaster } from './components/Toast';
@@ -11,7 +12,9 @@ import VoiceChat from './components/VoiceChat';
 import Sidebar from './components/Sidebar';
 import NetworkDetails from './components/NetworkDetails';
 import MetricsDashboard from './components/MetricsDashboard';
+import MembersTab from './components/MembersTab';
 import { CreateNetworkModal, JoinNetworkModal } from './components/NetworkModals';
+
 
 export default function App() {
   const [isDaemonRunning, setIsDaemonRunning] = useState(false);
@@ -36,14 +39,27 @@ export default function App() {
         console.log('Deep link received:', urls);
         for (const url of urls) {
           try {
-            // Expected: goconnect://join?code=XYZ
+            // Parse deep link: gc://join?code=XYZ or goconnect://join?code=XYZ
+            // Also supports: gc://join/XYZ (path-based)
             const u = new URL(url);
-            if (u.hostname === 'join') {
-              const code = u.searchParams.get('code');
-              if (code) {
-                setJoinInviteCode(code);
-                setShowJoinModal(true);
-                toast.success("Invite code detected!");
+            const scheme = u.protocol.replace(':', '');
+
+            if (scheme === 'gc' || scheme === 'goconnect') {
+              if (u.hostname === 'join' || u.pathname.startsWith('/join')) {
+                // Try query param first, then path segment
+                let code = u.searchParams.get('code');
+                if (!code && u.pathname.startsWith('/join/')) {
+                  code = u.pathname.replace('/join/', '').toUpperCase();
+                }
+                if (!code && u.hostname === 'join' && u.pathname.length > 1) {
+                  code = u.pathname.slice(1).toUpperCase();
+                }
+
+                if (code && code.length > 0) {
+                  setJoinInviteCode(code.toUpperCase());
+                  setShowJoinModal(true);
+                  toast.success("Invite code detected!");
+                }
               }
             }
           } catch (e) {
@@ -54,6 +70,7 @@ export default function App() {
     };
     initDeepLink();
   }, [toast]);
+
 
   // Initial Load
   useEffect(() => {
@@ -195,18 +212,30 @@ export default function App() {
       <Sidebar
         networks={networks}
         selectedNetworkId={selectedNetworkId}
+        peers={peers}
         onSelectNetwork={setSelectedNetworkId}
         onShowCreate={() => setShowCreateModal(true)}
         onShowJoin={() => setShowJoinModal(true)}
       />
 
+
       <NetworkDetails
         selectedNetwork={selectedNetwork}
         selfPeer={selfPeer}
+        isOwner={Boolean(selectedNetwork && selfPeer && selectedNetwork.owner_id === selfPeer.id)}
         onGenerateInvite={handleGenerateInvite}
         onLeaveNetwork={handleLeaveNetwork}
+        onRenameNetwork={() => {
+          // TODO: Wire up RenameNetworkModal
+          toast.info("Rename feature coming soon");
+        }}
+        onDeleteNetwork={() => {
+          // TODO: Wire up DeleteNetworkModal  
+          toast.info("Delete feature coming soon");
+        }}
         setActiveTab={setActiveTab}
       />
+
 
       {/* MAIN CONTENT */}
       <div className="flex-1 flex flex-col bg-gc-dark-700">
@@ -216,6 +245,12 @@ export default function App() {
             className={`h-full border-b-2 font-semibold transition-colors ${activeTab === "peers" ? "border-gc-primary text-white" : "border-transparent text-gray-400 hover:text-gray-200"}`}
           >
             Connected Peers
+          </button>
+          <button
+            onClick={() => setActiveTab("members")}
+            className={`h-full border-b-2 font-semibold transition-colors ${activeTab === "members" ? "border-gc-primary text-white" : "border-transparent text-gray-400 hover:text-gray-200"}`}
+          >
+            👥 Members
           </button>
           <button
             onClick={() => setActiveTab("chat")}
@@ -235,6 +270,7 @@ export default function App() {
           >
             Files
           </button>
+
           <button
             onClick={() => setActiveTab("metrics")}
             className={`h-full border-b-2 font-semibold transition-colors ${activeTab === "metrics" ? "border-gc-primary text-white" : "border-transparent text-gray-400 hover:text-gray-200"}`}
@@ -261,38 +297,112 @@ export default function App() {
                 <div className="space-y-3">
                   {peers.length === 0 ? (
                     <div className="text-center text-gray-500 mt-10">
-                      No peers found. Invite someone!
+                      <div className="text-4xl mb-2">👥</div>
+                      No peers found. Invite someone to join!
                     </div>
                   ) : (
-                    peers.map(peer => (
-                      <div key={peer.id} className="bg-gc-dark-800 p-4 rounded-lg flex items-center justify-between border border-gc-dark-600">
-                        <div className="flex items-center gap-4">
-                          <div className={`w-3 h-3 rounded-full ${peer.connected ? 'bg-green-500' : 'bg-gray-500'}`} />
-                          <div>
-                            <div className="font-medium text-white">{peer.name || peer.display_name || "Unknown Peer"}</div>
-                            <div className="text-sm text-gray-400 font-mono">{peer.virtual_ip}</div>
+                    peers.map(peer => {
+                      // Determine connection status
+                      const isConnecting = !peer.connected && peer.latency_ms === 0 && !peer.is_self;
+                      const statusColor = peer.connected
+                        ? 'bg-green-500'
+                        : isConnecting
+                          ? 'bg-yellow-500 animate-pulse'
+                          : 'bg-gray-500';
+                      const statusText = peer.is_self
+                        ? 'You'
+                        : peer.connected
+                          ? 'Online'
+                          : isConnecting
+                            ? 'Connecting...'
+                            : 'Offline';
+
+                      return (
+                        <div
+                          key={peer.id}
+                          className={`bg-gc-dark-800 p-4 rounded-lg flex items-center justify-between border ${peer.is_self ? 'border-gc-primary/50' : 'border-gc-dark-600'
+                            }`}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={`w-3 h-3 rounded-full ${statusColor}`} />
+                            <div>
+                              <div className="font-medium text-white flex items-center gap-2">
+                                {peer.name || peer.display_name || "Unknown Peer"}
+                                {peer.is_self && (
+                                  <span className="text-[10px] px-1.5 py-0.5 bg-gc-primary/20 text-gc-primary rounded">
+                                    You
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-sm text-gray-400 font-mono flex items-center gap-2">
+                                {peer.virtual_ip}
+                                <span className="text-[10px] text-gray-500">• {statusText}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 items-center">
+                            {/* Connection type badge */}
+                            {peer.connected && !peer.is_self && (
+                              <div className={`px-2 py-0.5 rounded text-[10px] font-medium ${peer.is_relay
+                                ? 'bg-yellow-600/20 text-yellow-400'
+                                : 'bg-green-600/20 text-green-400'
+                                }`}>
+                                {peer.is_relay ? '🔄 Relay' : '🔗 Direct'}
+                              </div>
+                            )}
+                            {!peer.is_self && peer.connected && (
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    const file = await open({
+                                      title: 'Select file to send',
+                                      multiple: false,
+                                    });
+                                    if (!file) return;
+                                    const path = typeof file === 'string' ? file : file.path;
+                                    // Note: Size validation happens in daemon
+                                    await tauriApi.sendFile(peer.id, path);
+                                    toast.success(`Sending file to ${peer.name || 'peer'}...`);
+                                    setActiveTab('files');
+                                  } catch (e) {
+                                    handleError(e, 'Failed to send file');
+                                  }
+                                }}
+                                className="px-2 py-1 bg-gc-dark-700 text-gray-300 rounded text-xs hover:bg-gc-dark-600 transition-all"
+                              >
+                                📁 Send
+                              </button>
+                            )}
+                            {!peer.is_self && peer.connected && (
+                              <button
+                                onClick={() => { setPrivateChatRecipient(peer); setActiveTab("chat"); }}
+                                className="px-3 py-1 bg-gc-primary rounded text-xs text-white hover:bg-opacity-90 transition-all font-medium"
+                              >
+                                Message
+                              </button>
+                            )}
+                            <div className={`px-3 py-1 bg-gc-dark-900 rounded text-xs ${peer.connected ? 'text-green-400' : 'text-gray-500'
+                              }`}>
+                              {peer.latency_ms > 0 ? `${peer.latency_ms}ms` : '---'}
+                            </div>
                           </div>
                         </div>
-                        <div className="flex gap-2">
-                          {!peer.is_self && (
-                            <button
-                              onClick={() => { setPrivateChatRecipient(peer); setActiveTab("chat"); }}
-                              className="px-3 py-1 bg-gc-primary rounded text-xs text-white hover:bg-opacity-90 transition-all font-medium"
-                            >
-                              Message
-                            </button>
-                          )}
-                          <div className="px-3 py-1 bg-gc-dark-900 rounded text-xs text-gray-400">
-                            {peer.latency_ms > 0 ? `${peer.latency_ms}ms` : '---'}
-                          </div>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
+
+              )}
+
+              {activeTab === 'members' && (
+                <MembersTab
+                  network={selectedNetwork}
+                  selfUserId={selfPeer?.id || ''}
+                />
               )}
 
               {activeTab === 'chat' && selectedNetworkId && (
+
                 <div className="h-full relative">
                   {privateChatRecipient && (
                     <button
@@ -312,9 +422,10 @@ export default function App() {
 
               {activeTab === 'voice' && selectedNetworkId && (
                 <div className="h-full">
-                  <VoiceChat networkId={selectedNetworkId} selfPeer={selfPeer} />
+                  <VoiceChat networkId={selectedNetworkId} selfPeer={selfPeer} connectedPeers={peers} />
                 </div>
               )}
+
 
               {activeTab === 'files' && (
                 <div className="h-full">
@@ -324,7 +435,7 @@ export default function App() {
 
               {activeTab === 'settings' && (
                 <div className="h-full">
-                  <SettingsPanel />
+                  <SettingsPanel selectedNetwork={selectedNetwork} />
                 </div>
               )}
 

@@ -144,6 +144,42 @@ services:
     # ports:
     #   - "6379:6379"
 
+  # ---------------------------------------------------------------------------
+  # coturn TURN Server (NAT Traversal)
+  # ---------------------------------------------------------------------------
+  coturn:
+    image: coturn/coturn:latest
+    container_name: goconnect-coturn
+    restart: unless-stopped
+    ports:
+      # TURN listening port (UDP primary, TCP fallback)
+      - "${TURN_PORT:-3478}:3478/udp"
+      - "${TURN_PORT:-3478}:3478/tcp"
+      # TURN TLS port (optional, for secure connections)
+      - "${TURN_TLS_PORT:-5349}:5349/udp"
+      - "${TURN_TLS_PORT:-5349}:5349/tcp"
+      # Relay ports range (for media relay)
+      - "49152-49252:49152-49252/udp"
+    environment:
+      - TURN_SECRET=${TURN_SECRET:-change-me-in-production}
+      - TURN_REALM=${TURN_REALM:-goconnect.io}
+      - TURN_EXTERNAL_IP=${TURN_EXTERNAL_IP:-}
+    volumes:
+      - ./docker/coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command: >
+      -c /etc/coturn/turnserver.conf
+      --static-auth-secret=${TURN_SECRET:-change-me-in-production}
+      --realm=${TURN_REALM:-goconnect.io}
+      ${TURN_EXTERNAL_IP:+--external-ip=${TURN_EXTERNAL_IP}}
+    healthcheck:
+      test: ["CMD", "turnutils_uclient", "-T", "-u", "test", "-w", "test", "127.0.0.1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - goconnect-net
+
 # =============================================================================
 # Networks
 # =============================================================================

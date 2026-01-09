@@ -46,11 +46,13 @@
     "deepLinkProtocols": [
       {
         "schemes": [
-          "goconnect"
+          "goconnect",
+          "gc"
         ],
         "role": "Viewer"
       }
     ]
+
   },
   "plugins": {
     "updater": {

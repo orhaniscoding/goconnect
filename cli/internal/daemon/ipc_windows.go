@@ -17,7 +17,7 @@ import (
 // Named Pipe constants for Windows IPC.
 const (
 	// PipeName is the Windows Named Pipe path for the daemon.
-	PipeName = `\\.\pipe\goconnect`
+	PipeName = `\\.\pipe\goconnect-daemon`
 
 	// Named Pipe access flags
 	PIPE_ACCESS_DUPLEX       = 0x00000003

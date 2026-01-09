@@ -201,3 +201,135 @@ func TestHashRequestBody_Error(t *testing.T) {
 		t.Error("HashRequestBody() should return error for un-marshalable type")
 	}
 }
+
+func TestValidateNetworkName(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		wantName string
+		wantErr  bool
+		errMsg   string
+	}{
+		{
+			name:     "valid simple name",
+			input:    "My Network",
+			wantName: "My Network",
+			wantErr:  false,
+		},
+		{
+			name:     "valid name with hyphens",
+			input:    "Gaming-LAN-Server",
+			wantName: "Gaming-LAN-Server",
+			wantErr:  false,
+		},
+		{
+			name:     "valid name with underscores",
+			input:    "Dev_Team_Network",
+			wantName: "Dev_Team_Network",
+			wantErr:  false,
+		},
+		{
+			name:     "valid minimum length",
+			input:    "ABC",
+			wantName: "ABC",
+			wantErr:  false,
+		},
+		{
+			name:     "valid 50 char name",
+			input:    "12345678901234567890123456789012345678901234567890",
+			wantName: "12345678901234567890123456789012345678901234567890",
+			wantErr:  false,
+		},
+		{
+			name:     "trims whitespace",
+			input:    "  My Network  ",
+			wantName: "My Network",
+			wantErr:  false,
+		},
+		{
+			name:     "collapses multiple spaces",
+			input:    "My    Network",
+			wantName: "My Network",
+			wantErr:  false,
+		},
+		{
+			name:    "too short",
+			input:   "AB",
+			wantErr: true,
+			errMsg:  "at least 3 characters",
+		},
+		{
+			name:    "too short after trim",
+			input:   "  A  ",
+			wantErr: true,
+			errMsg:  "at least 3 characters",
+		},
+		{
+			name:    "too long",
+			input:   "123456789012345678901234567890123456789012345678901",
+			wantErr: true,
+			errMsg:  "at most 50 characters",
+		},
+		{
+			name:    "leading hyphen",
+			input:   "-Network",
+			wantErr: true,
+			errMsg:  "cannot start or end with hyphens",
+		},
+		{
+			name:    "trailing hyphen",
+			input:   "Network-",
+			wantErr: true,
+			errMsg:  "cannot start or end with hyphens",
+		},
+		{
+			name:    "leading underscore",
+			input:   "_Network",
+			wantErr: true,
+			errMsg:  "cannot start or end with hyphens",
+		},
+		{
+			name:    "trailing underscore",
+			input:   "Network_",
+			wantErr: true,
+			errMsg:  "cannot start or end with hyphens",
+		},
+		{
+			name:    "invalid special chars",
+			input:   "My@Network!",
+			wantErr: true,
+			errMsg:  "can only contain letters, numbers",
+		},
+		{
+			name:    "empty string",
+			input:   "",
+			wantErr: true,
+			errMsg:  "at least 3 characters",
+		},
+		{
+			name:    "only whitespace",
+			input:   "   ",
+			wantErr: true,
+			errMsg:  "at least 3 characters",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotName, err := ValidateNetworkName(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateNetworkName() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && gotName != tt.wantName {
+				t.Errorf("ValidateNetworkName() = %q, want %q", gotName, tt.wantName)
+			}
+			if tt.wantErr && tt.errMsg != "" {
+				if err == nil || !contains(err.Error(), tt.errMsg) {
+					t.Errorf("ValidateNetworkName() error = %v, should contain %q", err, tt.errMsg)
+				}
+			}
+		})
+	}
+}
+

@@ -8,8 +8,11 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"regexp"
+	"strings"
 	"time"
 )
+
 
 // Network represents a virtual network in GoConnect
 type Network struct {
@@ -70,6 +73,56 @@ func (r *CreateNetworkRequest) ApplyDefaults() {
 		r.CIDR = "10.100.0.0/24" // Default VPN CIDR
 	}
 }
+
+// ValidateNetworkName validates and sanitizes a network name.
+// Rules:
+// - 3-50 characters after trimming
+// - Alphanumeric characters, spaces, hyphens, and underscores only
+// - No leading/trailing hyphens or underscores
+// - Consecutive spaces are collapsed to single space
+// Returns the sanitized name and any validation error.
+func ValidateNetworkName(name string) (string, error) {
+	// Trim leading/trailing whitespace
+	name = strings.TrimSpace(name)
+
+	// Collapse consecutive spaces to single space
+	spaceRegex := regexp.MustCompile(`\s+`)
+	name = spaceRegex.ReplaceAllString(name, " ")
+
+	// Check minimum length
+	if len(name) < 3 {
+		return "", NewError(ErrValidation, "network name must be at least 3 characters", map[string]any{
+			"field": "name",
+			"min":   3,
+		})
+	}
+
+	// Check maximum length
+	if len(name) > 50 {
+		return "", NewError(ErrValidation, "network name must be at most 50 characters", map[string]any{
+			"field": "name",
+			"max":   50,
+		})
+	}
+
+	// Check for valid characters only (alphanumeric, spaces, hyphens, underscores)
+	validChars := regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9 _-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]{1,2}$`)
+	if !validChars.MatchString(name) {
+		// Check if it's the leading/trailing special char issue
+		if strings.HasPrefix(name, "-") || strings.HasPrefix(name, "_") ||
+			strings.HasSuffix(name, "-") || strings.HasSuffix(name, "_") {
+			return "", NewError(ErrValidation, "network name cannot start or end with hyphens or underscores", map[string]any{
+				"field": "name",
+			})
+		}
+		return "", NewError(ErrValidation, "network name can only contain letters, numbers, spaces, hyphens, and underscores", map[string]any{
+			"field": "name",
+		})
+	}
+
+	return name, nil
+}
+
 
 // ListNetworksRequest represents query parameters for listing networks
 type ListNetworksRequest struct {

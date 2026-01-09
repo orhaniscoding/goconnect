@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
-import { tauriApi, Settings } from '../lib/tauri-api';
+import { tauriApi, Settings, NetworkInfo } from '../lib/tauri-api';
 import { handleError } from '../lib/utils';
 import { useToast } from './Toast';
+import BannedMembersPanel from './BannedMembersPanel';
 
-export default function SettingsPanel() {
+interface SettingsPanelProps {
+    selectedNetwork?: NetworkInfo | null;
+}
+
+export default function SettingsPanel({ selectedNetwork = null }: SettingsPanelProps) {
     const [settings, setSettings] = useState<Settings | null>(null);
     const [loading, setLoading] = useState(false);
     const toast = useToast();
@@ -163,6 +168,13 @@ export default function SettingsPanel() {
                         <div className={`w-4 h-4 rounded-full bg-white shadow-sm transform transition-transform duration-200 ease-in-out ${settings.start_minimized ? 'translate-x-6' : 'translate-x-0'}`} />
                     </button>
                 </div>
+
+                {/* Banned Members - only shown when a network is selected */}
+                {selectedNetwork && (
+                    <div className="pt-6 border-t border-gc-dark-700">
+                        <BannedMembersPanel network={selectedNetwork} />
+                    </div>
+                )}
 
                 <div className="pt-6 border-t border-gc-dark-700">
                     <div className="text-xs text-gray-500 uppercase font-semibold mb-3">Updates</div>

@@ -3,6 +3,9 @@ import { tauriApi, TransferInfo, TransferStats } from '../lib/tauri-api';
 import { handleError } from '../lib/utils';
 import { save } from '@tauri-apps/plugin-dialog';
 import { useToast } from './Toast';
+// Notification import ready for future use: import { notifyTransfer } from '../lib/notifications';
+
+
 
 export default function FileTransferPanel() {
     const [transfers, setTransfers] = useState<TransferInfo[]>([]);

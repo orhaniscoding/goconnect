@@ -37,7 +37,9 @@ type Manager struct {
 	latencies   map[string]int64
 	latenciesMu sync.RWMutex
 
-	stunURL string
+	// ICE configuration (legacy: stunURL)
+	stunURL   string
+	iceConfig *ICEConfig
 }
 
 type answerData struct {
@@ -303,6 +305,7 @@ type PeerStatus struct {
 	LocalCandidate  string `json:"local_candidate,omitempty"`
 	RemoteCandidate string `json:"remote_candidate,omitempty"`
 	LatencyMs       int64  `json:"latency_ms"`
+	IsRelay         bool   `json:"is_relay"`
 }
 
 // GetPeerStatus returns the status of a peer connection
@@ -321,11 +324,13 @@ func (m *Manager) GetPeerStatus(peerID string) PeerStatus {
 
 	// Get actual ICE connection state
 	state := agent.ConnectionState()
+	isRelay := agent.IsRelay()
 
 	return PeerStatus{
 		Connected:       state == ice.ConnectionStateConnected || state == ice.ConnectionStateCompleted,
 		ConnectionState: state.String(),
 		LatencyMs:       latency,
+		IsRelay:         isRelay,
 	}
 }
 

@@ -17,6 +17,7 @@ type Config struct {
 	Database  DatabaseConfig  `yaml:"database"`
 	JWT       JWTConfig       `yaml:"jwt"`
 	WireGuard WireGuardConfig `yaml:"wireguard"`
+	TURN      TURNConfig      `yaml:"turn"`
 	Audit     AuditConfig     `yaml:"audit"`
 	CORS      CORSConfig      `yaml:"cors"`
 	Redis     RedisConfig     `yaml:"redis"`
@@ -92,6 +93,15 @@ type CORSConfig struct {
 	MaxAge           time.Duration `yaml:"max_age"`
 }
 
+// TURNConfig holds TURN server configuration for NAT traversal
+type TURNConfig struct {
+	Secret       string        `yaml:"secret"`        // Shared secret for time-limited credentials (HMAC-SHA1)
+	Realm        string        `yaml:"realm"`         // TURN realm (typically your domain)
+	ServerURL    string        `yaml:"server_url"`    // TURN server URL (turn:host:port)
+	CredentialTTL time.Duration `yaml:"credential_ttl"` // Credential TTL (default: 10 minutes)
+	STUNServers  []string      `yaml:"stun_servers"`  // List of STUN server URLs
+}
+
 // Load reads configuration from environment variables
 func Load() (*Config, error) {
 	cfg := &Config{
@@ -99,6 +109,7 @@ func Load() (*Config, error) {
 		Database:  loadDatabaseConfig(),
 		JWT:       loadJWTConfig(),
 		WireGuard: loadWireGuardConfig(),
+		TURN:      loadTURNConfig(),
 		Audit:     loadAuditConfig(),
 		CORS:      loadCORSConfig(),
 		Redis:     loadRedisConfig(),
@@ -312,6 +323,19 @@ func loadRedisConfig() RedisConfig {
 		Port:     getEnv("REDIS_PORT", "6379"),
 		Password: getEnv("REDIS_PASSWORD", ""),
 		DB:       getIntEnv("REDIS_DB", 0),
+	}
+}
+
+func loadTURNConfig() TURNConfig {
+	stunServersStr := getEnv("TURN_STUN_SERVERS", "stun:stun.l.google.com:19302,stun:stun.cloudflare.com:3478")
+	stunServers := splitAndTrim(stunServersStr, ",")
+
+	return TURNConfig{
+		Secret:        getEnv("TURN_SECRET", ""),
+		Realm:         getEnv("TURN_REALM", "goconnect.io"),
+		ServerURL:     getEnv("TURN_SERVER_URL", ""),
+		CredentialTTL: getDurationEnv("TURN_CREDENTIAL_TTL", 10*time.Minute),
+		STUNServers:   stunServers,
 	}
 }
 
