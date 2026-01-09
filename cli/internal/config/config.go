@@ -109,6 +109,7 @@ func LoadConfig(path string) (*Config, error) {
 		if os.IsNotExist(err) {
 			// file not found, return default config
 			cfg = Config{}
+			cfg.Settings.NotificationsEnabled = true // Set before defaultConfig so it can be the default
 			defaultConfig(&cfg)
 			// Initialize keyring for fresh config
 			keyring, err := storage.NewKeyringStore()
@@ -116,11 +117,14 @@ func LoadConfig(path string) (*Config, error) {
 				logger.Warn("Failed to initialize keyring", "error", err)
 			}
 			cfg.Keyring = keyring
-			cfg.Settings.NotificationsEnabled = true
 			return &cfg, nil
 		}
 		return nil, err
 	}
+
+	// Pre-set NotificationsEnabled to true before unmarshaling
+	// This way, if the field is missing in YAML, it stays true
+	cfg.Settings.NotificationsEnabled = true
 
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, err
@@ -135,9 +139,6 @@ func LoadConfig(path string) (*Config, error) {
 
 	// Apply defaults to loaded config
 	defaultConfig(&cfg)
-
-	// Special handling for NotificationsEnabled: yaml unmarshal handles it, but default logic is tricky.
-	// We'll trust user config or bool default (false) if missing.
 
 	cfg.ConfigPath = path
 

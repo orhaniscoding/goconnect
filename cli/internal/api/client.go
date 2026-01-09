@@ -98,7 +98,7 @@ func (c *Client) Register(ctx context.Context, authToken string, req RegisterDev
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return nil, fmt.Errorf("server returned status: %d", resp.StatusCode)
 	}
 
@@ -180,12 +180,12 @@ func (c *Client) PollDeviceToken(ctx context.Context, deviceCode string) (*AuthR
 		// Read body for error details
 		var errResp map[string]interface{}
 		_ = json.NewDecoder(resp.Body).Decode(&errResp)
-		
+
 		// If "authorization_pending", we return a specific error so caller knows to retry
 		if msg, ok := errResp["message"].(string); ok && msg == "authorization_pending" {
 			return nil, fmt.Errorf("authorization_pending")
 		}
-		
+
 		return nil, fmt.Errorf("server returned error: %d %v", resp.StatusCode, errResp)
 	}
 
@@ -195,7 +195,6 @@ func (c *Client) PollDeviceToken(ctx context.Context, deviceCode string) (*AuthR
 	}
 	return &authResp, nil
 }
-
 
 // HeartbeatRequest matches the server's request struct
 type HeartbeatRequest struct {
