@@ -44,8 +44,9 @@ describe('ChatPanel', () => {
     it('sends message in global chat', async () => {
         render(<ChatPanel networkId="net1" />);
 
-        fireEvent.change(screen.getByPlaceholderText('Type a message...'), { target: { value: 'New Msg' } });
-        fireEvent.click(screen.getByText('Send'));
+        // Use aria-label since placeholder text has formatting hints
+        fireEvent.change(screen.getByLabelText('Type a message'), { target: { value: 'New Msg' } });
+        fireEvent.click(screen.getByLabelText('Send message'));
 
         await waitFor(() => {
             expect(tauriApi.sendMessage).toHaveBeenCalledWith('net1', 'New Msg');
@@ -70,8 +71,9 @@ describe('ChatPanel', () => {
     it('shows warning when sending in private chat', async () => {
         render(<ChatPanel networkId="net1" recipientId="peer2" />);
 
-        fireEvent.change(screen.getByPlaceholderText('Type a message (Mock)'), { target: { value: 'Private Msg' } });
-        fireEvent.click(screen.getByText('Send'));
+        // Use aria-label instead - private chat has 'Private messages coming soon...' placeholder
+        fireEvent.change(screen.getByLabelText('Type a message'), { target: { value: 'Private Msg' } });
+        fireEvent.click(screen.getByLabelText('Send message'));
 
         await waitFor(() => {
             expect(tauriApi.sendMessage).not.toHaveBeenCalled();
