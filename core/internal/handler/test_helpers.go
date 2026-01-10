@@ -78,6 +78,8 @@ func (m *mockAuthService) ValidateToken(ctx context.Context, token string) (*dom
 }
 
 // createTestNetwork creates a network in the repository for testing
+//
+//nolint:unused // Reserved for future test expansion
 func createTestNetwork(ctx context.Context, networkRepo repository.NetworkRepository, createdBy, tenantID, networkID string) error {
 	network := &domain.Network{
 		ID:         networkID,
@@ -94,6 +96,8 @@ func createTestNetwork(ctx context.Context, networkRepo repository.NetworkReposi
 }
 
 // createTestMembership creates a membership in the repository for testing
+//
+//nolint:unused // Reserved for future test expansion
 func createTestMembership(ctx context.Context, membershipRepo repository.MembershipRepository, networkID, userID string, role domain.MembershipRole) error {
 	_, err := membershipRepo.UpsertApproved(ctx, networkID, userID, role, time.Now())
 	return err

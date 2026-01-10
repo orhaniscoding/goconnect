@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/orhaniscoding/goconnect/server/internal/metrics"
-	_ "modernc.org/sqlite"
+	_ "modernc.org/sqlite" // SQLite driver registration
 )
 
 // SqliteAuditor persists audit events to SQLite with a verifiable hash chain and optional anchors.

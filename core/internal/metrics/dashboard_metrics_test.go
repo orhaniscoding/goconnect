@@ -6,11 +6,9 @@ import (
 
 func TestSetWSConnections(t *testing.T) {
 	SetWSConnections(5)
-	summary := GetSummary()
-	if summary.WSConnections != 0 {
-		// Note: Summary uses cache, not direct Prometheus read
-		// This tests the function doesn't panic
-	}
+	// Test function executes without panic
+	// Note: Summary uses cache, not direct Prometheus read
+	_ = GetSummary()
 }
 
 func TestSetWSRooms(t *testing.T) {
