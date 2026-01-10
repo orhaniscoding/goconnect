@@ -28,7 +28,7 @@ export default function App() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [joinInviteCode, setJoinInviteCode] = useState("");
-  const [activeTab, setActiveTab] = useState<"peers" | "chat" | "files" | "settings" | "voice" | "metrics">("peers");
+  const [activeTab, setActiveTab] = useState<"peers" | "chat" | "files" | "settings" | "voice" | "metrics" | "members">("peers");
 
   const toast = useToast();
 
@@ -359,7 +359,9 @@ export default function App() {
                                       multiple: false,
                                     });
                                     if (!file) return;
-                                    const path = typeof file === 'string' ? file : file.path;
+                                    // file can be string (single) or string[] (multiple) or null
+                                    const path = Array.isArray(file) ? file[0] : file;
+                                    if (!path) return;
                                     // Note: Size validation happens in daemon
                                     await tauriApi.sendFile(peer.id, path);
                                     toast.success(`Sending file to ${peer.name || 'peer'}...`);

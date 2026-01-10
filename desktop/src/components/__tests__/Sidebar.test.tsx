@@ -1,11 +1,15 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import Sidebar from '../Sidebar';
-import { NetworkInfo } from '../../lib/tauri-api';
+import { NetworkInfo, PeerInfo } from '../../lib/tauri-api';
 
 const mockNetworks: NetworkInfo[] = [
-    { id: 'net-1', name: 'Alpha Corp', invite_code: 'abc-123' },
-    { id: 'net-2', name: 'Beta Team', invite_code: 'xyz-789' },
+    { id: 'net-1', name: 'Alpha Corp', invite_code: 'abc-123', owner_id: 'user-1' },
+    { id: 'net-2', name: 'Beta Team', invite_code: 'xyz-789', owner_id: 'user-2' },
+];
+
+const mockPeers: PeerInfo[] = [
+    { id: 'peer-1', name: 'Peer 1', display_name: 'Peer 1', virtual_ip: '10.0.0.1', connected: true, is_relay: false, latency_ms: 10, is_self: false }
 ];
 
 describe('Sidebar', () => {
@@ -14,6 +18,7 @@ describe('Sidebar', () => {
             <Sidebar
                 networks={mockNetworks}
                 selectedNetworkId={null}
+                peers={mockPeers}
                 onSelectNetwork={vi.fn()}
                 onShowCreate={vi.fn()}
                 onShowJoin={vi.fn()}
@@ -31,6 +36,7 @@ describe('Sidebar', () => {
             <Sidebar
                 networks={mockNetworks}
                 selectedNetworkId="net-1"
+                peers={mockPeers}
                 onSelectNetwork={vi.fn()}
                 onShowCreate={vi.fn()}
                 onShowJoin={vi.fn()}
@@ -50,6 +56,7 @@ describe('Sidebar', () => {
             <Sidebar
                 networks={mockNetworks}
                 selectedNetworkId={null}
+                peers={mockPeers}
                 onSelectNetwork={onSelect}
                 onShowCreate={vi.fn()}
                 onShowJoin={vi.fn()}
@@ -67,6 +74,7 @@ describe('Sidebar', () => {
             <Sidebar
                 networks={mockNetworks}
                 selectedNetworkId={null}
+                peers={mockPeers}
                 onSelectNetwork={vi.fn()}
                 onShowCreate={onCreate}
                 onShowJoin={onJoin}
@@ -80,3 +88,4 @@ describe('Sidebar', () => {
         expect(onJoin).toHaveBeenCalled();
     });
 });
+

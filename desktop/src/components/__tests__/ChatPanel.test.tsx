@@ -21,9 +21,9 @@ vi.mock('../Toast', () => ({
 window.HTMLElement.prototype.scrollIntoView = vi.fn();
 
 const mockMessages: ChatMessage[] = [
-    { id: '1', peer_id: 'peer1', content: 'Hello Public', timestamp: new Date().toISOString(), is_self: false },
-    { id: '2', peer_id: 'peer2', content: 'Hello Private', timestamp: new Date().toISOString(), is_self: false },
-    { id: '3', peer_id: 'self', content: 'My Msg', timestamp: new Date().toISOString(), is_self: true },
+    { id: '1', peer_id: 'peer1', peer_name: 'Peer One', content: 'Hello Public', timestamp: new Date().toISOString(), is_self: false },
+    { id: '2', peer_id: 'peer2', peer_name: 'Peer Two', content: 'Hello Private', timestamp: new Date().toISOString(), is_self: false },
+    { id: '3', peer_id: 'self', peer_name: 'Me', content: 'My Msg', timestamp: new Date().toISOString(), is_self: true },
 ];
 
 describe('ChatPanel', () => {
