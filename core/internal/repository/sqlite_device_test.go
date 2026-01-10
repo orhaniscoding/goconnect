@@ -416,8 +416,8 @@ func TestSQLiteDeviceRepository_List_Filters(t *testing.T) {
 
 		result2, _, err := repo.List(ctx, domain.DeviceFilter{TenantID: "tenant-1", Limit: 2, Cursor: cursor})
 		require.NoError(t, err)
-		// Should have remaining items (1 or more based on sort order)
-		assert.True(t, len(result2) >= 1)
+		// With 3 items in tenant-1 and limit 2, the second page should have 1 remaining item
+		assert.Len(t, result2, 1)
 	})
 }
 
