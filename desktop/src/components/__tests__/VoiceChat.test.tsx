@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { vi, describe, beforeEach, test, expect } from 'vitest';
 import VoiceChat from '../VoiceChat';
@@ -18,6 +18,19 @@ vi.mock('../../lib/tauri-api', () => ({
         })
     }
 }));
+
+// Mock navigator.mediaDevices for voice testing
+const mockMediaStream = {
+    getTracks: () => [{ stop: vi.fn(), enabled: true }],
+    getAudioTracks: () => [{ stop: vi.fn(), enabled: true }]
+};
+
+Object.defineProperty(navigator, 'mediaDevices', {
+    value: {
+        getUserMedia: vi.fn().mockResolvedValue(mockMediaStream)
+    },
+    writable: true
+});
 
 describe('VoiceChat Component', () => {
     const mockSelfPeer: PeerInfo = {
@@ -58,17 +71,22 @@ describe('VoiceChat Component', () => {
         expect(screen.getByText('No activity')).toBeInTheDocument();
     });
 
-    test('can join and leave voice channel', () => {
+    test('can join and leave voice channel', async () => {
         render(<VoiceChat networkId="net-1" selfPeer={mockSelfPeer} connectedPeers={mockConnectedPeers} />);
 
-        // Join - button has emoji prefix
+        // Join - button has emoji prefix, action is async due to getUserMedia
         fireEvent.click(screen.getByText(/Join Voice/i));
-        expect(screen.getByText(/Leave Voice/i)).toBeInTheDocument();
+
+        await waitFor(() => {
+            expect(screen.getByText(/Leave Voice/i)).toBeInTheDocument();
+        });
         expect(screen.getByText(/Joined voice channel/i)).toBeInTheDocument();
 
         // Leave
         fireEvent.click(screen.getByText(/Leave Voice/i));
-        expect(screen.getByText(/Join Voice/i)).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.getByText(/Join Voice/i)).toBeInTheDocument();
+        });
         expect(screen.getByText(/Left voice channel/i)).toBeInTheDocument();
     });
 });

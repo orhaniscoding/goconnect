@@ -98,7 +98,8 @@ describe('NetworkModals', () => {
 
             expect(screen.getByText('Join Network', { selector: 'h3' })).toBeInTheDocument();
 
-            const input = screen.getByPlaceholderText(/INVITE CODE/i);
+            // Placeholder is ABC12XYZ (example format)
+            const input = screen.getByPlaceholderText(/ABC12XYZ/i);
             fireEvent.change(input, { target: { value: 'ABC123' } });
 
             fireEvent.click(screen.getByRole('button', { name: /Join/i }));
