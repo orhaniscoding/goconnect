@@ -56,17 +56,16 @@ describe('NetworkModals', () => {
             });
         });
 
-        it('shows validation error for short name', async () => {
+        it('disables create button for short name', async () => {
             const onSubmit = vi.fn();
             render(<CreateNetworkModal isOpen={true} onClose={vi.fn()} onSubmit={onSubmit} />);
 
             const input = screen.getByPlaceholderText(/Network Name/);
             fireEvent.change(input, { target: { value: 'AB' } });
-            fireEvent.click(screen.getByRole('button', { name: /Create/i }));
 
-            await waitFor(() => {
-                expect(screen.getByText(/at least 3 characters/)).toBeInTheDocument();
-            });
+            // Button should be disabled when name is under 3 characters
+            const createBtn = screen.getByRole('button', { name: /Create/i });
+            expect(createBtn).toBeDisabled();
             expect(onSubmit).not.toHaveBeenCalled();
         });
 
