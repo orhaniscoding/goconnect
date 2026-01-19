@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -61,6 +62,9 @@ func TestGRPCServer_Integration_StartAndConnect(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix socket integration test skipped on Windows")
+	}
 
 	srv, mockEng, socketPath := setupIntegrationServer(t)
 
@@ -113,6 +117,9 @@ func TestGRPCServer_Integration_StartAndConnect(t *testing.T) {
 func TestGRPCServer_Integration_SubscribeMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
+	}
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix socket integration test skipped on Windows")
 	}
 
 	srv, mockEng, socketPath := setupIntegrationServer(t)
@@ -167,6 +174,9 @@ func TestGRPCServer_Integration_AuthFailure(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix socket integration test skipped on Windows")
+	}
 
 	srv, mockEng, socketPath := setupIntegrationServer(t)
 
@@ -203,6 +213,9 @@ func TestGRPCServer_Integration_AuthFailure(t *testing.T) {
 func TestGRPCServer_Integration_SubscribeTransfers(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
+	}
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix socket integration test skipped on Windows")
 	}
 
 	srv, mockEng, socketPath := setupIntegrationServer(t)
@@ -258,6 +271,9 @@ func TestGRPCServer_Integration_Subscribe(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix socket integration test skipped on Windows")
+	}
 
 	srv, _, socketPath := setupIntegrationServer(t)
 
@@ -310,6 +326,9 @@ func TestGRPCServer_Integration_Subscribe(t *testing.T) {
 func TestGRPCServer_Integration_VoiceSignals(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
+	}
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix socket integration test skipped on Windows")
 	}
 
 	srv, mockEng, socketPath := setupIntegrationServer(t)
@@ -376,6 +395,9 @@ func TestGRPCServer_Integration_Subscribe_Filtered(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix socket integration test skipped on Windows")
+	}
 
 	srv, _, socketPath := setupIntegrationServer(t)
 
@@ -437,6 +459,9 @@ func TestGRPCServer_Integration_Subscribe_Filtered(t *testing.T) {
 func TestGRPCServer_Integration_VoiceSignals_Errors(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
+	}
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix socket integration test skipped on Windows")
 	}
 
 	srv, _, socketPath := setupIntegrationServer(t)

@@ -1,6 +1,7 @@
 package deeplink
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -171,7 +172,7 @@ func TestGetDefaultGRPCTarget(t *testing.T) {
 	// On Windows, it should be a TCP address
 	// Just verify it's set to something reasonable
 	assert.True(t,
-		target == "unix:///tmp/goconnect-daemon.sock" || // Unix
+		strings.HasPrefix(target, "unix://") || // Unix socket
 			target == "127.0.0.1:34101", // Windows
 		"unexpected default target: %s", target)
 }

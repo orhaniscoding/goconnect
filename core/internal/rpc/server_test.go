@@ -59,6 +59,10 @@ func TestListenUnix_Permissions(t *testing.T) {
 }
 
 func TestServer_StartStop(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix socket test skipped on Windows - named pipes work differently")
+	}
+
 	tmpDir := t.TempDir()
 	socketPath := filepath.Join(tmpDir, "test_server.sock")
 
@@ -75,13 +79,13 @@ func TestServer_StartStop(t *testing.T) {
 	}()
 
 	// Give it a moment to start
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	// Connect and test GetVersion
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	conn, err := grpc.DialContext(ctx, "unix://"+socketPath, 
+	conn, err := grpc.DialContext(ctx, "unix://"+socketPath,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithBlock())
 	require.NoError(t, err)
@@ -95,7 +99,7 @@ func TestServer_StartStop(t *testing.T) {
 	// Test Shutdown call
 	_, err = client.Shutdown(ctx, &emptypb.Empty{})
 	require.NoError(t, err)
-	
+
 	// Shutdown is async (go h.daemon.Stop()), wait a bit
 	time.Sleep(100 * time.Millisecond)
 	assert.True(t, md.stopCalled)

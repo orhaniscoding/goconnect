@@ -1178,7 +1178,14 @@ func TestCreateReceiveSession_InvalidDirectory(t *testing.T) {
 		FileSize: 100,
 	}
 
-	_, err := tm.CreateReceiveSession(req, "sender", "/nonexistent/directory/test.txt")
+	// Use a path that definitely doesn't exist on any OS
+	// Create a temp dir, then remove it, to get a guaranteed non-existent path
+	tmpDir, err := os.MkdirTemp("", "nonexistent_test")
+	require.NoError(t, err)
+	nonExistentPath := filepath.Join(tmpDir, "subdir", "test.txt")
+	os.RemoveAll(tmpDir) // Remove the temp dir so it doesn't exist
+
+	_, err = tm.CreateReceiveSession(req, "sender", nonExistentPath)
 	assert.Error(t, err, "Should return error for non-existent directory")
 	assert.Contains(t, err.Error(), "destination directory does not exist")
 }
