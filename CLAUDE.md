@@ -248,10 +248,112 @@ Bu durumda Claude:
 
 ---
 
-## 9. SON HÜKÜM
+## 9. DEPENDENCY POLİTİKASI (ZERO-DEPENDENCY PRINCIPLE)
+
+### 9.1 Production Binary Kuralı (DEĞİŞTİRİLEMEZ)
+
+Production binary (kullanıcıya ulaşan executable) **hiçbir dış bağımlılık olmadan çalışmalıdır**.
+
+Hedef ortam:
+* Sıfırdan kurulmuş bir sistem (Windows/Linux/macOS)
+* Format sonrası ilk açılım
+* İnternet bağlantısı olmadan
+* Ek kurulum gerektirmeden
+
+**→ Program tek .exe/.app dosyası olarak çalışabilmelidir**
+
+### 9.2 Development vs Production Ayrımı
+
+**Development-only dependencies (İZİN VERİLEN):**
+* Test framework'leri (`testify`, `mock`)
+* Code generation tools (`sqlc`, `wire`)
+* Linter/formatter (`golangci-lint`)
+* Development tools (`air`, `delve`)
+* Build tools (`make`, `docker`)
+
+**Production code (YASAK):**
+* ORM kütüphaneleri (`gorm`, `sqlx`, `xorm`)
+* Heavy abstraction libraries
+* Convenience wrappers
+* "Magic" kütüphaneler
+* Gereksiz HTTP/JSON libraries
+
+### 9.3 Alternatif: Custom Implementation
+
+Dış kütüphane yerine minimal custom implementation **ZORUNLU OLARAK** tercih edilir:
+
+* **150-300 satır custom kod** ≫ **5000+ satır dependency**
+* **Kontrolümüz altında** ≫ **Supply chain risk**
+* **Basit ve anlaşılır** ≫ **Sihirli abstraction**
+* **Test edilebilir** ≫ **Black box behavior**
+
+**Örnek:**
+```go
+// ❌ YASAK
+import "github.com/jmoiron/sqlx"
+err := db.GetContext(ctx, &user, query, id)
+
+// ✅ ZORUNLU
+import "database/sql"
+row := db.QueryRowContext(ctx, query, id)
+err := database.ScanRow(row, &user) // Custom 150-line scanner
+```
+
+### 9.4 İstisna Kuralı
+
+Ancak ve ancak şu durumlarda dış dependency kabul edilir:
+
+1. **Security-critical**: Kriptografi (`crypto/*` stdlib veya battle-tested)
+2. **Protocol implementation**: HTTP/2, WebRTC, WireGuard (proven libraries)
+3. **Performance-critical**: SIMD, assembly optimizations (measurable benefit)
+4. **Massive complexity**: QUIC, P2P networking (binlerce satır kod gerektiren)
+
+**Her dependency için:**
+* Gerekçe ZORUNLU
+* Alternatif custom implementation araştırması ZORUNLU
+* Binary size impact ölçümü ZORUNLU
+* Security audit ZORUNLU
+
+### 9.5 Dependency Ekleme Protokolü
+
+Yeni dependency eklemek için:
+
+1. **Gerekçe belgele**: Neden custom implementation yetersiz?
+2. **Alternatif araştır**: Hangi custom çözümler denendi?
+3. **Impact ölç**: Binary size, compile time, security surface
+4. **İnsan onayı AL**: Production dependency değişikliği kritik eşiktir
+
+**Claude tek başına production dependency EKLEYEMEZ**
+
+### 9.6 Kontrol Checklist
+
+Her yeni import için:
+
+```go
+import "github.com/external/library" // ← BU SATIR EKLENİRKEN:
+```
+
+- [ ] Bu kod production binary'ye gidiyor mu?
+- [ ] Custom implementation yazmak mümkün mü? (~300 satır altı)
+- [ ] Security-critical / Protocol / Performance gerekçesi var mı?
+- [ ] Binary size impact ölçüldü mü?
+- [ ] İnsan onayı alındı mı?
+
+**5 sorudan biri bile "hayır" ise: Dependency ekleme YASAK**
+
+---
+
+## 10. SON HÜKÜM
 
 Bu dosya bağlayıcıdır.
 Kurallara uymayan ama çalışan kod kabul edilmez.
 
-Claude’un görevi hızlı olmak değil,
+Claude'un görevi hızlı olmak değil,
 **doğru, güvenli ve test edilmiş çözüm üretmektir**.
+
+---
+
+**İmplementation Örneği (Referans):**
+* `core/internal/database/scanner.go` - Zero-dependency struct scanner (150 satır, stdlib only)
+* sqlx dependency kaldırıldı, custom scanner kullanılıyor
+* Production binary: Tek executable, sıfır dış bağımlılık
