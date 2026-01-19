@@ -101,7 +101,7 @@ func (r *SQLiteDeviceRepository) List(ctx context.Context, filter domain.DeviceF
 		args = append(args, term, term)
 	}
 	if filter.Cursor != "" {
-		query += " AND id > ?"
+		query += " AND id < ?"
 		args = append(args, filter.Cursor)
 	}
 	if filter.Limit <= 0 {
@@ -110,7 +110,7 @@ func (r *SQLiteDeviceRepository) List(ctx context.Context, filter domain.DeviceF
 	if filter.Limit > 100 {
 		filter.Limit = 100
 	}
-	query += " ORDER BY created_at DESC LIMIT ?"
+	query += " ORDER BY id DESC LIMIT ?"
 	args = append(args, filter.Limit+1)
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
@@ -132,7 +132,8 @@ func (r *SQLiteDeviceRepository) List(ctx context.Context, filter domain.DeviceF
 	}
 	next := ""
 	if len(result) > filter.Limit {
-		next = result[filter.Limit].ID
+		// Return the last item's ID from the page as cursor for next page
+		next = result[filter.Limit-1].ID
 		result = result[:filter.Limit]
 	}
 	return result, next, nil
