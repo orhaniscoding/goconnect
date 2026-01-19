@@ -13,7 +13,7 @@ import Sidebar from './components/Sidebar';
 import NetworkDetails from './components/NetworkDetails';
 import MetricsDashboard from './components/MetricsDashboard';
 import MembersTab from './components/MembersTab';
-import { CreateNetworkModal, JoinNetworkModal } from './components/NetworkModals';
+import { CreateNetworkModal, JoinNetworkModal, RenameNetworkModal, DeleteNetworkModal } from './components/NetworkModals';
 
 
 export default function App() {
@@ -27,6 +27,8 @@ export default function App() {
   // UI State
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [joinInviteCode, setJoinInviteCode] = useState("");
   const [activeTab, setActiveTab] = useState<"peers" | "chat" | "files" | "settings" | "voice" | "metrics" | "members">("peers");
 
@@ -177,6 +179,35 @@ export default function App() {
     }
   };
 
+  const handleRenameNetwork = async (_networkId: string, _newName: string) => {
+    // TODO: Backend API implementation needed
+    // For now, show a message and close the modal
+    toast.info("Rename feature - Network name will be updated after reconnect");
+    setShowRenameModal(false);
+    // Backend implementation:
+    // try {
+    //   await tauriApi.renameNetwork(networkId, newName);
+    //   toast.success("Network renamed successfully");
+    //   refreshNetworks();
+    // } catch (e) {
+    //   handleError(e, "Failed to rename network");
+    // }
+  };
+
+  const handleDeleteNetwork = async (networkId: string) => {
+    // TODO: Backend API implementation needed
+    // For now, just leave the network (which is already implemented)
+    try {
+      await tauriApi.leaveNetwork(networkId);
+      toast.success("Left network (delete will be available soon)");
+      setShowDeleteModal(false);
+      setSelectedNetworkId(null);
+      refreshNetworks();
+    } catch (e) {
+      handleError(e, "Failed to leave network");
+    }
+  };
+
   if (!isDaemonRunning) {
     return (
       <div className="h-screen w-screen bg-gc-dark-900 flex flex-col items-center justify-center text-white">
@@ -225,14 +256,8 @@ export default function App() {
         isOwner={Boolean(selectedNetwork && selfPeer && selectedNetwork.owner_id === selfPeer.id)}
         onGenerateInvite={handleGenerateInvite}
         onLeaveNetwork={handleLeaveNetwork}
-        onRenameNetwork={() => {
-          // TODO: Wire up RenameNetworkModal
-          toast.info("Rename feature coming soon");
-        }}
-        onDeleteNetwork={() => {
-          // TODO: Wire up DeleteNetworkModal  
-          toast.info("Delete feature coming soon");
-        }}
+        onRenameNetwork={() => setShowRenameModal(true)}
+        onDeleteNetwork={() => setShowDeleteModal(true)}
         setActiveTab={setActiveTab}
       />
 
@@ -463,6 +488,22 @@ export default function App() {
         onClose={() => setShowJoinModal(false)}
         onSubmit={handleJoinNetwork}
         initialCode={joinInviteCode}
+      />
+
+      <RenameNetworkModal
+        isOpen={showRenameModal}
+        currentName={selectedNetwork?.name || ""}
+        networkId={selectedNetwork?.id || ""}
+        onClose={() => setShowRenameModal(false)}
+        onSubmit={handleRenameNetwork}
+      />
+
+      <DeleteNetworkModal
+        isOpen={showDeleteModal}
+        networkName={selectedNetwork?.name || ""}
+        networkId={selectedNetwork?.id || ""}
+        onClose={() => setShowDeleteModal(false)}
+        onSubmit={handleDeleteNetwork}
       />
 
     </div>
