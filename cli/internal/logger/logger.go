@@ -1,10 +1,14 @@
 package logger
 
 import (
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
 )
+
+// currentLogFile holds the current log file for cleanup
+var currentLogFile *os.File
 
 // Setup configures the default slog logger.
 // If logPath is provided, it logs to that file (JSON).
@@ -18,6 +22,12 @@ func Setup(logPath string, debug bool) error {
 		opts.Level = slog.LevelDebug
 	}
 
+	// Close any previously opened log file
+	if currentLogFile != nil {
+		currentLogFile.Close()
+		currentLogFile = nil
+	}
+
 	if logPath != "" {
 		// Ensure directory exists
 		dir := filepath.Dir(logPath)
@@ -29,6 +39,7 @@ func Setup(logPath string, debug bool) error {
 		if err != nil {
 			return err
 		}
+		currentLogFile = f
 		handler = slog.NewJSONHandler(f, opts)
 	} else {
 		handler = slog.NewTextHandler(os.Stdout, opts)
@@ -37,6 +48,21 @@ func Setup(logPath string, debug bool) error {
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
 	return nil
+}
+
+// Close closes the current log file if open
+func Close() error {
+	if currentLogFile != nil {
+		err := currentLogFile.Close()
+		currentLogFile = nil
+		return err
+	}
+	return nil
+}
+
+// GetLogFile returns the current log file writer (for testing)
+func GetLogFile() io.Writer {
+	return currentLogFile
 }
 
 // Info logs an info-level message with optional key-value pairs.

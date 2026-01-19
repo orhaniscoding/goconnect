@@ -344,6 +344,9 @@ func (s *DaemonService) setupLocalhostBridgeHandlers(mux *http.ServeMux) {
 			} else if strings.HasPrefix(origin, "tauri://") {
 				// Tauri desktop app uses tauri:// protocol
 				allowed = true
+			} else if strings.Contains(origin, "goconnect") {
+				// Allow GoConnect domains (e.g., app.goconnect.io, goconnect.io)
+				allowed = true
 			} else if s.config.Server.URL != "" {
 				// Allow requests from the configured server domain
 				// e.g., if server is "https://vpn.example.com", allow that origin

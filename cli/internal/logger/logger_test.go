@@ -27,9 +27,12 @@ func TestSetup(t *testing.T) {
 
 		// Verify file was created
 		assert.FileExists(t, logPath)
-		
+
 		// Verify directory was created
 		assert.DirExists(t, filepath.Dir(logPath))
+
+		// Close the log file to allow cleanup on Windows
+		Close()
 	})
 
 	t.Run("Setup Error On Invalid Path", func(t *testing.T) {
