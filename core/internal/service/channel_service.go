@@ -314,10 +314,43 @@ func (s *ChannelService) List(ctx context.Context, input ListChannelsInput) ([]d
 		return nil, "", fmt.Errorf("failed to list channels: %w", err)
 	}
 
-	// TODO: Filter channels based on per-channel VIEW_CHANNELS permission overrides
-	// For now, returning all channels user can see at tenant level
+	// Filter channels based on per-channel VIEW_CHANNELS permission overrides
+	// Even if user has VIEW_CHANNELS at tenant level, individual channels may deny access
+	filteredChannels := make([]domain.Channel, 0, len(channels))
+	for _, channel := range channels {
+		// Handle pointer TenantID
+		tenantID := ""
+		if channel.TenantID != nil {
+			tenantID = *channel.TenantID
+		}
 
-	return channels, nextCursor, nil
+		// Check per-channel permission
+		channelPermResult, err := s.permissionResolver.CheckPermission(
+			ctx,
+			input.UserID,
+			tenantID,
+			channel.ID,
+			domain.PermissionViewChannels,
+		)
+		if err != nil {
+			// Log error but continue - skip channels where permission check fails
+			continue
+		}
+
+		// Only include channels user can view
+		if channelPermResult.Allowed {
+			filteredChannels = append(filteredChannels, channel)
+		}
+	}
+
+	// Adjust cursor if filtering reduced results below limit
+	// If we filtered out all channels and there might be more, keep the original cursor
+	if len(filteredChannels) == 0 && len(channels) > 0 && nextCursor != "" {
+		// No visible channels in this page, but there might be more
+		return filteredChannels, nextCursor, nil
+	}
+
+	return filteredChannels, nextCursor, nil
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

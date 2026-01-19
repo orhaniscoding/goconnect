@@ -110,6 +110,7 @@ func (pr *PermissionResolver) CheckPermission(
 	// DENY overrides take precedence over ALLOW
 	overrideResult, err := pr.applyChannelOverrides(
 		ctx,
+		userID,
 		userRoles,
 		channelID,
 		permission,
@@ -193,6 +194,7 @@ func (pr *PermissionResolver) CheckMultiplePermissions(
 			}
 		} else {
 			overrideResult := pr.applyOverridesToPermission(
+				userID,
 				userRoles,
 				overrides,
 				perm,
@@ -280,6 +282,7 @@ func (pr *PermissionResolver) hasPermissionInSet(permission string, permissions 
 // Priority: DENY > ALLOW > BASE
 func (pr *PermissionResolver) applyChannelOverrides(
 	ctx context.Context,
+	userID string,
 	userRoles []domain.Role,
 	channelID, permission string,
 	baseAllowed bool,
@@ -289,7 +292,7 @@ func (pr *PermissionResolver) applyChannelOverrides(
 		return nil, fmt.Errorf("failed to get channel overrides: %w", err)
 	}
 
-	return pr.applyOverridesToPermission(userRoles, overrides, permission, baseAllowed), nil
+	return pr.applyOverridesToPermission(userID, userRoles, overrides, permission, baseAllowed), nil
 }
 
 // applyOverridesToPermission applies overrides to a single permission
@@ -298,6 +301,7 @@ func (pr *PermissionResolver) applyChannelOverrides(
 // - Allowed = false → DENY override
 // - Allowed = nil → INHERIT (no override)
 func (pr *PermissionResolver) applyOverridesToPermission(
+	userID string,
 	userRoles []domain.Role,
 	overrides []domain.ChannelPermissionOverride,
 	permission string,
@@ -326,11 +330,34 @@ func (pr *PermissionResolver) applyOverridesToPermission(
 			continue
 		}
 
+		// User-specific overrides take HIGHEST priority
+		// Check if this is a user-specific override for this user
+		if override.UserID != nil {
+			if *override.UserID == userID {
+				// Found a user-specific override - apply immediately
+				// User-specific overrides are final and bypass role overrides
+				if override.Allowed != nil {
+					if *override.Allowed {
+						result.Allowed = true
+						result.OverrideType = "allow"
+						result.Reason = "allowed by user-specific channel override"
+					} else {
+						result.Allowed = false
+						result.OverrideType = "deny"
+						result.Reason = "denied by user-specific channel override"
+					}
+					return result // User-specific override is final
+				}
+				// If Allowed is nil (inherit), continue to check role overrides
+			}
+			// User-specific override for different user - skip
+			continue
+		}
+
 		// Skip if override doesn't apply to user's roles
 		if override.RoleID != nil && !roleIDs[*override.RoleID] {
 			continue
 		}
-		// TODO: Handle user-specific overrides when UserID is set
 
 		// Skip inherit overrides (Allowed = nil)
 		if override.Allowed == nil {
