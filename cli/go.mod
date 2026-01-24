@@ -11,7 +11,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.2.4
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/google/uuid v1.6.0
-	github.com/gorilla/mux v1.7.4
+	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/kardianos/service v1.2.2
 	github.com/pion/ice/v2 v2.3.38
