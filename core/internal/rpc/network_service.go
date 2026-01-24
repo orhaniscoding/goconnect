@@ -1,42 +1,41 @@
 package rpc
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 
 	"github.com/orhaniscoding/goconnect/server/internal/auth"
-	"github.com/orhaniscoding/goconnect/server/internal/domain"
 	"github.com/orhaniscoding/goconnect/server/internal/logger"
 	"github.com/orhaniscoding/goconnect/server/internal/proto"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-// NetworkServiceInterface defines the interface for network operations.
-// This prevents import cycle with service package.
-type NetworkServiceInterface interface {
-	UpdateNetwork(ctx context.Context, id, actor, tenantID string, patch map[string]any) (*domain.Network, error)
+// BackendClient defines the interface for backend HTTP operations.
+type BackendClient interface {
+	GetBaseURL() string
+	GetHTTPClient() *http.Client
 }
 
 // NetworkServiceHandler implements the NetworkServiceServer gRPC interface.
 type NetworkServiceHandler struct {
 	proto.UnimplementedNetworkServiceServer
-	networkService  NetworkServiceInterface
-	tokenManager    auth.TokenManager
-	defaultTenantID string
+	backend      BackendClient
+	tokenManager auth.TokenManager
 }
 
 // NewNetworkServiceHandler creates a new handler for the Network service.
 func NewNetworkServiceHandler(
-	networkService NetworkServiceInterface,
+	backend BackendClient,
 	tokenManager auth.TokenManager,
-	defaultTenantID string,
 ) *NetworkServiceHandler {
 	return &NetworkServiceHandler{
-		networkService:  networkService,
-		tokenManager:    tokenManager,
-		defaultTenantID: defaultTenantID,
+		backend:      backend,
+		tokenManager: tokenManager,
 	}
 }
 
@@ -49,23 +48,11 @@ func (h *NetworkServiceHandler) UpdateNetwork(ctx context.Context, req *proto.Up
 		return nil, fmt.Errorf("network_id is required")
 	}
 
-	// 2. Get authenticated user from token
+	// 2. Get authenticated user token
 	session, err := h.tokenManager.LoadSession()
 	if err != nil {
 		logger.Warn("UpdateNetwork: No valid session", "error", err)
 		return nil, fmt.Errorf("authentication required")
-	}
-
-	// Parse JWT to get UserID
-	userID, err := extractUserIDFromJWT(session.AccessToken)
-	if err != nil {
-		logger.Warn("UpdateNetwork: Failed to extract UserID from token", "error", err)
-		return nil, fmt.Errorf("authentication required")
-	}
-
-	tenantID := h.defaultTenantID
-	if tenantID == "" {
-		tenantID = "default"
 	}
 
 	// 3. Build patch map from proto request
@@ -80,38 +67,102 @@ func (h *NetworkServiceHandler) UpdateNetwork(ctx context.Context, req *proto.Up
 		return nil, fmt.Errorf("no fields to update")
 	}
 
-	// 4. Call existing HTTP service layer (reuse business logic)
-	updated, err := h.networkService.UpdateNetwork(ctx, req.NetworkId, userID, tenantID, patch)
+	// 4. Call Backend HTTP API: PATCH /v1/networks/:id
+	network, err := h.callBackendUpdateNetwork(ctx, req.NetworkId, session.AccessToken, patch)
 	if err != nil {
-		// Check if it's a domain error
-		if domainErr, ok := err.(*domain.Error); ok {
-			logger.Warn("UpdateNetwork: Domain error",
-				"network_id", req.NetworkId,
-				"actor_id", userID,
-				"error_code", domainErr.Code,
-				"error", domainErr.Message,
-			)
-			return nil, fmt.Errorf("%s", domainErr.Message)
-		}
-
-		logger.Error("UpdateNetwork: Service error",
+		logger.Error("UpdateNetwork: Backend API call failed",
 			"network_id", req.NetworkId,
-			"actor_id", userID,
 			"error", err,
 		)
 		return nil, fmt.Errorf("failed to update network: %w", err)
 	}
 
-	// 5. Convert domain.Network to proto.Network
-	protoNetwork := domainNetworkToProto(updated, userID)
-
 	logger.Info("UpdateNetwork successful",
 		"network_id", req.NetworkId,
-		"actor_id", userID,
 		"updated_fields", len(patch),
 	)
 
-	return protoNetwork, nil
+	return network, nil
+}
+
+// callBackendUpdateNetwork calls the backend HTTP API to update a network
+func (h *NetworkServiceHandler) callBackendUpdateNetwork(ctx context.Context, networkID, accessToken string, patch map[string]any) (*proto.Network, error) {
+	url := fmt.Sprintf("%s/v1/networks/%s", h.backend.GetBaseURL(), networkID)
+
+	// Marshal patch to JSON
+	body, err := json.Marshal(patch)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal patch: %w", err)
+	}
+
+	// Create HTTP request
+	req, err := http.NewRequestWithContext(ctx, "PATCH", url, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set headers
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Idempotency-Key", generateIdempotencyKey(networkID, patch))
+
+	// Execute request
+	resp, err := h.backend.GetHTTPClient().Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("HTTP request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response body
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Check status code
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("backend returned %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	// Parse response
+	var apiResp struct {
+		Data struct {
+			ID          string `json:"id"`
+			Name        string `json:"name"`
+			Visibility  string `json:"visibility"`
+			CreatedBy   string `json:"created_by"`
+			PeerCount   int32  `json:"peer_count"`
+			OnlineCount int32  `json:"online_count"`
+		} `json:"data"`
+	}
+
+	if err := json.Unmarshal(respBody, &apiResp); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	// Convert to proto.Network
+	// Parse JWT to determine user's role
+	userID, _ := extractUserIDFromJWT(accessToken)
+	myRole := proto.NetworkRole_NETWORK_ROLE_MEMBER
+	if apiResp.Data.CreatedBy == userID {
+		myRole = proto.NetworkRole_NETWORK_ROLE_OWNER
+	}
+
+	return &proto.Network{
+		Id:          apiResp.Data.ID,
+		Name:        apiResp.Data.Name,
+		Description: "",
+		MyRole:      myRole,
+		PeerCount:   apiResp.Data.PeerCount,
+		OnlineCount: apiResp.Data.OnlineCount,
+		IsConnected: false,
+	}, nil
+}
+
+// generateIdempotencyKey creates an idempotency key for the request
+func generateIdempotencyKey(networkID string, patch map[string]any) string {
+	data, _ := json.Marshal(patch)
+	return fmt.Sprintf("update-network-%s-%x", networkID, len(data))
 }
 
 // Stub implementations for other NetworkService RPCs (to be implemented later)
@@ -144,30 +195,6 @@ func (h *NetworkServiceHandler) GenerateInvite(ctx context.Context, req *proto.G
 	return nil, fmt.Errorf("not implemented")
 }
 
-// Helper: Convert domain.Network to proto.Network
-func domainNetworkToProto(n *domain.Network, currentUserID string) *proto.Network {
-	if n == nil {
-		return nil
-	}
-
-	// Determine user's role in the network
-	myRole := proto.NetworkRole_NETWORK_ROLE_MEMBER
-	if n.CreatedBy == currentUserID {
-		myRole = proto.NetworkRole_NETWORK_ROLE_OWNER
-	}
-
-	return &proto.Network{
-		Id:          n.ID,
-		Name:        n.Name,
-		Description: "", // Not supported in domain model yet
-		InviteCode:  "", // Not exposed in basic Network object
-		MyRole:      myRole,
-		PeerCount:   0, // TODO: Get from membership count
-		OnlineCount: 0, // TODO: Get from active device count
-		IsConnected: false, // TODO: Check if current device is connected
-		// CreatedAt and JoinedAt would need timestamp conversion
-	}
-}
 
 // extractUserIDFromJWT parses JWT token and extracts user ID from claims
 func extractUserIDFromJWT(tokenString string) (string, error) {
