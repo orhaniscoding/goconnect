@@ -22,7 +22,7 @@ jobs:
       - name: Test Core
         run: cd core && go test -v -short ./...
       - name: Lint Core
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
           version: latest
           working-directory: core
@@ -41,7 +41,7 @@ jobs:
           CGO_ENABLED: 0
         run: cd cli && go test -v -short ./...
       - name: Lint CLI
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
           version: latest
           working-directory: cli
