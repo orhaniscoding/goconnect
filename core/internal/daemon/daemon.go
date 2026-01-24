@@ -60,10 +60,14 @@ func (d *Daemon) Run() error {
 	// Start RPC Server if listener is provided
 	if d.Listener != nil {
 		d.RPC = rpc.NewServer()
-		
+
 		// Register handlers
-		handler := rpc.NewDaemonHandler(d, d.Version)
-		proto.RegisterDaemonServiceServer(d.RPC.GetGRPCServer(), handler)
+		daemonHandler := rpc.NewDaemonHandler(d, d.Version)
+		proto.RegisterDaemonServiceServer(d.RPC.GetGRPCServer(), daemonHandler)
+
+		// Register NetworkService handler
+		networkHandler := rpc.NewNetworkServiceHandler(d.Backend, d.TokenManager)
+		proto.RegisterNetworkServiceServer(d.RPC.GetGRPCServer(), networkHandler)
 	}
 
 	if d.RPC != nil && d.Listener != nil {

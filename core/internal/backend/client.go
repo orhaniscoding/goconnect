@@ -25,6 +25,18 @@ func NewClient(baseURL string) *Client {
 	}
 }
 
+// GetBaseURL returns the base URL of the backend API.
+// Implements BackendClient interface required by gRPC handlers.
+func (c *Client) GetBaseURL() string {
+	return c.BaseURL
+}
+
+// GetHTTPClient returns the HTTP client used for API requests.
+// Implements BackendClient interface required by gRPC handlers.
+func (c *Client) GetHTTPClient() *http.Client {
+	return c.HTTPClient
+}
+
 // RequestDeviceCode initiates the OIDC Device Flow.
 func (c *Client) RequestDeviceCode(ctx context.Context) (*DeviceCodeResponse, error) {
 	reqBody := map[string]string{"client_id": "daemon"}
