@@ -195,16 +195,14 @@ export default function App() {
   };
 
   const handleDeleteNetwork = async (networkId: string) => {
-    // TODO: Backend API implementation needed
-    // For now, just leave the network (which is already implemented)
     try {
-      await tauriApi.leaveNetwork(networkId);
-      toast.success("Left network (delete will be available soon)");
+      await tauriApi.deleteNetwork(networkId);
+      toast.success("Network deleted successfully");
       setShowDeleteModal(false);
       setSelectedNetworkId(null);
       refreshNetworks();
     } catch (e) {
-      handleError(e, "Failed to leave network");
+      handleError(e, "Failed to delete network");
     }
   };
 

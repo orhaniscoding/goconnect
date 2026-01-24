@@ -107,6 +107,15 @@ pub async fn daemon_generate_invite(
     client.generate_invite(&network_id).await.map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+pub async fn daemon_delete_network(
+    state: State<'_, DaemonState>,
+    network_id: String,
+) -> Result<(), String> {
+    let client = get_client(&state).await?;
+    client.delete_network(&network_id).await.map_err(|e| e.to_string())
+}
+
 // =============================================================================
 // PEER COMMANDS
 // =============================================================================

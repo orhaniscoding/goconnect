@@ -231,12 +231,26 @@ impl DaemonClient {
             max_uses: 0, // Unlimited
             expires_hours: 0, // No expiry
         }));
-        
+
         let response = client.generate_invite(request)
             .await
             .map_err(|e| DaemonError::Rpc(e))?;
-        
+
         Ok(response.into_inner().invite_code)
+    }
+
+    /// Delete a network (owner only)
+    pub async fn delete_network(&self, network_id: &str) -> Result<(), DaemonError> {
+        let mut client = NetworkServiceClient::new(self.channel.clone());
+        let request = self.add_auth(Request::new(proto::DeleteNetworkRequest {
+            network_id: network_id.to_string(),
+        }));
+
+        client.delete_network(request)
+            .await
+            .map_err(|e| DaemonError::Rpc(e))?;
+
+        Ok(())
     }
 
     // =========================================================================

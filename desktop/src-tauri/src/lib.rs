@@ -146,6 +146,7 @@ pub fn run() {
             commands::daemon_list_networks,
             commands::daemon_leave_network,
             commands::daemon_generate_invite,
+            commands::daemon_delete_network,
             // Peer commands
             commands::daemon_get_peers,
             commands::daemon_kick_peer,

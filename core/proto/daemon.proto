@@ -76,7 +76,7 @@ service NetworkService {
   
   // GetNetwork returns details of a specific network.
   rpc GetNetwork(GetNetworkRequest) returns (Network);
-  
+
   // DeleteNetwork deletes a network (owner only).
   rpc DeleteNetwork(DeleteNetworkRequest) returns (google.protobuf.Empty);
   
