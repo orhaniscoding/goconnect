@@ -1,6 +1,33 @@
+# Security & Secrets (ASLA GİT'E YÜKLEME - NEVER COMMIT)
+*.key
+*.pem
+*.p12
+*.pfx
+*.cer
+*.crt
+*.der
+*.csr
+*.pkcs8
+secrets/
+credentials/
+private-keys/
+ssl/
+certificates/
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.staging
+.env.development
+.env.*.local
+config.production.yaml
+
 # Build artifacts
 bin/
 dist/
+build/
+out/
 *.exe
 *.dll
 *.so
@@ -55,9 +82,12 @@ tmp/
 temp/
 *.tmp
 
-# User-specific config files
+# User-specific config files (NEVER COMMIT)
 cli/config.yaml
 cli/identity.json
+cli/*.db
+*.config.yaml
+*.config.local.yaml
 
 # Node.js
 node_modules/
@@ -87,3 +117,15 @@ latestreport.*
 .github/copilot-instructions.md
 copilot_*
 docs/release-reset-backup/
+
+# Internal development workflow files (NEVER COMMIT - Personal development tools)
+agent-os/
+specs/
+neredekaldik.txt
+GEMINI.md
+
+# Internal analysis reports (DO NOT COMMIT - Development artifacts only)
+docs/COMPREHENSIVE_ANALYSIS.md
+docs/FINAL_COMPREHENSIVE_REPORT.md
+docs/PROJECT_ANALYSIS.md
+docs/TECHNICAL_PLAN_V2.md

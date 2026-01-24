@@ -1,0 +1,61 @@
+version: 2
+updates:
+  # Go dependencies for CLI
+  - package-ecosystem: "gomod"
+    directory: "/cli"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "orhaniscoding"
+    labels:
+      - "dependencies"
+      - "go"
+
+  # Go dependencies for Core
+  - package-ecosystem: "gomod"
+    directory: "/core"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "orhaniscoding"
+    labels:
+      - "dependencies"
+      - "go"
+
+  # Node.js dependencies for Desktop
+  - package-ecosystem: "npm"
+    directory: "/desktop"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "orhaniscoding"
+    labels:
+      - "dependencies"
+      - "javascript"
+
+  # Rust dependencies for Desktop (Tauri)
+  - package-ecosystem: "cargo"
+    directory: "/desktop/src-tauri"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "orhaniscoding"
+    labels:
+      - "dependencies"
+      - "rust"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "orhaniscoding"
+    labels:
+      - "dependencies"
+      - "ci"
