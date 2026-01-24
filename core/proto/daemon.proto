@@ -77,6 +77,9 @@ service NetworkService {
   // GetNetwork returns details of a specific network.
   rpc GetNetwork(GetNetworkRequest) returns (Network);
 
+  // UpdateNetwork modifies network properties (owner only).
+  rpc UpdateNetwork(UpdateNetworkRequest) returns (Network);
+
   // DeleteNetwork deletes a network (owner only).
   rpc DeleteNetwork(DeleteNetworkRequest) returns (google.protobuf.Empty);
   
@@ -369,6 +372,12 @@ message LeaveNetworkResponse {
 
 message GetNetworkRequest {
   string network_id = 1;
+}
+
+message UpdateNetworkRequest {
+  string network_id = 1;
+  string name = 2;
+  string description = 3;
 }
 
 message DeleteNetworkRequest {
