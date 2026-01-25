@@ -239,6 +239,22 @@ impl DaemonClient {
         Ok(response.into_inner().invite_code)
     }
 
+    /// Update network properties (owner only)
+    pub async fn update_network(&self, network_id: &str, name: &str) -> Result<NetworkInfo, DaemonError> {
+        let mut client = NetworkServiceClient::new(self.channel.clone());
+        let request = self.add_auth(Request::new(proto::UpdateNetworkRequest {
+            network_id: network_id.to_string(),
+            name: name.to_string(),
+        }));
+
+        let response = client.update_network(request)
+            .await
+            .map_err(|e| DaemonError::Rpc(e))?;
+
+        let network = response.into_inner();
+        Ok(NetworkInfo::from_proto(&network))
+    }
+
     /// Delete a network (owner only)
     pub async fn delete_network(&self, network_id: &str) -> Result<(), DaemonError> {
         let mut client = NetworkServiceClient::new(self.channel.clone());

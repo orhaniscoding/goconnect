@@ -179,19 +179,15 @@ export default function App() {
     }
   };
 
-  const handleRenameNetwork = async (_networkId: string, _newName: string) => {
-    // TODO: Backend API implementation needed
-    // For now, show a message and close the modal
-    toast.info("Rename feature - Network name will be updated after reconnect");
-    setShowRenameModal(false);
-    // Backend implementation:
-    // try {
-    //   await tauriApi.renameNetwork(networkId, newName);
-    //   toast.success("Network renamed successfully");
-    //   refreshNetworks();
-    // } catch (e) {
-    //   handleError(e, "Failed to rename network");
-    // }
+  const handleRenameNetwork = async (networkId: string, newName: string) => {
+    try {
+      await tauriApi.updateNetwork(networkId, newName);
+      toast.success("Network renamed successfully");
+      refreshNetworks();
+    } catch (e) {
+      handleError(e, "Failed to rename network");
+      throw e; // Re-throw to let modal show error
+    }
   };
 
   const handleDeleteNetwork = async (networkId: string) => {

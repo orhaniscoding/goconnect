@@ -116,6 +116,16 @@ pub async fn daemon_delete_network(
     client.delete_network(&network_id).await.map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+pub async fn daemon_update_network(
+    state: State<'_, DaemonState>,
+    network_id: String,
+    name: String,
+) -> Result<NetworkInfo, String> {
+    let client = get_client(&state).await?;
+    client.update_network(&network_id, &name).await.map_err(|e| e.to_string())
+}
+
 // =============================================================================
 // PEER COMMANDS
 // =============================================================================

@@ -121,6 +121,7 @@ export const tauriApi = {
     listNetworks: () => invoke<NetworkInfo[]>('daemon_list_networks'),
     leaveNetwork: (network_id: string) => invoke<void>('daemon_leave_network', { network_id }),
     generateInvite: (network_id: string) => invoke<string>('daemon_generate_invite', { network_id }),
+    updateNetwork: (network_id: string, name: string) => invoke<NetworkInfo>('daemon_update_network', { network_id, name }),
     deleteNetwork: (network_id: string) => invoke<void>('daemon_delete_network', { network_id }),
 
     // Peers
