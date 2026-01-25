@@ -142,9 +142,14 @@ func (h *NetworkServiceHandler) callBackendUpdateNetwork(ctx context.Context, ne
 
 	// Convert to proto.Network
 	// Parse JWT to determine user's role
-	userID, _ := extractUserIDFromJWT(accessToken)
+	userID, err := extractUserIDFromJWT(accessToken)
+	if err != nil {
+		logger.Warn("Failed to extract user ID from JWT", "error", err)
+		// Default to MEMBER role if extraction fails
+	}
+
 	myRole := proto.NetworkRole_NETWORK_ROLE_MEMBER
-	if apiResp.Data.CreatedBy == userID {
+	if userID != "" && apiResp.Data.CreatedBy == userID {
 		myRole = proto.NetworkRole_NETWORK_ROLE_OWNER
 	}
 
@@ -239,15 +244,8 @@ func splitJWT(token string) []string {
 }
 
 func decodeJWTClaims(encodedClaims string) (map[string]interface{}, error) {
-	// Add padding if needed
-	switch len(encodedClaims) % 4 {
-	case 2:
-		encodedClaims += "=="
-	case 3:
-		encodedClaims += "="
-	}
-
-	// Base64 decode (encoding/base64 already imported at top)
+	// RawURLEncoding does not use padding, decode directly
+	// JWT spec (RFC 7519) uses Base64URL encoding without padding
 	decoded, err := base64.RawURLEncoding.DecodeString(encodedClaims)
 	if err != nil {
 		return nil, err
