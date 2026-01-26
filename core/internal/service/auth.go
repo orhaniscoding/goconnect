@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -411,7 +412,11 @@ func (s *AuthService) UseRecoveryCode(ctx context.Context, req *domain.UseRecove
 	// Check against all hashed recovery codes
 	matchedIndex := -1
 	for i, hashedCode := range user.RecoveryCodes {
-		valid, _ := s.VerifyPassword(normalizedCode, hashedCode)
+		valid, err := s.VerifyPassword(normalizedCode, hashedCode)
+		if err != nil {
+			log.Printf("[WARN] Error verifying recovery code: %v", err)
+			continue
+		}
 		if valid {
 			matchedIndex = i
 			break
@@ -535,15 +540,36 @@ func (s *AuthService) ValidateToken(ctx context.Context, tokenString string) (*d
 		return nil, domain.NewError(domain.ErrInvalidToken, "Invalid token type", nil)
 	}
 
-	// Extract required fields
-	userID, _ := claims["user_id"].(string)
-	tenantID, _ := claims["tenant_id"].(string)
-	email, _ := claims["email"].(string)
-	isAdmin, _ := claims["is_admin"].(bool)
-	isModerator, _ := claims["is_moderator"].(bool)
-	exp, _ := claims["exp"].(float64)
-	iat, _ := claims["iat"].(float64)
-
+	// Extract required fields with proper type assertion checks (CLAUDE.md Rule 1.4)
+	userID, ok := claims["user_id"].(string)
+	if !ok || userID == "" {
+		return nil, domain.NewError(domain.ErrInvalidToken, "Missing or invalid user_id claim", nil)
+	}
+	// Extract optional claims with explicit type checking (Rule 1.4: no silent failures)
+	tenantID, tenantOK := claims["tenant_id"].(string)
+	if !tenantOK && claims["tenant_id"] != nil {
+		log.Printf("[WARN] Invalid tenant_id claim type for user %s", userID)
+	}
+	email, emailOK := claims["email"].(string)
+	if !emailOK && claims["email"] != nil {
+		log.Printf("[WARN] Invalid email claim type for user %s", userID)
+	}
+	isAdmin, adminOK := claims["is_admin"].(bool)
+	if !adminOK && claims["is_admin"] != nil {
+		log.Printf("[WARN] Invalid is_admin claim type for user %s", userID)
+	}
+	isModerator, modOK := claims["is_moderator"].(bool)
+	if !modOK && claims["is_moderator"] != nil {
+		log.Printf("[WARN] Invalid is_moderator claim type for user %s", userID)
+	}
+	exp, expOk := claims["exp"].(float64)
+	if !expOk {
+		return nil, domain.NewError(domain.ErrInvalidToken, "Missing or invalid exp claim", nil)
+	}
+	iat, iatOk := claims["iat"].(float64)
+	if !iatOk {
+		return nil, domain.NewError(domain.ErrInvalidToken, "Missing or invalid iat claim", nil)
+	}
 	// Check if user is suspended (reject valid tokens from suspended users)
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
@@ -600,8 +626,11 @@ func (s *AuthService) Refresh(ctx context.Context, req *domain.RefreshRequest) (
 		return nil, domain.NewError(domain.ErrInvalidToken, "Invalid token type", nil)
 	}
 
-	// Extract user info
-	userID, _ := claims["user_id"].(string)
+	// Extract user info (Rule 1.4: no silent failures - userID is required)
+	userID, ok := claims["user_id"].(string)
+	if !ok || userID == "" {
+		return nil, domain.NewError(domain.ErrInvalidToken, "Missing or invalid user_id in refresh token", nil)
+	}
 
 	// Get user to verify still exists
 	user, err := s.userRepo.GetByID(ctx, userID)
@@ -641,13 +670,17 @@ func (s *AuthService) Logout(ctx context.Context, accessToken, refreshToken stri
 	userID := s.extractUserID(accessToken)
 
 	if accessJTI != "" {
-		// Blacklist access token (15 min TTL)
-		_ = s.addToBlacklist(ctx, accessToken)
+		// Blacklist access token (15 min TTL) - Rule 1.4: log errors
+		if err := s.addToBlacklist(ctx, accessToken); err != nil {
+			log.Printf("[ERROR] Failed to blacklist access token for user %s: %v", userID, err)
+		}
 	}
 
 	if refreshJTI != "" {
-		// Blacklist refresh token (7 days TTL)
-		_ = s.addToBlacklist(ctx, refreshToken)
+		// Blacklist refresh token (7 days TTL) - Rule 1.4: log errors
+		if err := s.addToBlacklist(ctx, refreshToken); err != nil {
+			log.Printf("[ERROR] Failed to blacklist refresh token for user %s: %v", userID, err)
+		}
 	}
 
 	// Remove from user sessions
@@ -865,7 +898,10 @@ func (s *AuthService) extractJTI(tokenString string) string {
 		return ""
 	}
 
-	jti, _ := claims["jti"].(string)
+	jti, ok := claims["jti"].(string)
+	if !ok && claims["jti"] != nil {
+		log.Printf("[WARN] Invalid jti claim type in token")
+	}
 	return jti
 }
 
@@ -881,6 +917,9 @@ func (s *AuthService) extractUserID(tokenString string) string {
 		return ""
 	}
 
-	userID, _ := claims["user_id"].(string)
+	userID, ok := claims["user_id"].(string)
+	if !ok && claims["user_id"] != nil {
+		log.Printf("[WARN] Invalid user_id claim type in token")
+	}
 	return userID
 }
