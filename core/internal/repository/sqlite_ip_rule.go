@@ -77,7 +77,7 @@ func (r *SQLiteIPRuleRepository) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete ip rule: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "IP rule not found", nil)
 	}
 	return nil
@@ -132,6 +132,9 @@ func (r *SQLiteIPRuleRepository) DeleteExpired(ctx context.Context) (int, error)
 	if err != nil {
 		return 0, fmt.Errorf("failed to delete expired ip rules: %w", err)
 	}
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	return int(rows), nil
 }

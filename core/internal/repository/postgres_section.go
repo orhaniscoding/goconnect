@@ -160,7 +160,10 @@ func (r *PostgresSectionRepository) Update(ctx context.Context, section *domain.
 		return fmt.Errorf("failed to update section: %w", err)
 	}
 
-	rowsAffected, _ := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("section not found")
 	}
@@ -182,7 +185,10 @@ func (r *PostgresSectionRepository) Delete(ctx context.Context, id string) error
 		return fmt.Errorf("failed to delete section: %w", err)
 	}
 
-	rowsAffected, _ := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("section not found")
 	}

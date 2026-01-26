@@ -94,7 +94,10 @@ func (r *PostgresTenantChatRepository) Update(ctx context.Context, message *doma
 	if err != nil {
 		return fmt.Errorf("failed to update chat message: %w", err)
 	}
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Message not found or deleted", nil)
 	}
@@ -107,7 +110,10 @@ func (r *PostgresTenantChatRepository) SoftDelete(ctx context.Context, id string
 	if err != nil {
 		return fmt.Errorf("failed to delete chat message: %w", err)
 	}
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Message not found", nil)
 	}
@@ -178,7 +184,7 @@ func (r *PostgresTenantChatRepository) DeleteOlderThan(ctx context.Context, tena
 	if err != nil {
 		return 0, fmt.Errorf("failed to delete old messages: %w", err)
 	}
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
 	return int(rows), nil
 }
 

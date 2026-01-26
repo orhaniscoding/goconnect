@@ -153,7 +153,7 @@ func (r *SQLitePeerRepository) Update(ctx context.Context, peer *domain.Peer) er
 	if err != nil {
 		return fmt.Errorf("failed to update peer: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "peer not found", nil)
 	}
 	return nil
@@ -176,7 +176,7 @@ func (r *SQLitePeerRepository) UpdateStats(ctx context.Context, peerID string, s
 	if err != nil {
 		return fmt.Errorf("failed to update peer stats: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "peer not found", nil)
 	}
 	return nil
@@ -192,7 +192,7 @@ func (r *SQLitePeerRepository) Delete(ctx context.Context, peerID string) error 
 	if err != nil {
 		return fmt.Errorf("failed to delete peer: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "peer not found", nil)
 	}
 	return nil
@@ -203,7 +203,7 @@ func (r *SQLitePeerRepository) HardDelete(ctx context.Context, peerID string) er
 	if err != nil {
 		return fmt.Errorf("failed to hard delete peer: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "peer not found", nil)
 	}
 	return nil

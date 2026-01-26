@@ -45,9 +45,14 @@ func GenerateTokenPair(userID, tenantID, email string, isAdmin, isModerator bool
 	now := time.Now()
 
 	// Generate unique token IDs
-	accessTokenID, _ := GenerateSecureToken(16)
-	refreshTokenID, _ := GenerateSecureToken(16)
-
+	accessTokenID, err := GenerateSecureToken(16)
+	if err != nil {
+		return "", "", 0, fmt.Errorf("failed to generate access token ID: %w", err)
+	}
+	refreshTokenID, err := GenerateSecureToken(16)
+	if err != nil {
+		return "", "", 0, fmt.Errorf("failed to generate refresh token ID: %w", err)
+	}
 	// Access token (short-lived)
 	accessClaims := JWTClaims{
 		UserID:      userID,

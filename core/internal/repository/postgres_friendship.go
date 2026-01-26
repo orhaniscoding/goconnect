@@ -186,7 +186,10 @@ func (r *PostgresFriendshipRepository) Accept(ctx context.Context, id string) er
 		return fmt.Errorf("failed to accept friendship: %w", err)
 	}
 
-	rowsAffected, _ := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("friendship not found or already accepted")
 	}
@@ -226,7 +229,10 @@ func (r *PostgresFriendshipRepository) Delete(ctx context.Context, id string) er
 		return fmt.Errorf("failed to delete friendship: %w", err)
 	}
 
-	rowsAffected, _ := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("friendship not found")
 	}

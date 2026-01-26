@@ -38,10 +38,16 @@ func (r *PostgresMessageRepository) Create(ctx context.Context, message *domain.
 	}
 	message.CreatedAt = now
 
-	attachmentsJSON, _ := json.Marshal(message.Attachments)
-	embedsJSON, _ := json.Marshal(message.Embeds)
+	attachmentsJSON, err := json.Marshal(message.Attachments)
+	if err != nil {
+		return fmt.Errorf("failed to marshal attachments: %w", err)
+	}
+	embedsJSON, err := json.Marshal(message.Embeds)
+	if err != nil {
+		return fmt.Errorf("failed to marshal embeds: %w", err)
+	}
 
-	_, err := r.db.ExecContext(ctx, query,
+	_, err = r.db.ExecContext(ctx, query,
 		message.ID,
 		message.ChannelID,
 		message.AuthorID,
@@ -209,7 +215,10 @@ func (r *PostgresMessageRepository) Update(ctx context.Context, message *domain.
 		return fmt.Errorf("failed to update message: %w", err)
 	}
 
-	rowsAffected, _ := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("message not found")
 	}
@@ -231,7 +240,10 @@ func (r *PostgresMessageRepository) Delete(ctx context.Context, id string) error
 		return fmt.Errorf("failed to delete message: %w", err)
 	}
 
-	rowsAffected, _ := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("message not found")
 	}
@@ -252,7 +264,10 @@ func (r *PostgresMessageRepository) SetPinned(ctx context.Context, id string, pi
 		return fmt.Errorf("failed to set pinned: %w", err)
 	}
 
-	rowsAffected, _ := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("message not found")
 	}

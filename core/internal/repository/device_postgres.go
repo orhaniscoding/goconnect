@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"database/sql"
 	"strconv"
 	"time"
@@ -310,7 +311,10 @@ func (r *PostgresDeviceRepository) Update(ctx context.Context, device *domain.De
 		return err
 	}
 
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Device not found", map[string]string{
 			"device_id": device.ID,
@@ -329,7 +333,10 @@ func (r *PostgresDeviceRepository) Delete(ctx context.Context, id string) error 
 		return err
 	}
 
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Device not found", map[string]string{
 			"device_id": id,
@@ -365,7 +372,10 @@ func (r *PostgresDeviceRepository) UpdateHeartbeat(ctx context.Context, id strin
 		return err
 	}
 
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Device not found", map[string]string{
 			"device_id": id,
@@ -386,7 +396,10 @@ func (r *PostgresDeviceRepository) MarkInactive(ctx context.Context, id string) 
 		return err
 	}
 
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Device not found", map[string]string{
 			"device_id": id,

@@ -121,7 +121,7 @@ func (r *SQLiteChatRepository) Update(ctx context.Context, msg *domain.ChatMessa
 	if err != nil {
 		return fmt.Errorf("failed to update chat message: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Chat message not found", nil)
 	}
 	return nil
@@ -137,7 +137,7 @@ func (r *SQLiteChatRepository) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete chat message: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Chat message not found", nil)
 	}
 	return nil
@@ -178,7 +178,7 @@ func (r *SQLiteChatRepository) SoftDelete(ctx context.Context, id string) error 
 	if err != nil {
 		return fmt.Errorf("failed to soft delete chat message: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Chat message not found", nil)
 	}
 	return nil

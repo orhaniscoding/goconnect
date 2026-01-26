@@ -223,7 +223,10 @@ func (r *PostgresChannelRepository) Update(ctx context.Context, channel *domain.
 		return fmt.Errorf("failed to update channel: %w", err)
 	}
 
-	rowsAffected, _ := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("channel not found")
 	}
@@ -245,7 +248,10 @@ func (r *PostgresChannelRepository) Delete(ctx context.Context, id string) error
 		return fmt.Errorf("failed to delete channel: %w", err)
 	}
 
-	rowsAffected, _ := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("channel not found")
 	}

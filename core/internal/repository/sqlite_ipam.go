@@ -109,7 +109,7 @@ func (r *SQLiteIPAMRepository) ReleaseIP(ctx context.Context, networkID, userID 
 	if err != nil {
 		return fmt.Errorf("failed to release ip: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "IP allocation not found", nil)
 	}
 	return nil

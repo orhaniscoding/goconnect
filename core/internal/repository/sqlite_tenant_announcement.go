@@ -66,7 +66,7 @@ func (r *SQLiteTenantAnnouncementRepository) Update(ctx context.Context, ann *do
 	if err != nil {
 		return fmt.Errorf("failed to update announcement: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Announcement not found", nil)
 	}
 	return nil
@@ -77,7 +77,7 @@ func (r *SQLiteTenantAnnouncementRepository) Delete(ctx context.Context, id stri
 	if err != nil {
 		return fmt.Errorf("failed to delete announcement: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Announcement not found", nil)
 	}
 	return nil
@@ -140,7 +140,7 @@ func (r *SQLiteTenantAnnouncementRepository) SetPinned(ctx context.Context, id s
 	if err != nil {
 		return fmt.Errorf("failed to set pinned: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Announcement not found", nil)
 	}
 	return nil

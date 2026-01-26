@@ -84,7 +84,7 @@ func (r *SQLiteTenantInviteRepository) Delete(ctx context.Context, id string) er
 	if err != nil {
 		return fmt.Errorf("failed to delete invite: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Tenant invite not found", nil)
 	}
 	return nil
@@ -118,7 +118,7 @@ func (r *SQLiteTenantInviteRepository) IncrementUseCount(ctx context.Context, id
 	if err != nil {
 		return fmt.Errorf("failed to increment use count: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Tenant invite not found", nil)
 	}
 	return nil
@@ -129,7 +129,7 @@ func (r *SQLiteTenantInviteRepository) Revoke(ctx context.Context, id string) er
 	if err != nil {
 		return fmt.Errorf("failed to revoke invite: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Tenant invite not found", nil)
 	}
 	return nil
@@ -144,7 +144,10 @@ func (r *SQLiteTenantInviteRepository) DeleteExpired(ctx context.Context) (int, 
 	if err != nil {
 		return 0, fmt.Errorf("failed to delete expired invites: %w", err)
 	}
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	return int(rows), nil
 }
 

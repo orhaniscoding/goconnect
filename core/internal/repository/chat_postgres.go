@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -35,7 +36,10 @@ func (r *PostgresChatRepository) Create(ctx context.Context, msg *domain.ChatMes
 		msg.UpdatedAt = msg.CreatedAt
 	}
 
-	attachments, _ := json.Marshal(msg.Attachments)
+	attachments, err := json.Marshal(msg.Attachments)
+	if err != nil {
+		return fmt.Errorf("failed to marshal attachments: %w", err)
+	}
 
 	query := `
 		INSERT INTO chat_messages (
@@ -44,7 +48,7 @@ func (r *PostgresChatRepository) Create(ctx context.Context, msg *domain.ChatMes
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
 
-	_, err := r.db.ExecContext(ctx, query,
+	_, err = r.db.ExecContext(ctx, query,
 		msg.ID, msg.Scope, msg.TenantID, msg.UserID, msg.Body,
 		attachments, msg.Redacted, msg.DeletedAt,
 		msg.CreatedAt, msg.UpdatedAt,
@@ -198,7 +202,10 @@ func (r *PostgresChatRepository) List(ctx context.Context, filter domain.ChatMes
 func (r *PostgresChatRepository) Update(ctx context.Context, msg *domain.ChatMessage) error {
 	msg.UpdatedAt = time.Now()
 
-	attachments, _ := json.Marshal(msg.Attachments)
+	attachments, err := json.Marshal(msg.Attachments)
+	if err != nil {
+		return fmt.Errorf("failed to marshal attachments: %w", err)
+	}
 
 	query := `
 		UPDATE chat_messages
@@ -215,7 +222,10 @@ func (r *PostgresChatRepository) Update(ctx context.Context, msg *domain.ChatMes
 		return err
 	}
 
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Message not found", map[string]string{
 			"message_id": msg.ID,
@@ -234,7 +244,10 @@ func (r *PostgresChatRepository) Delete(ctx context.Context, id string) error {
 		return err
 	}
 
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Message not found", map[string]string{
 			"message_id": id,
@@ -255,7 +268,10 @@ func (r *PostgresChatRepository) SoftDelete(ctx context.Context, id string) erro
 		return err
 	}
 
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Message not found", map[string]string{
 			"message_id": id,

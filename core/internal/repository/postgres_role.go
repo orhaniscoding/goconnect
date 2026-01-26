@@ -193,7 +193,10 @@ func (r *PostgresRoleRepository) Update(ctx context.Context, role *domain.Role) 
 		return fmt.Errorf("failed to update role: %w", err)
 	}
 
-	rowsAffected, _ := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("role not found")
 	}
@@ -210,7 +213,10 @@ func (r *PostgresRoleRepository) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("failed to delete role: %w", err)
 	}
 
-	rowsAffected, _ := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("role not found")
 	}

@@ -88,7 +88,10 @@ func (r *PostgresVoiceStateRepository) Update(ctx context.Context, state *domain
 		return fmt.Errorf("failed to update voice state: %w", err)
 	}
 
-	rowsAffected, _ := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("voice state not found")
 	}
@@ -173,7 +176,10 @@ func (r *PostgresVoiceStateRepository) MoveUser(ctx context.Context, userID, new
 		return fmt.Errorf("failed to move user: %w", err)
 	}
 
-	rowsAffected, _ := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("user not in voice channel")
 	}
@@ -396,7 +402,7 @@ func (r *PostgresPresenceRepository) CleanupStale(ctx context.Context, olderThan
 		return 0, fmt.Errorf("failed to cleanup stale presences: %w", err)
 	}
 
-	count, _ := result.RowsAffected()
+	count, err := result.RowsAffected()
 	return int(count), nil
 }
 

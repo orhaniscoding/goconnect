@@ -100,7 +100,10 @@ func (r *PostgresIdempotencyRepository) Cleanup(ctx context.Context) error {
 		return fmt.Errorf("failed to cleanup idempotency records: %w", err)
 	}
 
-	rowsAffected, _ := result.RowsAffected()
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rowsAffected > 0 {
 		// Log cleanup (could add metrics here)
 		_ = rowsAffected

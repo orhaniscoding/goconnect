@@ -71,7 +71,7 @@ func (r *SQLiteTenantChatRepository) Update(ctx context.Context, msg *domain.Ten
 	if err != nil {
 		return fmt.Errorf("failed to update chat message: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Chat message not found", nil)
 	}
 	return nil
@@ -87,7 +87,7 @@ func (r *SQLiteTenantChatRepository) Delete(ctx context.Context, id string) erro
 	if err != nil {
 		return fmt.Errorf("failed to delete chat message: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Chat message not found", nil)
 	}
 	return nil
@@ -157,7 +157,10 @@ func (r *SQLiteTenantChatRepository) DeleteOlderThan(ctx context.Context, tenant
 	if err != nil {
 		return 0, fmt.Errorf("failed to delete old chat messages: %w", err)
 	}
-	rows, _ := res.RowsAffected()
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	return int(rows), nil
 }
 
@@ -171,7 +174,7 @@ func (r *SQLiteTenantChatRepository) SoftDelete(ctx context.Context, id string) 
 	if err != nil {
 		return fmt.Errorf("failed to soft delete tenant chat message: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Chat message not found", nil)
 	}
 	return nil

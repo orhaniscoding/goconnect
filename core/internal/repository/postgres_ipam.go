@@ -212,7 +212,10 @@ func (r *PostgresIPAMRepository) Release(ctx context.Context, networkID, subject
 	}
 
 	// Idempotent: no error if already released
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rows == 0 {
 		// Already released or never existed - this is OK for idempotency
 		return nil

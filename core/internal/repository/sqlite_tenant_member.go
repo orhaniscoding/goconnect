@@ -66,7 +66,7 @@ func (r *SQLiteTenantMemberRepository) Update(ctx context.Context, member *domai
 	if err != nil {
 		return fmt.Errorf("failed to update tenant member: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Tenant member not found", nil)
 	}
 	return nil
@@ -77,7 +77,7 @@ func (r *SQLiteTenantMemberRepository) Delete(ctx context.Context, id string) er
 	if err != nil {
 		return fmt.Errorf("failed to delete tenant member: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Tenant member not found", nil)
 	}
 	return nil
@@ -165,7 +165,7 @@ func (r *SQLiteTenantMemberRepository) UpdateRole(ctx context.Context, id string
 	if err != nil {
 		return fmt.Errorf("failed to update role: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Tenant member not found", nil)
 	}
 	return nil
@@ -214,7 +214,7 @@ func (r *SQLiteTenantMemberRepository) Ban(ctx context.Context, id string, banne
 	if err != nil {
 		return fmt.Errorf("failed to ban member: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Tenant member not found", nil)
 	}
 	return nil
@@ -229,7 +229,7 @@ func (r *SQLiteTenantMemberRepository) Unban(ctx context.Context, id string) err
 	if err != nil {
 		return fmt.Errorf("failed to unban member: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	if rows, err := res.RowsAffected(); err != nil || rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Tenant member not found", nil)
 	}
 	return nil

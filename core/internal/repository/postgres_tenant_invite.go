@@ -124,7 +124,10 @@ func (r *PostgresTenantInviteRepository) Delete(ctx context.Context, id string) 
 	if err != nil {
 		return fmt.Errorf("failed to delete tenant invite: %w", err)
 	}
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Tenant invite not found", nil)
 	}
@@ -179,7 +182,10 @@ func (r *PostgresTenantInviteRepository) IncrementUseCount(ctx context.Context, 
 	if err != nil {
 		return fmt.Errorf("failed to increment use count: %w", err)
 	}
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Tenant invite not found", nil)
 	}
@@ -192,7 +198,10 @@ func (r *PostgresTenantInviteRepository) Revoke(ctx context.Context, id string) 
 	if err != nil {
 		return fmt.Errorf("failed to revoke tenant invite: %w", err)
 	}
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Tenant invite not found", nil)
 	}
@@ -209,7 +218,7 @@ func (r *PostgresTenantInviteRepository) DeleteExpired(ctx context.Context) (int
 	if err != nil {
 		return 0, fmt.Errorf("failed to delete expired invites: %w", err)
 	}
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
 	return int(rows), nil
 }
 

@@ -119,7 +119,10 @@ func (r *PostgresTenantMemberRepository) Update(ctx context.Context, member *dom
 	if err != nil {
 		return fmt.Errorf("failed to update tenant member: %w", err)
 	}
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Tenant member not found", nil)
 	}
@@ -132,7 +135,10 @@ func (r *PostgresTenantMemberRepository) Delete(ctx context.Context, id string) 
 	if err != nil {
 		return fmt.Errorf("failed to delete tenant member: %w", err)
 	}
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Tenant member not found", nil)
 	}
@@ -257,7 +263,10 @@ func (r *PostgresTenantMemberRepository) UpdateRole(ctx context.Context, id stri
 	if err != nil {
 		return fmt.Errorf("failed to update role: %w", err)
 	}
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Tenant member not found", nil)
 	}
@@ -305,7 +314,10 @@ func (r *PostgresTenantMemberRepository) Ban(ctx context.Context, id string, ban
 	if err != nil {
 		return fmt.Errorf("failed to ban member: %w", err)
 	}
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Tenant member not found", nil)
 	}
@@ -318,7 +330,10 @@ func (r *PostgresTenantMemberRepository) Unban(ctx context.Context, id string) e
 	if err != nil {
 		return fmt.Errorf("failed to unban member: %w", err)
 	}
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Tenant member not found", nil)
 	}

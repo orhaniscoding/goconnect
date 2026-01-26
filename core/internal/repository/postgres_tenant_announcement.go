@@ -98,7 +98,10 @@ func (r *PostgresTenantAnnouncementRepository) Update(ctx context.Context, annou
 	if err != nil {
 		return fmt.Errorf("failed to update announcement: %w", err)
 	}
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Announcement not found", nil)
 	}
@@ -111,7 +114,10 @@ func (r *PostgresTenantAnnouncementRepository) Delete(ctx context.Context, id st
 	if err != nil {
 		return fmt.Errorf("failed to delete announcement: %w", err)
 	}
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Announcement not found", nil)
 	}
@@ -191,7 +197,10 @@ func (r *PostgresTenantAnnouncementRepository) SetPinned(ctx context.Context, id
 	if err != nil {
 		return fmt.Errorf("failed to update pinned status: %w", err)
 	}
-	rows, _ := result.RowsAffected()
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
 	if rows == 0 {
 		return domain.NewError(domain.ErrNotFound, "Announcement not found", nil)
 	}
