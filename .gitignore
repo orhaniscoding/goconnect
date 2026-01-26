@@ -129,3 +129,17 @@ docs/COMPREHENSIVE_ANALYSIS.md
 docs/FINAL_COMPREHENSIVE_REPORT.md
 docs/PROJECT_ANALYSIS.md
 docs/TECHNICAL_PLAN_V2.md
+
+# AI/SWE Agent Artifacts
+registry.json
+son.txt
+fix_*.py
+scanner*.py
+code_scanner*.py
+edit_tool*.py
+repo_fixer*.py
+violations.json
+*.traj.json
+run_agent_*.ps1
+run_agent_*.sh
+COMPLIANCE_REPORT*.md
