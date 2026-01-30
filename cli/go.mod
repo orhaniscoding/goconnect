@@ -13,7 +13,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.5.3
-	github.com/kardianos/service v1.2.2
+	github.com/kardianos/service v1.2.4
 	github.com/pion/ice/v2 v2.3.38
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.8.4
