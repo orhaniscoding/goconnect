@@ -35,5 +35,5 @@ prost = "0.13"
 prost-types = "0.13"
 dirs = "5"
 hex = "0.4"
-thiserror = "1"
+thiserror = "2"
 
